@@ -504,10 +504,10 @@ h3 {
   background: none;
   border: 0;
   padding: 4px; /* enlarge touch target beyond the visual dot */
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
 }
 .map-wpt-dot {
   width: 14px;
@@ -522,6 +522,12 @@ h3 {
   background: var(--cloudberry);
 }
 .map-wpt-label {
+  /* Out of layout flow so the marker box stays dot-sized and the map
+     anchor lands on the dot's center; the title hangs below the dot. */
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 11px;
   font-weight: 700;
   color: var(--ink);
