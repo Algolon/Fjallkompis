@@ -523,9 +523,9 @@ h3 {
 }
 .map-wpt-label {
   /* Out of layout flow so the marker box stays dot-sized and the map
-     anchor lands on the dot's center; the title hangs below the dot. */
+     anchor lands on the dot's center; the title sits above the dot. */
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   font-size: 11px;
