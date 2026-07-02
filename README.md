@@ -44,9 +44,12 @@ npm run typecheck
 
 ## Deploy
 
-- **Netlify:** build command `npm run build`, publish directory `dist`.
-- **GitHub Pages:** `npm run build`, publish `dist/`. `base: './'` in
-  `vite.config.ts` makes relative asset paths work on a project subpath.
+- **GitHub Pages (automatic):** every push to `main` runs
+  `.github/workflows/deploy.yml`, which builds and deploys `dist/` to
+  https://algolon.github.io/Fjallkompis/. Requires Settings → Pages →
+  Source: **GitHub Actions** (one-time setup).
+- **Netlify:** build command `npm run build`, publish directory `dist` — but
+  first change `base` in `vite.config.ts` from `/Fjallkompis/` to `/`.
 
 ## What’s real vs. placeholder
 

@@ -2,11 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// NOTE: `base` is set to './' so the build works on GitHub Pages project
-// subpaths (e.g. https://user.github.io/fjallkompis/) AND on Netlify root.
-// If you deploy to a custom GitHub Pages path, relative asset URLs keep working.
+// NOTE: `base` matches the GitHub Pages project subpath
+// (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
+// custom domain served from the root, change this to '/'.
 export default defineConfig({
-  base: './',
+  base: '/Fjallkompis/',
   plugins: [
     react(),
     VitePWA({
@@ -23,9 +23,9 @@ export default defineConfig({
         background_color: '#e9edeb',
         display: 'standalone',
         orientation: 'portrait',
-        // Relative scope/start_url to match base: './'
-        scope: './',
-        start_url: './',
+        // Scope/start_url pinned to the GitHub Pages project subpath (base).
+        scope: '/Fjallkompis/',
+        start_url: '/Fjallkompis/',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
