@@ -1,7 +1,8 @@
 import { useStore, effectiveShop } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { HUTS } from '../data/huts';
-import { hutTypeLabel, shopLabel } from '../utils/format';
+import { formatDistanceKm, hutTypeLabel, shopLabel } from '../utils/format';
+import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID, WAYPOINT_ROUTE_KM } from '../route/routeData';
 import type { ShopStatus } from '../types';
 
 const SHOP_OPTIONS: { value: ShopStatus; label: string }[] = [
@@ -33,6 +34,18 @@ export function HutsScreen() {
               <p className="card-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
                 {hut.blurb}
               </p>
+
+              <div className="row" style={{ marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+                <span className="pill tnum">
+                  ⛰{' '}
+                  {WAYPOINT_BY_ID[HUT_TO_WAYPOINT[hut.id]]?.elevation != null
+                    ? `${Math.round(WAYPOINT_BY_ID[HUT_TO_WAYPOINT[hut.id]].elevation as number)} m`
+                    : '—'}
+                </span>
+                <span className="pill tnum">
+                  {formatDistanceKm(WAYPOINT_ROUTE_KM[HUT_TO_WAYPOINT[hut.id]] ?? 0)} into route
+                </span>
+              </div>
 
               <div className="row" style={{ marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
                 <span

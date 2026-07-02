@@ -488,6 +488,194 @@ h3 {
   border-radius: 2px;
 }
 
+/* --- MapLibre map ---------------------------------------------------------- */
+
+.mapview {
+  width: 100%;
+  height: 420px;
+  background: #e4ebe7;
+}
+.mapview:fullscreen {
+  height: 100%;
+}
+
+/* Waypoint markers: local HTML, no glyph/sprite dependencies. */
+.map-wpt {
+  background: none;
+  border: 0;
+  padding: 4px; /* enlarge touch target beyond the visual dot */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.map-wpt-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--spruce);
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 3px rgba(27, 42, 39, 0.4);
+  display: block;
+}
+.map-wpt-dot.is-end {
+  background: var(--cloudberry);
+}
+.map-wpt-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  text-shadow:
+    0 1px 2px rgba(250, 252, 251, 0.9),
+    0 0 4px rgba(250, 252, 251, 0.9);
+  white-space: nowrap;
+}
+
+.map-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+}
+.map-toolbar .btn {
+  flex: 1;
+  min-height: 42px;
+  font-size: 14px;
+}
+
+/* Stage chips ---------------------------------------------------------------- */
+
+.stage-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.chip {
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+.chip[aria-pressed='true'] {
+  background: var(--spruce);
+  border-color: var(--spruce);
+  color: #fff;
+}
+.chip-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Segmented control ----------------------------------------------------------- */
+
+.seg {
+  display: flex;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 3px;
+  margin-bottom: 12px;
+}
+.seg-btn {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 9px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.seg-btn[aria-selected='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+/* Map + elevation layout: tabs on phones, side-by-side on wide screens. */
+.map-elev-grid .panel-hidden {
+  display: none;
+}
+@media (min-width: 900px) {
+  .map-elev-grid {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .map-elev-grid .card + .card {
+    margin-top: 0;
+  }
+  .map-elev-grid .panel-hidden {
+    display: block;
+  }
+  .seg {
+    display: none;
+  }
+}
+.map-elev-grid + .card {
+  margin-top: 14px;
+}
+.panel-elev {
+  margin-top: 0;
+}
+
+/* Elevation profile ------------------------------------------------------------ */
+
+.elev-wrap {
+  position: relative;
+}
+.elev-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none; /* scrubbing must not fight page scroll */
+  cursor: crosshair;
+}
+.elev-tip {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: nowrap;
+  z-index: 2;
+}
+.elev-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+/* MapLibre attribution: keep it readable but small. */
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+}
+
 /* --- Empty states -------------------------------------------------------- */
 
 .empty {

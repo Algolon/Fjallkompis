@@ -4,6 +4,7 @@ import { ScreenHeader } from '../components/ui';
 import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
+import { OfflineMapCard } from '../components/OfflineMapCard';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 
@@ -115,6 +116,8 @@ export function SettingsScreen() {
         </button>
       </div>
 
+      <OfflineMapCard />
+
       <div className="card">
         <span className="card-title">Status</span>
         <div className="row-between" style={{ marginTop: 10 }}>
@@ -141,10 +144,17 @@ export function SettingsScreen() {
           Planned for the real version — see the README “Next iteration” notes.
         </p>
         <ul style={{ margin: '10px 0 0', paddingLeft: 18, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
-          <li>Verified GPX import to replace prototype coordinates</li>
-          <li>MapLibre GL + PMTiles offline basemap (contours, terrain)</li>
-          <li>Elevation profile per stage</li>
-          <li>Route progress from your live track, not straight lines</li>
+          <li>
+            <s>Verified GPX route + real statistics</s> ✓
+          </li>
+          <li>
+            <s>MapLibre GL + PMTiles offline basemap</s> ✓
+          </li>
+          <li>
+            <s>Elevation profile per stage</s> ✓
+          </li>
+          <li>Map labels & contours (local glyphs / terrain tiles)</li>
+          <li>Route progress by projecting GPS onto the route line</li>
           <li>Installable-PWA polish (custom install prompt, update toast)</li>
         </ul>
       </div>

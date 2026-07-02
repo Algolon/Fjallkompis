@@ -50,8 +50,14 @@ export function TodayScreen({ onNavigate }: { onNavigate: (t: TabId) => void }) 
                 <div className="v tnum">{formatDistanceKm(currentStage.distanceKm)}</div>
               </div>
               <div className="stat">
-                <div className="k">Est. time</div>
+                <div className="k">Est. time*</div>
                 <div className="v tnum">{formatHours(currentStage.estimatedHours)}</div>
+              </div>
+              <div className="stat">
+                <div className="k">Ascent / descent</div>
+                <div className="v tnum" style={{ fontSize: 17 }}>
+                  ↗ {currentStage.totalAscentM ?? '—'} · ↘ {currentStage.totalDescentM ?? '—'} m
+                </div>
               </div>
               <div className="stat">
                 <div className="k">Next hut</div>
@@ -59,18 +65,11 @@ export function TodayScreen({ onNavigate }: { onNavigate: (t: TabId) => void }) 
                   {to.name}
                 </div>
               </div>
-              <div className="stat">
-                <div className="k">Hut type</div>
-                <div className="v" style={{ fontSize: 18 }}>
-                  {to.type === 'mountain-station'
-                    ? 'Station'
-                    : to.type === 'village'
-                      ? 'Village'
-                      : 'Hut'}
-                </div>
-              </div>
             </div>
 
+            <p className="card-sub" style={{ marginTop: 8 }}>
+              Distance & climbing from GPX · *time is a personal estimate.
+            </p>
             <button
               className="btn btn-ghost btn-block"
               style={{ marginTop: 12 }}

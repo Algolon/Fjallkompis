@@ -1,75 +1,266 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
-import { RouteMap } from '../components/RouteMap';
+import { MapView, type MapViewHandle } from '../components/MapView';
+import { ElevationProfile } from '../components/ElevationProfile';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { HUTS, HUTS_BY_ID } from '../data/huts';
+import { STAGES_BY_ID } from '../data/stages';
+import {
+  ROUTE,
+  OVERVIEW_ELEVATION_PROFILE,
+  STAGE_BY_ID,
+  WAYPOINT_BY_ID,
+  WAYPOINT_TO_HUT,
+  WAYPOINT_ROUTE_KM,
+  stagesForWaypoint,
+} from '../route/routeData';
+import { STAGE_COLORS } from '../map/mapStyle';
+import type { BasemapMode } from '../map/pmtilesProtocol';
 import { haversineKm } from '../utils/geo';
 import { formatDistanceKm } from '../utils/format';
 import type { LatLng } from '../types';
 
+type Panel = 'map' | 'elevation';
+
 export function MapScreen() {
-  const { currentStage, nextHutId } = useStore();
+  const { currentStage, nextHutId, setCurrentStage, getHutData } = useStore();
   const geo = useGeolocation();
+  const mapRef = useRef<MapViewHandle>(null);
+
+  // Which stage the MAP is looking at (null = full-route overview). Starts at
+  // the hiker's current stage but is independent of it: browsing days on the
+  // map must not silently change persisted app state.
+  const [viewStageId, setViewStageId] = useState<string | null>(currentStage?.id ?? null);
+  const [panel, setPanel] = useState<Panel>('map');
+  const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
+  const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualHutId, setManualHutId] = useState<string>(HUTS[0].id);
 
-  const nextHut = nextHutId ? HUTS_BY_ID[nextHutId] : null;
+  const viewStage = viewStageId ? STAGE_BY_ID[viewStageId] : null;
+  const appStage = viewStageId ? STAGES_BY_ID[viewStageId] : null;
 
+  const profile = viewStage ? viewStage.elevationProfile : OVERVIEW_ELEVATION_PROFILE;
+  const stats = viewStage ? viewStage.statistics : ROUTE.statistics;
+
+  const nextHut = nextHutId ? HUTS_BY_ID[nextHutId] : null;
   const distanceToNext: number | null =
     geo.coord && nextHut ? haversineKm(geo.coord, nextHut.coord) : null;
+
+  const stepStage = (dir: 1 | -1) => {
+    // Order: overview → d1 … d7 → overview.
+    const ids = [null, ...ROUTE.stages.map((s) => s.id)];
+    const idx = ids.indexOf(viewStageId);
+    setViewStageId(ids[(idx + dir + ids.length) % ids.length]);
+  };
 
   const applyManual = () => {
     const hut = HUTS_BY_ID[manualHutId];
     if (hut) {
-      // Manual mode: treat "I'm at hut X" as a stand-in for a GPS fix.
       const coord: LatLng = hut.coord;
       geo.setManual(coord);
       setManualOpen(false);
     }
   };
 
+  const waypoint = selectedWaypointId ? WAYPOINT_BY_ID[selectedWaypointId] : null;
+  const waypointHutId = waypoint ? WAYPOINT_TO_HUT[waypoint.id] : null;
+  const waypointNotes = waypointHutId ? getHutData(waypointHutId).notes : '';
+  const wpStages = waypoint ? stagesForWaypoint(waypoint.id) : null;
+
+  const summaryTitle = useMemo(() => {
+    if (!appStage) return 'Full route';
+    return `Day ${appStage.day}: ${HUTS_BY_ID[appStage.fromHutId].name} → ${HUTS_BY_ID[appStage.toHutId].name}`;
+  }, [appStage]);
+
   return (
     <div className="screen">
       <ScreenHeader eyebrow="Route" title="Map">
-        A route-first offline map: the trail line, every hut, and your position.
+        GPX route on a bounded offline basemap. Tap a stage line or a hut.
       </ScreenHeader>
 
       <div className="banner-warn" style={{ marginBottom: 14 }}>
         <span>⚠️</span>
-        <span>
-          Prototype only — not for primary navigation. Coordinates are
-          approximate prototype route data; replace with verified GPX before real
-          use.
-        </span>
+        <span>Prototype only — not for primary navigation. Carry a proper map and compass.</span>
       </div>
 
-      <div className="card map-card">
-        <RouteMap
-          highlightStageId={currentStage?.id ?? null}
-          gps={geo.coord}
-          nextHutId={nextHutId}
-        />
-        <div className="map-legend">
-          <span className="legend-item">
-            <span className="legend-swatch" style={{ background: '#9fb4ab' }} />
-            Route
-          </span>
-          <span className="legend-item">
-            <span className="legend-swatch" style={{ background: '#c98438' }} />
-            Current stage
-          </span>
-          <span className="legend-item">
-            <span
-              className="legend-swatch"
-              style={{ background: '#2c7a8c', borderRadius: 999, width: 10, height: 10 }}
+      {/* Stage selector: full route + day chips (identity = number, not colour) */}
+      <div className="stage-chips" role="group" aria-label="Select stage to view">
+        <button
+          className="chip"
+          aria-pressed={viewStageId === null}
+          onClick={() => setViewStageId(null)}
+        >
+          Full route
+        </button>
+        {ROUTE.stages.map((s) => (
+          <button
+            key={s.id}
+            className="chip"
+            aria-pressed={viewStageId === s.id}
+            onClick={() => setViewStageId(s.id)}
+          >
+            <span className="chip-swatch" style={{ background: STAGE_COLORS[s.day] }} />
+            {s.day}
+          </button>
+        ))}
+      </div>
+
+      {/* Map / elevation segmented control (both shown on wide screens) */}
+      <div className="seg" role="tablist" aria-label="Map or elevation view">
+        <button role="tab" aria-selected={panel === 'map'} className="seg-btn" onClick={() => setPanel('map')}>
+          Map
+        </button>
+        <button
+          role="tab"
+          aria-selected={panel === 'elevation'}
+          className="seg-btn"
+          onClick={() => setPanel('elevation')}
+        >
+          Elevation
+        </button>
+      </div>
+
+      <div className="map-elev-grid">
+        <div className={`card map-card ${panel === 'map' ? '' : 'panel-hidden'}`}>
+          <MapView
+            ref={mapRef}
+            selectedStageId={viewStageId}
+            onSelectStage={(id) => setViewStageId(id)}
+            onSelectWaypoint={(id) => setSelectedWaypointId(id)}
+            onBasemapMode={setBasemapMode}
+            gps={geo.coord}
+          />
+          {basemapMode === 'none' ? (
+            <div className="banner-warn" style={{ margin: 10 }}>
+              <span>🗺️</span>
+              <span>
+                Basemap unavailable — showing route on a placeholder background. Download the
+                offline map in Settings while online.
+              </span>
+            </div>
+          ) : null}
+          <div className="map-toolbar">
+            <button className="btn btn-ghost" onClick={() => stepStage(-1)} aria-label="Previous stage">
+              ‹ Prev
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={() =>
+                viewStageId ? mapRef.current?.fitStage(viewStageId) : mapRef.current?.fitRoute()
+              }
+            >
+              Fit {viewStageId ? 'stage' : 'route'}
+            </button>
+            <button className="btn btn-ghost" onClick={() => stepStage(1)} aria-label="Next stage">
+              Next ›
+            </button>
+          </div>
+        </div>
+
+        <div className={`card ${panel === 'elevation' ? '' : 'panel-hidden'} panel-elev`}>
+          <div className="row-between">
+            <span className="card-title">{summaryTitle}</span>
+            <span className="pill tnum">{formatDistanceKm(stats.distanceKm)}</span>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <ElevationProfile
+              profile={profile}
+              statistics={stats}
+              onScrub={(s) => mapRef.current?.setScrubPoint(s ? { lat: s.lat, lon: s.lon } : null)}
             />
-            You
-          </span>
+          </div>
+          <p className="card-sub" style={{ marginTop: 8 }}>
+            Drag across the profile to see distance & elevation — the marker follows on the map.
+          </p>
         </div>
       </div>
 
+      {/* Stage / route summary */}
+      <div className="card">
+        <div className="row-between">
+          <span className="card-title">{summaryTitle}</span>
+          {appStage && currentStage?.id !== appStage.id ? (
+            <button className="link-btn" onClick={() => setCurrentStage(appStage.id)}>
+              Set as current
+            </button>
+          ) : appStage ? (
+            <span className="pill pill-current">Current stage</span>
+          ) : null}
+        </div>
+        <div className="stat-grid" style={{ marginTop: 12 }}>
+          <div className="stat">
+            <div className="k">Distance</div>
+            <div className="v tnum">{formatDistanceKm(stats.distanceKm)}</div>
+          </div>
+          <div className="stat">
+            <div className="k">Ascent / descent</div>
+            <div className="v tnum" style={{ fontSize: 17 }}>
+              ↗ {stats.totalAscentM ?? '—'} · ↘ {stats.totalDescentM ?? '—'} m
+            </div>
+          </div>
+          <div className="stat">
+            <div className="k">Elevation range</div>
+            <div className="v tnum" style={{ fontSize: 17 }}>
+              {stats.minimumElevationM != null
+                ? `${Math.round(stats.minimumElevationM)}–${Math.round(stats.maximumElevationM ?? 0)} m`
+                : '—'}
+            </div>
+          </div>
+          <div className="stat">
+            <div className="k">{appStage ? 'Est. time*' : 'Stages · huts'}</div>
+            <div className="v tnum" style={{ fontSize: 17 }}>
+              {appStage ? `~${appStage.estimatedHours} h` : `${ROUTE.stages.length} · ${ROUTE.waypoints.length}`}
+            </div>
+          </div>
+        </div>
+        {appStage ? (
+          <p className="card-sub" style={{ marginTop: 8 }}>
+            *Personal estimate — the GPX contains no time data.
+          </p>
+        ) : null}
+      </div>
+
+      {/* Waypoint detail panel */}
+      {waypoint ? (
+        <div className="card" role="region" aria-label={`Waypoint ${waypoint.name}`}>
+          <div className="row-between">
+            <span className="card-title">{waypoint.name}</span>
+            <button className="link-btn" onClick={() => setSelectedWaypointId(null)}>
+              Close
+            </button>
+          </div>
+          <p className="card-sub" style={{ marginTop: 2 }}>
+            <span className="tnum">{waypoint.id}</span>
+            {waypoint.symbol ? ` · ${waypoint.symbol}` : ''}
+          </p>
+          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <span className="pill tnum">
+              ⛰ {waypoint.elevation != null ? `${Math.round(waypoint.elevation)} m` : 'elevation —'}
+            </span>
+            <span className="pill tnum">
+              {formatDistanceKm(WAYPOINT_ROUTE_KM[waypoint.id] ?? 0)} into route
+            </span>
+          </div>
+          {wpStages ? (
+            <p className="card-sub" style={{ marginTop: 10, lineHeight: 1.6 }}>
+              {wpStages.arriving ? `Arrive: day ${wpStages.arriving.day}. ` : 'Route start. '}
+              {wpStages.departing ? `Depart: day ${wpStages.departing.day}.` : 'Route end.'}
+            </p>
+          ) : null}
+          {waypointHutId && waypointNotes.trim() ? (
+            <>
+              <div className="hr" />
+              <span className="card-sub">Your notes</span>
+              <p style={{ marginTop: 6, lineHeight: 1.5 }}>{waypointNotes}</p>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* GPS */}
       <div className="card">
         <button
           className="btn btn-glacier btn-block"
@@ -107,8 +298,7 @@ export function MapScreen() {
               </p>
             )}
             <p className="card-sub" style={{ marginTop: 10 }}>
-              Straight-line distance ignores terrain and detours — the real walk
-              is always longer.
+              Straight-line distance ignores terrain and detours — the real walk is always longer.
             </p>
           </div>
         ) : null}
@@ -120,14 +310,10 @@ export function MapScreen() {
           </p>
         ) : null}
 
-        {/* Manual mode fallback */}
         {geo.status === 'error' || geo.status === 'idle' ? (
           <div style={{ marginTop: 12 }}>
             {!manualOpen ? (
-              <button
-                className="btn btn-ghost btn-block"
-                onClick={() => setManualOpen(true)}
-              >
+              <button className="btn btn-ghost btn-block" onClick={() => setManualOpen(true)}>
                 Use manual mode instead
               </button>
             ) : (
@@ -146,16 +332,11 @@ export function MapScreen() {
                     ))}
                   </select>
                 </label>
-                <button
-                  className="btn btn-primary btn-block"
-                  style={{ marginTop: 12 }}
-                  onClick={applyManual}
-                >
+                <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={applyManual}>
                   Set position from hut
                 </button>
                 <p className="card-sub" style={{ marginTop: 8 }}>
-                  Manual mode pins you to a hut so distances still work without
-                  GPS.
+                  Manual mode pins you to a hut so distances still work without GPS.
                 </p>
               </div>
             )}

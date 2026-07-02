@@ -3,6 +3,7 @@ import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
 import { HUTS_BY_ID } from '../data/huts';
 import { formatDistanceKm, formatHours } from '../utils/format';
+import { ROUTE } from '../route/routeData';
 
 export function StagesScreen() {
   const { state, currentStage, setCurrentStage } = useStore();
@@ -11,8 +12,21 @@ export function StagesScreen() {
     <div className="screen">
       <ScreenHeader eyebrow="7 days · 8 huts" title="Stages">
         The route as an ordered sequence. Tap a day to make it your current
-        stage.
+        stage. Distances and climbing are calculated from the GPX.
       </ScreenHeader>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <span className="card-title">{ROUTE.name}</span>
+        <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <span className="pill tnum">{formatDistanceKm(ROUTE.statistics.distanceKm)} total</span>
+          <span className="pill tnum">↗ {ROUTE.statistics.totalAscentM} m</span>
+          <span className="pill tnum">↘ {ROUTE.statistics.totalDescentM} m</span>
+          <span className="pill tnum">
+            {Math.round(ROUTE.statistics.minimumElevationM ?? 0)}–
+            {Math.round(ROUTE.statistics.maximumElevationM ?? 0)} m
+          </span>
+        </div>
+      </div>
 
       <div className="stack">
         {STAGES.map((stage) => {
@@ -44,12 +58,21 @@ export function StagesScreen() {
                 {from.name} → {to.name}
               </h2>
 
-              <div className="row" style={{ gap: 14, marginTop: 8 }}>
+              <div className="row" style={{ gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
                 <span className="tnum" style={{ fontWeight: 700 }}>
                   {formatDistanceKm(stage.distanceKm)}
                 </span>
                 <span className="muted">·</span>
-                <span className="tnum muted">{formatHours(stage.estimatedHours)}</span>
+                <span className="tnum muted">~{formatHours(stage.estimatedHours)} est.</span>
+              </div>
+              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                <span className="pill tnum">↗ {stage.totalAscentM ?? '—'} m</span>
+                <span className="pill tnum">↘ {stage.totalDescentM ?? '—'} m</span>
+                <span className="pill tnum">
+                  {stage.minimumElevationM != null
+                    ? `${Math.round(stage.minimumElevationM)}–${Math.round(stage.maximumElevationM ?? 0)} m`
+                    : '—'}
+                </span>
               </div>
 
               <p className="card-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>

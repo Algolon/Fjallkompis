@@ -2,104 +2,128 @@
 
 An offline-first, mobile-first **trail companion PWA** for a solo hut-to-hut hike
 on the Kungsleden (Abisko → Nikkaluokta). Planning, daily overview, checklist,
-route awareness, and journaling — all stored locally on your device.
+route awareness, elevation profiles, and journaling — all stored locally on your
+device.
 
-> ⚠️ **Prototype. Not for primary navigation.** Route coordinates are
-> approximate placeholders. Replace them with verified GPX before any real-world
-> use, and always carry proper map, compass, and an offline navigation/safety
-> device.
+> ⚠️ **Prototype. Not for primary navigation.** Always carry a proper map,
+> compass, and an offline navigation/safety device.
 
 ## Stack
 
-- Vite + React 18 + TypeScript
-- No backend, no auth — data persists in `localStorage`
-- PWA via `vite-plugin-pwa` (Workbox): installable + works offline after first load
-- Custom dependency-free SVG route map (no external tile providers)
+- Vite + React 18 + TypeScript; no backend, no auth (data in `localStorage`)
+- **Route data:** verified GPX (`public/gpx/…`) preprocessed at build time into
+  `src/generated/kungsleden-route.json` — no hand-entered geometry anywhere
+- **Map:** MapLibre GL JS + a bounded OSM-derived PMTiles vector basemap
+  (`public/maps/kungsleden.pmtiles`, ~3.5 MB, zoom ≤ 14), styled fully offline
+  via `@protomaps/basemaps` with **no** remote glyphs/sprites/fonts/tiles
+- **PWA:** `vite-plugin-pwa` (Workbox) app-shell precache + a separate,
+  user-controlled offline-map cache with byte-range support
+
+## Route data pipeline
+
+```
+public/gpx/kungsleden-abisko-nikkaluokta.gpx   (gpx.studio export, GPX 1.1)
+        │  npm run generate:route  (runs automatically before dev/build/test)
+        ▼
+scripts/generate-route-data.mjs                (parse, validate, statistics)
+        ▼
+src/generated/kungsleden-route.json            (committed, deterministic)
+        ▼
+src/route/routeData.ts                         (typed ParsedRoute model)
+```
+
+GPX semantics: **1 track, 8 segments** — segment 0 is the complete overview
+route; segments 1–7 are the seven day stages. They describe the same journey
+twice and are never concatenated. Eight waypoints carry machine ids in
+`cmt`/`desc` (`START_ABISKO`, `HUT_*`, `END_NIKKALUOKTA`).
+
+Statistics: Haversine distances; min/max elevation from raw `<ele>`; total
+ascent/descent from a centred 5-point moving average with a 2 m hysteresis
+threshold (documented in the generator). The GPX has no timestamps — stage
+times in the app are labelled personal estimates.
+
+Validation: `npm test` (node --test) re-runs the pipeline from the GPX and
+checks segment/waypoint counts, stage↔waypoint proximity (≤ 250 m), distance
+sums (overview 104.48 km vs stage sum within 1 %), elevation presence/range,
+bounds and monotonic cumulative distances. The generator itself fails the
+build on hard violations. In dev, a route-diagnostics summary is logged to the
+console.
+
+## Offline basemap
+
+`scripts/extract-offline-map.sh [BUILD_DATE] [MAXZOOM]` extracts the region
+around the route (GPX bounds + 9 km buffer) from the Protomaps daily planet
+build using the [pmtiles CLI](https://github.com/protomaps/go-pmtiles) —
+range-read extraction only, never raster scraping, never
+tile.openstreetmap.org. Output: `public/maps/kungsleden.pmtiles` (committed).
+Attribution: © OpenStreetMap contributors · Protomaps (shown on the map).
+
+In the app, **Settings → Offline map** downloads the file into a dedicated
+Cache Storage cache (separate from the app shell). The map reads it through a
+blob-backed PMTiles source (works without a service worker), and the service
+worker additionally serves byte-range requests from the cached full response
+via Workbox `RangeRequestsPlugin`. Without the download, the basemap streams
+online via HTTP range requests; with no network and no download, the route
+still renders on a clearly-marked placeholder background.
 
 ## Run it locally
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
+npm run dev        # http://localhost:5173/Fjallkompis/
+npm test           # GPX pipeline validation
+npm run build && npm run preview   # production PWA (SW active only in build)
 ```
 
-Build & preview the production PWA (service worker is only active in a build):
-
-```bash
-npm run build
-npm run preview
-```
-
-Type-check only:
-
-```bash
-npm run typecheck
-```
-
-### Test offline / install
-1. `npm run build && npm run preview`
-2. Open the preview URL, then in Chrome DevTools → Application → Service Workers,
-   confirm it’s activated. Toggle “Offline” and reload — the app still works.
-3. On a phone, open the deployed URL and use “Add to Home Screen”.
+### Test offline
+1. `npm run build && npm run preview`, open the app, let the SW activate.
+2. Settings → Offline map → **Download for offline use**.
+3. DevTools → Network → Offline, reload: app, basemap, route, elevation all
+   still work.
 
 ## Deploy
 
-- **GitHub Pages (automatic):** every push to `main` runs
-  `.github/workflows/deploy.yml`, which builds and deploys `dist/` to
-  https://algolon.github.io/Fjallkompis/. Requires Settings → Pages →
-  Source: **GitHub Actions** (one-time setup).
-- **Netlify:** build command `npm run build`, publish directory `dist` — but
-  first change `base` in `vite.config.ts` from `/Fjallkompis/` to `/`.
-
-## What’s real vs. placeholder
-
-| Area | Status |
-|---|---|
-| App shell, 7 tabs, navigation | ✅ working |
-| Today / Stages / Huts / Checklist / Journal / Settings | ✅ working, persisted |
-| Export / import / reset (JSON) | ✅ working |
-| Offline + installable PWA | ✅ working (after a build) |
-| Geolocation + Haversine distance to next hut | ✅ working |
-| **Route coordinates** | 🟡 approximate placeholders — replace with GPX |
-| **Distances / times per stage** | 🟡 rough estimates |
-| Map | 🟡 simplified SVG projection, no basemap/terrain |
+- **GitHub Pages (automatic):** push to `main` runs
+  `.github/workflows/deploy.yml` → https://algolon.github.io/Fjallkompis/
+  (Settings → Pages → Source: GitHub Actions, one-time).
+- **Netlify:** `npm run build`, publish `dist` — change `base` in
+  `vite.config.ts` from `/Fjallkompis/` to `/` first.
 
 ## Project structure
 
 ```
 fjallkompis/
-├─ index.html
-├─ vite.config.ts          # React + PWA (manifest, Workbox SW)
-├─ tsconfig*.json
-├─ public/icons/           # generated PWA icons + favicon
+├─ scripts/
+│  ├─ generate-route-data.mjs   # GPX → JSON preprocessing + validation
+│  └─ extract-offline-map.sh    # bounded PMTiles extraction (pmtiles CLI)
+├─ tests/route-data.test.mjs    # deterministic pipeline validation
+├─ public/
+│  ├─ gpx/…                     # source GPX (verified route)
+│  └─ maps/kungsleden.pmtiles   # bounded offline basemap (~3.5 MB)
 └─ src/
-   ├─ main.tsx  App.tsx     # entry + tab shell
-   ├─ constants.ts
-   ├─ types/index.ts        # all domain types
-   ├─ data/                 # seed data (huts, stages, checklist)
-   ├─ utils/                # geo (Haversine + projection), format, storage, export
-   ├─ store/AppStore.tsx    # context: persisted state + actions + selectors
-   ├─ hooks/                # useGeolocation, useOnlineStatus
-   ├─ components/           # TabBar, RouteMap, Icons, ui primitives
-   └─ screens/              # one file per tab
+   ├─ generated/                # build-time route JSON (committed)
+   ├─ route/                    # typed ParsedRoute model + hut↔waypoint map
+   ├─ map/                      # offline-map cache, pmtiles protocol, style
+   ├─ components/               # MapView, ElevationProfile, OfflineMapCard, …
+   ├─ data/                     # stages/huts: GPX stats + editorial content
+   ├─ store/ hooks/ utils/ screens/ styles/
+   └─ …
 ```
 
-## Design notes
+## Known limitations
 
-Arctic-fjäll palette (glacier stone, spruce, cloudberry amber, glacial teal),
-system fonts only (keeps it offline, no font flash), large touch targets, and
-the SVG route map as the recurring signature element. Respects
-`prefers-reduced-motion`.
+- Basemap has no text labels yet (kept glyph/sprite-free for offline
+  reliability); hut names are local HTML markers.
+- Max zoom 14 (+overzoom) — fine for overview, not for close-up detail.
+- "Distance to next hut" is straight-line, not along-route progress.
+- Stage time estimates are personal guesses; the GPX has no time data.
 
 ## Next iteration
 
-1. **Verified GPX import** — parse a real `.gpx`, derive waypoints + true stage
-   distances, drop the placeholder coordinates.
-2. **MapLibre GL + PMTiles** — a single offline basemap file (contours/terrain)
-   served locally; no tile servers, no bulk OSM downloads.
-3. **Elevation profile** — per-stage climb/descent from GPX elevation.
-4. **Real route progress** — project your GPS onto the route polyline for
-   “% of stage done” instead of straight-line distance.
-5. **Installable-PWA polish** — custom install prompt, update toast on new
-   service worker, richer offline states.
-```
+1. Route progress: project the GPS fix onto the stage line for "km done / km
+   left" instead of straight-line distance.
+2. Local glyphs for general map labels (self-hosted PBF fonts), contours or
+   hillshade from a terrain PMTiles source.
+3. Installable-PWA polish: custom install prompt, SW-update toast, richer
+   offline states.
+4. Code-split MapLibre behind a lazy route to trim the initial bundle.

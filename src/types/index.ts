@@ -20,18 +20,26 @@ export interface Hut {
   blurb: string;
 }
 
-/** Static, seeded day stage connecting two huts. */
+/** A day stage connecting two huts. Geometry/statistics come from the GPX. */
 export interface Stage {
   id: string;
   /** 1-based day number — this route is a genuine ordered sequence. */
   day: number;
   fromHutId: string;
   toHutId: string;
-  /** Approximate distance in km (prototype estimate). */
+  /** GPX-derived Haversine distance in km. */
   distanceKm: number;
-  /** Approximate moving + breaks time in hours (prototype estimate). */
+  /**
+   * Personal planning estimate in hours. The GPX has no time data, so this
+   * is NOT derived from it — always present it as an estimate.
+   */
   estimatedHours: number;
   notes: string;
+  /** GPX-derived elevation statistics (smoothed ascent/descent). */
+  totalAscentM: number | null;
+  totalDescentM: number | null;
+  minimumElevationM: number | null;
+  maximumElevationM: number | null;
 }
 
 export interface ChecklistItem {
