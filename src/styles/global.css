@@ -504,7 +504,9 @@ h3 {
   background: none;
   border: 0;
   padding: 4px; /* enlarge touch target beyond the visual dot */
-  position: relative;
+  /* No position here: MapLibre's .maplibregl-marker rule must keep this
+     element position:absolute, or markers stack in page flow and drift.
+     It also serves as the positioning context for the absolute label. */
   display: flex;
   align-items: center;
   justify-content: center;
