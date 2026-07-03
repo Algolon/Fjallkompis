@@ -1298,15 +1298,15 @@ h3 {
                         inner shade along the bottom edge for depth.
    All tuning knobs live in the tokens below. */
 .today-screen {
-  --glass-blur: 18px; /* backdrop blur radius */
-  --glass-saturate: 1.6; /* colour lift of the blurred photo */
-  --glass-brightness: 1.07; /* luminosity lift — cuts the muddiness */
-  --glass-fill-light: rgba(252, 254, 253, 0.42); /* pane translucency */
+  --glass-blur: 20px; /* backdrop blur radius */
+  --glass-saturate: 1.75; /* colour lift of the blurred photo */
+  --glass-brightness: 1.05; /* luminosity lift — cuts the muddiness */
+  --glass-fill-light: rgba(250, 253, 252, 0.34); /* pane translucency */
   --glass-fill-opaque: rgba(250, 252, 251, 0.84);
   --glass-rim-w: 0.5px; /* hairline rim thickness */
-  --glass-rim: rgba(255, 255, 255, 0.65); /* rim colour/intensity */
-  --glass-highlight: rgba(255, 255, 255, 0.3); /* inner top catch-light */
-  --glass-inner-shade: rgba(12, 24, 20, 0.22); /* lower-edge depth */
+  --glass-rim: rgba(255, 255, 255, 0.5); /* rim colour/intensity */
+  --glass-highlight: rgba(255, 255, 255, 0.24); /* inner top catch-light */
+  --glass-inner-shade: rgba(12, 24, 20, 0.2); /* lower-edge depth */
   --glass-shadow:
     0 2px 6px rgba(12, 24, 20, 0.1),
     0 16px 40px rgba(12, 24, 20, 0.22);
@@ -1350,7 +1350,7 @@ h3 {
 /* Secondary text sits on a more transparent pane now — one step darker
    than the paper-surface defaults so it survives bright sky/water blurs. */
 .today-screen .today-glass .card-sub {
-  color: #3c4b46;
+  color: #33413c;
 }
 
 /* Journey card contrast on glass: endpoint labels a step darker than the
@@ -1418,7 +1418,7 @@ h3 {
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: #33413c;
 }
 .today-action-card__title {
   font-size: 16.5px;
@@ -1435,7 +1435,7 @@ h3 {
   flex: 0 0 auto;
   font-size: 13px;
   font-weight: 600;
-  color: #3c4b46;
+  color: #33413c;
   white-space: nowrap;
 }
 .today-action-card__side {
