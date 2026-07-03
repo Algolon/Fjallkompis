@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.svg'],
+      includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.png'],
       manifest: {
         name: 'Fjällkompis — Kungsleden trail companion',
         short_name: 'Fjällkompis',
