@@ -18,6 +18,15 @@ export function formatHours(hours: number): string {
   return `${h} h ${m} min`;
 }
 
+/** Decimal hours -> compact estimate: "±5h", "±5h30m", "±45m". */
+export function formatHoursEstimate(hours: number): string {
+  if (!isFinite(hours) || hours <= 0) return '—';
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `±${h > 0 ? `${h}h` : ''}${m > 0 ? `${m}m` : ''}`;
+}
+
 export function formatDateLong(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
   if (isNaN(d.getTime())) return iso;

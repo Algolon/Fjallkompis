@@ -2,7 +2,7 @@ import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
-import { formatDistanceKm, formatHours } from '../utils/format';
+import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { ROUTE } from '../route/routeData';
 
 export function StagesScreen() {
@@ -12,7 +12,8 @@ export function StagesScreen() {
     <div className="screen">
       <ScreenHeader eyebrow="7 days · 8 stops" title="Stages">
         The route as an ordered sequence. Tap a day to make it your current
-        stage. Distances and climbing are calculated from the GPX.
+        stage. Distances and climbing come from the GPX; ± times are personal
+        estimates.
       </ScreenHeader>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -44,9 +45,14 @@ export function StagesScreen() {
               }
             >
               <div className="row-between">
-                <span className={`pill ${isCurrent ? 'pill-current' : ''}`}>
-                  Day {stage.day}
-                </span>
+                <div className="row" style={{ gap: 10 }}>
+                  <span className={`pill ${isCurrent ? 'pill-current' : ''}`}>
+                    Day {stage.day}
+                  </span>
+                  <span className="tnum" style={{ fontWeight: 700 }}>
+                    {formatDistanceKm(stage.distanceKm)}
+                  </span>
+                </div>
                 {isCurrent ? (
                   <span className="pill pill-current">
                     <span className="dot" /> Current
@@ -58,20 +64,16 @@ export function StagesScreen() {
                 {stopShortName(from)} → {stopShortName(to)}
               </h2>
 
-              <div className="row" style={{ gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
-                <span className="tnum" style={{ fontWeight: 700 }}>
-                  {formatDistanceKm(stage.distanceKm)}
-                </span>
-                <span className="muted">·</span>
-                <span className="tnum muted">~{formatHours(stage.estimatedHours)} est.</span>
-              </div>
-              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <span className="pill tnum">↗ {stage.totalAscentM ?? '—'} m</span>
                 <span className="pill tnum">↘ {stage.totalDescentM ?? '—'} m</span>
                 <span className="pill tnum">
                   {stage.minimumElevationM != null
                     ? `${Math.round(stage.minimumElevationM)}–${Math.round(stage.maximumElevationM ?? 0)} m`
                     : '—'}
+                </span>
+                <span className="pill tnum" title="Estimated walking time">
+                  {formatHoursEstimate(stage.estimatedHours)}
                 </span>
               </div>
 
