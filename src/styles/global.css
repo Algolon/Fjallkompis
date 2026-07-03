@@ -737,7 +737,7 @@ h3 {
   z-index: 20;
   height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: rgba(230, 237, 227, 0.94);
+  background: rgba(212, 222, 209, 0.95);
   backdrop-filter: saturate(1.4) blur(10px);
   border-top: 1px solid var(--line);
   display: flex;
@@ -751,7 +751,7 @@ h3 {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -1315,10 +1315,10 @@ h3 {
                         inner shade along the bottom edge for depth.
    All tuning knobs live in the tokens below. */
 .today-screen {
-  --glass-blur: 20px; /* backdrop blur radius */
-  --glass-saturate: 1.75; /* colour lift of the blurred photo */
-  --glass-brightness: 1.05; /* luminosity lift — cuts the muddiness */
-  --glass-fill-light: rgba(246, 248, 243, 0.36); /* pane translucency */
+  --glass-blur: 3px; /* small: contour lines must stay visible through the pane */
+  --glass-saturate: 1.15; /* colour lift of the blurred backdrop */
+  --glass-brightness: 1.04; /* luminosity lift — cuts the muddiness */
+  --glass-fill-light: rgba(240, 245, 238, 0.5); /* pane translucency */
   --glass-fill-opaque: rgba(246, 248, 243, 0.84);
   --glass-rim-w: 0.5px; /* hairline rim thickness */
   --glass-rim: rgba(255, 255, 255, 0.5); /* rim colour/intensity */
