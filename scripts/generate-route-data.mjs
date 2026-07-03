@@ -77,6 +77,12 @@ function decodeXml(s) {
     .replace(/&amp;/g, '&');
 }
 
+// Display-name overrides for GPX waypoint names that are too formal for the
+// UI (map labels, waypoint detail panel). Keyed by waypoint id.
+const NAME_OVERRIDES = {
+  START_ABISKO: 'Abisko', // GPX: "Abisko Nationalpark Visitor Centre"
+};
+
 function parseGpx(xml) {
   const waypoints = [];
   const wptRe = /<wpt\s+lat="([^"]+)"\s+lon="([^"]+)"\s*>([\s\S]*?)<\/wpt>/g;
@@ -85,7 +91,7 @@ function parseGpx(xml) {
     if (!id) throw new Error(`Waypoint "${tag(body, 'name')}" has no cmt/desc id`);
     waypoints.push({
       id,
-      name: tag(body, 'name') ?? id,
+      name: NAME_OVERRIDES[id] ?? tag(body, 'name') ?? id,
       description: tag(body, 'desc') ?? undefined,
       symbol: tag(body, 'sym') ?? undefined,
       lat: Number(lat),
