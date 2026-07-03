@@ -1445,13 +1445,30 @@ h3 {
   align-items: flex-end;
   gap: 3px;
 }
-.today-action-card__warn {
+/* Tonight's Stop facility preview: same icons/order as the collapsed Stop
+   cards (via collapsedFacilities), rendered as a quiet secondary row. The
+   "No shop" note deliberately shares the neutral metadata colour — on this
+   compact card the triangle icon alone differentiates it; full warning
+   treatment stays on the Stops screen. */
+.today-stop-facilities {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 6px;
+}
+.today-stop-facility {
+  display: inline-flex;
+  align-items: center;
+  color: var(--spruce);
+}
+.today-stop-warning {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--danger);
+  font-weight: 600;
+  color: #33413c;
   white-space: nowrap;
 }
 .today-action-card__chevron {
@@ -1554,173 +1571,6 @@ h3 {
 .pack-editor .input,
 .pack-editor .select {
   background: var(--paper);
-}
-
-/* --- First-launch loader --------------------------------------------------
-   Shown once per browser session (see FirstLaunchLoader.tsx — all durations
-   originate there and arrive as custom properties). The global
-   prefers-reduced-motion rule already halts every animation below, which
-   freezes the hiker in its drawn mid-stride pose. */
-
-.launch-loader {
-  position: fixed;
-  inset: 0;
-  z-index: 50; /* above the tab bar (20) */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  background: var(--stone-bg);
-  opacity: 0;
-  transition: opacity var(--loader-fade-in, 0.2s) ease;
-}
-.launch-loader.is-visible {
-  opacity: 1;
-}
-.launch-loader.is-leaving {
-  opacity: 0;
-  pointer-events: none;
-  transition-duration: var(--loader-fade-out, 0.32s);
-}
-.launch-loader__text {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--ink-soft);
-}
-
-/* Hiker: currentColor silhouette, crisp at any density (SVG). */
-.hiker {
-  display: block;
-  width: clamp(110px, 32vw, 150px);
-  height: auto;
-  color: var(--spruce);
-}
-.hiker line,
-.hiker polyline {
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
-}
-.hiker circle,
-.hiker path,
-.hiker rect {
-  fill: currentColor;
-}
-.hiker-shadow {
-  fill: currentColor;
-  opacity: 0.12;
-}
-.hiker-torso {
-  stroke-width: 17;
-}
-.hiker-leg polyline {
-  stroke-width: 9.5;
-}
-.hiker-leg line {
-  stroke-width: 7; /* boot */
-}
-.hiker-arm polyline {
-  stroke-width: 8;
-}
-.hiker-pole {
-  stroke-width: 3;
-}
-
-/* Walk cycle. Geometry is drawn mid-stride, so keyframes swing each limb
-   from its drawn pose to the mirrored pose and back; limbs pass each other
-   at 25% / 75%. Origins match the joint coordinates in the SVG. */
-.hiker-bob,
-.hiker-pack,
-.hiker-leg,
-.hiker-arm {
-  transform-box: view-box;
-}
-.hiker-bob {
-  animation: hiker-bob calc(var(--walk-cycle, 1.3s) / 2) ease-in-out infinite;
-}
-.hiker-pack {
-  animation: hiker-pack calc(var(--walk-cycle, 1.3s) / 2) ease-in-out infinite;
-  animation-delay: calc(var(--walk-cycle, 1.3s) / -12);
-}
-.hiker-leg {
-  transform-origin: 62px 78px;
-  animation: ease-in-out infinite;
-  animation-duration: var(--walk-cycle, 1.3s);
-}
-.hiker-leg--front {
-  animation-name: hiker-leg-front;
-}
-.hiker-leg--back {
-  animation-name: hiker-leg-back;
-}
-.hiker-arm {
-  transform-origin: 65px 47px;
-  animation: ease-in-out infinite;
-  animation-duration: var(--walk-cycle, 1.3s);
-}
-.hiker-arm--front {
-  animation-name: hiker-arm-front;
-}
-.hiker-arm--back {
-  animation-name: hiker-arm-back;
-}
-@keyframes hiker-leg-front {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(-36deg);
-  }
-}
-@keyframes hiker-leg-back {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(36deg);
-  }
-}
-@keyframes hiker-arm-front {
-  0%,
-  100% {
-    transform: rotate(4deg);
-  }
-  50% {
-    transform: rotate(-16deg);
-  }
-}
-@keyframes hiker-arm-back {
-  0%,
-  100% {
-    transform: rotate(-14deg);
-  }
-  50% {
-    transform: rotate(6deg);
-  }
-}
-@keyframes hiker-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-2.5px);
-  }
-}
-@keyframes hiker-pack {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1.2px);
-  }
 }
 
 /* --- Misc ---------------------------------------------------------------- */

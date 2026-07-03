@@ -1,9 +1,5 @@
 import { useState } from 'react';
 import { AppStoreProvider } from './store/AppStore';
-import {
-  FirstLaunchLoader,
-  shouldShowFirstLaunchLoader,
-} from './components/FirstLaunchLoader';
 import { TabBar, type TabId } from './components/TabBar';
 import { TodayScreen, type NavPayload } from './screens/TodayScreen';
 import { MapScreen } from './screens/MapScreen';
@@ -48,9 +44,6 @@ export default function App() {
   // Simple in-memory tab state. A router is intentionally omitted to keep the
   // prototype dependency-light; trade-off is no per-tab deep links / back nav.
   const [nav, setNav] = useState<Nav>({ tab: 'today' });
-  // Decided once per App mount (App never remounts on tab changes), gated to
-  // once per browser session inside the helper.
-  const [showIntro] = useState(shouldShowFirstLaunchLoader);
 
   const navigate = (tab: TabId, payload?: NavPayload) => setNav({ tab, payload });
 
@@ -63,7 +56,6 @@ export default function App() {
         </main>
         <TabBar active={nav.tab} onChange={navigate} />
       </div>
-      {showIntro ? <FirstLaunchLoader /> : null}
     </AppStoreProvider>
   );
 }

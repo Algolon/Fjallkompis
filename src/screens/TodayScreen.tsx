@@ -2,7 +2,13 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { ChevronRight, Mountain, Route, TriangleAlert } from 'lucide-react';
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader, OnlineBadge } from '../components/ui';
-import { STOPS_BY_ID, importantAbsences, stopShortName } from '../data/stops';
+import { FacilityIcon } from '../components/FacilityIcon';
+import {
+  STOPS_BY_ID,
+  collapsedFacilities,
+  importantAbsences,
+  stopShortName,
+} from '../data/stops';
 import { pickTodayBackground } from '../data/todayBackgrounds';
 import { formatDistanceKm, formatHours } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
@@ -72,6 +78,19 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   const nextStopNoShop = nextStop
     ? importantAbsences(nextStop).some((f) => f.id === 'shop')
     : false;
+  // Same source and priority order as the collapsed Stop cards; absences are
+  // already excluded by collapsedFacilities, so "No shop" stays a separate
+  // warning and never appears as a normal facility icon.
+  const nextStopFacilities = nextStop ? collapsedFacilities(nextStop, 5) : [];
+  const facilityLabels = nextStopFacilities.map((f) => f.label);
+  const facilitySentence =
+    facilityLabels.length > 0
+      ? ` Facilities include ${
+          facilityLabels.length > 1
+            ? `${facilityLabels.slice(0, -1).join(', ')} and ${facilityLabels[facilityLabels.length - 1]}`
+            : facilityLabels[0]
+        }.`
+      : '';
 
   const checklistPct =
     checklistTotal === 0 ? 0 : (checklistCheckedCount / checklistTotal) * 100;
@@ -182,22 +201,34 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
               onClick={() => onNavigate('huts', { stopId: nextStop.id })}
               aria-label={`Tonight: ${stopShortName(nextStop)}${
                 nextStopElevation != null ? `, ${nextStopElevation} metres elevation` : ''
-              }${nextStopNoShop ? ', no shop' : ''}. Opens stop details in Stops.`}
+              }${nextStopNoShop ? ', no shop' : ''}.${facilitySentence} Opens stop details in Stops.`}
             >
               <span className="today-action-card__body">
                 <span className="today-action-card__label">Tonight</span>
                 <span className="today-action-card__title">{stopShortName(nextStop)}</span>
+                {nextStopFacilities.length > 0 || nextStopNoShop ? (
+                  // Informational preview only; facilities are announced via
+                  // the button's aria-label, so the row is hidden from SRs to
+                  // avoid repetitive output. Titles remain for pointer users.
+                  <span className="today-stop-facilities" aria-hidden>
+                    {nextStopFacilities.map((f) => (
+                      <span key={f.id} className="today-stop-facility" title={f.label}>
+                        <FacilityIcon id={f.id} size={15} />
+                      </span>
+                    ))}
+                    {nextStopNoShop ? (
+                      <span className="today-stop-warning" title="No shop at this stop">
+                        <TriangleAlert size={12} strokeWidth={2.2} aria-hidden /> No shop
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
               </span>
               <span className="today-action-card__side">
                 {nextStopElevation != null ? (
                   <span className="today-action-card__value tnum">
                     <Mountain size={13} strokeWidth={2} aria-hidden />
                     {nextStopElevation.toLocaleString('en-US')} m
-                  </span>
-                ) : null}
-                {nextStopNoShop ? (
-                  <span className="today-action-card__warn">
-                    <TriangleAlert size={12} strokeWidth={2.2} aria-hidden /> No shop
                   </span>
                 ) : null}
               </span>
