@@ -1286,31 +1286,54 @@ h3 {
   border-color: rgba(255, 255, 255, 0.45);
 }
 
-/* Liquid-glass surfaces (Today only). Deliberately gradient-free: the
-   material effect comes from a flat translucent fill, backdrop blur with a
-   saturation lift (the photo itself does the colouring), a hairline rim, a
-   one-pixel inner top highlight and a soft two-layer shadow. All intensity
-   knobs live in the tokens below — tune the glass in one place. */
+/* Liquid-glass surfaces (Today only). Gradient-free, layered material:
+     1. base element  — translucent fill + backdrop blur/saturate/brightness
+                        (the brightness lift is what keeps the pane luminous
+                        instead of muddy) + soft two-layer outer shadow;
+     2. ::before ring — the optical edge. A hairline inset shadow instead of
+                        a CSS border: it hugs the rounded corners with equal
+                        visual weight all round and can go sub-pixel, where
+                        a real border renders chunky and uneven. The same
+                        layer carries a faint 1px top catch-light and a soft
+                        inner shade along the bottom edge for depth.
+   All tuning knobs live in the tokens below. */
 .today-screen {
-  --glass-blur: 20px; /* backdrop blur radius */
-  --glass-saturate: 1.5; /* colour lift of the blurred photo */
-  --glass-fill-light: rgba(250, 252, 251, 0.5); /* pane translucency */
-  --glass-fill-opaque: rgba(250, 252, 251, 0.86);
-  --glass-rim: rgba(255, 255, 255, 0.55); /* hairline edge */
-  --glass-highlight: rgba(255, 255, 255, 0.45); /* inner top catch-light */
+  --glass-blur: 18px; /* backdrop blur radius */
+  --glass-saturate: 1.6; /* colour lift of the blurred photo */
+  --glass-brightness: 1.07; /* luminosity lift — cuts the muddiness */
+  --glass-fill-light: rgba(252, 254, 253, 0.42); /* pane translucency */
+  --glass-fill-opaque: rgba(250, 252, 251, 0.84);
+  --glass-rim-w: 0.5px; /* hairline rim thickness */
+  --glass-rim: rgba(255, 255, 255, 0.65); /* rim colour/intensity */
+  --glass-highlight: rgba(255, 255, 255, 0.3); /* inner top catch-light */
+  --glass-inner-shade: rgba(12, 24, 20, 0.22); /* lower-edge depth */
+  --glass-shadow:
+    0 2px 6px rgba(12, 24, 20, 0.1),
+    0 16px 40px rgba(12, 24, 20, 0.22);
 }
 .today-glass {
-  border: 1px solid var(--glass-rim);
+  position: relative;
+  border: 0;
   border-radius: var(--r-lg);
+  box-shadow: var(--glass-shadow);
+}
+.today-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
   box-shadow:
+    inset 0 0 0 var(--glass-rim-w) var(--glass-rim),
     inset 0 1px 0 var(--glass-highlight),
-    0 2px 6px rgba(12, 24, 20, 0.12),
-    0 14px 32px rgba(12, 24, 20, 0.2);
+    inset 0 -12px 20px -16px var(--glass-inner-shade);
 }
 .today-glass--light {
   background: var(--glass-fill-light);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
+    brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
 }
 .today-glass--opaque {
   background: var(--glass-fill-opaque);
