@@ -1234,6 +1234,20 @@ h3 {
   /* Positioning context is NOT needed for .today-bg (it is viewport-fixed),
      but the class scopes every override below to Today only. */
   position: relative;
+  /* The generic screen fade animates transform, and an animating transform
+     makes .screen the containing block for fixed descendants — .today-bg
+     would size itself to the screen box during the fade and then snap to
+     the viewport, visibly resizing the contours. Today fades with opacity
+     only so the background stays viewport-anchored from the first frame. */
+  animation-name: fade-opacity;
+}
+@keyframes fade-opacity {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .today-bg {
