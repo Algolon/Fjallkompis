@@ -1,4 +1,4 @@
-import type { HutType, ShopStatus } from '../types';
+import type { StopType } from '../types';
 
 /** "12.4 km" / "850 m" depending on magnitude. */
 export function formatDistanceKm(km: number): string {
@@ -34,24 +34,24 @@ export function todayIso(): string {
   return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
 }
 
-export function hutTypeLabel(type: HutType): string {
+export function stopTypeLabel(type: StopType): string {
   switch (type) {
     case 'mountain-station':
       return 'Mountain station';
-    case 'hut':
-      return 'Hut';
+    case 'mountain-cabin':
+      return 'Mountain cabin';
     case 'village':
       return 'Village';
   }
 }
 
-export function shopLabel(shop: ShopStatus): string {
-  switch (shop) {
-    case 'yes':
-      return 'Shop';
-    case 'no':
-      return 'No shop';
-    case 'unknown':
-      return 'Shop unknown';
-  }
+/** "2 July 2026" from an ISO date — for the facts-verified line on stops. */
+export function formatVerifiedDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }

@@ -52,7 +52,7 @@ export function SettingsScreen() {
   const doReset = () => {
     if (
       confirm(
-        'Reset all local data? This clears your checklist, hut notes, journal and current stage. Export a backup first if unsure.',
+        'Reset all local data? This clears your daily list, packing list, stop notes, journal and current stage. Export a backup first if unsure.',
       )
     ) {
       resetAll();

@@ -5,22 +5,67 @@ export type LatLng = {
   lng: number;
 };
 
-export type HutType = 'mountain-station' | 'hut' | 'village';
-export type ShopStatus = 'yes' | 'no' | 'unknown';
+// ---- Stops (curated, read-only location data) ------------------------------
 
-/** Static, seeded description of a place along the route. */
-export interface Hut {
-  id: string;
-  name: string;
-  type: HutType;
-  /** Default shop availability from seed data; user can override at runtime. */
-  shop: ShopStatus;
-  coord: LatLng;
-  /** Short, factual seed blurb. */
-  blurb: string;
+export type StopType = 'mountain-station' | 'mountain-cabin' | 'village';
+
+export type FacilityId =
+  | 'guest-kitchen'
+  | 'shop'
+  | 'sauna'
+  | 'shower'
+  | 'restaurant'
+  | 'cafe'
+  | 'wifi'
+  | 'gear-rental'
+  | 'public-transport'
+  | 'staffed';
+
+export interface StopFacility {
+  id: FacilityId;
+  label: string;
+  detail?: string;
+  /** True when the *absence* of this facility is the important fact. */
+  importantAbsence?: boolean;
 }
 
-/** A day stage connecting two huts. Geometry/statistics come from the GPX. */
+export interface StopSource {
+  label: string;
+  url: string;
+  /** ISO date the facts were last manually verified. */
+  lastVerified: string;
+}
+
+export interface StopImage {
+  src: string;
+  alt: string;
+  credit?: string;
+  license?: string;
+}
+
+/**
+ * Curated, manually verified description of a place along the route.
+ * Official facility data is NOT user-editable — personal notes live in
+ * localStorage keyed by stop id (see HutUserData below).
+ */
+export interface TrailStop {
+  id: string;
+  name: string;
+  type: StopType;
+  coord: LatLng;
+  summary: string;
+  description: string;
+  facilities: StopFacility[];
+  warnings?: string[];
+  summerOpening2026?: string;
+  bedCapacity?: string;
+  image?: StopImage;
+  source: StopSource;
+}
+
+// ---- Stages -----------------------------------------------------------------
+
+/** A day stage connecting two stops. Geometry/statistics come from the GPX. */
 export interface Stage {
   id: string;
   /** 1-based day number — this route is a genuine ordered sequence. */
@@ -42,6 +87,8 @@ export interface Stage {
   maximumElevationM: number | null;
 }
 
+// ---- Daily checklist ----------------------------------------------------------
+
 export interface ChecklistItem {
   id: string;
   label: string;
@@ -62,6 +109,29 @@ export interface ChecklistCategory {
   items: ChecklistItem[];
 }
 
+// ---- Packing list -------------------------------------------------------------
+
+export type PackingStatus = 'needed' | 'ready' | 'packed';
+
+export interface PackingItem {
+  id: string;
+  label: string;
+  categoryId: string;
+  quantity: number;
+  status: PackingStatus;
+  weightGrams?: number;
+  essential: boolean;
+  /** True for user-added items (editable/deletable); seed items are fixed. */
+  custom: boolean;
+}
+
+export interface PackingCategory {
+  id: string;
+  title: string;
+}
+
+// ---- Journal --------------------------------------------------------------------
+
 export interface JournalEntry {
   id: string;
   /** ISO date string (yyyy-mm-dd). */
@@ -77,19 +147,26 @@ export interface JournalEntry {
   updatedAt: number;
 }
 
-/** Per-hut user overrides (notes + optional shop override). */
+// ---- Persisted state ---------------------------------------------------------------
+
+/**
+ * Per-stop user data. Still keyed under `hutData` in the persisted blob for
+ * backwards compatibility with schema v1 (stop ids never changed).
+ * The old v1 `shopOverride` field is dropped during migration.
+ */
 export interface HutUserData {
   notes: string;
-  shopOverride?: ShopStatus;
 }
 
 /** The single persisted blob. Bump SCHEMA_VERSION on breaking changes. */
 export interface PersistentState {
   schemaVersion: number;
   currentStageId: string | null;
-  /** checklistItemId -> checked */
+  /** checklistItemId -> checked (daily list). */
   checklist: Record<string, boolean>;
-  /** hutId -> overrides */
+  /** stopId -> personal trip notes (legacy key name kept from v1). */
   hutData: Record<string, HutUserData>;
   journal: JournalEntry[];
+  /** Persistent packing list: seed items (statuses merged) + custom items. */
+  packing: PackingItem[];
 }

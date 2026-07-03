@@ -21,8 +21,10 @@ const TABS: { id: TabId; label: string; Icon: (p: { className?: string }) => JSX
   { id: 'today', label: 'Today', Icon: IconToday },
   { id: 'map', label: 'Map', Icon: IconMap },
   { id: 'stages', label: 'Stages', Icon: IconStages },
-  { id: 'huts', label: 'Huts', Icon: IconHuts },
-  { id: 'checklist', label: 'List', Icon: IconChecklist },
+  // Internal ids 'huts' / 'checklist' are kept: persisted state and screen
+  // wiring reference them, only the user-facing labels changed.
+  { id: 'huts', label: 'Stops', Icon: IconHuts },
+  { id: 'checklist', label: 'Lists', Icon: IconChecklist },
   { id: 'journal', label: 'Journal', Icon: IconJournal },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
 ];

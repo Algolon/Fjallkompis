@@ -1,7 +1,7 @@
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
-import { HUTS_BY_ID } from '../data/huts';
+import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDistanceKm, formatHours } from '../utils/format';
 import { ROUTE } from '../route/routeData';
 
@@ -10,7 +10,7 @@ export function StagesScreen() {
 
   return (
     <div className="screen">
-      <ScreenHeader eyebrow="7 days · 8 huts" title="Stages">
+      <ScreenHeader eyebrow="7 days · 8 stops" title="Stages">
         The route as an ordered sequence. Tap a day to make it your current
         stage. Distances and climbing are calculated from the GPX.
       </ScreenHeader>
@@ -30,8 +30,8 @@ export function StagesScreen() {
 
       <div className="stack">
         {STAGES.map((stage) => {
-          const from = HUTS_BY_ID[stage.fromHutId];
-          const to = HUTS_BY_ID[stage.toHutId];
+          const from = STOPS_BY_ID[stage.fromHutId];
+          const to = STOPS_BY_ID[stage.toHutId];
           const isCurrent = state.currentStageId === stage.id;
           return (
             <div
@@ -55,7 +55,7 @@ export function StagesScreen() {
               </div>
 
               <h2 className="card-title" style={{ marginTop: 10, fontSize: 18 }}>
-                {from.name} → {to.name}
+                {stopShortName(from)} → {stopShortName(to)}
               </h2>
 
               <div className="row" style={{ gap: 14, marginTop: 8, flexWrap: 'wrap' }}>

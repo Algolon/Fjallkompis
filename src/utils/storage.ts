@@ -1,17 +1,25 @@
 import type { PersistentState } from '../types';
 import { DEFAULT_STAGE_ID } from '../data/stages';
+import {
+  SCHEMA_VERSION,
+  defaultState as buildDefaultState,
+  normalizeState as normalizeAgainstSchema,
+} from './stateMigration.mjs';
 
 export const STORAGE_KEY = 'fjallkompis:state';
-export const SCHEMA_VERSION = 1;
+export { SCHEMA_VERSION };
 
 export function defaultState(): PersistentState {
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    currentStageId: DEFAULT_STAGE_ID,
-    checklist: {},
-    hutData: {},
-    journal: [],
-  };
+  return buildDefaultState(DEFAULT_STAGE_ID);
+}
+
+/**
+ * Validate + normalise an unknown blob into PersistentState, migrating
+ * schema v1 payloads to v2 (see src/utils/stateMigration.mjs). Unknown or
+ * missing fields fall back to defaults rather than throwing.
+ */
+export function normalizeState(raw: unknown): PersistentState {
+  return normalizeAgainstSchema(raw, DEFAULT_STAGE_ID);
 }
 
 /** True if localStorage is usable (private-mode / disabled-storage safe). */
@@ -24,46 +32,6 @@ export function storageAvailable(): boolean {
   } catch {
     return false;
   }
-}
-
-/**
- * Validate + normalise an unknown blob into PersistentState.
- * Unknown/missing fields fall back to defaults rather than throwing, so a
- * partially-corrupt or older payload still loads instead of wiping the app.
- */
-export function normalizeState(raw: unknown): PersistentState {
-  const base = defaultState();
-  if (typeof raw !== 'object' || raw === null) return base;
-  const obj = raw as Record<string, unknown>;
-
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    currentStageId:
-      typeof obj.currentStageId === 'string' || obj.currentStageId === null
-        ? (obj.currentStageId as string | null)
-        : base.currentStageId,
-    checklist:
-      isStringBoolMap(obj.checklist) ? (obj.checklist as Record<string, boolean>) : {},
-    hutData: isObject(obj.hutData)
-      ? (obj.hutData as PersistentState['hutData'])
-      : {},
-    journal: Array.isArray(obj.journal)
-      ? (obj.journal as PersistentState['journal']).filter(isJournalish)
-      : [],
-  };
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function isStringBoolMap(v: unknown): boolean {
-  if (!isObject(v)) return false;
-  return Object.values(v).every((x) => typeof x === 'boolean');
-}
-
-function isJournalish(v: unknown): boolean {
-  return isObject(v) && typeof (v as { id?: unknown }).id === 'string';
 }
 
 export function loadState(): PersistentState {
