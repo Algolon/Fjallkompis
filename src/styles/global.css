@@ -8,9 +8,9 @@
 :root {
   /* Surfaces */
   --stone-bg: #dce4d8;
-  --paper: #eef3ec; /* surface-1: cards, buttons */
-  --paper-2: #e6ede3; /* surface-3: grouped/inner surfaces */
-  --paper-bright: #f6f8f3; /* surface-2: inputs, active segments */
+  --paper: #e6ede3; /* cards, buttons — matches the Today panes' tone */
+  --paper-2: #dee7d9; /* grouped/inner surfaces, a step deeper */
+  --paper-bright: #eef3ec; /* inputs, active segments */
 
   /* Ink */
   --ink-strong: #223128;
@@ -102,7 +102,10 @@ h3 {
 .app {
   max-width: 560px;
   margin: 0 auto;
+  /* dvh tracks the visible viewport on mobile; 100vh includes the space
+     behind the collapsible browser chrome and forces phantom scrolling. */
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -734,7 +737,7 @@ h3 {
   z-index: 20;
   height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: rgba(238, 243, 236, 0.94);
+  background: rgba(230, 237, 227, 0.94);
   backdrop-filter: saturate(1.4) blur(10px);
   border-top: 1px solid var(--line);
   display: flex;
