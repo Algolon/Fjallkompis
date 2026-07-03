@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { ChevronRight, Mountain, Route, TriangleAlert } from 'lucide-react';
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader, OnlineBadge } from '../components/ui';
@@ -9,7 +9,6 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
-import { pickTodayBackground } from '../data/todayBackgrounds';
 import { formatDistanceKm, formatHours } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
 import type { TabId } from '../components/TabBar';
@@ -21,6 +20,13 @@ export interface NavPayload {
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;
+
+/**
+ * Decorative topographic-contour background (local SVG, PWA-precached).
+ * Subtlety (stroke opacity/width) is baked into the asset; see
+ * public/images/today/README.md for how it was produced.
+ */
+const TODAY_BG_SRC = `${import.meta.env.BASE_URL}images/today/contours.svg`;
 
 /** Subtle elevation silhouette drawn behind the hero card content. */
 function HeroSilhouette({ stageId }: { stageId: string }) {
@@ -64,10 +70,6 @@ function HeroSilhouette({ stageId }: { stageId: string }) {
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   const { currentStage, checklistCheckedCount, checklistTotal } = useStore();
 
-  // Picked once per mount (lazy initializer): the photo stays stable through
-  // checklist/journal/state updates and changes only when Today is re-opened.
-  const [background] = useState(pickTodayBackground);
-
   const from = currentStage ? STOPS_BY_ID[currentStage.fromHutId] : null;
   const to = currentStage ? STOPS_BY_ID[currentStage.toHutId] : null;
   const nextStop = to;
@@ -97,19 +99,12 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
 
   return (
     <div className="screen today-screen">
-      {/* Decorative photo layer: local WebP, behind everything, unmounts with
-          this screen. Overlay gradient lives in CSS on the same element. */}
+      {/* Decorative contour layer: behind everything, unmounts with this
+          screen. Base colour and sizing live in CSS on the same element. */}
       <div
         className="today-bg"
         aria-hidden
-        style={
-          background
-            ? {
-                '--today-bg-image': `url("${background.src}")`,
-                '--today-bg-position': background.objectPosition,
-              } as CSSProperties
-            : undefined
-        }
+        style={{ '--today-bg-image': `url("${TODAY_BG_SRC}")` } as CSSProperties}
       />
 
       <div className="row-between today-topline" style={{ marginBottom: 8 }}>

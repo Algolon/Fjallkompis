@@ -1,17 +1,20 @@
-# Today screen backgrounds (prototype)
+# Today screen background (topographic contours)
 
-Portrait 1200×1800 WebP crops used as the decorative full-screen background
-of the Today screen (`prototype/today-glass-background` branch). Configured
-in `src/data/todayBackgrounds.ts`; precached offline by the existing Workbox
-`webp` glob.
+`contours.svg` is the decorative background of the Today screen: a
+single-colour topographic contour drawing on a muted solid base, referenced
+from `TodayScreen.tsx` and precached offline by the existing Workbox `svg`
+glob.
 
-| File | Scene | Source |
-| --- | --- | --- |
-| `today-01.webp` | Aerial view of a braided river delta and lakes below fjäll slopes | Unsplash — free to use under the Unsplash License |
-| `today-02.webp` | Snow-dusted mountain above a tundra stream | Unsplash — free to use under the Unsplash License |
-| `today-03.webp` | Hikers on a stony trail through a wide fjäll valley | Unsplash — free to use under the Unsplash License |
+The asset was derived from a grid-generated contour plot supplied for the
+project. The original polylines were grid-derived and stepped, so they were
+reprocessed (`scripts` history: RDP simplification → gentle Laplacian
+relaxation → Catmull-Rom cubic Bézier conversion) into flowing organic
+curves while preserving the terrain structure. Small summit rings are kept
+at size; degenerate sliver fragments were dropped.
 
-All three are Unsplash photos (originals ~5000×3400 JPG), free to use under
-the [Unsplash License](https://unsplash.com/license), cropped and compressed
-to < 250 KB each. If the original photo pages are recovered, add photographer
-names here and in `todayBackgrounds.ts` as a courtesy credit.
+Rendering choices baked into the file: single spruce stroke (`#2f4a3e`),
+`stroke-opacity 0.07` for a 4–8% perceived presence over the base colour,
+1px stroke with round caps/joins, no fills, no labels or map UI.
+
+To retune subtlety, edit `stroke-opacity` (and/or `stroke-width`) on the
+single `<g>` element in `contours.svg`.
