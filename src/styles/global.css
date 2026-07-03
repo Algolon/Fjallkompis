@@ -1228,6 +1228,219 @@ h3 {
   overflow: hidden;
 }
 
+/* --- Today prototype: photographic background + glass surfaces --------------------
+   Scoped to .today-screen only. The photo layer is decorative (aria-hidden in
+   JSX), sits behind all Today content, and unmounts with the screen — no other
+   screen receives this treatment. */
+
+.today-screen {
+  /* Positioning context is NOT needed for .today-bg (it is viewport-fixed),
+     but the class scopes every override below to Today only. */
+  position: relative;
+}
+
+.today-bg {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  /* Constrain the photo to the app column so desktop keeps an intentional
+     stone-coloured gutter instead of a stretched full-viewport image. */
+  max-width: 560px;
+  z-index: -1;
+  pointer-events: none;
+  /* Spruce-tinted scrim above the photo, below the content: lighter at the
+     top (header sits on the photo), stronger toward the tab bar. The paper
+     gradient underneath doubles as the fallback while the WebP loads or if
+     no image is configured. */
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(15, 28, 24, 0.34),
+      rgba(15, 28, 24, 0.48) 45%,
+      rgba(15, 28, 24, 0.7)
+    ),
+    var(--today-bg-image, linear-gradient(165deg, #46605a 0%, #2f4a3e 60%, #22352d 100%));
+  background-size: cover, cover;
+  background-position: center, var(--today-bg-position, center);
+  background-repeat: no-repeat;
+}
+
+/* Header + status sit directly on the photo: near-white text with a
+   restrained shadow, translucent OnlineBadge. */
+.today-eyebrow {
+  color: #b8dde6;
+  text-shadow: 0 1px 3px rgba(10, 20, 17, 0.55);
+}
+.today-screen .screen-head h1 {
+  color: #fbfdfc;
+  text-shadow: 0 1px 3px rgba(10, 20, 17, 0.5), 0 4px 14px rgba(10, 20, 17, 0.35);
+}
+.today-screen .screen-head p {
+  color: rgba(240, 246, 243, 0.88);
+  text-shadow: 0 1px 3px rgba(10, 20, 17, 0.5);
+}
+.today-topline .pill {
+  background: rgba(250, 252, 251, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Glass surfaces (Today only) */
+.today-glass {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 1px 2px rgba(18, 32, 27, 0.08),
+    0 8px 24px rgba(18, 32, 27, 0.14);
+}
+.today-glass--light {
+  background: rgba(250, 252, 251, 0.76);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+}
+.today-glass--opaque {
+  background: rgba(250, 252, 251, 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  /* No blur available: fall back to nearly opaque paper for readability. */
+  .today-glass--light,
+  .today-glass--opaque {
+    background: rgba(250, 252, 251, 0.96);
+  }
+}
+
+/* Journey card contrast on glass: endpoint labels a step darker than the
+   default faint ink so they stay readable over the photo. */
+.today-screen .journey-legend {
+  color: var(--ink-soft);
+}
+.today-screen .journey::before {
+  background: rgba(75, 92, 87, 0.45);
+}
+
+/* Compact navigation cards (Tonight / Daily list / Latest journal): whole
+   card is one button — large touch target, chevron affordance. */
+.today-action-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  text-align: left;
+  color: var(--ink);
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.today-action-card:active {
+  transform: scale(0.985);
+}
+@media (hover: hover) {
+  .today-action-card:hover {
+    background: rgba(252, 254, 253, 0.88);
+  }
+}
+.today-action-card:focus-visible,
+.today-screen .journey-step:focus-visible,
+.today-screen .hero-cta:focus-visible {
+  outline: 2px solid var(--glacier);
+  outline-offset: 2px;
+}
+.card + .today-action-card {
+  margin-top: 14px;
+}
+.today-action-card + .today-action-card {
+  margin-top: 12px;
+}
+
+.today-action-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.today-action-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.today-action-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.today-action-card__title {
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-action-card__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.today-action-card__side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.today-action-card__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  white-space: nowrap;
+}
+.today-action-card__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+.today-action-card__progress {
+  display: block;
+  height: 5px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: rgba(27, 42, 39, 0.16);
+  overflow: hidden;
+}
+.today-action-card__progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--good);
+  transition: width 0.3s ease;
+}
+.today-action-card__preview {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- Packing list ------------------------------------------------------------------ */
 
 .pack-row-wrap {

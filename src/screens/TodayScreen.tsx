@@ -1,29 +1,13 @@
-import { useMemo } from 'react';
-import {
-  BookOpen,
-  ChevronRight,
-  ListChecks,
-  Map as MapIcon,
-  Mountain,
-  Route,
-  Signpost,
-  TriangleAlert,
-} from 'lucide-react';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { ChevronRight, Mountain, Route, TriangleAlert } from 'lucide-react';
 import { useStore, STAGES } from '../store/AppStore';
-import { ScreenHeader, ProgressRing, OnlineBadge } from '../components/ui';
-import { FacilityIcon } from '../components/FacilityIcon';
-import {
-  STOPS_BY_ID,
-  collapsedFacilities,
-  importantAbsences,
-  stopShortName,
-} from '../data/stops';
-import { CHECKLIST } from '../data/checklist';
+import { ScreenHeader, OnlineBadge } from '../components/ui';
+import { STOPS_BY_ID, importantAbsences, stopShortName } from '../data/stops';
+import { pickTodayBackground } from '../data/todayBackgrounds';
 import { formatDistanceKm, formatHours, formatDateLong } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
 import type { TabId } from '../components/TabBar';
 import type { ListsMode } from './ListsScreen';
-import type { ChecklistItem } from '../types';
 
 export interface NavPayload {
   stopId?: string;
@@ -71,31 +55,17 @@ function HeroSilhouette({ stageId }: { stageId: string }) {
   );
 }
 
-/** Up to two unchecked items, most important categories first. */
-function importantUnchecked(checked: Record<string, boolean>): ChecklistItem[] {
-  const priority = ['safety', 'food-water', 'morning', 'on-trail', 'evening'];
-  const ordered = [...CHECKLIST].sort(
-    (a, b) => priority.indexOf(a.id) - priority.indexOf(b.id),
-  );
-  const out: ChecklistItem[] = [];
-  for (const cat of ordered) {
-    for (const item of cat.items) {
-      if (!checked[item.id]) out.push(item);
-      if (out.length === 2) return out;
-    }
-  }
-  return out;
-}
-
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   const {
-    state,
     currentStage,
-    checklistPercent,
     checklistCheckedCount,
     checklistTotal,
     latestJournalEntry,
   } = useStore();
+
+  // Picked once per mount (lazy initializer): the photo stays stable through
+  // checklist/journal/state updates and changes only when Today is re-opened.
+  const [background] = useState(pickTodayBackground);
 
   const from = currentStage ? STOPS_BY_ID[currentStage.fromHutId] : null;
   const to = currentStage ? STOPS_BY_ID[currentStage.toHutId] : null;
@@ -107,21 +77,35 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   const nextStopNoShop = nextStop
     ? importantAbsences(nextStop).some((f) => f.id === 'shop')
     : false;
-  const uncheckedImportant = importantUnchecked(state.checklist);
 
-  const quickActions: { label: string; tab: TabId; payload?: NavPayload; Icon: typeof MapIcon }[] = [
-    { label: 'Map', tab: 'map', Icon: MapIcon },
-    { label: 'Lists', tab: 'checklist', Icon: ListChecks },
-    { label: 'Stops', tab: 'huts', Icon: Signpost },
-    { label: 'Journal', tab: 'journal', Icon: BookOpen },
-  ];
+  const checklistPct =
+    checklistTotal === 0 ? 0 : (checklistCheckedCount / checklistTotal) * 100;
+
+  const journalPreview = latestJournalEntry
+    ? latestJournalEntry.highlight?.trim() ||
+      latestJournalEntry.reflection?.trim() ||
+      'No highlight written yet.'
+    : 'No entries yet — jot down one good moment tonight.';
 
   return (
-    <div className="screen">
-      <div className="row-between" style={{ marginBottom: 8 }}>
-        <span className="eyebrow" style={{ color: 'var(--glacier)' }}>
-          Kungsleden
-        </span>
+    <div className="screen today-screen">
+      {/* Decorative photo layer: local WebP, behind everything, unmounts with
+          this screen. Overlay gradient lives in CSS on the same element. */}
+      <div
+        className="today-bg"
+        aria-hidden
+        style={
+          background
+            ? {
+                '--today-bg-image': `url("${background.src}")`,
+                '--today-bg-position': background.objectPosition,
+              } as CSSProperties
+            : undefined
+        }
+      />
+
+      <div className="row-between today-topline" style={{ marginBottom: 8 }}>
+        <span className="eyebrow today-eyebrow">Kungsleden</span>
         <OnlineBadge />
       </div>
 
@@ -131,7 +115,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
 
       {currentStage && from && to ? (
         <>
-          {/* A. Hero: current stage */}
+          {/* A. Hero: current stage (unchanged spruce anchor) */}
           <section className="hero" aria-label={`Current stage, day ${currentStage.day}`}>
             <HeroSilhouette stageId={currentStage.id} />
             <div className="hero-content">
@@ -164,7 +148,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
           </section>
 
           {/* B. Journey progress */}
-          <section className="card" aria-label="Journey progress">
+          <section className="card today-glass today-glass--light" aria-label="Journey progress">
             <div className="row-between">
               <span className="card-title">Journey</span>
               <span className="card-sub tnum" style={{ marginTop: 0 }}>
@@ -205,120 +189,100 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
             </div>
           </section>
 
-          {/* C. Next stop */}
+          {/* C. Tonight's stop — compact navigation card */}
           {nextStop ? (
-            <section className="card" aria-label="Tonight's stop">
-              <span className="card-sub">Tonight’s stop</span>
-              <div className="row-between" style={{ marginTop: 4 }}>
-                <h3 className="card-title" style={{ fontSize: 18 }}>
-                  {stopShortName(nextStop)}
-                </h3>
+            <button
+              className="today-action-card today-glass today-glass--light"
+              onClick={() => onNavigate('huts', { stopId: nextStop.id })}
+              aria-label={`Tonight: ${stopShortName(nextStop)}${
+                nextStopElevation != null ? `, ${nextStopElevation} metres elevation` : ''
+              }${nextStopNoShop ? ', no shop' : ''}. Opens stop details in Stops.`}
+            >
+              <span className="today-action-card__body">
+                <span className="today-action-card__label">Tonight</span>
+                <span className="today-action-card__title">{stopShortName(nextStop)}</span>
+              </span>
+              <span className="today-action-card__side">
                 {nextStopElevation != null ? (
-                  <span className="pill tnum">
-                    <Mountain size={13} strokeWidth={2} aria-hidden /> {nextStopElevation} m
+                  <span className="today-action-card__value tnum">
+                    <Mountain size={13} strokeWidth={2} aria-hidden />
+                    {nextStopElevation.toLocaleString('en-US')} m
                   </span>
                 ) : null}
-              </div>
-              <div className="row" style={{ marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
-                {collapsedFacilities(nextStop, 5).map((f) => (
-                  <span
-                    key={f.id}
-                    className="stop-fac-ic"
-                    role="img"
-                    aria-label={f.label}
-                    title={f.label}
-                  >
-                    <FacilityIcon id={f.id} size={15} />
-                  </span>
-                ))}
                 {nextStopNoShop ? (
-                  <span className="pill pill-warn">
+                  <span className="today-action-card__warn">
                     <TriangleAlert size={12} strokeWidth={2.2} aria-hidden /> No shop
                   </span>
                 ) : null}
-              </div>
-              <button
-                className="btn btn-ghost btn-block"
-                style={{ marginTop: 12 }}
-                onClick={() => onNavigate('huts', { stopId: nextStop.id })}
-              >
-                Stop details <ChevronRight size={15} strokeWidth={2} aria-hidden />
-              </button>
-            </section>
+              </span>
+              <ChevronRight
+                className="today-action-card__chevron"
+                size={18}
+                strokeWidth={2}
+                aria-hidden
+              />
+            </button>
           ) : null}
 
-          {/* D. Daily readiness */}
-          <section className="card" aria-label="Daily readiness">
-            <div className="ring-wrap">
-              <ProgressRing percent={checklistPercent} />
-              <div style={{ flex: 1 }}>
-                <div className="row-between">
-                  <span className="card-title">Daily list</span>
-                  <span className="ring-num tnum">{checklistPercent}%</span>
-                </div>
-                <p className="card-sub" style={{ marginTop: 2 }}>
-                  {checklistCheckedCount} of {checklistTotal} done
-                </p>
-              </div>
-            </div>
-            {uncheckedImportant.length > 0 && checklistPercent < 100 ? (
-              <ul className="readiness-list">
-                {uncheckedImportant.map((item) => (
-                  <li key={item.id}>{item.label}</li>
-                ))}
-              </ul>
-            ) : null}
-            <button
-              className="btn btn-ghost btn-block"
-              style={{ marginTop: 12 }}
-              onClick={() => onNavigate('checklist', { listsMode: 'daily' })}
-            >
-              Open daily list
-            </button>
-          </section>
+          {/* D. Daily list — compact navigation card */}
+          <button
+            className="today-action-card today-glass today-glass--light"
+            onClick={() => onNavigate('checklist', { listsMode: 'daily' })}
+            aria-label={`Daily list: ${checklistCheckedCount} of ${checklistTotal} done. Opens the daily list in Lists.`}
+          >
+            <span className="today-action-card__body">
+              <span className="today-action-card__row">
+                <span className="today-action-card__title">Daily list</span>
+                <span className="today-action-card__value tnum">
+                  {checklistCheckedCount}/{checklistTotal} done
+                </span>
+              </span>
+              <span className="today-action-card__progress" aria-hidden>
+                <span
+                  className="today-action-card__progress-fill"
+                  style={{ width: `${checklistPct}%` }}
+                />
+              </span>
+            </span>
+            <ChevronRight
+              className="today-action-card__chevron"
+              size={18}
+              strokeWidth={2}
+              aria-hidden
+            />
+          </button>
 
-          {/* E. Quick actions */}
-          <nav className="quick-grid" aria-label="Quick actions">
-            {quickActions.map(({ label, tab, payload, Icon }) => (
-              <button key={label} className="quick-btn" onClick={() => onNavigate(tab, payload)}>
-                <Icon size={22} strokeWidth={1.8} aria-hidden />
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          {/* F. Latest journal */}
-          <section className="card" aria-label="Latest journal entry">
-            <span className="card-title">Latest journal</span>
-            {latestJournalEntry ? (
-              <>
-                <p className="card-sub" style={{ marginTop: 6 }}>
-                  {formatDateLong(latestJournalEntry.date)}
-                </p>
-                <p className="journal-peek">
-                  {latestJournalEntry.highlight?.trim()
-                    ? latestJournalEntry.highlight
-                    : latestJournalEntry.reflection?.trim()
-                      ? latestJournalEntry.reflection
-                      : 'No highlight written yet.'}
-                </p>
-              </>
-            ) : (
-              <p className="card-sub" style={{ marginTop: 6 }}>
-                No entries yet. Tonight, jot down one good moment and one hard one.
-              </p>
-            )}
-            <button
-              className="btn btn-ghost btn-block"
-              style={{ marginTop: 12 }}
-              onClick={() => onNavigate('journal')}
-            >
-              {latestJournalEntry ? 'Open journal' : 'Write first entry'}
-            </button>
-          </section>
+          {/* E. Latest journal — compact, whole card opens Journal */}
+          <button
+            className="today-action-card today-glass today-glass--opaque"
+            onClick={() => onNavigate('journal')}
+            aria-label={
+              latestJournalEntry
+                ? `Latest journal, ${formatDateLong(latestJournalEntry.date)}. Opens Journal.`
+                : 'No journal entries yet. Opens Journal to write the first one.'
+            }
+          >
+            <span className="today-action-card__body">
+              <span className="today-action-card__row">
+                <span className="today-action-card__title">Latest journal</span>
+                {latestJournalEntry ? (
+                  <span className="today-action-card__value">
+                    {formatDateLong(latestJournalEntry.date)}
+                  </span>
+                ) : null}
+              </span>
+              <span className="today-action-card__preview">{journalPreview}</span>
+            </span>
+            <ChevronRight
+              className="today-action-card__chevron"
+              size={18}
+              strokeWidth={2}
+              aria-hidden
+            />
+          </button>
         </>
       ) : (
-        <div className="card empty">
+        <div className="card today-glass today-glass--opaque empty">
           <Mountain size={30} strokeWidth={1.5} aria-hidden style={{ opacity: 0.5 }} />
           <p>
             No current stage selected. Head to Stages and tap “Set as current” to
