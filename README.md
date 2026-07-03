@@ -1,9 +1,9 @@
 # Fjällkompis 🏔️
 
 An offline-first, mobile-first **trail companion PWA** for a solo hut-to-hut hike
-on the Kungsleden (Abisko → Nikkaluokta). Planning, daily overview, checklist,
-route awareness, elevation profiles, and journaling — all stored locally on your
-device.
+on the Kungsleden (Abisko → Nikkaluokta). A Today homepage, a curated stops
+guide, daily + packing lists, route awareness, elevation profiles, and
+journaling — all stored locally on your device.
 
 > ⚠️ **Prototype. Not for primary navigation.** Always carry a proper map,
 > compass, and an offline navigation/safety device.
@@ -66,6 +66,22 @@ via Workbox `RangeRequestsPlugin`. Without the download, the basemap streams
 online via HTTP range requests; with no network and no download, the route
 still renders on a clearly-marked placeholder background.
 
+## Stops guide data
+
+The Stops screen shows a **curated snapshot** of official facility information
+(shops, saunas, opening periods, bed capacity) for the eight places along the
+route, manually verified on **2026-07-02** against the STF and Nikkaluokta
+websites linked from each card. It is deliberately static: nothing is scraped
+at runtime, facility data is not user-editable, and each card states when the
+facts were checked. Update `src/data/stops.ts` after re-verifying. Optional
+licensed photos go in `public/images/stops/` (see the README there) — without
+one, cards render a generated route-silhouette fallback.
+
+Personal data stays separate: per-stop **trip notes**, the **daily list** and
+the **packing list** live in one versioned `localStorage` blob
+(`src/utils/stateMigration.mjs`, schema v2, defensive v1 migration covered by
+`tests/state-migration.test.mjs`).
+
 ## Run it locally
 
 ```bash
@@ -96,16 +112,19 @@ fjallkompis/
 ├─ scripts/
 │  ├─ generate-route-data.mjs   # GPX → JSON preprocessing + validation
 │  └─ extract-offline-map.sh    # bounded PMTiles extraction (pmtiles CLI)
-├─ tests/route-data.test.mjs    # deterministic pipeline validation
+├─ tests/
+│  ├─ route-data.test.mjs       # deterministic pipeline validation
+│  └─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
 ├─ public/
 │  ├─ gpx/…                     # source GPX (verified route)
+│  ├─ images/stops/             # optional licensed stop photos (see README there)
 │  └─ maps/kungsleden.pmtiles   # bounded offline basemap (~3.5 MB)
 └─ src/
    ├─ generated/                # build-time route JSON (committed)
    ├─ route/                    # typed ParsedRoute model + hut↔waypoint map
    ├─ map/                      # offline-map cache, pmtiles protocol, style
    ├─ components/               # MapView, ElevationProfile, OfflineMapCard, …
-   ├─ data/                     # stages/huts: GPX stats + editorial content
+   ├─ data/                     # stages + curated stops snapshot + packing seed
    ├─ store/ hooks/ utils/ screens/ styles/
    └─ …
 ```

@@ -504,10 +504,12 @@ h3 {
   background: none;
   border: 0;
   padding: 4px; /* enlarge touch target beyond the visual dot */
+  /* No position here: MapLibre's .maplibregl-marker rule must keep this
+     element position:absolute, or markers stack in page flow and drift.
+     It also serves as the positioning context for the absolute label. */
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
 }
 .map-wpt-dot {
   width: 14px;
@@ -522,6 +524,12 @@ h3 {
   background: var(--cloudberry);
 }
 .map-wpt-label {
+  /* Out of layout flow so the marker box stays dot-sized and the map
+     anchor lands on the dot's center; the title sits above the dot. */
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 11px;
   font-weight: 700;
   color: var(--ink);
@@ -623,7 +631,7 @@ h3 {
   .map-elev-grid .panel-hidden {
     display: block;
   }
-  .seg {
+  .seg-map {
     display: none;
   }
 }
@@ -739,6 +747,979 @@ h3 {
 @media (max-width: 380px) {
   .tab {
     font-size: 9px;
+  }
+}
+
+/* --- Info banner ----------------------------------------------------------- */
+
+.banner-info {
+  background: var(--glacier-soft);
+  border: 1px solid #bcd9de;
+  color: #1f5b69;
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  display: flex;
+  gap: 8px;
+}
+
+/* --- Progress meter (Lists) ------------------------------------------------- */
+
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  background: var(--good);
+  transition: width 0.3s ease;
+}
+
+/* --- Stops accordion --------------------------------------------------------- */
+
+.stop-card {
+  padding: 0;
+  overflow: hidden;
+}
+.stop-heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+.stop-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  min-height: 56px;
+}
+.stop-header:focus-visible {
+  outline: 2px solid var(--glacier);
+  outline-offset: -2px;
+  border-radius: var(--r-md);
+}
+.stop-header-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stop-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.stop-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.stop-type {
+  font-weight: 600;
+  color: var(--glacier);
+}
+.stop-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.stop-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.stop-fac-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  color: var(--spruce);
+}
+.stop-noshop {
+  padding: 4px 8px;
+}
+.stop-chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+.stop-card.is-open .stop-chevron {
+  transform: rotate(180deg);
+}
+.stop-panel {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--line);
+}
+.stop-official-name {
+  margin: 14px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.stop-summary {
+  margin: 6px 0 0;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.stop-desc {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.stop-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.stop-fac-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.stop-fac {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  min-height: 40px;
+}
+.stop-fac svg {
+  flex: 0 0 auto;
+  color: var(--spruce);
+}
+.stop-fac small {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+.stop-fac.is-absent {
+  background: var(--danger-soft);
+  border-color: #e6c3b9;
+  color: var(--danger);
+}
+.stop-fac.is-absent svg {
+  color: var(--danger);
+}
+.stop-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.stop-fact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stop-fact-row svg {
+  flex: 0 0 auto;
+  color: var(--glacier);
+}
+.stop-source {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.stop-source p {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
+.stop-source .btn {
+  text-decoration: none;
+}
+.stop-note {
+  margin-top: 12px;
+  background: var(--cloudberry-soft);
+  border: 1px solid #e6cda3;
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+}
+.stop-note .field .textarea {
+  background: var(--paper);
+}
+.stop-note-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #8a5316;
+}
+.stop-note-preview {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.stop-note-add {
+  margin-top: 12px;
+}
+
+/* --- Stop visual (image or generated fallback) ------------------------------- */
+
+.stop-visual {
+  margin: 14px 0 0;
+  aspect-ratio: 5 / 2;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  position: relative;
+  background: var(--paper-2);
+}
+.stop-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.stop-visual > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.stop-visual-credit {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  font-size: 10px;
+  color: #fff;
+  background: rgba(27, 42, 39, 0.55);
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+.stop-visual-tag {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--spruce-700);
+  background: rgba(250, 252, 251, 0.85);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+/* --- Today: hero --------------------------------------------------------------- */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: linear-gradient(150deg, var(--spruce) 0%, var(--spruce-700) 78%);
+  color: #f4f8f5;
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+}
+.hero-silhouette {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 62%;
+  width: 100%;
+}
+.hero-content {
+  position: relative;
+  /* Extra bottom padding replaces the removed helper note line, keeping the
+     hero's height so the elevation silhouette stays fully visible. */
+  padding: 18px 16px 56px;
+}
+.hero-day {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f3e6d2;
+}
+.hero-title {
+  margin-top: 6px;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #d8e4dc;
+}
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--cloudberry);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 12px;
+  min-height: 34px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: transform 0.08s ease;
+}
+.hero-cta:active {
+  transform: scale(0.96);
+}
+.hero + .card {
+  margin-top: 0;
+}
+
+/* --- Today: journey progress ----------------------------------------------------- */
+
+.journey {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  position: relative;
+}
+.journey::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 50%;
+  height: 2px;
+  background: var(--line-strong);
+}
+.journey-step {
+  position: relative;
+  background: transparent;
+  border: 0;
+  /* Flexible width so 7 steps always fit inside the card; the dot itself
+     stays fixed-size and centred. */
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 0;
+  display: grid;
+  place-items: center;
+}
+.journey-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--paper);
+  border: 2px solid var(--line-strong);
+  color: var(--ink-faint);
+  transition: transform 0.1s ease;
+}
+.journey-step:active .journey-dot {
+  transform: scale(0.94);
+}
+.journey-step.is-past .journey-dot {
+  background: var(--good);
+  border-color: var(--good);
+  color: #fff;
+}
+.journey-step.is-current .journey-dot {
+  background: var(--cloudberry);
+  border-color: var(--cloudberry);
+  color: #fff;
+  box-shadow: 0 0 0 4px var(--cloudberry-soft);
+}
+.journey-legend {
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+@media (max-width: 340px) {
+  .journey-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  .journey-step {
+    padding: 4px 0;
+  }
+}
+
+/* --- Today: readiness + quick actions + journal peek ------------------------------ */
+
+.readiness-list {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+.quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  transition: transform 0.08s ease;
+}
+.quick-btn svg {
+  color: var(--spruce);
+}
+.quick-btn:active {
+  transform: scale(0.97);
+}
+.journal-peek {
+  margin: 8px 0 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* --- Today prototype: photographic background + glass surfaces --------------------
+   Scoped to .today-screen only. The photo layer is decorative (aria-hidden in
+   JSX), sits behind all Today content, and unmounts with the screen — no other
+   screen receives this treatment. */
+
+.today-screen {
+  /* Positioning context is NOT needed for .today-bg (it is viewport-fixed),
+     but the class scopes every override below to Today only. */
+  position: relative;
+}
+
+.today-bg {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  /* Constrain the photo to the app column so desktop keeps an intentional
+     stone-coloured gutter instead of a stretched full-viewport image. */
+  max-width: 560px;
+  z-index: -1;
+  pointer-events: none;
+  /* Spruce-tinted scrim above the photo, below the content: lighter at the
+     top (header sits on the photo), stronger toward the tab bar. The paper
+     gradient underneath doubles as the fallback while the WebP loads or if
+     no image is configured. */
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(15, 28, 24, 0.34),
+      rgba(15, 28, 24, 0.48) 45%,
+      rgba(15, 28, 24, 0.7)
+    ),
+    var(--today-bg-image, linear-gradient(165deg, #46605a 0%, #2f4a3e 60%, #22352d 100%));
+  background-size: cover, cover;
+  background-position: center, var(--today-bg-position, center);
+  background-repeat: no-repeat;
+}
+
+/* Header + status sit directly on the photo: near-white text with a
+   restrained shadow, translucent OnlineBadge. */
+.today-eyebrow {
+  color: #b8dde6;
+  text-shadow: 0 1px 3px rgba(10, 20, 17, 0.55);
+}
+.today-screen .screen-head h1 {
+  color: #fbfdfc;
+  text-shadow: 0 1px 3px rgba(10, 20, 17, 0.5), 0 4px 14px rgba(10, 20, 17, 0.35);
+}
+.today-screen .screen-head p {
+  color: rgba(240, 246, 243, 0.88);
+  text-shadow: 0 1px 3px rgba(10, 20, 17, 0.5);
+}
+.today-topline .pill {
+  background: rgba(250, 252, 251, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Liquid-glass surfaces (Today only). Gradient-free, layered material:
+     1. base element  — translucent fill + backdrop blur/saturate/brightness
+                        (the brightness lift is what keeps the pane luminous
+                        instead of muddy) + soft two-layer outer shadow;
+     2. ::before ring — the optical edge. A hairline inset shadow instead of
+                        a CSS border: it hugs the rounded corners with equal
+                        visual weight all round and can go sub-pixel, where
+                        a real border renders chunky and uneven. The same
+                        layer carries a faint 1px top catch-light and a soft
+                        inner shade along the bottom edge for depth.
+   All tuning knobs live in the tokens below. */
+.today-screen {
+  --glass-blur: 20px; /* backdrop blur radius */
+  --glass-saturate: 1.75; /* colour lift of the blurred photo */
+  --glass-brightness: 1.05; /* luminosity lift — cuts the muddiness */
+  --glass-fill-light: rgba(250, 253, 252, 0.34); /* pane translucency */
+  --glass-fill-opaque: rgba(250, 252, 251, 0.84);
+  --glass-rim-w: 0.5px; /* hairline rim thickness */
+  --glass-rim: rgba(255, 255, 255, 0.5); /* rim colour/intensity */
+  --glass-highlight: rgba(255, 255, 255, 0.24); /* inner top catch-light */
+  --glass-inner-shade: rgba(12, 24, 20, 0.2); /* lower-edge depth */
+  --glass-shadow:
+    0 2px 6px rgba(12, 24, 20, 0.1),
+    0 16px 40px rgba(12, 24, 20, 0.22);
+}
+.today-glass {
+  position: relative;
+  border: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--glass-shadow);
+}
+.today-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 var(--glass-rim-w) var(--glass-rim),
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 -12px 20px -16px var(--glass-inner-shade);
+}
+.today-glass--light {
+  background: var(--glass-fill-light);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
+    brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+}
+.today-glass--opaque {
+  background: var(--glass-fill-opaque);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  /* No blur available: fall back to nearly opaque paper for readability. */
+  .today-glass--light,
+  .today-glass--opaque {
+    background: rgba(250, 252, 251, 0.96);
+  }
+}
+/* Secondary text sits on a more transparent pane now — one step darker
+   than the paper-surface defaults so it survives bright sky/water blurs. */
+.today-screen .today-glass .card-sub {
+  color: #33413c;
+}
+
+/* Journey card contrast on glass: endpoint labels a step darker than the
+   default faint ink so they stay readable over the photo. */
+.today-screen .journey-legend {
+  color: var(--ink-soft);
+}
+.today-screen .journey::before {
+  background: rgba(75, 92, 87, 0.45);
+}
+
+/* Compact navigation cards (Tonight / Daily list / Latest journal): whole
+   card is one button — large touch target, chevron affordance. */
+.today-action-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  text-align: left;
+  color: var(--ink);
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+.today-action-card:active {
+  transform: scale(0.985);
+}
+@media (hover: hover) {
+  /* Brightness pop instead of a flat background swap: keeps the layered
+     liquid-glass gradients intact on hover. */
+  .today-action-card:hover {
+    filter: brightness(1.07);
+  }
+}
+.today-action-card:focus-visible,
+.today-screen .journey-step:focus-visible,
+.today-screen .hero-cta:focus-visible {
+  outline: 2px solid var(--glacier);
+  outline-offset: 2px;
+}
+.card + .today-action-card {
+  margin-top: 14px;
+}
+.today-action-card + .today-action-card {
+  margin-top: 12px;
+}
+
+.today-action-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.today-action-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.today-action-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #33413c;
+}
+.today-action-card__title {
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-action-card__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #33413c;
+  white-space: nowrap;
+}
+.today-action-card__side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.today-action-card__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  white-space: nowrap;
+}
+.today-action-card__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-soft);
+}
+.today-action-card__progress {
+  display: block;
+  height: 5px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: rgba(27, 42, 39, 0.16);
+  overflow: hidden;
+}
+.today-action-card__progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--good);
+  transition: width 0.3s ease;
+}
+/* --- Packing list ------------------------------------------------------------------ */
+
+.pack-row-wrap {
+  border-bottom: 1px solid var(--line);
+}
+.pack-row-wrap:last-child {
+  border-bottom: 0;
+}
+.pack-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+}
+.pack-status {
+  flex: 0 0 auto;
+  width: 74px;
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+.pack-status.is-ready {
+  background: var(--glacier-soft);
+  border-color: #bcd9de;
+  color: #1f5b69;
+}
+.pack-status.is-packed {
+  background: var(--good);
+  border-color: var(--good);
+  color: #fff;
+}
+.pack-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  line-height: 1.35;
+}
+.pack-label.is-packed {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+.pack-essential {
+  color: var(--cloudberry);
+  font-size: 9px;
+  margin-left: 6px;
+  vertical-align: 2px;
+}
+.pack-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.pack-edit {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-faint);
+}
+.pack-edit[aria-expanded='true'] {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+.pack-editor {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  margin: 0 0 10px;
+}
+.pack-editor .input,
+.pack-editor .select {
+  background: var(--paper);
+}
+
+/* --- First-launch loader --------------------------------------------------
+   Shown once per browser session (see FirstLaunchLoader.tsx — all durations
+   originate there and arrive as custom properties). The global
+   prefers-reduced-motion rule already halts every animation below, which
+   freezes the hiker in its drawn mid-stride pose. */
+
+.launch-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 50; /* above the tab bar (20) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--stone-bg);
+  opacity: 0;
+  transition: opacity var(--loader-fade-in, 0.2s) ease;
+}
+.launch-loader.is-visible {
+  opacity: 1;
+}
+.launch-loader.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: var(--loader-fade-out, 0.32s);
+}
+.launch-loader__text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+
+/* Hiker: currentColor silhouette, crisp at any density (SVG). */
+.hiker {
+  display: block;
+  width: clamp(110px, 32vw, 150px);
+  height: auto;
+  color: var(--spruce);
+}
+.hiker line,
+.hiker polyline {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.hiker circle,
+.hiker path,
+.hiker rect {
+  fill: currentColor;
+}
+.hiker-shadow {
+  fill: currentColor;
+  opacity: 0.12;
+}
+.hiker-torso {
+  stroke-width: 17;
+}
+.hiker-leg polyline {
+  stroke-width: 9.5;
+}
+.hiker-leg line {
+  stroke-width: 7; /* boot */
+}
+.hiker-arm polyline {
+  stroke-width: 8;
+}
+.hiker-pole {
+  stroke-width: 3;
+}
+
+/* Walk cycle. Geometry is drawn mid-stride, so keyframes swing each limb
+   from its drawn pose to the mirrored pose and back; limbs pass each other
+   at 25% / 75%. Origins match the joint coordinates in the SVG. */
+.hiker-bob,
+.hiker-pack,
+.hiker-leg,
+.hiker-arm {
+  transform-box: view-box;
+}
+.hiker-bob {
+  animation: hiker-bob calc(var(--walk-cycle, 1.3s) / 2) ease-in-out infinite;
+}
+.hiker-pack {
+  animation: hiker-pack calc(var(--walk-cycle, 1.3s) / 2) ease-in-out infinite;
+  animation-delay: calc(var(--walk-cycle, 1.3s) / -12);
+}
+.hiker-leg {
+  transform-origin: 62px 78px;
+  animation: ease-in-out infinite;
+  animation-duration: var(--walk-cycle, 1.3s);
+}
+.hiker-leg--front {
+  animation-name: hiker-leg-front;
+}
+.hiker-leg--back {
+  animation-name: hiker-leg-back;
+}
+.hiker-arm {
+  transform-origin: 65px 47px;
+  animation: ease-in-out infinite;
+  animation-duration: var(--walk-cycle, 1.3s);
+}
+.hiker-arm--front {
+  animation-name: hiker-arm-front;
+}
+.hiker-arm--back {
+  animation-name: hiker-arm-back;
+}
+@keyframes hiker-leg-front {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-36deg);
+  }
+}
+@keyframes hiker-leg-back {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(36deg);
+  }
+}
+@keyframes hiker-arm-front {
+  0%,
+  100% {
+    transform: rotate(4deg);
+  }
+  50% {
+    transform: rotate(-16deg);
+  }
+}
+@keyframes hiker-arm-back {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+}
+@keyframes hiker-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+@keyframes hiker-pack {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.2px);
   }
 }
 

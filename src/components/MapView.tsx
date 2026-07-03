@@ -164,7 +164,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             callbacksRef.current.onSelectWaypoint(w.id);
           });
           markers.push(
-            new maplibregl.Marker({ element: el, anchor: 'bottom' })
+            // Anchor at the element's center = the dot's center, so the dot
+            // stays pinned to the true coordinate at every zoom; the label
+            // hangs below it out of layout flow.
+            new maplibregl.Marker({ element: el, anchor: 'center' })
               .setLngLat([w.lon, w.lat])
               .addTo(map!),
           );

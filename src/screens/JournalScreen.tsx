@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { STAGES_BY_ID } from '../data/stages';
-import { HUTS_BY_ID } from '../data/huts';
+import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDateLong, todayIso } from '../utils/format';
 import type { JournalEntry } from '../types';
 
@@ -56,7 +56,9 @@ function stageLabel(stageId: string | null): string {
   if (!stageId) return 'No stage';
   const s = STAGES_BY_ID[stageId];
   if (!s) return 'No stage';
-  return `Day ${s.day}: ${HUTS_BY_ID[s.fromHutId]?.name} → ${HUTS_BY_ID[s.toHutId]?.name}`;
+  const from = STOPS_BY_ID[s.fromHutId];
+  const to = STOPS_BY_ID[s.toHutId];
+  return `Day ${s.day}: ${from ? stopShortName(from) : '?'} → ${to ? stopShortName(to) : '?'}`;
 }
 
 export function JournalScreen() {

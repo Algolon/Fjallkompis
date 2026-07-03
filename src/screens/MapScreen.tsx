@@ -5,7 +5,7 @@ import { MapView, type MapViewHandle } from '../components/MapView';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { HUTS, HUTS_BY_ID } from '../data/huts';
+import { STOPS, STOPS_BY_ID, stopShortName } from '../data/stops';
 import { STAGES_BY_ID } from '../data/stages';
 import {
   ROUTE,
@@ -25,7 +25,7 @@ import type { LatLng } from '../types';
 type Panel = 'map' | 'elevation';
 
 export function MapScreen() {
-  const { currentStage, nextHutId, setCurrentStage, getHutData } = useStore();
+  const { currentStage, nextHutId, setCurrentStage, getStopNote } = useStore();
   const geo = useGeolocation();
   const mapRef = useRef<MapViewHandle>(null);
 
@@ -37,7 +37,7 @@ export function MapScreen() {
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
-  const [manualHutId, setManualHutId] = useState<string>(HUTS[0].id);
+  const [manualHutId, setManualHutId] = useState<string>(STOPS[0].id);
 
   const viewStage = viewStageId ? STAGE_BY_ID[viewStageId] : null;
   const appStage = viewStageId ? STAGES_BY_ID[viewStageId] : null;
@@ -45,9 +45,9 @@ export function MapScreen() {
   const profile = viewStage ? viewStage.elevationProfile : OVERVIEW_ELEVATION_PROFILE;
   const stats = viewStage ? viewStage.statistics : ROUTE.statistics;
 
-  const nextHut = nextHutId ? HUTS_BY_ID[nextHutId] : null;
+  const nextStop = nextHutId ? STOPS_BY_ID[nextHutId] : null;
   const distanceToNext: number | null =
-    geo.coord && nextHut ? haversineKm(geo.coord, nextHut.coord) : null;
+    geo.coord && nextStop ? haversineKm(geo.coord, nextStop.coord) : null;
 
   const stepStage = (dir: 1 | -1) => {
     // Order: overview → d1 … d7 → overview.
@@ -57,9 +57,9 @@ export function MapScreen() {
   };
 
   const applyManual = () => {
-    const hut = HUTS_BY_ID[manualHutId];
-    if (hut) {
-      const coord: LatLng = hut.coord;
+    const stop = STOPS_BY_ID[manualHutId];
+    if (stop) {
+      const coord: LatLng = stop.coord;
       geo.setManual(coord);
       setManualOpen(false);
     }
@@ -67,18 +67,18 @@ export function MapScreen() {
 
   const waypoint = selectedWaypointId ? WAYPOINT_BY_ID[selectedWaypointId] : null;
   const waypointHutId = waypoint ? WAYPOINT_TO_HUT[waypoint.id] : null;
-  const waypointNotes = waypointHutId ? getHutData(waypointHutId).notes : '';
+  const waypointNotes = waypointHutId ? getStopNote(waypointHutId) : '';
   const wpStages = waypoint ? stagesForWaypoint(waypoint.id) : null;
 
   const summaryTitle = useMemo(() => {
     if (!appStage) return 'Full route';
-    return `Day ${appStage.day}: ${HUTS_BY_ID[appStage.fromHutId].name} → ${HUTS_BY_ID[appStage.toHutId].name}`;
+    return `Day ${appStage.day}: ${stopShortName(STOPS_BY_ID[appStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[appStage.toHutId])}`;
   }, [appStage]);
 
   return (
     <div className="screen">
       <ScreenHeader eyebrow="Route" title="Map">
-        GPX route on a bounded offline basemap. Tap a stage line or a hut.
+        GPX route on a bounded offline basemap. Tap a stage line or a stop.
       </ScreenHeader>
 
       <div className="banner-warn" style={{ marginBottom: 14 }}>
@@ -109,7 +109,7 @@ export function MapScreen() {
       </div>
 
       {/* Map / elevation segmented control (both shown on wide screens) */}
-      <div className="seg" role="tablist" aria-label="Map or elevation view">
+      <div className="seg seg-map" role="tablist" aria-label="Map or elevation view">
         <button role="tab" aria-selected={panel === 'map'} className="seg-btn" onClick={() => setPanel('map')}>
           Map
         </button>
@@ -210,7 +210,7 @@ export function MapScreen() {
             </div>
           </div>
           <div className="stat">
-            <div className="k">{appStage ? 'Est. time*' : 'Stages · huts'}</div>
+            <div className="k">{appStage ? 'Est. time*' : 'Stages · stops'}</div>
             <div className="v tnum" style={{ fontSize: 17 }}>
               {appStage ? `~${appStage.estimatedHours} h` : `${ROUTE.stages.length} · ${ROUTE.waypoints.length}`}
             </div>
@@ -285,16 +285,16 @@ export function MapScreen() {
                 <span className="tnum">±{Math.round(geo.accuracyM)} m</span>
               </div>
             ) : null}
-            {nextHut ? (
+            {nextStop ? (
               <div className="row-between" style={{ marginTop: 6 }}>
-                <span className="muted">Straight line to {nextHut.name}</span>
+                <span className="muted">Straight line to {stopShortName(nextStop)}</span>
                 <span className="tnum" style={{ fontWeight: 700 }}>
                   {distanceToNext != null ? formatDistanceKm(distanceToNext) : '—'}
                 </span>
               </div>
             ) : (
               <p className="card-sub" style={{ marginTop: 8 }}>
-                Set a current stage to see distance to your next hut.
+                Set a current stage to see distance to your next stop.
               </p>
             )}
             <p className="card-sub" style={{ marginTop: 10 }}>
@@ -325,18 +325,18 @@ export function MapScreen() {
                     value={manualHutId}
                     onChange={(e) => setManualHutId(e.target.value)}
                   >
-                    {HUTS.map((h) => (
-                      <option key={h.id} value={h.id}>
-                        {h.name}
+                    {STOPS.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {stopShortName(s)}
                       </option>
                     ))}
                   </select>
                 </label>
                 <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={applyManual}>
-                  Set position from hut
+                  Set position from stop
                 </button>
                 <p className="card-sub" style={{ marginTop: 8 }}>
-                  Manual mode pins you to a hut so distances still work without GPS.
+                  Manual mode pins you to a stop so distances still work without GPS.
                 </p>
               </div>
             )}

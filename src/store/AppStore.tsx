@@ -8,10 +8,10 @@ import {
   type ReactNode,
 } from 'react';
 import type {
-  HutUserData,
   JournalEntry,
+  PackingItem,
+  PackingStatus,
   PersistentState,
-  ShopStatus,
   Stage,
 } from '../types';
 import {
@@ -20,8 +20,8 @@ import {
   defaultState,
   storageAvailable,
 } from '../utils/storage';
+import { seedPackingItems } from '../utils/stateMigration.mjs';
 import { STAGES, STAGES_BY_ID } from '../data/stages';
-import { HUTS_BY_ID } from '../data/huts';
 import { ALL_CHECKLIST_ITEMS, TOTAL_CHECKLIST_ITEMS } from '../data/checklist';
 
 interface AppStore {
@@ -33,16 +33,25 @@ interface AppStore {
   nextHutId: string | null;
   setCurrentStage: (stageId: string) => void;
 
-  // Checklist
+  // Daily checklist
   toggleChecklistItem: (itemId: string) => void;
+  resetDailyChecklist: () => void;
   checklistCheckedCount: number;
   checklistTotal: number;
   checklistPercent: number;
 
-  // Huts
-  getHutData: (hutId: string) => HutUserData;
-  setHutNotes: (hutId: string, notes: string) => void;
-  setHutShopOverride: (hutId: string, shop: ShopStatus | undefined) => void;
+  // Stop trip notes (persisted under the legacy hutData key)
+  getStopNote: (stopId: string) => string;
+  setStopNote: (stopId: string, notes: string) => void;
+
+  // Packing list
+  setPackingStatus: (itemId: string, status: PackingStatus) => void;
+  addPackingItem: (
+    item: Omit<PackingItem, 'id' | 'custom' | 'status'>,
+  ) => void;
+  updatePackingItem: (itemId: string, patch: Partial<PackingItem>) => void;
+  deletePackingItem: (itemId: string) => void;
+  resetPacking: () => void;
 
   // Journal
   upsertJournalEntry: (entry: JournalEntry) => void;
@@ -77,28 +86,68 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setHutNotes = useCallback((hutId: string, notes: string) => {
+  const resetDailyChecklist = useCallback(() => {
+    setState((s) => ({ ...s, checklist: {} }));
+  }, []);
+
+  const setStopNote = useCallback((stopId: string, notes: string) => {
     setState((s) => ({
       ...s,
-      hutData: {
-        ...s.hutData,
-        [hutId]: { ...(s.hutData[hutId] ?? { notes: '' }), notes },
-      },
+      hutData: { ...s.hutData, [stopId]: { notes } },
     }));
   }, []);
 
-  const setHutShopOverride = useCallback(
-    (hutId: string, shop: ShopStatus | undefined) => {
+  const setPackingStatus = useCallback((itemId: string, status: PackingStatus) => {
+    setState((s) => ({
+      ...s,
+      packing: s.packing.map((i) => (i.id === itemId ? { ...i, status } : i)),
+    }));
+  }, []);
+
+  const addPackingItem = useCallback(
+    (item: Omit<PackingItem, 'id' | 'custom' | 'status'>) => {
+      const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
       setState((s) => ({
         ...s,
-        hutData: {
-          ...s.hutData,
-          [hutId]: { ...(s.hutData[hutId] ?? { notes: '' }), shopOverride: shop },
-        },
+        packing: [...s.packing, { ...item, id, status: 'needed', custom: true }],
       }));
     },
     [],
   );
+
+  const updatePackingItem = useCallback(
+    (itemId: string, patch: Partial<PackingItem>) => {
+      setState((s) => ({
+        ...s,
+        packing: s.packing.map((i) =>
+          // id/custom are immutable; label & category edits only for custom items.
+          i.id === itemId
+            ? {
+                ...i,
+                ...patch,
+                id: i.id,
+                custom: i.custom,
+                label: i.custom && patch.label != null ? patch.label : i.label,
+                categoryId:
+                  i.custom && patch.categoryId != null ? patch.categoryId : i.categoryId,
+              }
+            : i,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const deletePackingItem = useCallback((itemId: string) => {
+    setState((s) => ({
+      ...s,
+      packing: s.packing.filter((i) => !(i.id === itemId && i.custom)),
+    }));
+  }, []);
+
+  const resetPacking = useCallback(() => {
+    setState((s) => ({ ...s, packing: seedPackingItems() }));
+  }, []);
 
   const upsertJournalEntry = useCallback((entry: JournalEntry) => {
     setState((s) => {
@@ -142,8 +191,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       ? 0
       : Math.round((checklistCheckedCount / TOTAL_CHECKLIST_ITEMS) * 100);
 
-  const getHutData = useCallback(
-    (hutId: string): HutUserData => state.hutData[hutId] ?? { notes: '' },
+  const getStopNote = useCallback(
+    (stopId: string): string => state.hutData[stopId]?.notes ?? '',
     [state.hutData],
   );
 
@@ -159,12 +208,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     nextHutId,
     setCurrentStage,
     toggleChecklistItem,
+    resetDailyChecklist,
     checklistCheckedCount,
     checklistTotal: TOTAL_CHECKLIST_ITEMS,
     checklistPercent,
-    getHutData,
-    setHutNotes,
-    setHutShopOverride,
+    getStopNote,
+    setStopNote,
+    setPackingStatus,
+    addPackingItem,
+    updatePackingItem,
+    deletePackingItem,
+    resetPacking,
     upsertJournalEntry,
     deleteJournalEntry,
     latestJournalEntry,
@@ -179,11 +233,6 @@ export function useStore(): AppStore {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error('useStore must be used within AppStoreProvider');
   return ctx;
-}
-
-/** Resolve the effective shop status for a hut (override beats seed). */
-export function effectiveShop(hutId: string, data: HutUserData): ShopStatus {
-  return data.shopOverride ?? HUTS_BY_ID[hutId]?.shop ?? 'unknown';
 }
 
 /** Convenience: all stages, exported for screens that list them. */

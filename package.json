@@ -1,7 +1,7 @@
 {
   "name": "fjallkompis",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Fjällkompis — offline-first hut-to-hut trail companion PWA for the Kungsleden (prototype).",
   "scripts": {
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@protomaps/basemaps": "^5.7.2",
+    "lucide-react": "^1.23.0",
     "maplibre-gl": "^5.24.0",
     "pmtiles": "^4.4.1",
     "react": "^18.3.1",

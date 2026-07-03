@@ -1,8 +1,8 @@
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
-import { HUTS_BY_ID } from '../data/huts';
-import { formatDistanceKm, formatHours } from '../utils/format';
+import { STOPS_BY_ID, stopShortName } from '../data/stops';
+import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { ROUTE } from '../route/routeData';
 
 export function StagesScreen() {
@@ -10,9 +10,10 @@ export function StagesScreen() {
 
   return (
     <div className="screen">
-      <ScreenHeader eyebrow="7 days · 8 huts" title="Stages">
+      <ScreenHeader eyebrow="7 days · 8 stops" title="Stages">
         The route as an ordered sequence. Tap a day to make it your current
-        stage. Distances and climbing are calculated from the GPX.
+        stage. Distances and climbing come from the GPX; ± times are personal
+        estimates.
       </ScreenHeader>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -30,8 +31,8 @@ export function StagesScreen() {
 
       <div className="stack">
         {STAGES.map((stage) => {
-          const from = HUTS_BY_ID[stage.fromHutId];
-          const to = HUTS_BY_ID[stage.toHutId];
+          const from = STOPS_BY_ID[stage.fromHutId];
+          const to = STOPS_BY_ID[stage.toHutId];
           const isCurrent = state.currentStageId === stage.id;
           return (
             <div
@@ -44,9 +45,14 @@ export function StagesScreen() {
               }
             >
               <div className="row-between">
-                <span className={`pill ${isCurrent ? 'pill-current' : ''}`}>
-                  Day {stage.day}
-                </span>
+                <div className="row" style={{ gap: 10 }}>
+                  <span className={`pill ${isCurrent ? 'pill-current' : ''}`}>
+                    Day {stage.day}
+                  </span>
+                  <span className="tnum" style={{ fontWeight: 700 }}>
+                    {formatDistanceKm(stage.distanceKm)}
+                  </span>
+                </div>
                 {isCurrent ? (
                   <span className="pill pill-current">
                     <span className="dot" /> Current
@@ -55,23 +61,19 @@ export function StagesScreen() {
               </div>
 
               <h2 className="card-title" style={{ marginTop: 10, fontSize: 18 }}>
-                {from.name} → {to.name}
+                {stopShortName(from)} → {stopShortName(to)}
               </h2>
 
-              <div className="row" style={{ gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
-                <span className="tnum" style={{ fontWeight: 700 }}>
-                  {formatDistanceKm(stage.distanceKm)}
-                </span>
-                <span className="muted">·</span>
-                <span className="tnum muted">~{formatHours(stage.estimatedHours)} est.</span>
-              </div>
-              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <span className="pill tnum">↗ {stage.totalAscentM ?? '—'} m</span>
                 <span className="pill tnum">↘ {stage.totalDescentM ?? '—'} m</span>
                 <span className="pill tnum">
                   {stage.minimumElevationM != null
                     ? `${Math.round(stage.minimumElevationM)}–${Math.round(stage.maximumElevationM ?? 0)} m`
                     : '—'}
+                </span>
+                <span className="pill tnum" title="Estimated walking time">
+                  {formatHoursEstimate(stage.estimatedHours)}
                 </span>
               </div>
 

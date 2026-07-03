@@ -38,3 +38,7 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # Pages deployments can sit in GitHub's queue longer than the
+          # default 10 minutes during backend slowdowns; wait up to 30.
+          timeout: 1800000

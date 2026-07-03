@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.svg'],
+      includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.png'],
       manifest: {
         name: 'Fjällkompis — Kungsleden trail companion',
         short_name: 'Fjällkompis',
@@ -44,7 +44,7 @@ export default defineConfig({
         // .gpx are deliberately NOT precached: the map is an explicit
         // download managed in Settings (separate cache), and the GPX is
         // already baked into the bundle as JSON.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webp}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         // maplibre-gl makes the main chunk larger than Workbox's 2 MiB
