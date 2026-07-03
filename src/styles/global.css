@@ -1087,7 +1087,22 @@ h3 {
   color: rgba(244, 248, 245, 0.66);
 }
 .hero-cta {
-  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--cloudberry);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 12px;
+  min-height: 34px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: transform 0.08s ease;
+}
+.hero-cta:active {
+  transform: scale(0.96);
 }
 .hero + .card {
   margin-top: 0;

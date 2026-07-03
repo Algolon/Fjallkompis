@@ -5,6 +5,7 @@ import {
   ListChecks,
   Map as MapIcon,
   Mountain,
+  Route,
   Signpost,
   TriangleAlert,
 } from 'lucide-react';
@@ -134,7 +135,16 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
           <section className="hero" aria-label={`Current stage, day ${currentStage.day}`}>
             <HeroSilhouette stageId={currentStage.id} />
             <div className="hero-content">
-              <span className="hero-day">Day {currentStage.day} of {STAGES.length}</span>
+              <div className="row-between">
+                <span className="hero-day">Day {currentStage.day} of {STAGES.length}</span>
+                <button
+                  className="hero-cta"
+                  onClick={() => onNavigate('map')}
+                  aria-label="View today’s route on the map"
+                >
+                  <Route size={14} strokeWidth={2} aria-hidden /> View route
+                </button>
+              </div>
               <h2 className="hero-title">
                 {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
               </h2>
@@ -150,9 +160,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
               <p className="hero-note">
                 Distance & climbing from GPX — time is a personal estimate.
               </p>
-              <button className="btn btn-accent btn-block hero-cta" onClick={() => onNavigate('map')}>
-                View today’s route
-              </button>
             </div>
           </section>
 
