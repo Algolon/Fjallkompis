@@ -7,10 +7,11 @@ in `src/data/todayBackgrounds.ts`; precached offline by the existing Workbox
 
 | File | Scene | Source |
 | --- | --- | --- |
-| `today-01.webp` | Aerial view of a braided river delta and lakes below fjäll slopes | Trip photo provided for the Fjällkompis project |
-| `today-02.webp` | Snow-dusted mountain above a tundra stream | Trip photo provided for the Fjällkompis project |
-| `today-03.webp` | Hikers on a stony trail through a wide fjäll valley | Trip photo provided for the Fjällkompis project |
+| `today-01.webp` | Aerial view of a braided river delta and lakes below fjäll slopes | Unsplash — free to use under the Unsplash License |
+| `today-02.webp` | Snow-dusted mountain above a tundra stream | Unsplash — free to use under the Unsplash License |
+| `today-03.webp` | Hikers on a stony trail through a wide fjäll valley | Unsplash — free to use under the Unsplash License |
 
-All three were supplied as project trip photos (originals ~5000×3400 JPG),
-cropped and compressed to < 250 KB each. If the prototype graduates, replace
-or confirm licensing/attribution here and in `todayBackgrounds.ts`.
+All three are Unsplash photos (originals ~5000×3400 JPG), free to use under
+the [Unsplash License](https://unsplash.com/license), cropped and compressed
+to < 250 KB each. If the original photo pages are recovered, add photographer
+names here and in `todayBackgrounds.ts` as a courtesy credit.

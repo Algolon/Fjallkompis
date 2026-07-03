@@ -26,22 +26,22 @@ export const TODAY_BACKGROUNDS: TodayBackground[] = [
     src: `${base}images/today/today-01.webp`,
     alt: 'Aerial view of a braided river delta and lakes below fjäll slopes in autumn colours',
     objectPosition: 'center 40%',
-    credit: 'Trip photo — Fjällkompis project',
-    license: 'Project-internal use',
+    credit: 'Unsplash',
+    license: 'Unsplash License (free to use)',
   },
   {
     src: `${base}images/today/today-02.webp`,
     alt: 'Snow-dusted mountain above a tundra stream in early autumn',
     objectPosition: 'center 30%',
-    credit: 'Trip photo — Fjällkompis project',
-    license: 'Project-internal use',
+    credit: 'Unsplash',
+    license: 'Unsplash License (free to use)',
   },
   {
     src: `${base}images/today/today-03.webp`,
     alt: 'Hikers on a stony trail through a wide fjäll valley under heavy clouds',
     objectPosition: 'center 35%',
-    credit: 'Trip photo — Fjällkompis project',
-    license: 'Project-internal use',
+    credit: 'Unsplash',
+    license: 'Unsplash License (free to use)',
   },
 ];
 

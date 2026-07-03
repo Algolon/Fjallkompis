@@ -4,7 +4,7 @@ import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader, OnlineBadge } from '../components/ui';
 import { STOPS_BY_ID, importantAbsences, stopShortName } from '../data/stops';
 import { pickTodayBackground } from '../data/todayBackgrounds';
-import { formatDistanceKm, formatHours, formatDateLong } from '../utils/format';
+import { formatDistanceKm, formatHours } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
 import type { TabId } from '../components/TabBar';
 import type { ListsMode } from './ListsScreen';
@@ -56,12 +56,7 @@ function HeroSilhouette({ stageId }: { stageId: string }) {
 }
 
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
-  const {
-    currentStage,
-    checklistCheckedCount,
-    checklistTotal,
-    latestJournalEntry,
-  } = useStore();
+  const { currentStage, checklistCheckedCount, checklistTotal } = useStore();
 
   // Picked once per mount (lazy initializer): the photo stays stable through
   // checklist/journal/state updates and changes only when Today is re-opened.
@@ -80,12 +75,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
 
   const checklistPct =
     checklistTotal === 0 ? 0 : (checklistCheckedCount / checklistTotal) * 100;
-
-  const journalPreview = latestJournalEntry
-    ? latestJournalEntry.highlight?.trim() ||
-      latestJournalEntry.reflection?.trim() ||
-      'No highlight written yet.'
-    : 'No entries yet — jot down one good moment tonight.';
 
   return (
     <div className="screen today-screen">
@@ -141,9 +130,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
                 <span aria-hidden>·</span>
                 <span>~{formatHours(currentStage.estimatedHours)} est.</span>
               </div>
-              <p className="hero-note">
-                Distance & climbing from GPX — time is a personal estimate.
-              </p>
             </div>
           </section>
 
@@ -252,34 +238,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
             />
           </button>
 
-          {/* E. Latest journal — compact, whole card opens Journal */}
-          <button
-            className="today-action-card today-glass today-glass--opaque"
-            onClick={() => onNavigate('journal')}
-            aria-label={
-              latestJournalEntry
-                ? `Latest journal, ${formatDateLong(latestJournalEntry.date)}. Opens Journal.`
-                : 'No journal entries yet. Opens Journal to write the first one.'
-            }
-          >
-            <span className="today-action-card__body">
-              <span className="today-action-card__row">
-                <span className="today-action-card__title">Latest journal</span>
-                {latestJournalEntry ? (
-                  <span className="today-action-card__value">
-                    {formatDateLong(latestJournalEntry.date)}
-                  </span>
-                ) : null}
-              </span>
-              <span className="today-action-card__preview">{journalPreview}</span>
-            </span>
-            <ChevronRight
-              className="today-action-card__chevron"
-              size={18}
-              strokeWidth={2}
-              aria-hidden
-            />
-          </button>
         </>
       ) : (
         <div className="card today-glass today-glass--opaque empty">

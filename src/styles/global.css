@@ -1054,7 +1054,9 @@ h3 {
 }
 .hero-content {
   position: relative;
-  padding: 18px 16px 16px;
+  /* Extra bottom padding replaces the removed helper note line, keeping the
+     hero's height so the elevation silhouette stays fully visible. */
+  padding: 18px 16px 56px;
 }
 .hero-day {
   display: inline-block;
@@ -1080,11 +1082,6 @@ h3 {
   font-size: 14px;
   font-weight: 600;
   color: #d8e4dc;
-}
-.hero-note {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: rgba(244, 248, 245, 0.66);
 }
 .hero-cta {
   display: inline-flex;
@@ -1289,22 +1286,47 @@ h3 {
   border-color: rgba(255, 255, 255, 0.45);
 }
 
-/* Glass surfaces (Today only) */
+/* Liquid-glass surfaces (Today only). Approximates Apple's Liquid Glass
+   material in plain CSS: heavy backdrop blur with a saturation boost (the
+   photo "refracts" through the surface), a specular highlight along the top
+   edge, faint side glints, and a soft drop shadow lifting the pane off the
+   photo. No border — the inset highlights draw the edge. */
 .today-glass {
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 0;
+  border-radius: var(--r-lg);
   box-shadow:
-    0 1px 2px rgba(18, 32, 27, 0.08),
-    0 8px 24px rgba(18, 32, 27, 0.14);
+    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.75),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.22),
+    inset 1.5px 0 1px -1px rgba(255, 255, 255, 0.55),
+    inset -1.5px 0 1px -1px rgba(255, 255, 255, 0.55),
+    0 12px 32px rgba(12, 24, 20, 0.28);
 }
 .today-glass--light {
-  background: rgba(250, 252, 251, 0.76);
-  backdrop-filter: blur(16px) saturate(1.1);
-  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  background:
+    radial-gradient(
+      130% 100% at 12% 0%,
+      rgba(255, 255, 255, 0.4),
+      rgba(255, 255, 255, 0) 55%
+    ),
+    linear-gradient(
+      155deg,
+      rgba(250, 252, 251, 0.5),
+      rgba(250, 252, 251, 0.3) 55%,
+      rgba(250, 252, 251, 0.42)
+    );
+  backdrop-filter: blur(26px) saturate(1.8);
+  -webkit-backdrop-filter: blur(26px) saturate(1.8);
 }
 .today-glass--opaque {
-  background: rgba(250, 252, 251, 0.9);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background:
+    radial-gradient(
+      130% 100% at 12% 0%,
+      rgba(255, 255, 255, 0.45),
+      rgba(255, 255, 255, 0) 55%
+    ),
+    linear-gradient(155deg, rgba(250, 252, 251, 0.88), rgba(250, 252, 251, 0.8));
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
 }
 @supports not (backdrop-filter: blur(1px)) {
   /* No blur available: fall back to nearly opaque paper for readability. */
@@ -1312,6 +1334,11 @@ h3 {
   .today-glass--opaque {
     background: rgba(250, 252, 251, 0.96);
   }
+}
+/* Secondary text sits on a more transparent pane now — one step darker
+   than the paper-surface defaults so it survives bright sky/water blurs. */
+.today-screen .today-glass .card-sub {
+  color: #3c4b46;
 }
 
 /* Journey card contrast on glass: endpoint labels a step darker than the
@@ -1336,14 +1363,16 @@ h3 {
   border-radius: var(--r-md);
   text-align: left;
   color: var(--ink);
-  transition: transform 0.08s ease, background 0.15s ease;
+  transition: transform 0.08s ease, filter 0.15s ease;
 }
 .today-action-card:active {
   transform: scale(0.985);
 }
 @media (hover: hover) {
+  /* Brightness pop instead of a flat background swap: keeps the layered
+     liquid-glass gradients intact on hover. */
   .today-action-card:hover {
-    background: rgba(252, 254, 253, 0.88);
+    filter: brightness(1.07);
   }
 }
 .today-action-card:focus-visible,
@@ -1394,7 +1423,7 @@ h3 {
   flex: 0 0 auto;
   font-size: 13px;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: #3c4b46;
   white-space: nowrap;
 }
 .today-action-card__side {
@@ -1415,7 +1444,7 @@ h3 {
 }
 .today-action-card__chevron {
   flex: 0 0 auto;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 .today-action-card__progress {
   display: block;
@@ -1432,15 +1461,6 @@ h3 {
   background: var(--good);
   transition: width 0.3s ease;
 }
-.today-action-card__preview {
-  font-size: 13.5px;
-  line-height: 1.4;
-  color: var(--ink-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* --- Packing list ------------------------------------------------------------------ */
 
 .pack-row-wrap {
