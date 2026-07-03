@@ -8,8 +8,9 @@
 :root {
   /* Surfaces */
   --stone-bg: #dce4d8;
-  --paper: #f6f8f3;
-  --paper-2: #eef3ec;
+  --paper: #eef3ec; /* surface-1: cards, buttons */
+  --paper-2: #e6ede3; /* surface-3: grouped/inner surfaces */
+  --paper-bright: #f6f8f3; /* surface-2: inputs, active segments */
 
   /* Ink */
   --ink-strong: #223128;
@@ -365,7 +366,7 @@ h3 {
 .textarea,
 .select {
   width: 100%;
-  background: var(--paper);
+  background: var(--paper-bright);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
   padding: 12px;
@@ -631,7 +632,7 @@ h3 {
   color: var(--ink-soft);
 }
 .seg-btn[aria-selected='true'] {
-  background: var(--paper);
+  background: var(--paper-bright);
   color: var(--ink);
   box-shadow: var(--shadow);
 }
@@ -733,7 +734,7 @@ h3 {
   z-index: 20;
   height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: rgba(246, 248, 243, 0.92);
+  background: rgba(238, 243, 236, 0.94);
   backdrop-filter: saturate(1.4) blur(10px);
   border-top: 1px solid var(--line);
   display: flex;
@@ -989,7 +990,7 @@ h3 {
   padding: 10px 12px;
 }
 .stop-note .field .textarea {
-  background: var(--paper);
+  background: var(--paper-bright);
 }
 .stop-note-label {
   display: inline-flex;
@@ -1583,7 +1584,7 @@ h3 {
 }
 .pack-editor .input,
 .pack-editor .select {
-  background: var(--paper);
+  background: var(--paper-bright);
 }
 
 /* --- Misc ---------------------------------------------------------------- */
