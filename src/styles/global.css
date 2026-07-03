@@ -635,8 +635,8 @@ h3 {
   color: var(--ink-soft);
 }
 .seg-btn[aria-selected='true'] {
-  background: var(--paper-bright);
-  color: var(--ink);
+  background: var(--spruce);
+  color: #f4f8f5;
   box-shadow: var(--shadow);
 }
 
