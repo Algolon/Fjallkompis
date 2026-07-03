@@ -45,7 +45,14 @@ export default function App() {
   // prototype dependency-light; trade-off is no per-tab deep links / back nav.
   const [nav, setNav] = useState<Nav>({ tab: 'today' });
 
-  const navigate = (tab: TabId, payload?: NavPayload) => setNav({ tab, payload });
+  const navigate = (tab: TabId, payload?: NavPayload) => {
+    // Screens swap inside one document, so the previous tab's scroll
+    // position would otherwise carry over to the next screen. Reset before
+    // the swap; destinations that deep-link (Stops expanding a stop)
+    // re-scroll themselves on mount afterwards.
+    window.scrollTo(0, 0);
+    setNav({ tab, payload });
+  };
 
   return (
     <AppStoreProvider>
