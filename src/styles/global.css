@@ -1130,7 +1130,11 @@ h3 {
   position: relative;
   background: transparent;
   border: 0;
-  padding: 6px;
+  /* Flexible width so 7 steps always fit inside the card; the dot itself
+     stays fixed-size and centred. */
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 0;
   display: grid;
   place-items: center;
 }
@@ -1174,7 +1178,7 @@ h3 {
     font-size: 12px;
   }
   .journey-step {
-    padding: 4px 2px;
+    padding: 4px 0;
   }
 }
 
