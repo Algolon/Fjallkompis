@@ -595,6 +595,14 @@ h3 {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+/* Freestanding hint text between Map screen cards. */
+.map-hint {
+  margin: 14px 2px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
 /* Map screen stage selector: a block grid with every option visible at
    once — no horizontal scrolling. "Full route" spans the row; the seven
    day chips share one row beneath it (fits down to 320px). */

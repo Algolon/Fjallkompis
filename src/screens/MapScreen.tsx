@@ -77,9 +77,7 @@ export function MapScreen() {
 
   return (
     <div className="screen">
-      <ScreenHeader eyebrow="Route" title="Map">
-        GPX route on a bounded offline basemap. Tap a stage line or a stop.
-      </ScreenHeader>
+      <ScreenHeader eyebrow="Route" title="Map" />
 
       {/* Map / elevation segmented control (both shown on wide screens) */}
       <div className="seg seg-map" role="tablist" aria-label="Map or elevation view">
@@ -208,18 +206,17 @@ export function MapScreen() {
             </div>
           </div>
           <div className="stat">
-            <div className="k">{appStage ? 'Est. time*' : 'Stages · stops'}</div>
+            <div className="k">{appStage ? 'Est. time' : 'Stages · stops'}</div>
             <div className="v tnum" style={{ fontSize: 17 }}>
               {appStage ? `~${appStage.estimatedHours} h` : `${ROUTE.stages.length} · ${ROUTE.waypoints.length}`}
             </div>
           </div>
         </div>
-        {appStage ? (
-          <p className="card-sub" style={{ marginTop: 8 }}>
-            *Personal estimate — the GPX contains no time data.
-          </p>
-        ) : null}
       </div>
+
+      <p className="map-hint">
+        GPX route on a bounded offline basemap. Tap a stage line or a stop.
+      </p>
 
       {/* Waypoint detail panel */}
       {waypoint ? (
