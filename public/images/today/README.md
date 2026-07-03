@@ -12,8 +12,8 @@ relaxation → Catmull-Rom cubic Bézier conversion) into flowing organic
 curves while preserving the terrain structure. Small summit rings are kept
 at size; degenerate sliver fragments were dropped.
 
-Rendering choices baked into the file: single spruce stroke (`#2f4a3e`),
-`stroke-opacity 0.07` for a 4–8% perceived presence over the base colour,
+Rendering choices baked into the file: a single contour-green stroke (`#6f806f`),
+`stroke-opacity 0.5` over the `#d4ded1` base for a clear but soft topo texture,
 1px stroke with round caps/joins, no fills, no labels or map UI.
 
 To retune subtlety, edit `stroke-opacity` (and/or `stroke-width`) on the

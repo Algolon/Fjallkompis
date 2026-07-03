@@ -116,7 +116,7 @@ export function OfflineMapCard() {
       ) : null}
 
       {phase.kind === 'done' ? (
-        <p className="banner-warn" style={{ marginTop: 12, background: '#dfeede', borderColor: '#c2dcc4', color: '#2f6440' }}>
+        <p className="banner-warn" style={{ marginTop: 12, background: '#dfe9db', borderColor: '#c4d4be', color: '#46603f' }}>
           <span>✓</span>
           <span>Offline map saved ({formatBytes(phase.sizeBytes)}). The map now works without a connection.</span>
         </p>

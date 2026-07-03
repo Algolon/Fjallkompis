@@ -7,29 +7,31 @@
 
 :root {
   /* Surfaces */
-  --stone-bg: #e7ecea;
-  --paper: #fafcfb;
-  --paper-2: #eef3f1;
+  --stone-bg: #dce4d8;
+  --paper: #f6f8f3;
+  --paper-2: #eef3ec;
 
   /* Ink */
-  --ink: #1b2a27;
-  --ink-soft: #4b5c57;
-  --ink-faint: #82908b;
+  --ink-strong: #223128;
+  --ink: #314238;
+  --ink-soft: #55675b;
+  --ink-faint: #7b8c80;
 
   /* Lines */
-  --line: #d4ddd8;
-  --line-strong: #c2cdc7;
+  --line: #c8d3c8;
+  --line-strong: #b5c2b4;
 
   /* Brand */
-  --spruce: #2f4a3e;
-  --spruce-700: #243a30;
-  --cloudberry: #c98438;
-  --cloudberry-soft: #f3e6d2;
-  --glacier: #2c7a8c;
-  --glacier-soft: #dbe9ec;
-  --danger: #b1452f;
-  --danger-soft: #f3dcd5;
-  --good: #4e7d5a;
+  --spruce: #2f4a3d;
+  --spruce-700: #243c31;
+  --cloudberry: #b78443;
+  --cloudberry-soft: #f0e1cb;
+  --glacier: #6a8d95;
+  --glacier-700: #4a656d;
+  --glacier-soft: #d7e5e8;
+  --danger: #8c5b46;
+  --danger-soft: #e9d9d2;
+  --good: #5d7a56;
 
   /* Shape */
   --r-sm: 10px;
@@ -87,6 +89,7 @@ h2,
 h3 {
   margin: 0;
   letter-spacing: -0.01em;
+  color: var(--ink-strong);
 }
 
 .tnum {
@@ -140,7 +143,7 @@ h3 {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--glacier);
+  color: var(--glacier-700);
 }
 .screen-head h1 {
   font-size: 26px;
@@ -272,23 +275,23 @@ h3 {
 }
 .pill-current {
   background: var(--cloudberry-soft);
-  color: #8a5316;
-  border-color: #e6cda3;
+  color: #9a6a3e;
+  border-color: #dfc9a6;
 }
 .pill-glacier {
   background: var(--glacier-soft);
-  color: #1f5b69;
-  border-color: #bcd9de;
+  color: #46626a;
+  border-color: #c3d6da;
 }
 .pill-good {
-  background: #dfeede;
-  color: #2f6440;
-  border-color: #c2dcc4;
+  background: #dfe9db;
+  color: #46603f;
+  border-color: #c4d4be;
 }
 .pill-warn {
   background: var(--danger-soft);
   color: var(--danger);
-  border-color: #e6c3b9;
+  border-color: #dcc4b8;
 }
 .dot {
   width: 8px;
@@ -301,8 +304,8 @@ h3 {
 
 .banner-warn {
   background: var(--danger-soft);
-  border: 1px solid #e6c3b9;
-  color: #7e2f1f;
+  border: 1px solid #dcc4b8;
+  color: #6e4536;
   border-radius: var(--r-sm);
   padding: 10px 12px;
   font-size: 13px;
@@ -376,9 +379,9 @@ h3 {
 .input:focus,
 .textarea:focus,
 .select:focus {
-  outline: 2px solid var(--glacier);
+  outline: 2px solid var(--glacier-700);
   outline-offset: 1px;
-  border-color: var(--glacier);
+  border-color: var(--glacier-700);
 }
 
 /* --- Score selector (mood / energy) -------------------------------------- */
@@ -466,7 +469,7 @@ h3 {
   display: block;
   width: 100%;
   height: auto;
-  background: linear-gradient(160deg, #e8eeec 0%, #dde7e4 100%);
+  background: linear-gradient(160deg, #e3eae0 0%, #d8e2d4 100%);
 }
 .map-legend {
   display: flex;
@@ -493,7 +496,7 @@ h3 {
 .mapview {
   width: 100%;
   height: 420px;
-  background: #e4ebe7;
+  background: #dce4d8;
 }
 .mapview:fullscreen {
   height: 100%;
@@ -534,8 +537,8 @@ h3 {
   font-weight: 700;
   color: var(--ink);
   text-shadow:
-    0 1px 2px rgba(250, 252, 251, 0.9),
-    0 0 4px rgba(250, 252, 251, 0.9);
+    0 1px 2px rgba(246, 248, 243, 0.9),
+    0 0 4px rgba(246, 248, 243, 0.9);
   white-space: nowrap;
 }
 
@@ -730,7 +733,7 @@ h3 {
   z-index: 20;
   height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: rgba(250, 252, 251, 0.92);
+  background: rgba(246, 248, 243, 0.92);
   backdrop-filter: saturate(1.4) blur(10px);
   border-top: 1px solid var(--line);
   display: flex;
@@ -773,8 +776,8 @@ h3 {
 
 .banner-info {
   background: var(--glacier-soft);
-  border: 1px solid #bcd9de;
-  color: #1f5b69;
+  border: 1px solid #c3d6da;
+  color: #46626a;
   border-radius: var(--r-sm);
   padding: 10px 12px;
   font-size: 13px;
@@ -820,7 +823,7 @@ h3 {
   min-height: 56px;
 }
 .stop-header:focus-visible {
-  outline: 2px solid var(--glacier);
+  outline: 2px solid var(--glacier-700);
   outline-offset: -2px;
   border-radius: var(--r-md);
 }
@@ -846,7 +849,7 @@ h3 {
 }
 .stop-type {
   font-weight: 600;
-  color: var(--glacier);
+  color: var(--glacier-700);
 }
 .stop-fact {
   display: inline-flex;
@@ -941,7 +944,7 @@ h3 {
 }
 .stop-fac.is-absent {
   background: var(--danger-soft);
-  border-color: #e6c3b9;
+  border-color: #dcc4b8;
   color: var(--danger);
 }
 .stop-fac.is-absent svg {
@@ -981,7 +984,7 @@ h3 {
 .stop-note {
   margin-top: 12px;
   background: var(--cloudberry-soft);
-  border: 1px solid #e6cda3;
+  border: 1px solid #dfc9a6;
   border-radius: var(--r-sm);
   padding: 10px 12px;
 }
@@ -994,7 +997,7 @@ h3 {
   gap: 6px;
   font-size: 12.5px;
   font-weight: 700;
-  color: #8a5316;
+  color: #9a6a3e;
 }
 .stop-note-preview {
   margin: 6px 0 0;
@@ -1048,7 +1051,7 @@ h3 {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--spruce-700);
-  background: rgba(250, 252, 251, 0.85);
+  background: rgba(246, 248, 243, 0.9);
   border: 1px solid var(--line);
   padding: 3px 8px;
   border-radius: 999px;
@@ -1083,9 +1086,10 @@ h3 {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #f3e6d2;
+  color: #f0e1cb;
 }
 .hero-title {
+  color: inherit; /* the global heading colour must not defeat the dark hero */
   margin-top: 6px;
   font-size: 23px;
   font-weight: 700;
@@ -1284,7 +1288,7 @@ h3 {
   /* Muted solid base with the topographic contour SVG over it. The lines'
      subtlety (spruce stroke at 7% opacity) is baked into the asset itself,
      keeping this layer a quiet backdrop that never competes with content. */
-  background-color: #e9eeec;
+  background-color: #d4ded1;
   background-image: var(--today-bg-image, none);
   background-size: cover;
   background-position: center;
@@ -1292,7 +1296,7 @@ h3 {
 }
 
 .today-eyebrow {
-  color: var(--glacier);
+  color: var(--glacier-700);
 }
 
 /* Liquid-glass surfaces (Today only). Gradient-free, layered material:
@@ -1310,8 +1314,8 @@ h3 {
   --glass-blur: 20px; /* backdrop blur radius */
   --glass-saturate: 1.75; /* colour lift of the blurred photo */
   --glass-brightness: 1.05; /* luminosity lift — cuts the muddiness */
-  --glass-fill-light: rgba(250, 253, 252, 0.34); /* pane translucency */
-  --glass-fill-opaque: rgba(250, 252, 251, 0.84);
+  --glass-fill-light: rgba(246, 248, 243, 0.36); /* pane translucency */
+  --glass-fill-opaque: rgba(246, 248, 243, 0.84);
   --glass-rim-w: 0.5px; /* hairline rim thickness */
   --glass-rim: rgba(255, 255, 255, 0.5); /* rim colour/intensity */
   --glass-highlight: rgba(255, 255, 255, 0.24); /* inner top catch-light */
@@ -1353,13 +1357,13 @@ h3 {
   /* No blur available: fall back to nearly opaque paper for readability. */
   .today-glass--light,
   .today-glass--opaque {
-    background: rgba(250, 252, 251, 0.96);
+    background: rgba(246, 248, 243, 0.96);
   }
 }
 /* Secondary text sits on a more transparent pane now — one step darker
    than the paper-surface defaults so it survives bright sky/water blurs. */
 .today-screen .today-glass .card-sub {
-  color: #33413c;
+  color: #3f4f45;
 }
 
 /* Journey card contrast on glass: endpoint labels a step darker than the
@@ -1368,7 +1372,7 @@ h3 {
   color: var(--ink-soft);
 }
 .today-screen .journey::before {
-  background: rgba(75, 92, 87, 0.45);
+  background: rgba(85, 103, 91, 0.5);
 }
 
 /* Compact navigation cards (Tonight / Daily list / Latest journal): whole
@@ -1399,7 +1403,7 @@ h3 {
 .today-action-card:focus-visible,
 .today-screen .journey-step:focus-visible,
 .today-screen .hero-cta:focus-visible {
-  outline: 2px solid var(--glacier);
+  outline: 2px solid var(--glacier-700);
   outline-offset: 2px;
 }
 .card + .today-action-card {
@@ -1427,7 +1431,7 @@ h3 {
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #33413c;
+  color: #3f4f45;
 }
 .today-action-card__title {
   font-size: 16.5px;
@@ -1444,7 +1448,7 @@ h3 {
   flex: 0 0 auto;
   font-size: 13px;
   font-weight: 600;
-  color: #33413c;
+  color: #3f4f45;
   white-space: nowrap;
 }
 .today-action-card__side {
@@ -1477,7 +1481,7 @@ h3 {
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #33413c;
+  color: #3f4f45;
   white-space: nowrap;
 }
 .today-action-card__chevron {
@@ -1489,7 +1493,7 @@ h3 {
   height: 5px;
   margin-top: 4px;
   border-radius: 999px;
-  background: rgba(27, 42, 39, 0.16);
+  background: rgba(34, 49, 40, 0.16);
   overflow: hidden;
 }
 .today-action-card__progress-fill {
@@ -1593,7 +1597,7 @@ h3 {
 .link-btn {
   background: none;
   border: 0;
-  color: var(--glacier);
+  color: var(--glacier-700);
   font-weight: 600;
   padding: 4px;
 }

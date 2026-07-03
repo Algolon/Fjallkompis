@@ -72,9 +72,9 @@ export function SettingsScreen() {
           className={`banner-warn`}
           style={{
             marginBottom: 14,
-            background: notice.kind === 'ok' ? '#dfeede' : undefined,
-            borderColor: notice.kind === 'ok' ? '#c2dcc4' : undefined,
-            color: notice.kind === 'ok' ? '#2f6440' : undefined,
+            background: notice.kind === 'ok' ? '#dfe9db' : undefined,
+            borderColor: notice.kind === 'ok' ? '#c4d4be' : undefined,
+            color: notice.kind === 'ok' ? '#46603f' : undefined,
           }}
         >
           <span>{notice.kind === 'ok' ? '✓' : '⚠️'}</span>

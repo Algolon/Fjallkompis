@@ -19,8 +19,8 @@ export default defineConfig({
         description:
           'Offline-first hut-to-hut trail companion for the Kungsleden. Prototype — not for primary navigation.',
         lang: 'en',
-        theme_color: '#2f4a3e',
-        background_color: '#e9edeb',
+        theme_color: '#2f4a3d',
+        background_color: '#dce4d8',
         display: 'standalone',
         orientation: 'portrait',
         // Scope/start_url pinned to the GitHub Pages project subpath (base).
