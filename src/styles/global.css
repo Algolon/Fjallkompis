@@ -588,6 +588,25 @@ h3 {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+/* Map screen stage selector: a block grid with every option visible at
+   once — no horizontal scrolling. "Full route" spans the row; the seven
+   day chips share one row beneath it (fits down to 320px). */
+.stage-select {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin: 14px 0;
+}
+.stage-select__full {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+.stage-select__day {
+  justify-content: center;
+  padding: 8px 0;
+  min-width: 0;
+}
+
 /* Segmented control ----------------------------------------------------------- */
 
 .seg {

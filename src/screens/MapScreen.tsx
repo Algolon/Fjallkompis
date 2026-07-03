@@ -81,33 +81,6 @@ export function MapScreen() {
         GPX route on a bounded offline basemap. Tap a stage line or a stop.
       </ScreenHeader>
 
-      <div className="banner-warn" style={{ marginBottom: 14 }}>
-        <span>⚠️</span>
-        <span>Prototype only — not for primary navigation. Carry a proper map and compass.</span>
-      </div>
-
-      {/* Stage selector: full route + day chips (identity = number, not colour) */}
-      <div className="stage-chips" role="group" aria-label="Select stage to view">
-        <button
-          className="chip"
-          aria-pressed={viewStageId === null}
-          onClick={() => setViewStageId(null)}
-        >
-          Full route
-        </button>
-        {ROUTE.stages.map((s) => (
-          <button
-            key={s.id}
-            className="chip"
-            aria-pressed={viewStageId === s.id}
-            onClick={() => setViewStageId(s.id)}
-          >
-            <span className="chip-swatch" style={{ background: STAGE_COLORS[s.day] }} />
-            {s.day}
-          </button>
-        ))}
-      </div>
-
       {/* Map / elevation segmented control (both shown on wide screens) */}
       <div className="seg seg-map" role="tablist" aria-label="Map or elevation view">
         <button role="tab" aria-selected={panel === 'map'} className="seg-btn" onClick={() => setPanel('map')}>
@@ -176,6 +149,31 @@ export function MapScreen() {
             Drag across the profile to see distance & elevation — the marker follows on the map.
           </p>
         </div>
+      </div>
+
+      {/* Stage selector below the map: a wrapping block instead of a
+          side-scroller, so every option is visible at once.
+          (Identity = number, not colour.) */}
+      <div className="stage-select" role="group" aria-label="Select stage to view">
+        <button
+          className="chip stage-select__full"
+          aria-pressed={viewStageId === null}
+          onClick={() => setViewStageId(null)}
+        >
+          Full route
+        </button>
+        {ROUTE.stages.map((s) => (
+          <button
+            key={s.id}
+            className="chip stage-select__day"
+            aria-pressed={viewStageId === s.id}
+            onClick={() => setViewStageId(s.id)}
+            aria-label={`Day ${s.day}`}
+          >
+            <span className="chip-swatch" style={{ background: STAGE_COLORS[s.day] }} />
+            {s.day}
+          </button>
+        ))}
       </div>
 
       {/* Stage / route summary */}
