@@ -9,7 +9,7 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
-import { formatDistanceKm, formatHours } from '../utils/format';
+import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
 import type { TabId } from '../components/TabBar';
 import type { ListsMode } from './ListsScreen';
@@ -142,7 +142,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
                   ↗ {currentStage.totalAscentM ?? '—'} m · ↘ {currentStage.totalDescentM ?? '—'} m
                 </span>
                 <span aria-hidden>·</span>
-                <span>~{formatHours(currentStage.estimatedHours)} est.</span>
+                <span>{formatHoursEstimate(currentStage.estimatedHours)}</span>
               </div>
             </div>
           </section>
