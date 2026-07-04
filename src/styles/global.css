@@ -788,6 +788,11 @@ h3 {
   font-weight: 600;
   letter-spacing: 0.01em;
   padding: 5px 2px;
+  /* Kill the browser's default (blue-ish) tap highlight that would flash over
+     the entire full-height cell. Press feedback is drawn on the pill instead so
+     the visible click target matches the chip the user actually sees. */
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 .tab .ic {
   width: 22px;
@@ -817,12 +822,26 @@ h3 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Press + keyboard-focus feedback stays inside the pill so the interaction
+   reads as one chip, and uses a darker green — never the browser's blue tap
+   colour. */
+.tab:active .tab-pill {
+  background: rgba(47, 74, 61, 0.22);
+}
+.tab:focus-visible .tab-pill {
+  outline: 2px solid var(--spruce);
+  outline-offset: 2px;
+}
 .tab[aria-current='page'] {
   color: var(--spruce);
 }
 .tab[aria-current='page'] .tab-pill {
   /* A shade darker green than the tab bar's own tint. */
   background: var(--line-strong);
+}
+/* Pressing the already-active tab deepens the green further still. */
+.tab[aria-current='page']:active .tab-pill {
+  background: rgba(47, 74, 61, 0.34);
 }
 .tab[aria-current='page'] .ic {
   stroke: var(--spruce);
