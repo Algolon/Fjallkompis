@@ -780,7 +780,11 @@ h3 {
   align-items: center;
   justify-content: center;
   color: var(--ink-soft);
-  font-size: 10px;
+  /* Scale the label with viewport width instead of shrinking the pill's
+     padding on small phones: that keeps a constant, comfortable gap between
+     the label and the pill edge at every width, while still guaranteeing the
+     longest label ("Settings") never clips. */
+  font-size: clamp(6.5px, calc(3.2vw - 3.4px), 10px);
   font-weight: 600;
   letter-spacing: 0.01em;
   padding: 5px 2px;
@@ -800,8 +804,11 @@ h3 {
   align-items: center;
   gap: 3px;
   max-width: 100%;
-  padding: 6px 6px;
-  border-radius: var(--r-md);
+  padding: 6px 8px;
+  /* Softly rounded rectangle rather than a full pill: a large radius curves in
+     right where the label ends and crowds it; a smaller one keeps the sides
+     straight past the text. */
+  border-radius: 10px;
   transition: background 0.18s ease;
 }
 .tab-label {
@@ -821,26 +828,6 @@ h3 {
   stroke: var(--spruce);
 }
 
-/* The tab bar is tight on small phones — shrink the label and the pill's side
-   padding so the longest label ("Settings") never clips. */
-@media (max-width: 380px) {
-  .tab {
-    font-size: 9px;
-  }
-  .tab-pill {
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-}
-@media (max-width: 340px) {
-  .tab {
-    font-size: 8.5px;
-  }
-  .tab-pill {
-    padding-left: 3px;
-    padding-right: 3px;
-  }
-}
 
 /* --- Info banner ----------------------------------------------------------- */
 
