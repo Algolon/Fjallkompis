@@ -81,13 +81,27 @@ export function OfflineAssetCard({ asset }: { asset: OfflineAsset }) {
           {asset.label}
           {asset.required ? <span className="pill" style={{ marginLeft: 8 }}>Fallback</span> : null}
         </span>
-        {!asset.available ? <span className="pill">Planned</span> : null}
+        {asset.streamed ? (
+          <span className="pill">Online</span>
+        ) : !asset.available ? (
+          <span className="pill">Planned</span>
+        ) : null}
       </div>
       <p className="card-sub" style={{ marginTop: 4 }}>
         {asset.description}
       </p>
 
-      {!asset.available ? (
+      {asset.streamed ? (
+        <>
+          <p className="banner-warn" style={{ marginTop: 12, background: 'var(--glacier-soft)', borderColor: '#bcd3d8', color: 'var(--glacier-700)' }}>
+            <span>🛰️</span>
+            <span>Streams while you have a connection — no download, nothing stored. Switch to it from Map → Layers.</span>
+          </p>
+          <p className="card-sub" style={{ marginTop: 10 }}>
+            Attribution: <span dangerouslySetInnerHTML={{ __html: asset.attribution }} />
+          </p>
+        </>
+      ) : !asset.available ? (
         <>
           <div className="row-between" style={{ marginTop: 12 }}>
             <span className="muted">Estimated size</span>

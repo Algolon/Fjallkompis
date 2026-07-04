@@ -25,6 +25,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { ROUTE } from '../route/routeData';
 import { buildMapStyle, routeLayers } from '../map/mapStyle';
 import { resolveBasemap, type BasemapMode } from '../map/pmtilesProtocol';
+import { applyBaseMap } from '../map/baseMap';
+import type { MapConfig } from '../map/mapConfig.mjs';
 import type { LatLng } from '../types';
 
 export interface MapViewHandle {
@@ -38,6 +40,8 @@ export interface MapViewHandle {
 interface MapViewProps {
   /** null → overview mode (all stages); id → stage mode. */
   selectedStageId: string | null;
+  /** Selected base map (topographic ↔ satellite), applied without recreating the map. */
+  mapConfig: MapConfig;
   onSelectStage: (stageId: string) => void;
   onSelectWaypoint: (waypointId: string) => void;
   onBasemapMode?: (mode: BasemapMode) => void;
@@ -52,7 +56,7 @@ const prefersReducedMotion = () =>
 const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { selectedStageId, onSelectStage, onSelectWaypoint, onBasemapMode, gps },
+  { selectedStageId, mapConfig, onSelectStage, onSelectWaypoint, onBasemapMode, gps },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -190,6 +194,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Base map: switch topographic ↔ satellite, never rebuild ------------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded) return;
+    applyBaseMap(map, mapConfig);
+  }, [mapConfig, loaded]);
 
   // ---- Selection: update filters/paint + camera, never rebuild ------------
   useEffect(() => {

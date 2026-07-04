@@ -23,8 +23,12 @@ export interface OfflineAsset {
   attribution: string;
   /** The single dependable fallback (topographic). */
   required: boolean;
-  /** Whether the PMTiles archive has actually shipped yet. */
+  /** Whether the layer can actually be used. */
   available: boolean;
+  /** True for an online raster source (no offline download); needs signal. */
+  streamed?: boolean;
+  /** XYZ tile template for a streamed source (e.g. `.../{z}/{y}/{x}.jpg`). */
+  tiles?: string;
 }
 
 export interface AssetManifest {

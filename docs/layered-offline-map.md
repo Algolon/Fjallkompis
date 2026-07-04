@@ -18,21 +18,23 @@ control — **without** producing any large satellite or elevation binaries and
 | Compact, collapsed-by-default **Layers** control on the Map screen | ✅ implemented |
 | Settings **download cards**, incl. "Planned" assets with size + attribution | ✅ implemented |
 | Topographic base map (the dependable fallback) | ✅ unchanged, still works offline |
+| **Satellite** base map — Sentinel-2 (EOX s2cloudless) streamed online | ✅ implemented (needs signal) |
 
 ## What is deliberately deferred (to the branch that introduces the data)
 
-The Map control shows **only layers the user can actually use now**. Since no
-optional asset has been produced, that is just the topographic base today.
+The Map control shows **only layers the user can actually use now**: the
+offline Topographic base and the online Satellite base. Overlays are planned.
 
 | Deferred | Why |
 |----------|-----|
-| Satellite / contour / hillshade / label **MapLibre layer specs** | Untestable and unused until real tiles exist; tuned against actual data in that branch. |
-| Multi-asset **layer reconciliation** (base-switch / overlay layer manager) | Only meaningful with ≥ 2 bases or an overlay; rebuilt when the second layer ships. |
-| Satellite / contour **build scripts** | Cannot be exercised without GDAL/tippecanoe + multi-GB inputs; belong with asset production. The pipelines are documented below. |
+| **Offline** satellite PMTiles | Satellite currently streams online (EOX). An offline, cropped Sentinel-2 PMTiles download (per `docs/pipelines/satellite-pmtiles.md`) needs GDAL + the pmtiles CLI + Sentinel-2 inputs; produced out of tree in a later branch. |
+| Contour / hillshade / label **layer specs + build scripts** | Untestable and unused until real DEM/label tiles exist; tuned against actual data with the pipelines when produced. |
 
-Planned assets remain visible in **Settings** as "Planned" (scope, estimated
-size, licence/attribution) and in the pipeline docs — so nothing is lost, but
-no scaffolding is exposed on the Map screen.
+`src/map/baseMap.ts` switches Topographic ↔ Satellite on the live map (raster
+source added below the route, topographic layers hidden), so adding the offline
+PMTiles satellite later is a source swap, not new UI. Planned overlays remain
+visible in **Settings** as "Planned" (scope, estimated size, licence) — nothing
+is lost, and no dead scaffolding is exposed on the Map screen.
 
 ## File structure (this branch)
 
@@ -46,7 +48,8 @@ src/map/
   pmtilesFormat.mjs / .d.mts   # PMTiles magic-byte detection (framework-free)
   offlineMap.ts                # topographic wrapper over offlineAssets (unchanged API)
   pmtilesProtocol.ts           # pmtiles:// protocol + per-asset source resolution
-  mapStyle.ts                  # topographic style + route layers (unchanged shape)
+  baseMap.ts                   # switch Topographic ↔ Satellite on the live map
+  mapStyle.ts                  # topographic style + route layers + topo layer ids
 src/hooks/useMapConfig.ts      # React state for base map + overlay toggles, persisted
 src/components/
   MapLayerControl.tsx          # compact, collapsed Map-screen Layers disclosure

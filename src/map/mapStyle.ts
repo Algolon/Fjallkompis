@@ -14,8 +14,18 @@ import { layers as protomapsLayers, namedFlavor } from '@protomaps/basemaps';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 
 export const BASEMAP_SOURCE = 'protomaps';
+export const SATELLITE_SOURCE = 'satellite';
+/** Route/hut/GPS layers stay above map imagery by inserting bases before this. */
+export const ROUTE_UNDERLAY_ID = 'route-overview';
 export const BASEMAP_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>';
+
+/** Ids of the topographic (protomaps) base layers, for show/hide on base switch. */
+export function topoLayerIds(): string[] {
+  return (protomapsLayers(BASEMAP_SOURCE, namedFlavor('light'), {}) as LayerSpecification[]).map(
+    (l) => l.id,
+  );
+}
 
 /** Okabe–Ito palette (colour-blind safe), one colour per day stage. */
 export const STAGE_COLORS: Record<number, string> = {

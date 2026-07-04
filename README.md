@@ -68,22 +68,26 @@ route still renders on a clearly-marked placeholder background.
 
 ### Layered offline map (foundation)
 
-Foundation for a **mutually-exclusive base map** (topographic ↔ future
-satellite) plus **independent overlays** (contours, hillshade, labels). This
-branch lands the pieces that are usable now: a typed `MapConfig` model with
-local persistence, a reusable **offline-asset registry**
-(`src/map/assetRegistry.mjs`), a generic + **safe** download layer that rejects
-any non-PMTiles response and never stores a corrupt entry
-(`src/map/offlineDownload.mjs`, covered by `tests/offline-download.test.mjs`),
-and a compact, collapsed-by-default **Layers** control that surfaces only the
-layers you can actually use — currently the topographic base.
+A **mutually-exclusive base map** (Topographic ↔ Satellite) plus planned
+**overlays** (contours, hillshade, labels). Map → **Layers** is a compact,
+collapsed-by-default control that surfaces only the layers you can use now:
 
-Topographic remains the required offline fallback; optional assets never
-enlarge the app or the precache. Satellite/terrain **rendering** and the
-**build scripts** are deferred to the branch that produces those assets — their
-sources (Sentinel-2, Copernicus DEM GLO-30; both redistributable with
-attribution) and pipelines are documented in **`docs/layered-offline-map.md`**
-and `docs/pipelines/`. No large satellite/elevation binaries are committed.
+- **Topographic** — the bounded offline PMTiles basemap; the dependable
+  fallback with no signal.
+- **Satellite** — cloud-free **Sentinel-2** imagery streamed online from
+  [EOX s2cloudless](https://s2maps.eu) (free, attributed; needs a connection).
+  No download, nothing stored; the route/hut/GPS layers stay above it.
+
+Supporting foundation: a typed `MapConfig` model with local persistence, a
+reusable **offline-asset registry** (`src/map/assetRegistry.mjs`), and a generic
++ **safe** download layer that rejects any non-PMTiles response and never stores
+a corrupt entry (`src/map/offlineDownload.mjs`, covered by
+`tests/offline-download.test.mjs`).
+
+Optional assets never enlarge the app or the precache (satellite streams; no
+binary committed). An **offline** satellite PMTiles and the terrain overlays
+(Copernicus DEM GLO-30) remain future work — their sources and build pipelines
+are documented in **`docs/layered-offline-map.md`** and `docs/pipelines/`.
 
 ## Stops guide data
 

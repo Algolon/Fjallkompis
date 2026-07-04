@@ -102,12 +102,13 @@ export function MapScreen() {
           <MapView
             ref={mapRef}
             selectedStageId={viewStageId}
+            mapConfig={mapConfig}
             onSelectStage={(id) => setViewStageId(id)}
             onSelectWaypoint={(id) => setSelectedWaypointId(id)}
             onBasemapMode={setBasemapMode}
             gps={geo.coord}
           />
-          {basemapMode === 'none' ? (
+          {basemapMode === 'none' && mapConfig.baseMap === 'topographic' ? (
             <div className="banner-warn" style={{ margin: 10 }}>
               <span>🗺️</span>
               <span>

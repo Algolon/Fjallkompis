@@ -33,7 +33,10 @@
  * @property {boolean} estimatedSize     True while expectedSizeBytes is a guess.
  * @property {string} attribution        Required source attribution.
  * @property {boolean} required          The dependable fallback (topographic).
- * @property {boolean} available         Whether the PMTiles has actually shipped.
+ * @property {boolean} available         Whether the layer can actually be used.
+ * @property {boolean} [streamed]        True for an online raster source (no
+ *                                       offline download / PMTiles); needs signal.
+ * @property {string} [tiles]            XYZ tile template for a streamed source.
  */
 
 /** @type {readonly AssetKind[]} */
@@ -66,18 +69,22 @@ export const OFFLINE_ASSETS = {
     role: 'base',
     label: 'Satellite',
     description:
-      'Optional cloud-free Sentinel-2 natural-colour raster of the route ' +
-      'corridor. A large download — remove it any time to reclaim space.',
+      'Cloud-free Sentinel-2 satellite imagery, streamed online (needs signal). ' +
+      'Topographic stays the offline fallback when you have none.',
     path: 'maps/kungsleden-satellite.pmtiles',
     cacheName: 'fjallkompis-satellite-v1',
     version: '1',
     kind: 'raster',
-    // PLANNING ESTIMATE — replace after the first real extraction (see docs).
-    expectedSizeBytes: 120_000_000,
+    // Streamed online: Sentinel-2 cloudless XYZ tiles (EOX, GoogleMapsCompatible).
+    streamed: true,
+    tiles: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg',
+    // Streamed, so no download size; kept > 0 only to satisfy registry invariants.
+    expectedSizeBytes: 1,
     estimatedSize: true,
-    attribution: 'Contains modified Copernicus Sentinel-2 data',
+    attribution:
+      'Sentinel-2 cloudless 2020 by <a href="https://s2maps.eu" target="_blank" rel="noopener">EOX</a> — Contains modified Copernicus Sentinel data',
     required: false,
-    available: false,
+    available: true,
   },
   contours: {
     id: 'contours',
