@@ -139,14 +139,16 @@ export function SettingsScreen() {
             <s>Installable-PWA polish (install option, update &amp; offline-ready toasts)</s> ✓
           </li>
           <li>
-            Improve offline-map geographic context — a future decision between a
-            few curated labels, general basemap labels, or terrain
-            contours/hillshade (these are separate features, not one).
+            Enhanced offline map — an optional topographic download for
+            orientation: terrain contours/hillshade first, then general labels
+            via local glyphs. Kept separate from, and on top of, today’s
+            lightweight basemap.
           </li>
         </ul>
         <p className="card-sub" style={{ marginTop: 10 }}>
-          Prototype — not for primary navigation. Always carry a proper map,
-          compass and a dedicated navigation/safety device.
+          Still not primary navigation — always carry a proper map, compass and a
+          dedicated navigation/safety device — but the in-app map is meant to
+          keep getting more useful offline.
         </p>
       </div>
 

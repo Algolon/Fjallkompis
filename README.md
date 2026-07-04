@@ -152,9 +152,13 @@ see the warning above.
 
 ## Known limitations
 
-- Basemap has no text labels yet (kept glyph/sprite-free for offline
-  reliability); hut names are local HTML markers.
+- The default basemap has no general text labels yet (kept glyph/sprite-free so
+  the mandatory download stays small and fully offline); route and hut names are
+  local HTML markers. General labels are planned via **local glyphs** as part of
+  the enhanced offline map (below).
 - Max zoom 14 (+overzoom) — fine for overview, not for close-up detail.
+- No terrain relief (contours/hillshade) yet — also planned as an optional
+  enhanced-map download.
 - Route progress matches a single GPS fix to the mapped line: it is
   approximate, and low-accuracy or off-trail fixes are qualified or rejected
   rather than guessed.
@@ -162,13 +166,21 @@ see the warning above.
 
 ## Next iteration
 
-1. **Improve offline-map geographic context.** This is a genuine choice between
-   three *separate* features, to be decided deliberately — not bundled as one:
-   - **A.** a small curated set of important geographic labels using local data
-     or HTML markers (cheapest, no new asset pipeline);
-   - **B.** general basemap labels using self-hosted glyph PBFs (a real font
-     pipeline, larger assets, still fully offline);
-   - **C.** true terrain contours or hillshade from a *separate* offline
-     terrain PMTiles source (largest, needs a second tileset + styling).
-2. Code-split MapLibre behind a lazy route to trim the initial bundle (the
-   Map screen currently pulls MapLibre into the first-load JS).
+1. **Enhanced offline map — a genuinely useful offline topographic map for route
+   awareness and orientation** (still not primary navigation). Two separate
+   technical capabilities, potentially surfaced as one optional **"Enhanced
+   offline map"** download, with the lightweight vector basemap kept as the
+   dependable fallback and no remote runtime map/font/terrain dependencies:
+   - **terrain context** — contours and/or hillshade from a *separate* offline
+     terrain source (**do this first**; the route and huts are already
+     labelled);
+   - **general labels** — self-hosted **local glyph** PBFs over the OSM vector
+     tiles.
+
+   The mandatory app/basemap size must not grow: the enhanced layers are an
+   optional, removable download managed like today's offline map. See the full
+   technical investigation, licences, size estimates and phased plan in
+   [`docs/enhanced-offline-map.md`](docs/enhanced-offline-map.md).
+2. Code-split MapLibre behind a lazy route to trim the initial bundle (the Map
+   screen currently pulls MapLibre into the first-load JS) — a small prerequisite
+   before adding map features.
