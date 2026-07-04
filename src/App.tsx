@@ -6,7 +6,6 @@ import { MapScreen } from './screens/MapScreen';
 import { StagesScreen } from './screens/StagesScreen';
 import { StopsScreen } from './screens/StopsScreen';
 import { ListsScreen } from './screens/ListsScreen';
-import { JournalScreen } from './screens/JournalScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 
 interface Nav {
@@ -33,8 +32,6 @@ function Screens({
       return <StopsScreen initialStopId={nav.payload?.stopId ?? null} />;
     case 'checklist':
       return <ListsScreen initialMode={nav.payload?.listsMode} />;
-    case 'journal':
-      return <JournalScreen />;
     case 'settings':
       return <SettingsScreen />;
   }

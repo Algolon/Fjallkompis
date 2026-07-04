@@ -43,16 +43,14 @@ export function SettingsScreen() {
     replaceState(result.state);
     setNotice({
       kind: 'ok',
-      text: `Imported ${result.state.journal.length} journal entr${
-        result.state.journal.length === 1 ? 'y' : 'ies'
-      } and your settings.`,
+      text: 'Imported your trip data and settings.',
     });
   };
 
   const doReset = () => {
     if (
       confirm(
-        'Reset all local data? This clears your daily list, packing list, stop notes, journal and current stage. Export a backup first if unsure.',
+        'Reset all local data? This clears your daily list, packing list, stop notes and current stage. Export a backup first if unsure.',
       )
     ) {
       resetAll();
@@ -131,10 +129,6 @@ export function SettingsScreen() {
         <div className="row-between" style={{ marginTop: 8 }}>
           <span className="muted">PWA</span>
           <span style={{ textAlign: 'right', maxWidth: '60%' }}>{pwaStatus()}</span>
-        </div>
-        <div className="row-between" style={{ marginTop: 8 }}>
-          <span className="muted">Journal entries</span>
-          <span className="tnum">{state.journal.length}</span>
         </div>
       </div>
 

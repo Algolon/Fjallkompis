@@ -791,14 +791,27 @@ h3 {
   height: 22px;
   display: block;
 }
-.tab[aria-current='true'] {
+/* Active "pill" behind the icon: a filled rounded indicator (Material-style)
+   so the current tab is legible from shape + fill, not colour alone. */
+.tab-ic-wrap {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  transition: background 0.18s ease;
+}
+.tab[aria-current='page'] {
   color: var(--spruce);
 }
-.tab[aria-current='true'] .ic {
+.tab[aria-current='page'] .tab-ic-wrap {
+  background: var(--glacier-soft);
+}
+.tab[aria-current='page'] .ic {
   stroke: var(--spruce);
 }
 
-/* The 7-tab bar is tight on small phones — let labels shrink gracefully. */
+/* The tab bar is tight on small phones — let labels shrink gracefully. */
 @media (max-width: 380px) {
   .tab {
     font-size: 9px;

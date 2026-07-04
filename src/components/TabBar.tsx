@@ -4,7 +4,6 @@ import {
   IconStages,
   IconHuts,
   IconChecklist,
-  IconJournal,
   IconSettings,
 } from './Icons';
 
@@ -14,7 +13,6 @@ export type TabId =
   | 'stages'
   | 'huts'
   | 'checklist'
-  | 'journal'
   | 'settings';
 
 const TABS: { id: TabId; label: string; Icon: (p: { className?: string }) => JSX.Element }[] = [
@@ -25,7 +23,6 @@ const TABS: { id: TabId; label: string; Icon: (p: { className?: string }) => JSX
   // wiring reference them, only the user-facing labels changed.
   { id: 'huts', label: 'Stops', Icon: IconHuts },
   { id: 'checklist', label: 'Lists', Icon: IconChecklist },
-  { id: 'journal', label: 'Journal', Icon: IconJournal },
   { id: 'settings', label: 'Settings', Icon: IconSettings },
 ];
 
@@ -42,10 +39,14 @@ export function TabBar({
         <button
           key={id}
           className="tab"
-          aria-current={active === id}
+          aria-current={active === id ? 'page' : undefined}
           onClick={() => onChange(id)}
         >
-          <Icon className="ic" />
+          {/* Wrapper carries the active "pill" so the selected tab reads at a
+              glance from shape + fill, not colour alone. */}
+          <span className="tab-ic-wrap">
+            <Icon className="ic" />
+          </span>
           {label}
         </button>
       ))}
