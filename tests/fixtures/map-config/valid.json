@@ -1,0 +1,6 @@
+{
+  "baseMap": "satellite",
+  "contoursEnabled": true,
+  "hillshadeEnabled": false,
+  "labelsEnabled": true
+}

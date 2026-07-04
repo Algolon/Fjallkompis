@@ -1,0 +1,13 @@
+{
+  "id": "satellite",
+  "version": "1",
+  "kind": "raster",
+  "sourceDate": "2023-08-05",
+  "attribution": "Contains modified Copernicus Sentinel-2 data 2023",
+  "bbox": [18.0244, 67.762, 19.2328, 68.4392],
+  "sizeBytes": 118374400,
+  "tileFormat": "jpeg",
+  "minZoom": 8,
+  "maxZoom": 14,
+  "notes": "SAMPLE fixture only — illustrative sidecar shape emitted next to a real satellite PMTiles by scripts/build-satellite-pmtiles.sh. Not a produced asset; sizeBytes is a placeholder until a real extraction exists."
+}

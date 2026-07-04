@@ -13,9 +13,21 @@
 import { layers as protomapsLayers, namedFlavor } from '@protomaps/basemaps';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 
-export const BASEMAP_SOURCE = 'protomaps';
+// ---- Source ids (one per registry asset) -----------------------------------
+export const BASEMAP_SOURCE = 'protomaps'; // topographic vector base
+export const SATELLITE_SOURCE = 'satellite'; // raster base
+export const CONTOURS_SOURCE = 'contours'; // vector overlay
+export const HILLSHADE_SOURCE = 'hillshade'; // raster-dem overlay
+export const LABELS_SOURCE = 'labels'; // vector overlay
+
+/** The layer id every base/overlay layer is inserted BEFORE, so route, hut
+ *  and GPS layers always stay above all map imagery. */
+export const ROUTE_UNDERLAY_ID = 'route-overview';
+
 export const BASEMAP_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>';
+export const SATELLITE_ATTRIBUTION = 'Contains modified Copernicus Sentinel-2 data';
+export const TERRAIN_ATTRIBUTION = 'Contains modified Copernicus DEM data © ESA';
 
 /** Okabe–Ito palette (colour-blind safe), one colour per day stage. */
 export const STAGE_COLORS: Record<number, string> = {
@@ -38,11 +50,16 @@ const stageColorExpression = [
   OVERVIEW_COLOR,
 ] as unknown as string;
 
-export function buildMapStyle(basemapSourceUrl: string | null): StyleSpecification {
-  const style: StyleSpecification = {
+/**
+ * Base style with ONLY the placeholder background. Base maps and overlays are
+ * added imperatively afterwards by the layer manager (src/map/layerManager.ts)
+ * so switching base maps or toggling overlays never recreates the map. The
+ * placeholder stays visible when no base map is available; the UI shows an
+ * explicit "basemap missing" notice alongside it.
+ */
+export function buildBaseStyle(): StyleSpecification {
+  return {
     version: 8,
-    // Placeholder background stays visible when no basemap is available; the
-    // UI shows an explicit "basemap missing" notice alongside it.
     sources: {},
     layers: [
       {
@@ -52,22 +69,101 @@ export function buildMapStyle(basemapSourceUrl: string | null): StyleSpecificati
       },
     ],
   };
+}
 
-  if (basemapSourceUrl) {
-    style.sources[BASEMAP_SOURCE] = {
-      type: 'vector',
-      url: basemapSourceUrl,
-      attribution: BASEMAP_ATTRIBUTION,
-    };
-    // Calm "light" flavour; no `lang` → no symbol layers → no glyph/sprite
-    // dependencies. Layers cover land, landcover/landuse, water, waterways,
-    // roads, paths/trails, railways, buildings and boundaries where present.
-    style.layers.push(
-      ...(protomapsLayers(BASEMAP_SOURCE, namedFlavor('light'), {}) as LayerSpecification[]),
-    );
+/**
+ * Topographic base map layers from the protomaps "light" flavour WITHOUT the
+ * `lang` option → zero symbol layers → no glyphs, sprites or remote fonts.
+ * They reference {@link BASEMAP_SOURCE}. Computed lazily and memoised so the
+ * layer manager can also enumerate their ids for clean removal.
+ */
+let topoLayersCache: LayerSpecification[] | null = null;
+export function topoBaseLayers(): LayerSpecification[] {
+  if (!topoLayersCache) {
+    topoLayersCache = protomapsLayers(
+      BASEMAP_SOURCE,
+      namedFlavor('light'),
+      {},
+    ) as LayerSpecification[];
   }
+  // Return a shallow copy so callers can safely splice/insert.
+  return topoLayersCache.map((l) => ({ ...l }));
+}
 
-  return style;
+/** Ids of the topographic base layers, for group removal. */
+export function topoBaseLayerIds(): string[] {
+  return topoBaseLayers().map((l) => l.id);
+}
+
+/** Satellite raster base layer. */
+export function satelliteBaseLayers(): LayerSpecification[] {
+  return [
+    {
+      id: 'base-satellite',
+      type: 'raster',
+      source: SATELLITE_SOURCE,
+      paint: { 'raster-opacity': 1 },
+    },
+  ];
+}
+
+/** Contour overlay: minor lines + emphasised index lines (glyph-free). */
+export function contourOverlayLayers(): LayerSpecification[] {
+  return [
+    {
+      id: 'overlay-contours-minor',
+      type: 'line',
+      source: CONTOURS_SOURCE,
+      'source-layer': 'contours',
+      filter: ['!=', ['%', ['coalesce', ['get', 'elevation'], 0], 100], 0],
+      paint: { 'line-color': '#8a7250', 'line-width': 0.6, 'line-opacity': 0.5 },
+    },
+    {
+      id: 'overlay-contours-index',
+      type: 'line',
+      source: CONTOURS_SOURCE,
+      'source-layer': 'contours',
+      filter: ['==', ['%', ['coalesce', ['get', 'elevation'], 0], 100], 0],
+      paint: { 'line-color': '#7a5f3a', 'line-width': 1.1, 'line-opacity': 0.7 },
+    },
+  ];
+}
+
+/** Hillshade / terrain-relief overlay from a raster-dem source. */
+export function hillshadeOverlayLayers(): LayerSpecification[] {
+  return [
+    {
+      id: 'overlay-hillshade',
+      type: 'hillshade',
+      source: HILLSHADE_SOURCE,
+      paint: { 'hillshade-exaggeration': 0.45, 'hillshade-shadow-color': '#3a3a3a' },
+    },
+  ];
+}
+
+/**
+ * General place-label overlay. Symbol layers need a glyph pack; kept minimal
+ * here and only activated once the labels asset (glyphs + label tiles) ships.
+ */
+export function labelOverlayLayers(): LayerSpecification[] {
+  return [
+    {
+      id: 'overlay-labels',
+      type: 'symbol',
+      source: LABELS_SOURCE,
+      'source-layer': 'labels',
+      layout: {
+        'text-field': ['coalesce', ['get', 'name'], ''],
+        'text-size': 12,
+        'text-font': ['Noto Sans Regular'],
+      },
+      paint: {
+        'text-color': '#2b3a30',
+        'text-halo-color': '#eef3ec',
+        'text-halo-width': 1.2,
+      },
+    },
+  ];
 }
 
 /** GeoJSON route layers, added above the basemap after style load. */

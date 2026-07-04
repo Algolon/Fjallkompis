@@ -8,3 +8,12 @@ dist-ssr
 dev-dist
 .claude/
 *.tsbuildinfo
+
+# Optional, produced-out-of-tree offline assets (satellite/terrain). The
+# committed topographic basemap (kungsleden.pmtiles) is intentionally NOT
+# ignored; large optional archives must never be committed to the repo.
+public/maps/kungsleden-satellite.pmtiles
+public/maps/kungsleden-contours.pmtiles
+public/maps/kungsleden-hillshade.pmtiles
+public/maps/kungsleden-labels.pmtiles
+public/maps/*.pmtiles.json

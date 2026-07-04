@@ -23,8 +23,10 @@ import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ROUTE } from '../route/routeData';
-import { buildMapStyle, routeLayers } from '../map/mapStyle';
-import { resolveBasemap, type BasemapMode } from '../map/pmtilesProtocol';
+import { buildBaseStyle, routeLayers } from '../map/mapStyle';
+import type { BasemapMode } from '../map/pmtilesProtocol';
+import { reconcileMapLayers } from '../map/layerManager';
+import type { MapConfig } from '../map/mapConfig.mjs';
 import type { LatLng } from '../types';
 
 export interface MapViewHandle {
@@ -38,6 +40,8 @@ export interface MapViewHandle {
 interface MapViewProps {
   /** null → overview mode (all stages); id → stage mode. */
   selectedStageId: string | null;
+  /** Selected base map + overlay toggles (applied without recreating the map). */
+  mapConfig: MapConfig;
   onSelectStage: (stageId: string) => void;
   onSelectWaypoint: (waypointId: string) => void;
   onBasemapMode?: (mode: BasemapMode) => void;
@@ -52,7 +56,7 @@ const prefersReducedMotion = () =>
 const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { selectedStageId, onSelectStage, onSelectWaypoint, onBasemapMode, gps },
+  { selectedStageId, mapConfig, onSelectStage, onSelectWaypoint, onBasemapMode, gps },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -60,8 +64,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const [loaded, setLoaded] = useState(false);
 
   // Keep latest callbacks reachable from map event handlers without rebinding.
-  const callbacksRef = useRef({ onSelectStage, onSelectWaypoint });
-  callbacksRef.current = { onSelectStage, onSelectWaypoint };
+  const callbacksRef = useRef({ onSelectStage, onSelectWaypoint, onBasemapMode });
+  callbacksRef.current = { onSelectStage, onSelectWaypoint, onBasemapMode };
 
   const animate = () => ({ duration: prefersReducedMotion() ? 0 : 700 });
 
@@ -103,13 +107,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     let resizeObs: ResizeObserver | null = null;
 
     (async () => {
-      const basemap = await resolveBasemap();
       if (cancelled || !containerRef.current) return;
-      onBasemapMode?.(basemap.mode);
 
+      // Start from a placeholder-only style; base map + overlays are attached
+      // imperatively by the layer manager (below) so config changes never
+      // recreate the map.
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildMapStyle(basemap.sourceUrl),
+        style: buildBaseStyle(),
         bounds: ROUTE.bounds,
         fitBoundsOptions: { padding: FIT_PADDING },
         attributionControl: { compact: true },
@@ -190,6 +195,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Base map + overlays: reconcile on config change, never rebuild -----
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded) return;
+    let active = true;
+    void reconcileMapLayers(map, mapConfig).then((r) => {
+      if (active) callbacksRef.current.onBasemapMode?.(r.baseMode);
+    });
+    return () => {
+      active = false;
+    };
+  }, [mapConfig, loaded]);
 
   // ---- Selection: update filters/paint + camera, never rebuild ------------
   useEffect(() => {

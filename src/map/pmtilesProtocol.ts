@@ -4,17 +4,19 @@
  * The pmtiles:// protocol is registered exactly ONCE per page (module-level
  * guard) — never per map instance or per React render.
  *
- * Basemap resolution order:
+ * Source resolution order for any asset (base map or overlay):
  *   1. offline: the user-downloaded blob from Cache Storage, read through a
  *      blob-backed PMTiles Source (works without a service worker);
- *   2. online:  the hosted .pmtiles file via HTTP range requests;
- *   3. none:    no basemap available — the map falls back to a clearly
- *               marked plain-background placeholder with route layers only.
+ *   2. online:  the hosted .pmtiles file via HTTP range requests (only when
+ *      the asset has actually shipped);
+ *   3. none:    not downloaded and not (yet) hosted — the caller renders a
+ *      clear "download required" / placeholder state instead.
  */
 import maplibregl from 'maplibre-gl';
 import { PMTiles, Protocol } from 'pmtiles';
 import type { Source, RangeResponse } from 'pmtiles';
-import { getOfflineMapBlob, offlineMapUrl } from './offlineMap';
+import type { OfflineAsset } from './assetRegistry.mjs';
+import { assetUrl, getAssetBlob } from './offlineAssets';
 
 let protocol: Protocol | null = null;
 
@@ -26,7 +28,7 @@ export function ensurePmtilesProtocol(): Protocol {
   return protocol;
 }
 
-/** PMTiles Source backed by an in-memory Blob (the cached offline map). */
+/** PMTiles Source backed by an in-memory Blob (a cached offline asset). */
 class BlobSource implements Source {
   constructor(
     private blob: Blob,
@@ -45,36 +47,40 @@ class BlobSource implements Source {
 
 export type BasemapMode = 'offline' | 'online' | 'none';
 
-export interface BasemapResolution {
+export interface AssetResolution {
+  assetId: string;
   mode: BasemapMode;
-  /** style `url` for the vector source, e.g. pmtiles://… (null for 'none'). */
+  /** style `url` for the source, e.g. pmtiles://… (null for 'none'). */
   sourceUrl: string | null;
 }
 
-const OFFLINE_KEY = 'offline://kungsleden';
-
 /**
- * Decide where basemap tiles come from, preferring the offline copy.
- * Called on map mount; cheap (one cache lookup + at most one HEAD request).
+ * Resolve where an asset's tiles come from, preferring the offline copy.
+ * Cheap: one cache lookup + (for shipped, undownloaded assets) at most one
+ * HEAD request. Re-adding the blob source under the same key replaces the
+ * previous instance, which is exactly what we want after a re-download.
  */
-export async function resolveBasemap(): Promise<BasemapResolution> {
+export async function resolveAssetSource(asset: OfflineAsset): Promise<AssetResolution> {
   const proto = ensurePmtilesProtocol();
+  const key = `offline://${asset.id}`;
 
-  const blob = await getOfflineMapBlob();
+  const blob = await getAssetBlob(asset);
   if (blob) {
-    // Re-adding under the same key replaces the previous instance, which is
-    // exactly what we want after a re-download.
-    proto.add(new PMTiles(new BlobSource(blob, OFFLINE_KEY)));
-    return { mode: 'offline', sourceUrl: `pmtiles://${OFFLINE_KEY}` };
+    proto.add(new PMTiles(new BlobSource(blob, key)));
+    return { assetId: asset.id, mode: 'offline', sourceUrl: `pmtiles://${key}` };
   }
 
-  try {
-    const head = await fetch(offlineMapUrl(), { method: 'HEAD' });
-    if (head.ok) {
-      return { mode: 'online', sourceUrl: `pmtiles://${offlineMapUrl()}` };
+  // Only probe the network for assets that have actually been produced/hosted.
+  if (asset.available) {
+    try {
+      const head = await fetch(assetUrl(asset), { method: 'HEAD' });
+      if (head.ok) {
+        return { assetId: asset.id, mode: 'online', sourceUrl: `pmtiles://${assetUrl(asset)}` };
+      }
+    } catch {
+      // Network down and no offline copy — fall through to 'none'.
     }
-  } catch {
-    // Network down and no offline copy — fall through to 'none'.
   }
-  return { mode: 'none', sourceUrl: null };
+
+  return { assetId: asset.id, mode: 'none', sourceUrl: null };
 }

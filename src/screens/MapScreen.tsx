@@ -2,9 +2,11 @@ import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { MapView, type MapViewHandle } from '../components/MapView';
+import { MapLayerControl } from '../components/MapLayerControl';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
+import { useMapConfig } from '../hooks/useMapConfig';
 import { STOPS, STOPS_BY_ID, stopShortName } from '../data/stops';
 import { STAGES_BY_ID } from '../data/stages';
 import {
@@ -27,6 +29,7 @@ type Panel = 'map' | 'elevation';
 export function MapScreen() {
   const { currentStage, nextHutId, setCurrentStage, getStopNote } = useStore();
   const geo = useGeolocation();
+  const { config: mapConfig, setBaseMap, toggleOverlay } = useMapConfig();
   const mapRef = useRef<MapViewHandle>(null);
 
   // Which stage the MAP is looking at (null = full-route overview). Starts at
@@ -99,6 +102,7 @@ export function MapScreen() {
           <MapView
             ref={mapRef}
             selectedStageId={viewStageId}
+            mapConfig={mapConfig}
             onSelectStage={(id) => setViewStageId(id)}
             onSelectWaypoint={(id) => setSelectedWaypointId(id)}
             onBasemapMode={setBasemapMode}
@@ -129,6 +133,11 @@ export function MapScreen() {
               Next ›
             </button>
           </div>
+          <MapLayerControl
+            config={mapConfig}
+            onSelectBase={setBaseMap}
+            onToggleOverlay={toggleOverlay}
+          />
         </div>
 
         <div className={`card ${panel === 'elevation' ? '' : 'panel-hidden'} panel-elev`}>

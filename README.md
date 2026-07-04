@@ -58,13 +58,30 @@ range-read extraction only, never raster scraping, never
 tile.openstreetmap.org. Output: `public/maps/kungsleden.pmtiles` (committed).
 Attribution: © OpenStreetMap contributors · Protomaps (shown on the map).
 
-In the app, **Settings → Offline map** downloads the file into a dedicated
-Cache Storage cache (separate from the app shell). The map reads it through a
-blob-backed PMTiles source (works without a service worker), and the service
-worker additionally serves byte-range requests from the cached full response
-via Workbox `RangeRequestsPlugin`. Without the download, the basemap streams
-online via HTTP range requests; with no network and no download, the route
-still renders on a clearly-marked placeholder background.
+In the app, **Settings → Offline maps & terrain** downloads the file into a
+dedicated Cache Storage cache (separate from the app shell). The map reads it
+through a blob-backed PMTiles source (works without a service worker), and the
+service worker additionally serves byte-range requests from the cached full
+response via Workbox `RangeRequestsPlugin`. Without the download, the basemap
+streams online via HTTP range requests; with no network and no download, the
+route still renders on a clearly-marked placeholder background.
+
+### Layered offline map (foundation)
+
+The map is built from a **mutually-exclusive base map** (topographic ↔
+satellite) plus **independent overlays** (hillshade, contours, labels), each an
+optional, removable PMTiles download registered in a reusable **offline-asset
+registry** (`src/map/assetRegistry.mjs`). A Map-screen layer control switches
+base maps and toggles overlays without recreating the MapLibre map; route, hut
+and GPS layers always stay above all imagery. Topographic remains the required
+fallback, and optional assets never enlarge the app or the precache.
+
+Satellite and contour build pipelines (Sentinel-2 and Copernicus DEM GLO-30,
+both redistributable with attribution) are scripted in
+`scripts/build-satellite-pmtiles.sh` and `scripts/build-contours-pmtiles.sh`.
+See **`docs/layered-offline-map.md`** for the full design, cache model,
+attribution, bundle impact and storage estimates. No large satellite/elevation
+binaries are committed — produce them out of tree.
 
 ## Stops guide data
 
@@ -111,10 +128,17 @@ npm run build && npm run preview   # production PWA (SW active only in build)
 fjallkompis/
 ├─ scripts/
 │  ├─ generate-route-data.mjs   # GPX → JSON preprocessing + validation
-│  └─ extract-offline-map.sh    # bounded PMTiles extraction (pmtiles CLI)
+│  ├─ extract-offline-map.sh    # bounded topographic PMTiles extraction
+│  ├─ build-satellite-pmtiles.sh # Sentinel-2 → raster PMTiles (optional base)
+│  └─ build-contours-pmtiles.sh  # Copernicus DEM → contour PMTiles (overlay)
+├─ docs/
+│  ├─ layered-offline-map.md    # layered-map design + status report
+│  └─ pipelines/                # satellite + contour build pipelines
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
-│  └─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
+│  ├─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
+│  ├─ map-config.test.mjs       # map config + asset registry invariants
+│  └─ fixtures/                 # config + asset-manifest test fixtures
 ├─ public/
 │  ├─ gpx/…                     # source GPX (verified route)
 │  ├─ images/stops/             # optional licensed stop photos (see README there)

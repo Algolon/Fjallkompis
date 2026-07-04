@@ -5,6 +5,8 @@ import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
 import { OfflineMapCard } from '../components/OfflineMapCard';
+import { OfflineAssetCard } from '../components/OfflineAssetCard';
+import { listAssets } from '../map/assetRegistry.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 
@@ -114,7 +116,18 @@ export function SettingsScreen() {
         </button>
       </div>
 
+      <p className="settings-section-head">Offline maps &amp; terrain</p>
+      <p className="card-sub" style={{ margin: '0 2px 8px' }}>
+        The topographic base always works offline once downloaded. Satellite and
+        terrain layers are optional, removable downloads — they never enlarge the
+        core app.
+      </p>
       <OfflineMapCard />
+      {listAssets()
+        .filter((asset) => asset.id !== 'topographic')
+        .map((asset) => (
+          <OfflineAssetCard key={asset.id} asset={asset} />
+        ))}
 
       <div className="card">
         <span className="card-title">Status</span>
