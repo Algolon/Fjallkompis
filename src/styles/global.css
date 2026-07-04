@@ -566,6 +566,33 @@ h3 {
   white-space: nowrap;
 }
 
+/* Positioning context for the floating basemap toggle. */
+.map-canvas-wrap {
+  position: relative;
+}
+
+/* Terrain / Satellite switch, floated over the top-left of the map. */
+.map-layer-toggle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  margin-bottom: 0;
+  background: color-mix(in srgb, var(--paper-2) 88%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.25);
+}
+.map-layer-toggle .seg-btn {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+.map-layer-toggle .seg-btn[aria-checked='true'] {
+  background: var(--spruce);
+  color: #f4f8f5;
+  box-shadow: var(--shadow);
+}
+
 .map-toolbar {
   display: flex;
   gap: 8px;

@@ -17,6 +17,26 @@ export const BASEMAP_SOURCE = 'protomaps';
 export const BASEMAP_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>';
 
+/**
+ * Optional second basemap: Esri World Imagery satellite raster tiles.
+ *
+ * This is the one deliberate exception to the app's otherwise strict
+ * offline-only rule: satellite tiles are fetched from a remote provider and
+ * ONLY when the user opts into the satellite layer (the raster layer ships
+ * with visibility:none, so no tiles are requested until it is switched on).
+ * The vector basemap remains the offline-capable default.
+ *
+ * To go fully offline later, swap `SATELLITE_TILES` for a `pmtiles://…` raster
+ * archive resolved the same way as the vector basemap (see pmtilesProtocol.ts)
+ * — the source/layer wiring below does not otherwise change.
+ */
+export const SATELLITE_SOURCE = 'satellite';
+export const SATELLITE_LAYER = 'satellite';
+export const SATELLITE_TILES =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+export const SATELLITE_ATTRIBUTION =
+  'Imagery © <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics, and the GIS User Community';
+
 /** Okabe–Ito palette (colour-blind safe), one colour per day stage. */
 export const STAGE_COLORS: Record<number, string> = {
   1: '#0072b2', // blue
@@ -66,6 +86,24 @@ export function buildMapStyle(basemapSourceUrl: string | null): StyleSpecificati
       ...(protomapsLayers(BASEMAP_SOURCE, namedFlavor('light'), {}) as LayerSpecification[]),
     );
   }
+
+  // Satellite raster basemap, hidden until the user toggles it on. It sits
+  // above the vector basemap (which it fully covers when visible) but below
+  // the route/GPS layers that MapView adds after load.
+  style.sources[SATELLITE_SOURCE] = {
+    type: 'raster',
+    tiles: [SATELLITE_TILES],
+    tileSize: 256,
+    maxzoom: 19,
+    attribution: SATELLITE_ATTRIBUTION,
+  };
+  style.layers.push({
+    id: SATELLITE_LAYER,
+    type: 'raster',
+    source: SATELLITE_SOURCE,
+    layout: { visibility: 'none' },
+    paint: { 'raster-fade-duration': 200 },
+  });
 
   return style;
 }

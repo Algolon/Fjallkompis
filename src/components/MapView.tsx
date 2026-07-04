@@ -23,7 +23,7 @@ import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ROUTE } from '../route/routeData';
-import { buildMapStyle, routeLayers } from '../map/mapStyle';
+import { buildMapStyle, routeLayers, SATELLITE_LAYER } from '../map/mapStyle';
 import { resolveBasemap, type BasemapMode } from '../map/pmtilesProtocol';
 import type { LatLng } from '../types';
 
@@ -35,12 +35,17 @@ export interface MapViewHandle {
   resetBearing: () => void;
 }
 
+/** Which basemap the user is looking at: the offline vector map or satellite. */
+export type ImageryMode = 'terrain' | 'satellite';
+
 interface MapViewProps {
   /** null → overview mode (all stages); id → stage mode. */
   selectedStageId: string | null;
   onSelectStage: (stageId: string) => void;
   onSelectWaypoint: (waypointId: string) => void;
   onBasemapMode?: (mode: BasemapMode) => void;
+  /** 'terrain' (offline vector) or 'satellite' (Esri raster, online only). */
+  imagery: ImageryMode;
   gps: LatLng | null;
 }
 
@@ -52,7 +57,7 @@ const prefersReducedMotion = () =>
 const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { selectedStageId, onSelectStage, onSelectWaypoint, onBasemapMode, gps },
+  { selectedStageId, onSelectStage, onSelectWaypoint, onBasemapMode, imagery, gps },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -209,6 +214,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const stage = ROUTE.stages.find((s) => s.id === selectedStageId);
     fitBounds(stage ? stage.bounds : ROUTE.bounds);
   }, [selectedStageId, loaded]);
+
+  // ---- Basemap imagery toggle (terrain vs satellite) ----------------------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded) return;
+    map.setLayoutProperty(
+      SATELLITE_LAYER,
+      'visibility',
+      imagery === 'satellite' ? 'visible' : 'none',
+    );
+  }, [imagery, loaded]);
 
   // ---- GPS dot -------------------------------------------------------------
   useEffect(() => {

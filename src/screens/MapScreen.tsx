@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
-import { MapView, type MapViewHandle } from '../components/MapView';
+import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -35,6 +35,7 @@ export function MapScreen() {
   const [viewStageId, setViewStageId] = useState<string | null>(currentStage?.id ?? null);
   const [panel, setPanel] = useState<Panel>('map');
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
+  const [imagery, setImagery] = useState<ImageryMode>('terrain');
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualHutId, setManualHutId] = useState<string>(STOPS[0].id);
@@ -96,14 +97,45 @@ export function MapScreen() {
 
       <div className="map-elev-grid">
         <div className={`card map-card ${panel === 'map' ? '' : 'panel-hidden'}`}>
-          <MapView
-            ref={mapRef}
-            selectedStageId={viewStageId}
-            onSelectStage={(id) => setViewStageId(id)}
-            onSelectWaypoint={(id) => setSelectedWaypointId(id)}
-            onBasemapMode={setBasemapMode}
-            gps={geo.coord}
-          />
+          <div className="map-canvas-wrap">
+            <MapView
+              ref={mapRef}
+              selectedStageId={viewStageId}
+              onSelectStage={(id) => setViewStageId(id)}
+              onSelectWaypoint={(id) => setSelectedWaypointId(id)}
+              onBasemapMode={setBasemapMode}
+              imagery={imagery}
+              gps={geo.coord}
+            />
+            <div
+              className="map-layer-toggle seg"
+              role="radiogroup"
+              aria-label="Basemap imagery"
+            >
+              <button
+                role="radio"
+                aria-checked={imagery === 'terrain'}
+                className="seg-btn"
+                onClick={() => setImagery('terrain')}
+              >
+                Terrain
+              </button>
+              <button
+                role="radio"
+                aria-checked={imagery === 'satellite'}
+                className="seg-btn"
+                onClick={() => setImagery('satellite')}
+              >
+                Satellite
+              </button>
+            </div>
+          </div>
+          {imagery === 'satellite' && basemapMode === 'offline' ? (
+            <div className="banner-warn" style={{ margin: 10 }}>
+              <span>🛰️</span>
+              <span>Satellite imagery streams from Esri and needs an internet connection.</span>
+            </div>
+          ) : null}
           {basemapMode === 'none' ? (
             <div className="banner-warn" style={{ margin: 10 }}>
               <span>🗺️</span>
