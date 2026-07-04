@@ -16,7 +16,6 @@ export interface UseMapConfig {
   config: MapConfig;
   setBaseMap: (baseMap: BaseMapId) => void;
   toggleOverlay: (key: OverlayKey) => void;
-  setOverlay: (key: OverlayKey, enabled: boolean) => void;
 }
 
 export function useMapConfig(): UseMapConfig {
@@ -30,13 +29,9 @@ export function useMapConfig(): UseMapConfig {
     setConfig((c) => (c.baseMap === baseMap ? c : { ...c, baseMap }));
   }, []);
 
-  const setOverlay = useCallback((key: OverlayKey, enabled: boolean) => {
-    setConfig((c) => (c[key] === enabled ? c : { ...c, [key]: enabled }));
-  }, []);
-
   const toggleOverlay = useCallback((key: OverlayKey) => {
     setConfig((c) => ({ ...c, [key]: !c[key] }));
   }, []);
 
-  return { config, setBaseMap, toggleOverlay, setOverlay };
+  return { config, setBaseMap, toggleOverlay };
 }

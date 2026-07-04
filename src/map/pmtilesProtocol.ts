@@ -16,6 +16,7 @@ import maplibregl from 'maplibre-gl';
 import { PMTiles, Protocol } from 'pmtiles';
 import type { Source, RangeResponse } from 'pmtiles';
 import type { OfflineAsset } from './assetRegistry.mjs';
+import { OFFLINE_ASSETS } from './assetRegistry.mjs';
 import { assetUrl, getAssetBlob } from './offlineAssets';
 
 let protocol: Protocol | null = null;
@@ -83,4 +84,15 @@ export async function resolveAssetSource(asset: OfflineAsset): Promise<AssetReso
   }
 
   return { assetId: asset.id, mode: 'none', sourceUrl: null };
+}
+
+export interface BasemapResolution {
+  mode: BasemapMode;
+  sourceUrl: string | null;
+}
+
+/** Resolve the topographic base map (the only base shipped today). */
+export async function resolveBasemap(): Promise<BasemapResolution> {
+  const { mode, sourceUrl } = await resolveAssetSource(OFFLINE_ASSETS.topographic);
+  return { mode, sourceUrl };
 }

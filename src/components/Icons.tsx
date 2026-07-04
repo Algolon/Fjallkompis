@@ -28,6 +28,13 @@ export const IconMap = (p: P) => (
   </svg>
 );
 
+export const IconLayers = (p: P) => (
+  <svg {...base} className={p.className} aria-hidden>
+    <path d="M12 3 3 8l9 5 9-5-9-5Z" />
+    <path d="M3 13l9 5 9-5M3 8l0 0" />
+  </svg>
+);
+
 export const IconStages = (p: P) => (
   <svg {...base} className={p.className} aria-hidden>
     <path d="m3 17 5-9 4 6 3-4 6 7" />

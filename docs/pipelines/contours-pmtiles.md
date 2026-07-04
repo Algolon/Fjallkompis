@@ -1,7 +1,11 @@
 # Contour build pipeline (Copernicus DEM GLO-30 → vector PMTiles)
 
 Produces the optional **contours** overlay as a vector PMTiles archive from the
-Copernicus DEM GLO-30. Automated by `scripts/build-contours-pmtiles.sh`.
+Copernicus DEM GLO-30.
+
+> Status: **planned**. Documented pipeline (commands below); the runnable build
+> script is deferred to the branch that produces the asset — it needs GDAL +
+> tippecanoe and a DEM mosaic. Produce out of tree; never commit the binary.
 
 ## Source & licence
 
@@ -33,22 +37,31 @@ Same corridor as the satellite pipeline: `mapCutoutBounds` from
 4. **Manifest** — write `kungsleden-contours.pmtiles.json` with attribution,
    bbox, measured size, and the minor/index intervals.
 
-## Run
+## Commands (run out of tree; requires GDAL + tippecanoe ≥ 2.17)
 
 ```bash
-scripts/build-contours-pmtiles.sh --input glo30_mosaic.tif \
-  --minor 20 --index 100 --maxzoom 14
+# 1. Crop the DEM to the corridor:
+gdalwarp -te 18.0244 67.762 19.2328 68.4392 -r bilinear glo30_mosaic.tif dem.tif
+
+# 2. 20 m contours carrying `elevation` (index lines = elevation % 100 == 0):
+gdal_contour -a elevation -i 20 -f GeoJSON dem.tif contours.geojson
+
+# 3–4. Simplify by zoom + package as vector PMTiles (layer name "contours"):
+tippecanoe -o public/maps/kungsleden-contours.pmtiles --force -l contours \
+  -Z9 -z14 --simplification=6 --drop-densest-as-needed contours.geojson
 ```
 
-Requires **GDAL** and **tippecanoe** (≥ 2.17 for direct `-o *.pmtiles`). The
-script refuses to run without a local DEM and downloads nothing.
+Write a `kungsleden-contours.pmtiles.json` sidecar with attribution, bbox,
+measured size and the minor/index intervals.
 
-## Wire-up after producing the archive
+## Wire-up after producing the archive (in the asset-production branch)
 
-1. Set `OFFLINE_ASSETS.contours.expectedSizeBytes` to the measured size and
+1. Add the contour MapLibre line layers (minor + `elevation % 100 == 0` index)
+   — the deferred rendering.
+2. Set `OFFLINE_ASSETS.contours.expectedSizeBytes` to the measured size and
    `available: true` in `src/map/assetRegistry.mjs`.
-2. Add a `.pmtiles`-scoped Workbox range rule for `fjallkompis-contours-v1`.
-3. Verify in-app: download → enable the Contours overlay → confirm minor/index
+3. Add a `.pmtiles`-scoped Workbox range rule for `fjallkompis-contours-v1`.
+4. Verify in-app: download → enable the Contours overlay → confirm minor/index
    line weights and that contours render **under** the route but **over** the
    base; test offline.
 

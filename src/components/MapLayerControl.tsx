@@ -1,22 +1,20 @@
 /**
  * Compact Map-screen layer control.
  *
- *  - Base map: Topographic / Satellite (mutually exclusive).
- *  - Independent overlay switches: hillshade, contours, labels.
- *  - Clear disabled states: an optional asset that has not shipped shows
- *    "Not yet available"; one that has shipped but is not downloaded shows
- *    "Download in Settings" and stays disabled until its data is present.
+ * Collapsed by default: a single "Layers" button showing the active base map.
+ * Expanding reveals a disclosure panel that lists ONLY the layers the user can
+ * actually use right now — base maps and overlays whose asset is available.
+ * Planned assets (satellite, contours, hillshade, labels) are intentionally
+ * absent here; they live in Settings as "Planned" until produced.
  *
- * The topographic base is always selectable — it is the dependable fallback
- * (streams online or shows the placeholder even before download).
+ * The panel sits below the map, so it never obscures the route, hut markers,
+ * GPS position, attribution or the MapLibre controls.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { BaseMapId, MapConfig } from '../map/mapConfig.mjs';
+import { baseAssets, overlayAssets } from '../map/assetRegistry.mjs';
 import type { OverlayKey } from '../hooks/useMapConfig';
-import { baseAssets, listAssets, overlayAssets, type OfflineAsset } from '../map/assetRegistry.mjs';
-import { getAssetStatus } from '../map/offlineAssets';
-
-type AssetState = 'ready' | 'download-required' | 'unavailable';
+import { IconLayers } from './Icons';
 
 const OVERLAY_KEY: Record<string, OverlayKey> = {
   contours: 'contoursEnabled',
@@ -30,100 +28,87 @@ interface Props {
   onToggleOverlay: (key: OverlayKey) => void;
 }
 
-function stateNote(state: AssetState): string | null {
-  if (state === 'unavailable') return 'Not yet available';
-  if (state === 'download-required') return 'Download in Settings';
-  return null;
-}
-
 export function MapLayerControl({ config, onSelectBase, onToggleOverlay }: Props) {
-  const [states, setStates] = useState<Record<string, AssetState>>({});
+  const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const entries = await Promise.all(
-        listAssets().map(async (a): Promise<[string, AssetState]> => {
-          if (!a.available) return [a.id, 'unavailable'];
-          const status = await getAssetStatus(a);
-          return [a.id, status.downloaded ? 'ready' : 'download-required'];
-        }),
-      );
-      if (active) setStates(Object.fromEntries(entries));
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Only surface layers that genuinely exist to use now.
+  const bases = baseAssets().filter((a) => a.available);
+  const overlays = overlayAssets().filter((a) => a.available);
 
-  const baseState = (a: OfflineAsset): AssetState =>
-    // Topographic is always usable (online stream / placeholder fallback).
-    a.id === 'topographic' ? 'ready' : (states[a.id] ?? 'unavailable');
+  const activeBase = bases.find((a) => a.id === config.baseMap) ?? bases[0];
 
   return (
     <div className="maplayers">
-      <span className="maplayers-title">Map layers</span>
+      <button
+        type="button"
+        className="maplayers-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="maplayers-toggle-main">
+          <IconLayers className="maplayers-toggle-icon" />
+          Layers
+        </span>
+        <span className="maplayers-toggle-summary">
+          {activeBase?.label ?? '—'}
+          <span className="maplayers-chevron" aria-hidden>
+            {open ? '▾' : '▸'}
+          </span>
+        </span>
+      </button>
 
-      {/* Base map — mutually exclusive */}
-      <div className="maplayers-group" role="radiogroup" aria-label="Base map">
-        <span className="maplayers-label">Base map</span>
-        <div className="seg maplayers-seg">
-          {baseAssets().map((a) => {
-            const st = baseState(a);
-            const disabled = st !== 'ready';
-            const selected = config.baseMap === a.id;
-            const note = stateNote(st);
-            return (
-              <button
-                key={a.id}
-                role="radio"
-                aria-checked={selected}
-                aria-disabled={disabled}
-                disabled={disabled}
-                className="seg-btn maplayers-base-btn"
-                onClick={() => !disabled && onSelectBase(a.id as BaseMapId)}
-              >
-                <span>{a.label}</span>
-                {note ? <span className="maplayers-tag">{note}</span> : null}
-              </button>
-            );
-          })}
+      {open ? (
+        <div className="maplayers-panel">
+          <div className="maplayers-group" role="radiogroup" aria-label="Base map">
+            <span className="maplayers-label">Base map</span>
+            {bases.length > 1 ? (
+              <div className="seg maplayers-seg">
+                {bases.map((a) => (
+                  <button
+                    key={a.id}
+                    role="radio"
+                    aria-checked={config.baseMap === a.id}
+                    className="seg-btn maplayers-base-btn"
+                    onClick={() => onSelectBase(a.id as BaseMapId)}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              // A single base map is not a choice — show it as the current base.
+              <p className="maplayers-single">{activeBase?.label ?? 'Topographic'}</p>
+            )}
+          </div>
+
+          {overlays.length > 0 ? (
+            <div className="maplayers-group">
+              <span className="maplayers-label">Overlays</span>
+              <ul className="maplayers-overlays">
+                {overlays.map((a) => {
+                  const key = OVERLAY_KEY[a.id];
+                  const on = key ? config[key] : false;
+                  return (
+                    <li key={a.id} className="maplayers-row">
+                      <span className="maplayers-row-name">{a.label}</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={on}
+                        aria-label={`${a.label} overlay`}
+                        className={`switch ${on ? 'is-on' : ''}`}
+                        onClick={() => key && onToggleOverlay(key)}
+                      >
+                        <span className="switch-knob" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
         </div>
-      </div>
-
-      {/* Overlays — independent toggles */}
-      <div className="maplayers-group">
-        <span className="maplayers-label">Overlays</span>
-        <ul className="maplayers-overlays">
-          {overlayAssets().map((a) => {
-            const st = states[a.id] ?? (a.available ? 'download-required' : 'unavailable');
-            const disabled = st !== 'ready';
-            const key = OVERLAY_KEY[a.id];
-            const on = key ? config[key] : false;
-            const note = stateNote(st);
-            return (
-              <li key={a.id} className="maplayers-row">
-                <span className="maplayers-row-text">
-                  <span className="maplayers-row-name">{a.label}</span>
-                  {note ? <span className="maplayers-row-note">{note}</span> : null}
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={on && !disabled}
-                  aria-label={`${a.label} overlay`}
-                  aria-disabled={disabled}
-                  disabled={disabled}
-                  className={`switch ${on && !disabled ? 'is-on' : ''}`}
-                  onClick={() => key && !disabled && onToggleOverlay(key)}
-                >
-                  <span className="switch-knob" />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      ) : null}
     </div>
   );
 }

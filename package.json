@@ -10,8 +10,6 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "generate:route": "node scripts/generate-route-data.mjs",
-    "build:satellite": "scripts/build-satellite-pmtiles.sh",
-    "build:contours": "scripts/build-contours-pmtiles.sh",
     "test": "npm run generate:route && node --test 'tests/**/*.test.mjs'"
   },
   "dependencies": {

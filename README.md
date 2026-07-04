@@ -68,20 +68,22 @@ route still renders on a clearly-marked placeholder background.
 
 ### Layered offline map (foundation)
 
-The map is built from a **mutually-exclusive base map** (topographic ↔
-satellite) plus **independent overlays** (hillshade, contours, labels), each an
-optional, removable PMTiles download registered in a reusable **offline-asset
-registry** (`src/map/assetRegistry.mjs`). A Map-screen layer control switches
-base maps and toggles overlays without recreating the MapLibre map; route, hut
-and GPS layers always stay above all imagery. Topographic remains the required
-fallback, and optional assets never enlarge the app or the precache.
+Foundation for a **mutually-exclusive base map** (topographic ↔ future
+satellite) plus **independent overlays** (contours, hillshade, labels). This
+branch lands the pieces that are usable now: a typed `MapConfig` model with
+local persistence, a reusable **offline-asset registry**
+(`src/map/assetRegistry.mjs`), a generic + **safe** download layer that rejects
+any non-PMTiles response and never stores a corrupt entry
+(`src/map/offlineDownload.mjs`, covered by `tests/offline-download.test.mjs`),
+and a compact, collapsed-by-default **Layers** control that surfaces only the
+layers you can actually use — currently the topographic base.
 
-Satellite and contour build pipelines (Sentinel-2 and Copernicus DEM GLO-30,
-both redistributable with attribution) are scripted in
-`scripts/build-satellite-pmtiles.sh` and `scripts/build-contours-pmtiles.sh`.
-See **`docs/layered-offline-map.md`** for the full design, cache model,
-attribution, bundle impact and storage estimates. No large satellite/elevation
-binaries are committed — produce them out of tree.
+Topographic remains the required offline fallback; optional assets never
+enlarge the app or the precache. Satellite/terrain **rendering** and the
+**build scripts** are deferred to the branch that produces those assets — their
+sources (Sentinel-2, Copernicus DEM GLO-30; both redistributable with
+attribution) and pipelines are documented in **`docs/layered-offline-map.md`**
+and `docs/pipelines/`. No large satellite/elevation binaries are committed.
 
 ## Stops guide data
 
@@ -128,16 +130,15 @@ npm run build && npm run preview   # production PWA (SW active only in build)
 fjallkompis/
 ├─ scripts/
 │  ├─ generate-route-data.mjs   # GPX → JSON preprocessing + validation
-│  ├─ extract-offline-map.sh    # bounded topographic PMTiles extraction
-│  ├─ build-satellite-pmtiles.sh # Sentinel-2 → raster PMTiles (optional base)
-│  └─ build-contours-pmtiles.sh  # Copernicus DEM → contour PMTiles (overlay)
+│  └─ extract-offline-map.sh    # bounded topographic PMTiles extraction
 ├─ docs/
 │  ├─ layered-offline-map.md    # layered-map design + status report
-│  └─ pipelines/                # satellite + contour build pipelines
+│  └─ pipelines/                # satellite + contour build pipelines (planned)
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
 │  ├─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
 │  ├─ map-config.test.mjs       # map config + asset registry invariants
+│  ├─ offline-download.test.mjs # download-safety (reject non-PMTiles, no corrupt cache)
 │  └─ fixtures/                 # config + asset-manifest test fixtures
 ├─ public/
 │  ├─ gpx/…                     # source GPX (verified route)

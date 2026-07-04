@@ -3,17 +3,18 @@
  *
  * One descriptor per downloadable PMTiles archive. Framework-free (no DOM, no
  * import.meta) so the registry's invariants can be validated by `node --test`.
- * Runtime URL resolution and Cache Storage live in src/map/offlineAssets.ts;
- * MapLibre wiring lives in src/map/layerManager.ts.
+ * Runtime URL resolution + Cache Storage live in src/map/offlineAssets.ts.
  *
  * Design rules encoded here:
- *  - Exactly one asset is `required` (topographic) — the dependable fallback.
+ *  - Exactly one asset is `required` (topographic) — the dependable fallback,
+ *    and the only asset shipped today.
  *  - Optional assets are removable downloads and are NEVER precached, so they
  *    cannot grow the baseline app / service-worker precache.
- *  - `available:false` marks an asset whose PMTiles has not been produced yet
- *    (satellite, contours, hillshade, labels). The UI shows a clear
- *    "not yet available" / "download required" state instead of a dead button.
- *  - `expectedSizeBytes` on unproduced assets is a PLANNING ESTIMATE only and
+ *  - `available:false` marks a PLANNED asset whose PMTiles has not been
+ *    produced yet (satellite, contours, hillshade, labels). Planned assets are
+ *    surfaced in Settings so their scope + attribution are documented, but they
+ *    are NOT offered in the Map layer control until they actually ship.
+ *  - `expectedSizeBytes` on planned assets is a PLANNING ESTIMATE only and
  *    must be replaced with the measured size after a real extraction.
  *
  * @typedef {'vector' | 'raster' | 'raster-dem'} AssetKind

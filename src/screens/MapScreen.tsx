@@ -102,7 +102,6 @@ export function MapScreen() {
           <MapView
             ref={mapRef}
             selectedStageId={viewStageId}
-            mapConfig={mapConfig}
             onSelectStage={(id) => setViewStageId(id)}
             onSelectWaypoint={(id) => setSelectedWaypointId(id)}
             onBasemapMode={setBasemapMode}

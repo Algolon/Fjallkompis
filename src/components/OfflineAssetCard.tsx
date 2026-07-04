@@ -51,7 +51,7 @@ export function OfflineAssetCard({ asset }: { asset: OfflineAsset }) {
         kind: 'error',
         message:
           e instanceof Error && e.message
-            ? `${e.message} — check your connection and try again.`
+            ? `${e.message}. Try again.`
             : 'Download failed — check your connection and try again.',
       });
     }
@@ -96,8 +96,8 @@ export function OfflineAssetCard({ asset }: { asset: OfflineAsset }) {
           <p className="banner-warn" style={{ marginTop: 12 }}>
             <span>🧭</span>
             <span>
-              Not yet available in this build. The build pipeline and download
-              wiring are in place — see the layered-offline-map docs.
+              Planned — not yet available to download. See the layered-offline-map
+              docs for the source, licence and build pipeline.
             </span>
           </p>
           <p className="card-sub" style={{ marginTop: 10 }}>

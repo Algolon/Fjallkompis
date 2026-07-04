@@ -1,109 +1,72 @@
 # Layered offline map — foundation
 
-This document is the design + status report for the **layered offline map**
-direction. It supersedes the earlier "enhanced offline map" note: instead of a
-single bundled basemap, the map is composed from a **mutually-exclusive base
-map** plus **independent overlays**, each an optional, removable download.
+Design + status for the **layered offline map** direction: a mutually-exclusive
+**base map** plus independent **overlays**, each an optional, removable
+download. This branch lands the *foundation* — the configuration model, the
+offline-asset registry + safe download architecture, and a compact layer
+control — **without** producing any large satellite or elevation binaries and
+**without** shipping rendering code for assets that do not exist yet.
 
-> Scope of the foundation branch: architecture, typed models, the Map-screen
-> layer control, an offline-asset registry + download model, generalised
-> offline plumbing, build **scripts/scaffolding**, docs and a small test
-> fixture. **No large satellite/elevation binaries are produced or committed
-> here.**
+## What is implemented in this branch
 
-## Layer model
+| Area | Status |
+|------|--------|
+| Typed `MapConfig` model (base map + overlay flags) + local persistence | ✅ implemented |
+| Reusable offline-asset **registry** (id, path, cacheName, version, size, attribution, kind, role, availability) | ✅ implemented |
+| Generic offline **download / status / remove**, reused for every asset | ✅ implemented |
+| **Safe download**: reject any non-PMTiles response; never store a corrupt entry | ✅ implemented + tested |
+| Compact, collapsed-by-default **Layers** control on the Map screen | ✅ implemented |
+| Settings **download cards**, incl. "Planned" assets with size + attribution | ✅ implemented |
+| Topographic base map (the dependable fallback) | ✅ unchanged, still works offline |
 
-| Group | Layer | Kind | Ships now? |
-|-------|-------|------|-----------|
-| Base (exclusive) | **Topographic** — bounded OSM/Protomaps vector | vector PMTiles | ✅ dependable fallback |
-| Base (exclusive) | **Satellite** — cloud-free Sentinel-2 natural colour | raster PMTiles | ⛔ optional download (pipeline documented) |
-| Overlay | **Hillshade / relief** — Copernicus DEM | raster-dem PMTiles | ⛔ optional |
-| Overlay | **Contours** — Copernicus DEM, minor + index | vector PMTiles | ⛔ optional |
-| Overlay | **Labels** — general place names (needs a glyph pack) | vector PMTiles | ⛔ optional |
-| App (always on) | route overview, day stages, huts/waypoints, GPS + projected progress | GeoJSON / HTML markers | ✅ always above all imagery |
+## What is deliberately deferred (to the branch that introduces the data)
 
-The **topographic** base is the only required asset and always works offline
-once downloaded (or streams online, or falls back to a marked placeholder).
-Satellite and terrain are optional and never enlarge the core app or the
-service-worker precache.
+The Map control shows **only layers the user can actually use now**. Since no
+optional asset has been produced, that is just the topographic base today.
 
-## Proposed / actual file structure
+| Deferred | Why |
+|----------|-----|
+| Satellite / contour / hillshade / label **MapLibre layer specs** | Untestable and unused until real tiles exist; tuned against actual data in that branch. |
+| Multi-asset **layer reconciliation** (base-switch / overlay layer manager) | Only meaningful with ≥ 2 bases or an overlay; rebuilt when the second layer ships. |
+| Satellite / contour **build scripts** | Cannot be exercised without GDAL/tippecanoe + multi-GB inputs; belong with asset production. The pipelines are documented below. |
+
+Planned assets remain visible in **Settings** as "Planned" (scope, estimated
+size, licence/attribution) and in the pipeline docs — so nothing is lost, but
+no scaffolding is exposed on the Map screen.
+
+## File structure (this branch)
 
 ```
-scripts/
-  build-satellite-pmtiles.sh   # Sentinel-2 → cropped natural-colour JPEG raster PMTiles + manifest
-  build-contours-pmtiles.sh    # Copernicus DEM GLO-30 → minor/index contour vector PMTiles + manifest
-docs/
-  layered-offline-map.md       # this document
-  pipelines/
-    satellite-pmtiles.md       # detailed satellite pipeline
-    contours-pmtiles.md        # detailed contour pipeline
 src/map/
   mapConfig.mjs / .d.mts       # typed MapConfig model + normalisation (framework-free)
   mapConfigStore.ts            # localStorage persistence for map preferences
-  assetRegistry.mjs / .d.mts   # reusable offline-asset registry + manifest validator (framework-free)
-  offlineAssets.ts             # generic download/status/remove over Cache Storage (any asset)
-  offlineMap.ts                # thin topographic wrapper over offlineAssets (unchanged public API)
+  assetRegistry.mjs / .d.mts   # offline-asset registry + manifest validator (framework-free)
+  offlineAssets.ts             # URL + status/blob/remove + downloadAsset (thin)
+  offlineDownload.mjs / .d.mts # fetch + validate + cache (injectable deps → unit-tested)
+  pmtilesFormat.mjs / .d.mts   # PMTiles magic-byte detection (framework-free)
+  offlineMap.ts                # topographic wrapper over offlineAssets (unchanged API)
   pmtilesProtocol.ts           # pmtiles:// protocol + per-asset source resolution
-  mapStyle.ts                  # base style + base/overlay layer specs + attributions
-  layerManager.ts              # reconciles base + overlays on the live map (no recreation)
-src/hooks/
-  useMapConfig.ts              # React state for base map + overlay toggles, persisted
+  mapStyle.ts                  # topographic style + route layers (unchanged shape)
+src/hooks/useMapConfig.ts      # React state for base map + overlay toggles, persisted
 src/components/
-  MapLayerControl.tsx          # compact Map-screen base/overlay control
+  MapLayerControl.tsx          # compact, collapsed Map-screen Layers disclosure
   OfflineAssetCard.tsx         # reusable Settings download card (any asset)
   OfflineMapCard.tsx           # topographic wrapper over OfflineAssetCard
 tests/
   map-config.test.mjs          # config + registry + manifest invariants
-  fixtures/map-config/*.json    # valid / partial / corrupt persisted configs
-  fixtures/asset-manifest.sample.json  # sample pipeline sidecar
-public/maps/
-  kungsleden.pmtiles           # topographic (committed, ~3.5 MB)
-  kungsleden-satellite.pmtiles # produced out-of-tree, NOT committed here
-  kungsleden-*.pmtiles.json    # per-asset manifest sidecars (produced with each archive)
+  offline-download.test.mjs    # download-safety (reject non-PMTiles, no corrupt cache)
+  fixtures/…                    # config + asset-manifest fixtures
+docs/pipelines/                # satellite + contour build pipelines (planned)
 ```
 
-## Typed configuration model
+## Runtime behaviour
 
-```ts
-type BaseMapId = 'topographic' | 'satellite';
-interface MapConfig {
-  baseMap: BaseMapId;      // mutually exclusive
-  contoursEnabled: boolean;
-  hillshadeEnabled: boolean;
-  labelsEnabled: boolean;
-}
-```
-
-`normalizeMapConfig()` coerces any persisted blob to a valid config (unknown
-base map / non-boolean flags → topographic + overlays off) and never throws.
-
-## Offline-asset registry & download model
-
-Each downloadable archive is one `OfflineAsset` descriptor with: `id`, `role`
-(base|overlay), `label`, `description`, `path`, **`cacheName`** (a dedicated
-Cache Storage cache), **`version`**, **`expectedSizeBytes`** (+`estimatedSize`
-flag), **`attribution`**, `kind`, `required`, `available`. The generic manager
-(`offlineAssets.ts`) implements **download / status / remove** for any asset;
-`offlineMap.ts` is now a thin topographic wrapper so nothing else changed.
-
-Each build script also emits an **asset-manifest sidecar** (`<archive>.json`)
-recording `sourceDate`, `attribution`, `bbox`, measured `sizeBytes` and
-`tileFormat`; `validateAssetManifest()` checks its shape (covered by the tests).
-
-## Expected runtime behaviour
-
-- The MapLibre map is created **once** from a placeholder-only style. Base maps
-  and overlays are attached/removed imperatively by `layerManager.ts`, so
-  switching base map or toggling an overlay **never recreates the map**.
-- Every base/overlay layer is inserted **below** `route-overview`, so the
-  route, day stages, hut markers and GPS/progress layers always stay on top of
-  all map imagery.
-- Reconciliation is incremental & idempotent — unchanged layers are left alone
-  (no tile refetch / flashes).
-- An overlay that is enabled but **not downloaded / not yet produced** renders
-  nothing; the layer control shows a clear *Not yet available* / *Download in
-  Settings* state, and the base falls back gracefully.
+- The topographic map renders exactly as before (route, day stages, hut markers
+  and GPS all above the base imagery). No map-recreation behaviour changed.
+- The **Layers** control is collapsed by default (a single row showing the
+  active base). Expanding shows only available layers — currently the
+  topographic base. It sits below the map and never obscures the route, hut
+  markers, GPS, attribution or MapLibre controls.
 - Map preferences persist to `localStorage` (`fjallkompis:mapConfig`),
   independent of the exported trip-data blob.
 
@@ -111,69 +74,59 @@ recording `sourceDate`, `attribution`, `bbox`, measured `sizeBytes` and
 
 - Topographic keeps its existing cache **`fjallkompis-offline-map-v1`** — any
   copy a user already downloaded keeps working.
-- Every other asset uses its **own** dedicated cache (`fjallkompis-satellite-v1`,
-  `…-contours-v1`, `…-hillshade-v1`, `…-labels-v1`), stored as a single full
-  `200` response and read directly via a blob-backed PMTiles source (works with
-  or without a service worker).
-- **None** of these archives are in the Workbox precache (`globPatterns`
-  excludes `.pmtiles`); the SW's `.pmtiles` range rule is the belt-and-braces
-  path only. Adding a per-asset SW range rule is a one-line follow-up when each
-  asset actually ships.
+- The generic download manager (`offlineAssets` → `offlineDownload`) stores each
+  archive as one full `200` response in the asset's own dedicated cache, read
+  back through a blob-backed PMTiles source. **No** archive is in the Workbox
+  precache (`globPatterns` excludes `.pmtiles`).
+- **Safe downloads:** `downloadPmtiles` validates the PMTiles magic bytes before
+  writing to the cache, so an SPA/HTML fallback, a JSON error page, or any other
+  non-tile response is rejected — and, because validation precedes the cache
+  write, a failed download never overwrites a previously-valid copy. Covered by
+  `tests/offline-download.test.mjs`.
 
 ## Attribution requirements
 
-| Asset | Required attribution |
-|-------|----------------------|
-| Topographic | © OpenStreetMap contributors · Protomaps |
-| Satellite (Sentinel-2) | Contains modified Copernicus Sentinel-2 data `<year>` |
-| Contours / Hillshade (Copernicus DEM) | Contains modified Copernicus DEM data © ESA |
-| Labels (OSM) | © OpenStreetMap contributors |
+| Asset | Required attribution | Status |
+|-------|----------------------|--------|
+| Topographic | © OpenStreetMap contributors · Protomaps | live |
+| Satellite (Sentinel-2) | Contains modified Copernicus Sentinel-2 data `<year>` | planned |
+| Contours / Hillshade (Copernicus DEM) | Contains modified Copernicus DEM data © ESA | planned |
+| Labels (OSM) | © OpenStreetMap contributors | planned |
 
-Attribution strings live on each registry descriptor and are set on the
-MapLibre source, so they appear in the map's attribution control automatically.
-
-## Measured bundle impact
-
-Foundation code only (no binaries), production build:
+## Measured bundle impact (foundation code only, no binaries)
 
 | Artifact | Baseline | With foundation | Δ |
 |----------|---------:|----------------:|----:|
-| Main JS (raw) | 1,536,809 B | 1,546,482 B | +9,673 B |
-| Main JS (gzip) | 443,085 B | 445,774 B | +2,689 B |
-| CSS (raw) | 92,370 B | 94,165 B | +1,795 B |
+| Main JS (raw) | 1,536,809 B | 1,543,984 B | +7,175 B |
+| Main JS (gzip) | 443,085 B | 445,129 B | +2,044 B |
+| CSS (raw) | 92,370 B | 94,324 B | +1,954 B |
 | SW precache entries | 24 (app shell) | 24 (app shell) | 0 |
 | Precached `.pmtiles` | 0 | 0 | 0 |
 
-The precache is unchanged and still contains **no** map binaries.
+## Storage estimates (still need a real extraction)
 
-## Storage estimates (need a real extraction)
+Planning estimates only (`estimatedSize: true` in the registry) for the corridor
+bbox `[18.02, 67.76] – [19.23, 68.44]` (~50 × 75 km) at z ≤ 14:
 
-These are **planning estimates** in the registry (`estimatedSize: true`) until a
-real extraction measures them. Corridor ≈ bbox `[18.02, 67.76] – [19.23, 68.44]`
-(~50 × 75 km) at z≤14:
-
-| Asset | Rough estimate | Notes |
-|-------|---------------:|-------|
-| Satellite (JPEG raster) | ~80–160 MB | dominated by z13–14; quality 75–85 |
-| Contours (vector) | ~8–15 MB | 20 m interval, simplified by zoom |
-| Hillshade (raster-dem) | ~30–50 MB | terrain-RGB, z≤13 usually enough |
-| Labels (vector + glyphs) | ~1–3 MB | small; glyph pack extra |
+| Asset | Rough estimate |
+|-------|---------------:|
+| Satellite (JPEG raster) | ~80–160 MB |
+| Contours (vector) | ~8–15 MB |
+| Hillshade (raster-dem) | ~30–50 MB |
+| Labels (vector + glyphs) | ~1–3 MB |
 
 Replace `expectedSizeBytes` with the measured size and set `available: true`
 once each archive is produced.
 
-## Next step — produce & test the first satellite PMTiles
+## Next step — the first satellite PMTiles
 
-1. Fetch a cloud-free summer **Sentinel-2** natural-colour source for the
-   corridor (bands B04/B03/B02, or a cloudless mosaic tile).
-2. Run `scripts/build-satellite-pmtiles.sh --input … --date YYYY-MM-DD`
-   → `public/maps/kungsleden-satellite.pmtiles` + `.json` sidecar (out of tree
-   first; verify size before deciding whether to host or ship it).
-3. Set `OFFLINE_ASSETS.satellite.expectedSizeBytes` to the measured size and
-   `available: true`; add a `.pmtiles`-scoped SW range rule for its cache.
-4. In the app: Settings → download **Satellite**, then Map → switch base to
-   **Satellite**; confirm route/huts/GPS stay on top, attribution shows, and
-   removal reclaims the cache. Go offline and re-verify.
-
-See `docs/pipelines/satellite-pmtiles.md` and
-`docs/pipelines/contours-pmtiles.md` for the detailed commands.
+1. Produce a cropped, natural-colour Sentinel-2 raster PMTiles for the corridor
+   (see `docs/pipelines/satellite-pmtiles.md`) **out of tree** — do not commit
+   the binary.
+2. Add the satellite MapLibre layer spec + base-switch handling (the deferred
+   rendering) in that branch, and set `OFFLINE_ASSETS.satellite.available = true`
+   with the measured `expectedSizeBytes`.
+3. Add a `.pmtiles`-scoped Workbox range rule for `fjallkompis-satellite-v1`.
+4. The Layers control then automatically offers Satellite as a base; verify the
+   route/hut/GPS layers stay above it, attribution shows, and removal reclaims
+   the cache — online and offline.

@@ -1,8 +1,13 @@
 # Satellite imagery build pipeline (Sentinel-2 → raster PMTiles)
 
 Produces the optional **satellite** base map as a raster PMTiles archive from a
-legally redistributable Sentinel-2 source. Automated by
-`scripts/build-satellite-pmtiles.sh`; this doc explains the steps and inputs.
+legally redistributable Sentinel-2 source.
+
+> Status: **planned**. This is the documented pipeline (commands below). The
+> runnable build script is deferred to the branch that actually produces the
+> asset — it needs GDAL + the pmtiles CLI and a multi-GB Sentinel-2 input, none
+> of which exist in this foundation branch. Produce the archive **out of tree**
+> and never commit the binary.
 
 ## Source & licence
 
@@ -35,28 +40,41 @@ north 68.4392` (WGS84). This matches the topographic tileset's extent.
 5. **Manifest** — write `kungsleden-satellite.pmtiles.json` recording
    `sourceDate`, `attribution`, `bbox`, measured `sizeBytes`, `tileFormat`.
 
-## Run
+## Commands (run out of tree; requires GDAL + the pmtiles CLI)
+
+The route bbox comes from `mapCutoutBounds` in
+`src/generated/kungsleden-route.json` (`west 18.0244 south 67.762 east 19.2328
+north 68.4392`).
 
 ```bash
-# From a single natural-colour RGB source:
-scripts/build-satellite-pmtiles.sh --input mosaic_rgb.tif --date 2023-08-05
+# 1–2. Natural-colour RGB (stack bands, or start from a cloud-free RGB mosaic):
+gdalbuildvrt -separate rgb.vrt B04.jp2 B03.jp2 B02.jp2
 
-# Or from separate Sentinel-2 bands:
-scripts/build-satellite-pmtiles.sh \
-  --red B04.jp2 --green B03.jp2 --blue B02.jp2 --date 2023-08-05 --maxzoom 14
+# 3. Reproject to Web Mercator + crop to the corridor:
+gdalwarp -t_srs EPSG:3857 -te_srs EPSG:4326 \
+  -te 18.0244 67.762 19.2328 68.4392 -r bilinear rgb.vrt merc.tif
+
+# 4. JPEG-tiled MBTiles + overviews:
+gdal_translate -of MBTILES -co TILE_FORMAT=JPEG -co QUALITY=80 merc.tif sat.mbtiles
+gdaladdo -r average sat.mbtiles 2 4 8 16
+
+# 5. Package as raster PMTiles + record a manifest sidecar:
+pmtiles convert sat.mbtiles public/maps/kungsleden-satellite.pmtiles
 ```
 
-Requires **GDAL** and the **pmtiles** CLI. The script refuses to run without a
-local input and never downloads bulk imagery — produce the archive out of tree,
-check its size, then copy it into `public/maps/` if you decide to ship it.
+Write a `kungsleden-satellite.pmtiles.json` sidecar next to it recording
+`sourceDate`, `attribution`, `bbox`, the measured `sizeBytes` and `tileFormat`
+(validated by `validateAssetManifest`).
 
-## Wire-up after producing the archive
+## Wire-up after producing the archive (in the asset-production branch)
 
-1. Set `OFFLINE_ASSETS.satellite.expectedSizeBytes` to the measured size and
+1. Add the satellite MapLibre raster layer spec + base-switch handling (the
+   deferred rendering).
+2. Set `OFFLINE_ASSETS.satellite.expectedSizeBytes` to the measured size and
    `available: true` in `src/map/assetRegistry.mjs`.
-2. Add a `.pmtiles`-scoped Workbox range rule for `fjallkompis-satellite-v1`
+3. Add a `.pmtiles`-scoped Workbox range rule for `fjallkompis-satellite-v1`
    in `vite.config.ts` (mirror the topographic rule).
-3. Verify in-app: download in Settings → switch base to Satellite → confirm the
+4. Verify in-app: download in Settings → switch base to Satellite → confirm the
    route/hut/GPS layers stay above the imagery and attribution shows; test
    offline; test removal reclaims the cache.
 

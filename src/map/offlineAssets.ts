@@ -17,6 +17,7 @@
  *     RangeRequestsPlugin (see vite.config.ts).
  */
 import type { OfflineAsset } from './assetRegistry.mjs';
+import { downloadPmtiles } from './offlineDownload.mjs';
 
 /** Absolute URL of an asset, correct under the /Fjallkompis/ base path. */
 export function assetUrl(asset: OfflineAsset): string {
@@ -47,60 +48,15 @@ export async function getAssetBlob(asset: OfflineAsset): Promise<Blob | null> {
 }
 
 /**
- * Download an asset's full PMTiles file and store it as a single complete
- * response in its dedicated cache. Reports progress when Content-Length is
- * available.
+ * Download an asset's full PMTiles file and store it in its dedicated cache.
+ * Validation (reject non-PMTiles responses; never write a corrupt entry) lives
+ * in the framework-free downloadPmtiles routine so it can be unit-tested.
  */
-export async function downloadAsset(
+export function downloadAsset(
   asset: OfflineAsset,
   onProgress: (loadedBytes: number, totalBytes: number | null) => void,
 ): Promise<number> {
-  const url = assetUrl(asset);
-  // cache: 'no-store' so a stale HTTP-cache copy is bypassed on re-download.
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Download failed (HTTP ${res.status})`);
-
-  // Guard against SPA/history fallbacks (and misconfigured hosts) that answer a
-  // missing .pmtiles with a 200 HTML page — storing that as a tileset would
-  // silently corrupt the offline map.
-  const contentType = res.headers.get('Content-Type') ?? '';
-  if (/text\/html|application\/xhtml/i.test(contentType)) {
-    throw new Error('Map file unavailable at this URL (got a web page, not tile data)');
-  }
-
-  const total = Number(res.headers.get('Content-Length')) || null;
-  const chunks: BlobPart[] = [];
-  let loaded = 0;
-
-  if (res.body) {
-    const reader = res.body.getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      loaded += value.byteLength;
-      onProgress(loaded, total);
-    }
-  } else {
-    const buf = await res.arrayBuffer();
-    chunks.push(buf);
-    loaded = buf.byteLength;
-    onProgress(loaded, total);
-  }
-
-  const blob = new Blob(chunks, { type: 'application/octet-stream' });
-  const cache = await caches.open(asset.cacheName);
-  await cache.put(
-    url,
-    new Response(blob, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': String(blob.size),
-      },
-    }),
-  );
-  return blob.size;
+  return downloadPmtiles(assetUrl(asset), asset.cacheName, onProgress);
 }
 
 export async function removeAsset(asset: OfflineAsset): Promise<void> {
