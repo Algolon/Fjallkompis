@@ -611,6 +611,13 @@ h3 {
   gap: 1px;
   line-height: 1.2;
 }
+/* The base buttons are a radiogroup (aria-checked), so the segmented-control
+   active fill keys off aria-checked, not aria-selected. */
+.maplayers-base-btn[aria-checked='true'] {
+  background: var(--spruce);
+  color: #f4f8f5;
+  box-shadow: var(--shadow);
+}
 .maplayers-base-btn[disabled],
 .maplayers-base-btn[aria-disabled='true'] {
   opacity: 0.55;

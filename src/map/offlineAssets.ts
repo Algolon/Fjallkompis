@@ -60,6 +60,14 @@ export async function downloadAsset(
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Download failed (HTTP ${res.status})`);
 
+  // Guard against SPA/history fallbacks (and misconfigured hosts) that answer a
+  // missing .pmtiles with a 200 HTML page — storing that as a tileset would
+  // silently corrupt the offline map.
+  const contentType = res.headers.get('Content-Type') ?? '';
+  if (/text\/html|application\/xhtml/i.test(contentType)) {
+    throw new Error('Map file unavailable at this URL (got a web page, not tile data)');
+  }
+
   const total = Number(res.headers.get('Content-Length')) || null;
   const chunks: BlobPart[] = [];
   let loaded = 0;
