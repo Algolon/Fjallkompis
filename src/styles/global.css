@@ -773,48 +773,72 @@ h3 {
 }
 .tab {
   flex: 1;
+  min-width: 0;
   border: 0;
   background: transparent;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
   color: var(--ink-soft);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  padding: 6px 0;
+  padding: 5px 2px;
 }
 .tab .ic {
   width: 22px;
   height: 22px;
   display: block;
 }
-/* Active "pill" behind the icon: a filled rounded indicator (Material-style)
-   so the current tab is legible from shape + fill, not colour alone. */
-.tab-ic-wrap {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 26px;
-  border-radius: 999px;
+/* Active "pill": a filled rounded chip around the icon *and* label, so the
+   current tab reads from shape + fill, not colour alone. Every tab carries the
+   same wrapper (transparent when inactive) so switching causes no layout
+   shift. */
+.tab-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 6px 6px;
+  border-radius: var(--r-md);
   transition: background 0.18s ease;
+}
+.tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tab[aria-current='page'] {
   color: var(--spruce);
 }
-.tab[aria-current='page'] .tab-ic-wrap {
-  background: var(--glacier-soft);
+.tab[aria-current='page'] .tab-pill {
+  /* A shade darker green than the tab bar's own tint. */
+  background: var(--line-strong);
 }
 .tab[aria-current='page'] .ic {
   stroke: var(--spruce);
 }
 
-/* The tab bar is tight on small phones — let labels shrink gracefully. */
+/* The tab bar is tight on small phones — shrink the label and the pill's side
+   padding so the longest label ("Settings") never clips. */
 @media (max-width: 380px) {
   .tab {
     font-size: 9px;
+  }
+  .tab-pill {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+}
+@media (max-width: 340px) {
+  .tab {
+    font-size: 8.5px;
+  }
+  .tab-pill {
+    padding-left: 3px;
+    padding-right: 3px;
   }
 }
 

@@ -42,12 +42,12 @@ export function TabBar({
           aria-current={active === id ? 'page' : undefined}
           onClick={() => onChange(id)}
         >
-          {/* Wrapper carries the active "pill" so the selected tab reads at a
-              glance from shape + fill, not colour alone. */}
-          <span className="tab-ic-wrap">
+          {/* Pill wraps icon + label so the active tab reads as one chip —
+              legible from shape + fill, not colour alone. */}
+          <span className="tab-pill">
             <Icon className="ic" />
+            <span className="tab-label">{label}</span>
           </span>
-          {label}
         </button>
       ))}
     </nav>
