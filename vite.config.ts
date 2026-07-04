@@ -10,8 +10,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Prompt-style updates: a new service worker waits until the user taps
+      // "Update now" in the in-app toast, so we never reload out from under an
+      // unsaved change (see src/components/PwaLifecycle.tsx). Registration is
+      // handled explicitly in React via virtual:pwa-register/react, so the
+      // plugin must NOT also inject its own registration script.
+      registerType: 'prompt',
+      injectRegister: null,
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.png'],
       manifest: {
         name: 'Fjällkompis — Kungsleden trail companion',

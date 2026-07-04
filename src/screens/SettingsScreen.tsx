@@ -5,22 +5,9 @@ import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
 import { OfflineMapCard } from '../components/OfflineMapCard';
+import { InstallCard } from '../components/InstallCard';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
-
-function pwaStatus(): string {
-  const standalone =
-    window.matchMedia?.('(display-mode: standalone)').matches ||
-    // iOS Safari
-    (navigator as unknown as { standalone?: boolean }).standalone === true;
-  const swControlled =
-    'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
-
-  if (standalone && swControlled) return 'Installed · offline-ready';
-  if (swControlled) return 'Offline-ready (in browser tab)';
-  if (standalone) return 'Installed (service worker starting…)';
-  return 'Browser tab · install from the share/▾ menu for offline use';
-}
 
 export function SettingsScreen() {
   const { state, storageOk, replaceState, resetAll } = useStore();
@@ -116,6 +103,8 @@ export function SettingsScreen() {
 
       <OfflineMapCard />
 
+      <InstallCard />
+
       <div className="card">
         <span className="card-title">Status</span>
         <div className="row-between" style={{ marginTop: 10 }}>
@@ -126,16 +115,12 @@ export function SettingsScreen() {
           <span className="muted">Local storage</span>
           <span>{storageOk ? 'Available' : 'Unavailable (data won’t persist)'}</span>
         </div>
-        <div className="row-between" style={{ marginTop: 8 }}>
-          <span className="muted">PWA</span>
-          <span style={{ textAlign: 'right', maxWidth: '60%' }}>{pwaStatus()}</span>
-        </div>
       </div>
 
       <div className="card">
-        <span className="card-title">Roadmap · TODO</span>
+        <span className="card-title">Roadmap</span>
         <p className="card-sub" style={{ marginTop: 4 }}>
-          Planned for the real version — see the README “Next iteration” notes.
+          What the app does today, and what’s next — see the README for detail.
         </p>
         <ul style={{ margin: '10px 0 0', paddingLeft: 18, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
           <li>
@@ -147,10 +132,22 @@ export function SettingsScreen() {
           <li>
             <s>Elevation profile per stage</s> ✓
           </li>
-          <li>Map labels & contours (local glyphs / terrain tiles)</li>
-          <li>Route progress by projecting GPS onto the route line</li>
-          <li>Installable-PWA polish (custom install prompt, update toast)</li>
+          <li>
+            <s>Route progress along the current stage (GPS projected onto the line)</s> ✓
+          </li>
+          <li>
+            <s>Installable-PWA polish (install option, update &amp; offline-ready toasts)</s> ✓
+          </li>
+          <li>
+            Improve offline-map geographic context — a future decision between a
+            few curated labels, general basemap labels, or terrain
+            contours/hillshade (these are separate features, not one).
+          </li>
         </ul>
+        <p className="card-sub" style={{ marginTop: 10 }}>
+          Prototype — not for primary navigation. Always carry a proper map,
+          compass and a dedicated navigation/safety device.
+        </p>
       </div>
 
       <p className="app-version">Fjällkompis · prototype · v{APP_VERSION}</p>

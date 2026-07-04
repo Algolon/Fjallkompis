@@ -18,14 +18,146 @@ import {
 } from '../route/routeData';
 import { STAGE_COLORS } from '../map/mapStyle';
 import type { BasemapMode } from '../map/pmtilesProtocol';
-import { haversineKm } from '../utils/geo';
+import { projectOntoRoute } from '../utils/routeProgress.mjs';
+import type { RouteProjection } from '../utils/routeProgress.mjs';
 import { formatDistanceKm } from '../utils/format';
 import type { LatLng } from '../types';
 
+/** Whole metres, phrased as an approximation ("~38 m", "~640 m"). */
+const approxMeters = (m: number) => `~${Math.round(m)} m`;
+
 type Panel = 'map' | 'elevation';
 
+/** Along-route progress state for the GPS/manual result card. */
+type Progress =
+  | null // no position yet
+  | { kind: 'no-stage' }
+  | { kind: 'manual-start'; totalKm: number }
+  | { kind: 'manual-end'; totalKm: number }
+  | { kind: 'manual-unrelated'; stopName: string }
+  | { kind: 'gps'; proj: RouteProjection };
+
+/** The primary "Today's route" readout: km done, km left, %, and a barchart. */
+function ProgressReadout({
+  stageTitle,
+  completedKm,
+  remainingKm,
+  percent,
+  note,
+}: {
+  stageTitle: string | null;
+  completedKm: number;
+  remainingKm: number;
+  percent: number;
+  note: string;
+}) {
+  const pct = Math.round(percent);
+  return (
+    <div className="route-progress" style={{ marginTop: 4 }}>
+      <div className="row-between">
+        <span className="card-sub">Today’s route{stageTitle ? ` · ${stageTitle}` : ''}</span>
+        <span className="tnum" style={{ fontWeight: 800, fontSize: 20 }}>
+          {pct}%
+        </span>
+      </div>
+      <progress
+        className="map-progress"
+        style={{ width: '100%', marginTop: 10 }}
+        value={pct}
+        max={100}
+        aria-label={`Route completed: ${pct}%`}
+      />
+      <div className="stat-grid" style={{ marginTop: 12 }}>
+        <div className="stat">
+          <div className="k">Completed</div>
+          <div className="v tnum">{formatDistanceKm(completedKm)}</div>
+        </div>
+        <div className="stat">
+          <div className="k">Remaining</div>
+          <div className="v tnum">{formatDistanceKm(remainingKm)}</div>
+        </div>
+      </div>
+      <p className="card-sub" style={{ marginTop: 10 }}>
+        {note}
+      </p>
+    </div>
+  );
+}
+
+/** Renders the along-route progress result for the current-stage position. */
+function renderProgress(
+  progress: Progress,
+  stageTitle: string | null,
+  accuracyM: number | null,
+) {
+  if (!progress) return null;
+
+  if (progress.kind === 'no-stage') {
+    return (
+      <p className="card-sub" style={{ marginTop: 4 }}>
+        Select a current stage before route progress can be calculated — set one
+        with “Set as current” above, or from the Stages tab.
+      </p>
+    );
+  }
+
+  if (progress.kind === 'manual-unrelated') {
+    return (
+      <p className="banner-warn" style={{ marginTop: 4 }}>
+        <span>🧭</span>
+        <span>
+          {progress.stopName} isn’t on your current stage
+          {stageTitle ? ` (${stageTitle})` : ''}. Set that stage as current, or
+          use GPS, to see progress along it.
+        </span>
+      </p>
+    );
+  }
+
+  if (progress.kind === 'manual-start' || progress.kind === 'manual-end') {
+    const atStart = progress.kind === 'manual-start';
+    return (
+      <ProgressReadout
+        stageTitle={stageTitle}
+        completedKm={atStart ? 0 : progress.totalKm}
+        remainingKm={atStart ? progress.totalKm : 0}
+        percent={atStart ? 0 : 100}
+        note={`Pinned to the ${atStart ? 'start' : 'end'} of today’s stage — an exact stop, not a GPS estimate`}
+      />
+    );
+  }
+
+  // GPS projection onto the current stage.
+  const { proj } = progress;
+  if (!proj.ok || !proj.reliable) {
+    return (
+      <p className="banner-warn" style={{ marginTop: 4 }}>
+        <span>📍</span>
+        <span>
+          Your position could not be reliably matched to the current stage
+          {stageTitle ? ` (${stageTitle})` : ''}.
+          {proj.ok
+            ? ` Nearest mapped route point: approximately ${Math.round(proj.crossTrackM)} m away.`
+            : ''}
+        </span>
+      </p>
+    );
+  }
+  const accuracyNote =
+    accuracyM != null ? ` · GPS accuracy ±${Math.round(accuracyM)} m` : '';
+  return (
+    <ProgressReadout
+      stageTitle={stageTitle}
+      completedKm={proj.distanceAlongKm}
+      remainingKm={proj.distanceRemainingKm}
+      percent={proj.percent}
+      note={`Matched ${approxMeters(proj.crossTrackM)} from the mapped route${accuracyNote} — approximate, not exact.`}
+    />
+  );
+}
+
 export function MapScreen() {
-  const { currentStage, nextHutId, setCurrentStage, getStopNote } = useStore();
+  const { currentStage, setCurrentStage, getStopNote } = useStore();
   const geo = useGeolocation();
   const mapRef = useRef<MapViewHandle>(null);
 
@@ -45,10 +177,6 @@ export function MapScreen() {
   const profile = viewStage ? viewStage.elevationProfile : OVERVIEW_ELEVATION_PROFILE;
   const stats = viewStage ? viewStage.statistics : ROUTE.statistics;
 
-  const nextStop = nextHutId ? STOPS_BY_ID[nextHutId] : null;
-  const distanceToNext: number | null =
-    geo.coord && nextStop ? haversineKm(geo.coord, nextStop.coord) : null;
-
   const stepStage = (dir: 1 | -1) => {
     // Order: overview → d1 … d7 → overview.
     const ids = [null, ...ROUTE.stages.map((s) => s.id)];
@@ -60,7 +188,7 @@ export function MapScreen() {
     const stop = STOPS_BY_ID[manualHutId];
     if (stop) {
       const coord: LatLng = stop.coord;
-      geo.setManual(coord);
+      geo.setManual(coord, stop.id);
       setManualOpen(false);
     }
   };
@@ -74,6 +202,40 @@ export function MapScreen() {
     if (!appStage) return 'Full route';
     return `Day ${appStage.day}: ${stopShortName(STOPS_BY_ID[appStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[appStage.toHutId])}`;
   }, [appStage]);
+
+  const currentStageTitle = currentStage
+    ? `Day ${currentStage.day}: ${stopShortName(STOPS_BY_ID[currentStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[currentStage.toHutId])}`
+    : null;
+
+  // Along-route progress is always computed against the CURRENT persisted
+  // stage — never the stage merely being browsed on the map above.
+  const progress = useMemo<Progress>(() => {
+    if (geo.status !== 'success' || !geo.coord) return null;
+    if (!currentStage) return { kind: 'no-stage' };
+
+    const routeStage = STAGE_BY_ID[currentStage.id];
+    const totalKm =
+      routeStage.points[routeStage.points.length - 1]?.cumulativeDistanceKm ??
+      currentStage.distanceKm;
+
+    if (geo.source === 'manual') {
+      if (geo.manualStopId === currentStage.fromHutId)
+        return { kind: 'manual-start', totalKm };
+      if (geo.manualStopId === currentStage.toHutId)
+        return { kind: 'manual-end', totalKm };
+      const stop = geo.manualStopId ? STOPS_BY_ID[geo.manualStopId] : null;
+      return { kind: 'manual-unrelated', stopName: stop ? stopShortName(stop) : 'that stop' };
+    }
+
+    return {
+      kind: 'gps',
+      proj: projectOntoRoute(
+        routeStage.points,
+        { lat: geo.coord.lat, lon: geo.coord.lng },
+        { accuracyM: geo.accuracyM },
+      ),
+    };
+  }, [geo.status, geo.coord, geo.source, geo.manualStopId, geo.accuracyM, currentStage]);
 
   return (
     <div className="screen">
@@ -274,27 +436,8 @@ export function MapScreen() {
                 {geo.coord.lat.toFixed(4)}, {geo.coord.lng.toFixed(4)}
               </span>
             </div>
-            {geo.accuracyM != null ? (
-              <div className="row-between" style={{ marginTop: 6 }}>
-                <span className="muted">Fix accuracy</span>
-                <span className="tnum">±{Math.round(geo.accuracyM)} m</span>
-              </div>
-            ) : null}
-            {nextStop ? (
-              <div className="row-between" style={{ marginTop: 6 }}>
-                <span className="muted">Straight line to {stopShortName(nextStop)}</span>
-                <span className="tnum" style={{ fontWeight: 700 }}>
-                  {distanceToNext != null ? formatDistanceKm(distanceToNext) : '—'}
-                </span>
-              </div>
-            ) : (
-              <p className="card-sub" style={{ marginTop: 8 }}>
-                Set a current stage to see distance to your next stop.
-              </p>
-            )}
-            <p className="card-sub" style={{ marginTop: 10 }}>
-              Straight-line distance ignores terrain and detours — the real walk is always longer.
-            </p>
+            <div className="hr" />
+            {renderProgress(progress, currentStageTitle, geo.accuracyM)}
           </div>
         ) : null}
 

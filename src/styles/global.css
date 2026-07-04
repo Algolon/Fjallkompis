@@ -1664,3 +1664,62 @@ h3 {
   font-size: 12px;
   padding: 18px 0 4px;
 }
+
+/* --- PWA lifecycle toast ------------------------------------------------- */
+
+/* Fixed above the in-flow tab bar (tabbar-h + its own safe-area inset) and
+   the viewport safe area, so it never covers primary navigation. Non-modal:
+   it does not trap focus or block the page, but its buttons are reachable. */
+.pwa-toast-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px;
+  pointer-events: none; /* only the card itself is interactive */
+}
+.pwa-toast {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 440px;
+  background: var(--paper-bright);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: pwa-toast-in 220ms ease-out;
+}
+.pwa-toast__msg {
+  margin: 0;
+  color: var(--ink-strong);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.pwa-toast__actions {
+  display: flex;
+  gap: 8px;
+}
+.pwa-toast__actions .btn {
+  flex: 1;
+}
+@keyframes pwa-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pwa-toast {
+    animation: none;
+  }
+}

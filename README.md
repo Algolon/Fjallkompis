@@ -17,7 +17,10 @@ journaling — all stored locally on your device.
   (`public/maps/kungsleden.pmtiles`, ~3.5 MB, zoom ≤ 14), styled fully offline
   via `@protomaps/basemaps` with **no** remote glyphs/sprites/fonts/tiles
 - **PWA:** `vite-plugin-pwa` (Workbox) app-shell precache + a separate,
-  user-controlled offline-map cache with byte-range support
+  user-controlled offline-map cache with byte-range support. Updates use the
+  **prompt** flow (`virtual:pwa-register/react`): a new worker waits behind an
+  in-app toast and only activates on a deliberate "Update now" — the app never
+  reloads on its own. Settings offers a progressive install option.
 
 ## Route data pipeline
 
@@ -129,20 +132,43 @@ fjallkompis/
    └─ …
 ```
 
+## Route progress
+
+Tapping **Use my location** on the Map screen takes a single GPS fix and
+projects it onto the **current stage** polyline (the persisted stage, not the
+one being browsed on the map). It reports km completed, km remaining and a
+percentage along that stage, plus how far the fix landed from the mapped route
+and the reported GPS accuracy. Geolocation stays **one-shot** — no
+`watchPosition`, to save battery on a multi-day hike.
+
+The match is deliberately honest about uncertainty. A fix is accepted only when
+its cross-track distance is within a tolerance of
+`max(75 m, 3 × reported-accuracy)` (see `src/utils/routeProgress.mjs`); beyond
+that the app shows "could not be reliably matched" with the nearest-route
+distance instead of a confident percentage. Manual mode pins you to a stop: the
+current stage's start reads 0 %, its end reads 100 %, and an unrelated stop is
+flagged rather than shown as misleading progress. All of this is approximate —
+see the warning above.
+
 ## Known limitations
 
 - Basemap has no text labels yet (kept glyph/sprite-free for offline
   reliability); hut names are local HTML markers.
 - Max zoom 14 (+overzoom) — fine for overview, not for close-up detail.
-- "Distance to next hut" is straight-line, not along-route progress.
+- Route progress matches a single GPS fix to the mapped line: it is
+  approximate, and low-accuracy or off-trail fixes are qualified or rejected
+  rather than guessed.
 - Stage time estimates are personal guesses; the GPX has no time data.
 
 ## Next iteration
 
-1. Route progress: project the GPS fix onto the stage line for "km done / km
-   left" instead of straight-line distance.
-2. Local glyphs for general map labels (self-hosted PBF fonts), contours or
-   hillshade from a terrain PMTiles source.
-3. Installable-PWA polish: custom install prompt, SW-update toast, richer
-   offline states.
-4. Code-split MapLibre behind a lazy route to trim the initial bundle.
+1. **Improve offline-map geographic context.** This is a genuine choice between
+   three *separate* features, to be decided deliberately — not bundled as one:
+   - **A.** a small curated set of important geographic labels using local data
+     or HTML markers (cheapest, no new asset pipeline);
+   - **B.** general basemap labels using self-hosted glyph PBFs (a real font
+     pipeline, larger assets, still fully offline);
+   - **C.** true terrain contours or hillshade from a *separate* offline
+     terrain PMTiles source (largest, needs a second tileset + styling).
+2. Code-split MapLibre behind a lazy route to trim the initial bundle (the
+   Map screen currently pulls MapLibre into the first-load JS).
