@@ -592,6 +592,10 @@ h3 {
   color: #f4f8f5;
   box-shadow: var(--shadow);
 }
+.map-layer-toggle .seg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 .map-toolbar {
   display: flex;

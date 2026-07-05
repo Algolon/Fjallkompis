@@ -1,15 +1,19 @@
 /**
- * Settings → "Offline map": explicit download management for the regional
- * PMTiles basemap. The file lives in its own Cache Storage cache, separate
- * from the Workbox app-shell precache (see src/map/offlineMap.ts).
+ * Settings download management for a regional PMTiles archive. Used for both
+ * the vector basemap and the optional satellite imagery — each file lives in
+ * its own Cache Storage cache, separate from the Workbox app-shell precache
+ * (see src/map/offlineMap.ts).
  */
 import { useEffect, useState } from 'react';
 import {
-  downloadOfflineMap,
+  archiveUrl,
+  downloadArchive,
   formatBytes,
-  getOfflineMapStatus,
-  offlineMapUrl,
-  removeOfflineMap,
+  getArchiveStatus,
+  removeArchive,
+  SATELLITE_ARCHIVE,
+  VECTOR_ARCHIVE,
+  type ArchiveSpec,
   type OfflineMapStatus,
 } from '../map/offlineMap';
 
@@ -20,21 +24,30 @@ type Phase =
   | { kind: 'done'; sizeBytes: number }
   | { kind: 'error'; message: string };
 
-export function OfflineMapCard() {
+interface ArchiveCardProps {
+  spec: ArchiveSpec;
+  title: string;
+  description: string;
+  /** Confirmation text shown before removing the archive. */
+  removeConfirm: string;
+}
+
+function ArchiveCard({ spec, title, description, removeConfirm }: ArchiveCardProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
 
   const refresh = async () => {
-    setPhase({ kind: 'idle', status: await getOfflineMapStatus() });
+    setPhase({ kind: 'idle', status: await getArchiveStatus(spec) });
   };
 
   useEffect(() => {
     void refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spec.cacheName]);
 
   const download = async () => {
     setPhase({ kind: 'downloading', loaded: 0, total: null });
     try {
-      const size = await downloadOfflineMap((loaded, total) =>
+      const size = await downloadArchive(spec, (loaded, total) =>
         setPhase({ kind: 'downloading', loaded, total }),
       );
       setPhase({ kind: 'done', sizeBytes: size });
@@ -50,8 +63,8 @@ export function OfflineMapCard() {
   };
 
   const remove = async () => {
-    if (confirm('Remove the offline map? The map screen will need a connection again.')) {
-      await removeOfflineMap();
+    if (confirm(removeConfirm)) {
+      await removeArchive(spec);
       await refresh();
     }
   };
@@ -67,15 +80,14 @@ export function OfflineMapCard() {
 
   return (
     <div className="card">
-      <span className="card-title">Offline map</span>
+      <span className="card-title">{title}</span>
       <p className="card-sub" style={{ marginTop: 4 }}>
-        A bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta
-        + ~9 km). Download it while online; the route itself always works offline.
+        {description}
       </p>
 
       {phase.kind === 'checking' ? (
         <p className="card-sub" style={{ marginTop: 12 }}>
-          Checking offline map…
+          Checking…
         </p>
       ) : null}
 
@@ -111,14 +123,14 @@ export function OfflineMapCard() {
           style={{ width: '100%', marginTop: 12 }}
           value={phase.total ? phase.loaded : undefined}
           max={phase.total ?? undefined}
-          aria-label="Map download progress"
+          aria-label={`${title} download progress`}
         />
       ) : null}
 
       {phase.kind === 'done' ? (
         <p className="banner-warn" style={{ marginTop: 12, background: '#dfe9db', borderColor: '#c4d4be', color: '#46603f' }}>
           <span>✓</span>
-          <span>Offline map saved ({formatBytes(phase.sizeBytes)}). The map now works without a connection.</span>
+          <span>Saved ({formatBytes(phase.sizeBytes)}). It now works without a connection.</span>
         </p>
       ) : null}
 
@@ -134,10 +146,10 @@ export function OfflineMapCard() {
           {/* While downloading, `downloaded` is false and the primary
               button below renders instead, so no disabled state is needed. */}
           <button className="btn btn-block" style={{ marginTop: 12 }} onClick={download}>
-            Re-download / update map
+            Re-download / update
           </button>
           <button className="btn btn-danger btn-block" style={{ marginTop: 10 }} onClick={remove}>
-            Remove offline map
+            Remove from device
           </button>
         </>
       ) : (
@@ -152,8 +164,30 @@ export function OfflineMapCard() {
       )}
 
       <p className="card-sub" style={{ marginTop: 10, wordBreak: 'break-all' }}>
-        Source: {offlineMapUrl()}
+        Source: {archiveUrl(spec)}
       </p>
     </div>
+  );
+}
+
+export function OfflineMapCard() {
+  return (
+    <ArchiveCard
+      spec={VECTOR_ARCHIVE}
+      title="Offline map"
+      description="A bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~9 km). Download it while online; the route itself always works offline."
+      removeConfirm="Remove the offline map? The map screen will need a connection again."
+    />
+  );
+}
+
+export function SatelliteMapCard() {
+  return (
+    <ArchiveCard
+      spec={SATELLITE_ARCHIVE}
+      title="Satellite imagery"
+      description="Aerial/satellite imagery of the Kungsleden area, shown as an optional second map layer. Download it while online to switch to Satellite on the map — fully offline, like the basemap."
+      removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
+    />
   );
 }

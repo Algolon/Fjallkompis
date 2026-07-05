@@ -24,7 +24,7 @@ import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ROUTE } from '../route/routeData';
 import { buildMapStyle, routeLayers, SATELLITE_LAYER } from '../map/mapStyle';
-import { resolveBasemap, type BasemapMode } from '../map/pmtilesProtocol';
+import { resolveBasemap, resolveSatellite, type BasemapMode } from '../map/pmtilesProtocol';
 import type { LatLng } from '../types';
 
 export interface MapViewHandle {
@@ -44,7 +44,9 @@ interface MapViewProps {
   onSelectStage: (stageId: string) => void;
   onSelectWaypoint: (waypointId: string) => void;
   onBasemapMode?: (mode: BasemapMode) => void;
-  /** 'terrain' (offline vector) or 'satellite' (Esri raster, online only). */
+  /** Fired once with whether a satellite archive is available to switch to. */
+  onSatelliteAvailable?: (available: boolean) => void;
+  /** 'terrain' (offline vector) or 'satellite' (offline raster PMTiles). */
   imagery: ImageryMode;
   gps: LatLng | null;
 }
@@ -57,7 +59,15 @@ const prefersReducedMotion = () =>
 const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { selectedStageId, onSelectStage, onSelectWaypoint, onBasemapMode, imagery, gps },
+  {
+    selectedStageId,
+    onSelectStage,
+    onSelectWaypoint,
+    onBasemapMode,
+    onSatelliteAvailable,
+    imagery,
+    gps,
+  },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -108,13 +118,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     let resizeObs: ResizeObserver | null = null;
 
     (async () => {
-      const basemap = await resolveBasemap();
+      const [basemap, satellite] = await Promise.all([resolveBasemap(), resolveSatellite()]);
       if (cancelled || !containerRef.current) return;
       onBasemapMode?.(basemap.mode);
+      onSatelliteAvailable?.(satellite.sourceUrl != null);
 
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildMapStyle(basemap.sourceUrl),
+        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl),
         bounds: ROUTE.bounds,
         fitBoundsOptions: { padding: FIT_PADDING },
         attributionControl: { compact: true },
@@ -218,7 +229,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // ---- Basemap imagery toggle (terrain vs satellite) ----------------------
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !loaded) return;
+    // The satellite layer only exists when an archive was resolved; toggling
+    // is a no-op otherwise (the UI disables the option in that case).
+    if (!map || !loaded || !map.getLayer(SATELLITE_LAYER)) return;
     map.setLayoutProperty(
       SATELLITE_LAYER,
       'visibility',

@@ -36,6 +36,7 @@ export function MapScreen() {
   const [panel, setPanel] = useState<Panel>('map');
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [imagery, setImagery] = useState<ImageryMode>('terrain');
+  const [satelliteAvailable, setSatelliteAvailable] = useState(false);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualHutId, setManualHutId] = useState<string>(STOPS[0].id);
@@ -104,6 +105,7 @@ export function MapScreen() {
               onSelectStage={(id) => setViewStageId(id)}
               onSelectWaypoint={(id) => setSelectedWaypointId(id)}
               onBasemapMode={setBasemapMode}
+              onSatelliteAvailable={setSatelliteAvailable}
               imagery={imagery}
               gps={geo.coord}
             />
@@ -125,15 +127,24 @@ export function MapScreen() {
                 aria-checked={imagery === 'satellite'}
                 className="seg-btn"
                 onClick={() => setImagery('satellite')}
+                disabled={!satelliteAvailable}
+                title={
+                  satelliteAvailable
+                    ? undefined
+                    : 'Download the satellite imagery in Settings to enable this layer'
+                }
               >
                 Satellite
               </button>
             </div>
           </div>
-          {imagery === 'satellite' && basemapMode === 'offline' ? (
+          {!satelliteAvailable ? (
             <div className="banner-warn" style={{ margin: 10 }}>
               <span>🛰️</span>
-              <span>Satellite imagery streams from Esri and needs an internet connection.</span>
+              <span>
+                Satellite imagery isn’t on this device yet — download it in Settings → Satellite
+                imagery to use the satellite layer offline.
+              </span>
             </div>
           ) : null}
           {basemapMode === 'none' ? (

@@ -18,24 +18,23 @@ export const BASEMAP_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>';
 
 /**
- * Optional second basemap: Esri World Imagery satellite raster tiles.
+ * Optional second basemap: satellite imagery from a raster PMTiles archive.
  *
- * This is the one deliberate exception to the app's otherwise strict
- * offline-only rule: satellite tiles are fetched from a remote provider and
- * ONLY when the user opts into the satellite layer (the raster layer ships
- * with visibility:none, so no tiles are requested until it is switched on).
- * The vector basemap remains the offline-capable default.
- *
- * To go fully offline later, swap `SATELLITE_TILES` for a `pmtiles://…` raster
- * archive resolved the same way as the vector basemap (see pmtilesProtocol.ts)
- * — the source/layer wiring below does not otherwise change.
+ * Like the vector basemap, this stays fully offline — tiles are read from a
+ * `pmtiles://…` raster archive (offline blob or hosted file, resolved in
+ * pmtilesProtocol.ts), never from a remote tile provider. The layer is only
+ * added when a satellite archive is actually available, and ships with
+ * visibility:none so it costs nothing until the user switches it on.
  */
 export const SATELLITE_SOURCE = 'satellite';
 export const SATELLITE_LAYER = 'satellite';
-export const SATELLITE_TILES =
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 export const SATELLITE_ATTRIBUTION =
-  'Imagery © <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics, and the GIS User Community';
+  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · satellite imagery';
+/**
+ * Pixel size of the raster tiles in the archive. Standard slippy-map tiles are
+ * 256; set to 512 here if the supplied archive uses 512px tiles.
+ */
+export const SATELLITE_TILE_SIZE = 256;
 
 /** Okabe–Ito palette (colour-blind safe), one colour per day stage. */
 export const STAGE_COLORS: Record<number, string> = {
@@ -58,7 +57,10 @@ const stageColorExpression = [
   OVERVIEW_COLOR,
 ] as unknown as string;
 
-export function buildMapStyle(basemapSourceUrl: string | null): StyleSpecification {
+export function buildMapStyle(
+  basemapSourceUrl: string | null,
+  satelliteSourceUrl: string | null = null,
+): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,
     // Placeholder background stays visible when no basemap is available; the
@@ -87,23 +89,25 @@ export function buildMapStyle(basemapSourceUrl: string | null): StyleSpecificati
     );
   }
 
-  // Satellite raster basemap, hidden until the user toggles it on. It sits
-  // above the vector basemap (which it fully covers when visible) but below
-  // the route/GPS layers that MapView adds after load.
-  style.sources[SATELLITE_SOURCE] = {
-    type: 'raster',
-    tiles: [SATELLITE_TILES],
-    tileSize: 256,
-    maxzoom: 19,
-    attribution: SATELLITE_ATTRIBUTION,
-  };
-  style.layers.push({
-    id: SATELLITE_LAYER,
-    type: 'raster',
-    source: SATELLITE_SOURCE,
-    layout: { visibility: 'none' },
-    paint: { 'raster-fade-duration': 200 },
-  });
+  // Satellite raster basemap from a PMTiles archive, added only when one is
+  // available and hidden until the user toggles it on. It sits above the
+  // vector basemap (which it fully covers when visible) but below the
+  // route/GPS layers that MapView adds after load.
+  if (satelliteSourceUrl) {
+    style.sources[SATELLITE_SOURCE] = {
+      type: 'raster',
+      url: satelliteSourceUrl,
+      tileSize: SATELLITE_TILE_SIZE,
+      attribution: SATELLITE_ATTRIBUTION,
+    };
+    style.layers.push({
+      id: SATELLITE_LAYER,
+      type: 'raster',
+      source: SATELLITE_SOURCE,
+      layout: { visibility: 'none' },
+      paint: { 'raster-fade-duration': 200 },
+    });
+  }
 
   return style;
 }
