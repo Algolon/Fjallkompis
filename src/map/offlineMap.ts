@@ -25,9 +25,18 @@
 export interface ArchiveSpec {
   /** Cache Storage cache name (kept in sync with vite.config.ts). */
   cacheName: string;
-  /** Path under BASE_URL to the .pmtiles file. */
+  /** Same-origin path under BASE_URL (default location / dev fallback). */
   path: string;
+  /**
+   * Resolves the absolute URL used BOTH to fetch the archive and as its Cache
+   * Storage key. Defaults to the same-origin BASE_URL path; the satellite
+   * archive overrides this with the off-repo GitHub Release asset URL.
+   */
+  resolveUrl?: () => string;
 }
+
+const sameOriginUrl = (path: string): string =>
+  new URL(`${import.meta.env.BASE_URL}${path}`, window.location.origin).toString();
 
 export const VECTOR_ARCHIVE: ArchiveSpec = {
   cacheName: 'fjallkompis-offline-map-v1',
@@ -37,14 +46,29 @@ export const VECTOR_ARCHIVE: ArchiveSpec = {
 export const SATELLITE_ARCHIVE: ArchiveSpec = {
   cacheName: 'fjallkompis-offline-satellite-v1',
   path: 'maps/kungsleden-satellite.pmtiles',
+  // Production: the versioned GitHub Release asset (VITE_SATELLITE_URL), so the
+  // 42 MB archive stays out of the repo/app-shell. Dev/unset: the same-origin
+  // path — which, if the file is absent, resolveSatellite() rejects as an
+  // HTML/404 fallback rather than treating it as a real archive.
+  resolveUrl: () => {
+    const configured = import.meta.env.VITE_SATELLITE_URL?.trim();
+    return configured
+      ? configured
+      : sameOriginUrl('maps/kungsleden-satellite.pmtiles');
+  },
 };
 
 /** @deprecated kept for existing imports; prefer VECTOR_ARCHIVE.cacheName. */
 export const OFFLINE_MAP_CACHE = VECTOR_ARCHIVE.cacheName;
 
-/** Absolute URL of an archive, correct under /Fjallkompis/. */
+/**
+ * Absolute URL of an archive: fetch target AND Cache Storage key. Both must be
+ * identical so a downloaded blob is found again on the next load; bumping the
+ * satellite release tag deliberately changes this URL so a new archive is
+ * re-downloaded rather than served stale.
+ */
 export function archiveUrl(spec: ArchiveSpec): string {
-  return new URL(`${import.meta.env.BASE_URL}${spec.path}`, window.location.origin).toString();
+  return spec.resolveUrl ? spec.resolveUrl() : sameOriginUrl(spec.path);
 }
 
 /** Absolute URL of the regional vector basemap. */

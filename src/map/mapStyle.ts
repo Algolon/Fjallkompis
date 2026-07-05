@@ -28,10 +28,10 @@ export const BASEMAP_ATTRIBUTION =
  */
 export const SATELLITE_SOURCE = 'satellite';
 export const SATELLITE_LAYER = 'satellite';
-// Copernicus Sentinel-2 is the recommended/documented source (see README).
-// If you build the archive from a different provider, update this credit.
+// EOX Sentinel-2 cloudless is the shipped source (see README). If you build the
+// archive from a different provider, update this credit accordingly.
 export const SATELLITE_ATTRIBUTION =
-  'Satellite imagery: contains modified <a href="https://sentinels.copernicus.eu" target="_blank" rel="noopener">Copernicus Sentinel</a> data';
+  'Sentinel-2 cloudless — <a href="https://s2maps.eu" target="_blank" rel="noopener">s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)';
 /**
  * Pixel size of the raster tiles in the archive. Standard slippy-map tiles are
  * 256; set to 512 here if the supplied archive uses 512px tiles.

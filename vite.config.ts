@@ -58,7 +58,14 @@ export default defineConfig({
             // src/map/offlineMap.ts. cacheableResponse statuses [200]
             // ensures a network 206 partial is never cached — caching
             // individual range responses would NOT work offline.
-            urlPattern: /\.pmtiles$/,
+            //
+            // Scoped to the SAME-ORIGIN vector basemap only. The satellite
+            // archive is a cross-origin GitHub Release asset read from its
+            // own Cache Storage blob (not via the SW), so this rule must not
+            // intercept it — otherwise online satellite streaming would pull
+            // the whole 42 MB file through the SW into the wrong cache.
+            urlPattern: ({ sameOrigin, request }) =>
+              sameOrigin && request.url.endsWith('/maps/kungsleden.pmtiles'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'fjallkompis-offline-map-v1',

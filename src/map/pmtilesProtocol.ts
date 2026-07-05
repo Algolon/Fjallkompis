@@ -61,17 +61,34 @@ const OFFLINE_KEY = 'offline://kungsleden';
 const SATELLITE_OFFLINE_KEY = 'offline://kungsleden-satellite';
 
 /**
- * Is a HEAD response an actual hosted .pmtiles file, not an SPA fallback?
- * Static hosts (and vite preview) answer a request for a MISSING file with the
- * app shell — `200 OK` + `text/html` — which would otherwise look like an
- * available archive and crash MapLibre with "wrong magic number". A real
- * PMTiles file is served as a binary type (octet-stream / vnd.pmtiles / empty),
- * never text/html.
+ * Is a response an actual hosted .pmtiles file, not an SPA fallback? Static
+ * hosts (and vite preview) answer a request for a MISSING file with the app
+ * shell — `200 OK` + `text/html` — which would otherwise look like an available
+ * archive and crash MapLibre with "wrong magic number". A real PMTiles file is
+ * served as a binary type (octet-stream / vnd.pmtiles / empty), never text/html.
  */
-function isHostedArchive(head: Response): boolean {
-  if (!head.ok) return false;
-  const type = head.headers.get('Content-Type') ?? '';
+function looksLikeArchive(res: Response): boolean {
+  if (!res.ok) return false;
+  const type = res.headers.get('Content-Type') ?? '';
   return !type.toLowerCase().includes('text/html');
+}
+
+/**
+ * Probe a hosted archive with a tiny ranged GET. Works for the cross-origin
+ * GitHub Release asset (`Range` is a CORS-safelisted header, so no preflight;
+ * GitHub answers 206 + `access-control-allow-origin: *`), and also confirms the
+ * host serves binary range data rather than a 404/HTML fallback. Same-origin
+ * hosts answer it just as happily. The body is discarded — if the server ever
+ * ignores `Range` and returns the full 200, we cancel it instead of downloading
+ * the whole archive.
+ */
+async function probeHostedArchive(url: string): Promise<boolean> {
+  const res = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' } });
+  try {
+    return looksLikeArchive(res);
+  } finally {
+    await res.body?.cancel().catch(() => {});
+  }
 }
 
 /**
@@ -91,7 +108,7 @@ export async function resolveBasemap(): Promise<BasemapResolution> {
 
   try {
     const head = await fetch(offlineMapUrl(), { method: 'HEAD' });
-    if (isHostedArchive(head)) {
+    if (looksLikeArchive(head)) {
       return { mode: 'online', sourceUrl: `pmtiles://${offlineMapUrl()}` };
     }
   } catch {
@@ -106,9 +123,10 @@ export async function resolveBasemap(): Promise<BasemapResolution> {
  * null sourceUrl when no satellite archive is available anywhere, so callers
  * can disable the toggle instead of adding a broken layer.
  *
- * The archive itself is supplied by the project (place
- * `public/maps/kungsleden-satellite.pmtiles`); the resolution mirrors the
- * vector basemap so nothing else changes when the file is provided.
+ * The archive is hosted off-repo as a versioned GitHub Release asset
+ * (VITE_SATELLITE_URL); once the user downloads it in Settings the offline blob
+ * is preferred and no network is touched. The hosted probe is a cross-origin
+ * ranged GET (see probeHostedArchive).
  */
 export async function resolveSatellite(): Promise<BasemapResolution> {
   const proto = ensurePmtilesProtocol();
@@ -120,8 +138,7 @@ export async function resolveSatellite(): Promise<BasemapResolution> {
   }
 
   try {
-    const head = await fetch(satelliteMapUrl(), { method: 'HEAD' });
-    if (isHostedArchive(head)) {
+    if (await probeHostedArchive(satelliteMapUrl())) {
       return { mode: 'online', sourceUrl: `pmtiles://${satelliteMapUrl()}` };
     }
   } catch {

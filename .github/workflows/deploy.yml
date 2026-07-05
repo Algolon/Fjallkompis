@@ -26,6 +26,11 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # Satellite archive is hosted off-repo as a versioned GitHub Release
+          # asset (see README → Satellite imagery layer). Bump the tag when you
+          # publish new imagery (satellite-data-v2, …).
+          VITE_SATELLITE_URL: https://github.com/Algolon/Fjallkompis/releases/download/satellite-data-v1/kungsleden-satellite.pmtiles
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
