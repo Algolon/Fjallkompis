@@ -28,8 +28,10 @@ export const BASEMAP_ATTRIBUTION =
  */
 export const SATELLITE_SOURCE = 'satellite';
 export const SATELLITE_LAYER = 'satellite';
+// Copernicus Sentinel-2 is the recommended/documented source (see README).
+// If you build the archive from a different provider, update this credit.
 export const SATELLITE_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · satellite imagery';
+  'Satellite imagery: contains modified <a href="https://sentinels.copernicus.eu" target="_blank" rel="noopener">Copernicus Sentinel</a> data';
 /**
  * Pixel size of the raster tiles in the archive. Standard slippy-map tiles are
  * 256; set to 512 here if the supplied archive uses 512px tiles.

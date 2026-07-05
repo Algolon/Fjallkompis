@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "generate:route": "node scripts/generate-route-data.mjs",
+    "generate:map:satellite": "./scripts/build-satellite-map.sh",
     "test": "npm run generate:route && node --test 'tests/**/*.test.mjs'"
   },
   "dependencies": {
