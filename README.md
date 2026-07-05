@@ -70,53 +70,50 @@ still renders on a clearly-marked placeholder background.
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**
 map. Tiles come from a raster PMTiles archive of **EOX Sentinel‑2 cloudless
-2024** imagery, bounded to the route corridor. The archive is **~42 MB, so it is
-NOT committed to the repo** — it is hosted off‑repo and the app streams or
-downloads it from a configurable URL.
+2024** imagery, bounded to the route corridor. The archive is **~42 MB and is
+NOT committed to the repo** — the canonical binary lives on a **versioned
+GitHub Release** and is injected into the Pages build at deploy time:
+
+```
+Release asset (tag satellite-data-v1, kungsleden-satellite.pmtiles)
+  → deploy.yml downloads it (gh release download) + verifies SHA-256 & size
+  → placed in public/maps before the Vite build → copied to dist/maps
+  → GitHub Pages serves it from the app's own origin:
+    https://algolon.github.io/Fjallkompis/maps/kungsleden-satellite.pmtiles
+```
+
+Browsers therefore fetch it **same‑origin** — no CORS involved. (GitHub Release
+assets themselves send no CORS headers, so the app cannot fetch them
+cross‑origin directly; the deploy‑time injection sidesteps that without putting
+the binary into git history.)
 
 Resolution order in the app (`src/map/pmtilesProtocol.ts`): user‑downloaded
-Cache‑Storage blob → the hosted archive (streamed online) → disabled toggle.
-Once downloaded in **Settings → Satellite imagery** it works fully offline,
-independently of the vector basemap. The Terrain/vector basemap is unchanged and
-still same‑origin.
+Cache‑Storage blob → the hosted same‑origin file (streamed online) → disabled
+toggle. Once downloaded in **Settings → Satellite imagery** it works fully
+offline, independently of the vector basemap. A *missing* file (e.g. local dev
+without the archive) is detected safely — an HTML/404 fallback is never mistaken
+for an archive — and the Satellite toggle simply stays disabled.
+
+`VITE_SATELLITE_URL` remains an **optional** build‑time override for alternative
+hosting (the host must then send CORS headers and support Range requests);
+production does not require it.
 
 Attribution shown on the map (keep it):
 
 > Sentinel‑2 cloudless — s2maps.eu by EOX IT Services GmbH
 > (Contains modified Copernicus Sentinel data 2024)
 
-### Hosting the archive — CORS is required ⚠️
+### Updating the satellite data
 
-The browser fetches the archive **cross‑origin**, so the host **must** send
-`Access-Control-Allow-Origin` **and** support HTTP Range requests.
+New imagery ⇒ **new versioned release** (never mutate an existing tag):
 
-> **GitHub Release assets do NOT work.** The current
-> `release-assets.githubusercontent.com` host serves Range/206 binary but sends
-> **no CORS header** (verified on a runner) — a cross‑origin `fetch()`/download
-> from the app origin is blocked, and the app then gracefully disables the
-> Satellite toggle. A GitHub Release is still fine as a *human* download, just
-> not as the app's `VITE_SATELLITE_URL`.
-
-Host the `kungsleden-satellite.pmtiles` on a **CORS‑enabled** store:
-
-- **Cloudflare R2** (recommended — free tier, zero egress fees, S3‑compatible).
-  Create a bucket, upload the file, enable public access (or a custom domain),
-  and add a CORS rule allowing `GET`/`HEAD` + the `Range` header from the app
-  origin (`https://algolon.github.io`).
-- **AWS S3 / any S3‑compatible bucket** with an equivalent CORS policy.
-- **A same‑origin path** also works with zero CORS config — e.g. a separate
-  `algolon.github.io/<data-repo>/…` GitHub Pages site (which shares the app's
-  origin), if you're happy to commit the binary to that *separate* repo.
-
-### Configuring the archive URL
-
-The production URL is injected at build time via **`VITE_SATELLITE_URL`** (see
-`.github/workflows/deploy.yml`) — set it to your CORS‑enabled host URL. When
-unset (local dev), the app falls back to the same‑origin
-`maps/kungsleden-satellite.pmtiles`; a *missing* file is correctly detected as
-absent (HTML/404/CORS failure is never mistaken for an archive) and the toggle
-stays disabled. Bumping the URL (new host or new imagery version) re‑downloads
-rather than serving a stale cached blob.
+1. Build a new archive (workflow or scripts below) → publish it as release
+   `satellite-data-v2` with asset name `kungsleden-satellite.pmtiles`.
+2. Update the pinned **tag, SHA‑256 and byte size** in
+   `.github/workflows/deploy.yml` (they gate the deployment — a mismatch fails
+   the deploy rather than shipping unverified bytes).
+3. Merge; the next Pages deploy serves the new file. Users who downloaded the
+   old archive re‑download from Settings when they choose to.
 
 ### Regenerating the archive (new imagery → satellite-data-v2, …)
 
@@ -136,13 +133,11 @@ under `scripts/` do the work:
 The easiest path is the **manual maintenance workflow**
 `.github/workflows/satellite-data-maintenance.yml` (Actions → *Satellite map
 data (maintenance)* → *Run workflow*, available once the workflow is on the
-default branch). It runs both scripts on a runner, verifies the archive, and
-uploads it as a downloadable artifact. Download that artifact and publish the
-`kungsleden-satellite.pmtiles` to your **CORS‑enabled host** (see above), then
-point `VITE_SATELLITE_URL` at the new URL. (The workflow's optional
-`publish_release` step can also push a GitHub Release as a canonical human
-download — but remember the app itself must be served from a CORS host, not the
-Release asset.)
+default branch). It runs both scripts on a runner, verifies the archive, uploads
+it as a downloadable artifact, and — with `publish_release: true` and a
+`release_tag` like `satellite-data-v2` — publishes the versioned Release that
+`deploy.yml` consumes. Then update the pinned tag + SHA‑256 + size in
+`deploy.yml` (see *Updating the satellite data* above).
 
 ### Why max zoom 13
 

@@ -215,7 +215,7 @@ jobs:
               --notes-file satellite-build-report/release-notes.md
           fi
 
-      - name: Verify published asset (CORS + range, runner egress)
+      - name: Verify published asset resolves (binary + range)
         if: ${{ inputs.publish_release }}
         env:
           TAG: ${{ inputs.release_tag }}
@@ -223,9 +223,12 @@ jobs:
           set -euo pipefail
           url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/kungsleden-satellite.pmtiles"
           echo "Testing $url"
-          curl -sSL -H 'Origin: https://algolon.github.io' -H 'Range: bytes=0-16383' -D /tmp/hdrs.txt "$url" -o /tmp/range.bin
-          grep -iE 'HTTP/|content-range|content-type|accept-ranges|access-control-allow-origin' /tmp/hdrs.txt || true
+          echo "(Note: release assets send no CORS headers; the app consumes the"
+          echo " same-origin Pages copy injected by deploy.yml, not this URL.)"
+          curl -sSL -H 'Range: bytes=0-16383' -D /tmp/hdrs.txt "$url" -o /tmp/range.bin
+          grep -iE 'HTTP/|content-range|content-type|accept-ranges' /tmp/hdrs.txt || true
           code="$(curl -sSL -o /dev/null -w '%{http_code}' -H 'Range: bytes=0-16383' "$url")"
           test "$code" = "206" || { echo "expected HTTP 206 for range request, got $code"; exit 1; }
           head -c 7 /tmp/range.bin | grep -q 'PMTiles' || { echo "asset did not start with PMTiles magic"; exit 1; }
           echo "✓ Release asset resolves, returns 206 binary range, PMTiles magic OK."
+          echo "Now update the pinned tag + SHA-256 + size in deploy.yml."

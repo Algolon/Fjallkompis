@@ -46,10 +46,13 @@ export const VECTOR_ARCHIVE: ArchiveSpec = {
 export const SATELLITE_ARCHIVE: ArchiveSpec = {
   cacheName: 'fjallkompis-offline-satellite-v1',
   path: 'maps/kungsleden-satellite.pmtiles',
-  // Production: the versioned GitHub Release asset (VITE_SATELLITE_URL), so the
-  // 42 MB archive stays out of the repo/app-shell. Dev/unset: the same-origin
-  // path — which, if the file is absent, resolveSatellite() rejects as an
-  // HTML/404 fallback rather than treating it as a real archive.
+  // Same-origin by default: deployment downloads the canonical archive from
+  // the pinned GitHub Release (satellite-data-vN) into the Pages build (see
+  // deploy.yml), so browsers fetch it from the app's own origin — no CORS.
+  // The 42 MB binary is never committed. VITE_SATELLITE_URL remains an
+  // optional override for alternative hosting; if the file is absent (e.g.
+  // local dev), resolveSatellite() detects the HTML/404 fallback and the
+  // Satellite toggle stays disabled.
   resolveUrl: () => {
     const configured = import.meta.env.VITE_SATELLITE_URL?.trim();
     return configured

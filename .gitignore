@@ -8,3 +8,7 @@ dist-ssr
 dev-dist
 .claude/
 *.tsbuildinfo
+
+# Satellite archive: canonical copy is the satellite-data-vN GitHub Release
+# asset, injected into the Pages build by deploy.yml — never committed.
+public/maps/kungsleden-satellite.pmtiles

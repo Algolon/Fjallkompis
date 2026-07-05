@@ -1,0 +1,131 @@
+# TEMPORARY branch verification. Mirrors deploy.yml's release-asset injection
+# and proves the whole same-origin chain on a runner: download → checksum →
+# build → dist presence → serve → binary/range → browser render → Settings
+# download → offline reload. Deleted once the result is read.
+name: Verify satellite deploy chain (temporary)
+
+on:
+  push:
+    branches: [claude/satellite-imagery-layer-66s55x]
+    paths: ['.github/workflows/verify-satellite-deploy.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # --- 1:1 with deploy.yml -------------------------------------------------
+      - name: Fetch satellite archive from the pinned data release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p public/maps
+          gh release download satellite-data-v1 \
+            --repo Algolon/Fjallkompis \
+            --pattern kungsleden-satellite.pmtiles \
+            --dir public/maps
+
+      - name: Verify checksum and size (steps 1-2)
+        run: |
+          set -euo pipefail
+          f=public/maps/kungsleden-satellite.pmtiles
+          expected_sha="42398abf14e66506a9b17867bfe5770675edcc2130cd9b46ffedb08b4c0f28bf"
+          expected_size=43610353
+          actual_sha="$(sha256sum "$f" | awk '{print $1}')"
+          actual_size="$(stat -c '%s' "$f")"
+          echo "sha256: $actual_sha"; echo "size  : $actual_size"
+          [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: SHA mismatch"; exit 1; }
+          [ "$actual_size" = "$expected_size" ] || { echo "FATAL: size mismatch"; exit 1; }
+
+      - name: Typecheck + tests + production build (steps 2, 13)
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Confirm archive in dist (step 3)
+        run: |
+          set -euo pipefail
+          test -f dist/maps/kungsleden-satellite.pmtiles || { echo "FATAL: missing in dist"; exit 1; }
+          sha256sum dist/maps/kungsleden-satellite.pmtiles
+
+      - name: Serve build + same-origin binary/range checks (steps 4-7)
+        run: |
+          set -euo pipefail
+          npx vite preview --port 4173 --strictPort &
+          sleep 3
+          U="http://localhost:4173/Fjallkompis/maps/kungsleden-satellite.pmtiles"
+          code="$(curl -s -o /dev/null -w '%{http_code}' "$U")"
+          [ "$code" = "200" ] || { echo "FATAL: GET $U -> $code"; exit 1; }
+          curl -s -H 'Range: bytes=0-16383' -D /tmp/h.txt "$U" -o /tmp/r.bin
+          grep -iE 'HTTP/|content-range|content-type' /tmp/h.txt
+          grep -q ' 206 ' /tmp/h.txt || { echo "FATAL: range request did not return 206"; exit 1; }
+          grep -iq 'content-type:.*text/html' /tmp/h.txt && { echo "FATAL: HTML response"; exit 1; }
+          head -c 7 /tmp/r.bin | grep -q 'PMTiles' || { echo "FATAL: bad magic"; exit 1; }
+          echo "✓ same-origin URL serves binary PMTiles with valid 206 ranges"
+
+      - name: Browser checks (steps 8-12)
+        run: |
+          set -euo pipefail
+          npm i --no-save playwright-core@1.56.0
+          cat > verify-browser.mjs <<'EOF'
+          import { chromium } from 'playwright-core';
+          const errors = [];
+          const b = await chromium.launch({ channel: 'chrome' });
+          const ctx = await b.newContext();
+          const page = await ctx.newPage();
+          page.on('dialog', d => d.accept());
+          page.on('pageerror', e => errors.push('PAGEERR: ' + e.message));
+          page.on('console', m => { if (m.type()==='error') errors.push('CONSOLE: ' + m.text()); });
+          const goMap = async () => {
+            const n = page.locator('nav button,[role=tab]').filter({ hasText: /^map$/i });
+            if (await n.count()) await n.last().click().catch(()=>{});
+            await page.waitForSelector('.map-layer-toggle', { timeout: 10000 });
+            await page.waitForTimeout(1500);
+          };
+          await page.goto('http://localhost:4173/Fjallkompis/', { waitUntil: 'networkidle' });
+          await goMap();
+          const sat = page.getByRole('radio', { name: /satellite/i });
+          if (await sat.isDisabled()) throw new Error('Satellite toggle disabled (step 8 FAIL)');
+          await sat.click(); await page.waitForTimeout(2500);
+          if (await sat.getAttribute('aria-checked') !== 'true') throw new Error('toggle not active');
+          const markers = await page.locator('.map-wpt').count();
+          if (markers < 8) throw new Error(`expected 8 hut markers above imagery, got ${markers} (step 10 FAIL)`);
+          // Settings download (step 11)
+          const nav = page.locator('nav button,[role=tab]').filter({ hasText: /settings/i });
+          await nav.last().click(); await page.waitForTimeout(500);
+          const card = page.locator('.card', { hasText: 'Satellite imagery' }).first();
+          await card.getByRole('button', { name: /download for offline/i }).click();
+          await page.waitForFunction(() => {
+            const c = [...document.querySelectorAll('.card')].find(x => x.textContent.includes('Satellite imagery'));
+            return c && /Stored on this device/.test(c.textContent);
+          }, { timeout: 120000 });
+          const size = (await card.locator('.row-between').nth(1).innerText()).replace(/\s+/g,' ');
+          if (!/41\.6 MB/.test(size)) throw new Error(`unexpected size display: ${size}`);
+          // Offline reload (step 12)
+          await ctx.route('**/kungsleden-satellite.pmtiles*', r => r.abort());
+          await page.reload({ waitUntil: 'networkidle' });
+          await goMap();
+          const sat2 = page.getByRole('radio', { name: /satellite/i });
+          if (await sat2.isDisabled()) throw new Error('Satellite disabled after offline reload (step 12 FAIL)');
+          await sat2.click(); await page.waitForTimeout(2000);
+          if (await sat2.getAttribute('aria-checked') !== 'true') throw new Error('offline toggle not active');
+          const realErrors = errors.filter(e => !/kungsleden-satellite\.pmtiles|ERR_FAILED/.test(e));
+          if (realErrors.length) throw new Error('console/page errors: ' + realErrors.join(' | '));
+          console.log(JSON.stringify({ satelliteEnabled: true, markers, downloadSize: size, offlineWorks: true }, null, 2));
+          await b.close();
+          EOF
+          npx vite preview --port 4173 --strictPort >/dev/null 2>&1 || true &
+          sleep 2
+          node verify-browser.mjs
+          echo "✓ browser checks passed (toggle, tiles, markers, download, offline)"
