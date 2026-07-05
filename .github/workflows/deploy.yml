@@ -27,10 +27,18 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          # Satellite archive is hosted off-repo as a versioned GitHub Release
-          # asset (see README → Satellite imagery layer). Bump the tag when you
-          # publish new imagery (satellite-data-v2, …).
-          VITE_SATELLITE_URL: https://github.com/Algolon/Fjallkompis/releases/download/satellite-data-v1/kungsleden-satellite.pmtiles
+          # Satellite archive URL (off-repo). The browser fetches this
+          # cross-origin, so the HOST MUST SEND CORS HEADERS (Access-Control-
+          # Allow-Origin) AND support Range requests.
+          #
+          # NOTE: a GitHub Release asset does NOT work — the current
+          # release-assets.githubusercontent.com host returns Range/206 but NO
+          # CORS header (verified on a runner), so a cross-origin fetch is
+          # blocked and the app gracefully disables Satellite. Point this at a
+          # CORS-enabled host instead (Cloudflare R2 / S3 bucket with a CORS
+          # rule allowing GET+Range from https://algolon.github.io). See
+          # README → Satellite imagery layer. Bump when you publish new imagery.
+          VITE_SATELLITE_URL: https://REPLACE-WITH-CORS-ENABLED-HOST/kungsleden-satellite.pmtiles
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
