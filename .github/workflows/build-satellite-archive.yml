@@ -1,0 +1,189 @@
+# TEMPORARY, one-off workflow.
+# Builds the satellite source GeoTIFF + PMTiles archive on a GitHub-hosted
+# runner (which has open egress to tiles.maps.eox.at, unlike the Claude
+# session) and uploads both as a downloadable artifact. It commits NOTHING —
+# neither generated binary is added to the repo. Delete this workflow and the
+# root download-kungsleden-satellite.sh once the archive has been retrieved.
+name: Build satellite archive (temporary)
+
+on:
+  push:
+    branches: [claude/satellite-imagery-layer-66s55x]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-satellite:
+    name: Download imagery, build & verify PMTiles
+    runs-on: ubuntu-latest
+    env:
+      PMTILES_VERSION: v1.30.3
+    steps:
+      - name: Check out the feature branch
+        uses: actions/checkout@v4
+
+      - name: Install curl + GDAL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl gdal-bin
+
+      - name: Set up Node (repo's supported version)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Install pinned pmtiles CLI
+        run: |
+          set -euo pipefail
+          ver="${PMTILES_VERSION#v}"
+          url="https://github.com/protomaps/go-pmtiles/releases/download/${PMTILES_VERSION}/go-pmtiles_${ver}_Linux_x86_64.tar.gz"
+          echo "Downloading $url"
+          curl -fsSL --retry 4 --retry-delay 3 -o /tmp/pmtiles.tgz "$url"
+          # The goreleaser archive ships the binary as 'pmtiles'; fall back to
+          # 'go-pmtiles' just in case the naming changes.
+          bin="$(tar tzf /tmp/pmtiles.tgz | grep -E '(^|/)(pmtiles|go-pmtiles)$' | head -1)"
+          tar xzf /tmp/pmtiles.tgz -C /tmp "$bin"
+          sudo install -m 0755 "/tmp/$bin" /usr/local/bin/pmtiles
+
+      - name: Print tool versions
+        run: |
+          echo "node    : $(node --version)"
+          echo "npm     : $(npm --version)"
+          echo "curl    : $(curl --version | head -1)"
+          echo "gdalinfo: $(gdalinfo --version)"
+          echo "pmtiles : $(pmtiles version 2>&1 | head -1)"
+
+      - name: Prepare report directory
+        run: mkdir -p satellite-build-report
+
+      # ---- Download the imagery (reviewed downloader; open runner egress) ---
+      - name: Download EOX Sentinel-2 imagery → GeoTIFF
+        run: bash download-kungsleden-satellite.sh .
+
+      - name: Assert the source GeoTIFF exists
+        run: test -f data/source-imagery/sentinel2-kungsleden.tif
+
+      - name: Save full gdalinfo report
+        run: gdalinfo data/source-imagery/sentinel2-kungsleden.tif | tee satellite-build-report/gdalinfo.txt
+
+      - name: Validate the source GeoTIFF
+        run: |
+          set -euo pipefail
+          gdalinfo -json data/source-imagery/sentinel2-kungsleden.tif > /tmp/src.json
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/src.json'))
+          errs = []
+
+          # EPSG:3857
+          wkt = json.dumps(d.get('coordinateSystem', {}))
+          epsg = str(d.get('stac', {}).get('proj:epsg', ''))
+          if '3857' not in wkt and epsg != '3857':
+              errs.append(f"expected EPSG:3857 (stac proj:epsg={epsg!r})")
+
+          # Exactly three 8-bit RGB bands
+          bands = d.get('bands', [])
+          if len(bands) != 3:
+              errs.append(f"expected exactly 3 bands, found {len(bands)}")
+          for b in bands:
+              if b.get('type') != 'Byte':
+                  errs.append(f"band {b.get('band')} type {b.get('type')} != Byte (8-bit)")
+
+          # Approx 5120 x 7680 px (±5%)
+          w, h = d.get('size', [0, 0])
+          def near(v, t, tol=0.05): return abs(v - t) <= t * tol
+          if not (near(w, 5120) and near(h, 7680)):
+              errs.append(f"size {w}x{h} not ~5120x7680")
+
+          # Bounded to the route corridor (mapCutoutBounds, ±0.02°)
+          ext = d.get('wgs84Extent', {}).get('coordinates', [[]])[0]
+          xs = [p[0] for p in ext]; ys = [p[1] for p in ext]
+          want = (18.0244, 67.762, 19.2328, 68.4392)  # W,S,E,N
+          got = (min(xs), min(ys), max(xs), max(ys))
+          if any(abs(g - v) > 0.02 for g, v in zip(got, want)):
+              errs.append(f"extent {tuple(round(x,4) for x in got)} != corridor {want}")
+
+          print(f"size={w}x{h} bands={len(bands)} epsg~3857 extent={tuple(round(x,4) for x in got)}")
+          if errs:
+              print("VALIDATION FAILED:", *("\n  - " + e for e in errs))
+              sys.exit(1)
+          print("Source GeoTIFF validation passed.")
+          PY
+
+      # ---- Run the existing production pipeline -----------------------------
+      - name: Generate route data (pipeline reads mapCutoutBounds)
+        run: npm run generate:route
+
+      - name: Build the satellite PMTiles archive
+        run: npm run generate:map:satellite -- data/source-imagery/sentinel2-kungsleden.tif
+
+      - name: Assert the PMTiles archive exists
+        run: test -f public/maps/kungsleden-satellite.pmtiles
+
+      - name: Verify PMTiles archive
+        run: pmtiles verify public/maps/kungsleden-satellite.pmtiles
+
+      - name: Save pmtiles show report
+        run: pmtiles show public/maps/kungsleden-satellite.pmtiles | tee satellite-build-report/pmtiles-show.txt
+
+      - name: Record checksums and sizes
+        run: |
+          set -euo pipefail
+          {
+            echo "# Generated $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            for f in data/source-imagery/sentinel2-kungsleden.tif public/maps/kungsleden-satellite.pmtiles; do
+              sz_h="$(ls -lh "$f" | awk '{print $5}')"
+              sz_b="$(stat -c '%s' "$f")"
+              sha="$(sha256sum "$f" | awk '{print $1}')"
+              printf '%s\n  size : %s (%s bytes)\n  sha256: %s\n\n' "$f" "$sz_h" "$sz_b" "$sha"
+            done
+          } | tee satellite-build-report/checksums.txt
+
+      # ---- App-level gates --------------------------------------------------
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Write build summary
+        if: always()
+        run: |
+          {
+            echo "## Kungsleden satellite build"
+            echo
+            echo '```'
+            cat satellite-build-report/checksums.txt 2>/dev/null || echo "(no checksums — an earlier step failed)"
+            echo '```'
+            echo
+            echo "### pmtiles show"
+            echo '```'
+            cat satellite-build-report/pmtiles-show.txt 2>/dev/null || echo "(no pmtiles-show — build did not reach it)"
+            echo '```'
+          } | tee satellite-build-report/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      # ---- Artifact (uploads even on failure, for debugging) ----------------
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kungsleden-satellite-build
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            data/source-imagery/sentinel2-kungsleden.tif
+            public/maps/kungsleden-satellite.pmtiles
+            satellite-build-report/gdalinfo.txt
+            satellite-build-report/pmtiles-show.txt
+            satellite-build-report/checksums.txt
+            satellite-build-report/summary.md
