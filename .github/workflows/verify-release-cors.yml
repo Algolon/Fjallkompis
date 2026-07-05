@@ -4,7 +4,9 @@
 name: Verify release CORS (temporary)
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [claude/satellite-imagery-layer-66s55x]
+    paths: ['.github/workflows/verify-release-cors.yml']
 
 jobs:
   cors:
