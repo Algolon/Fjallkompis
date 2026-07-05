@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
-import { MapView, type MapViewHandle } from '../components/MapView';
+import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -35,6 +35,8 @@ export function MapScreen() {
   const [viewStageId, setViewStageId] = useState<string | null>(currentStage?.id ?? null);
   const [panel, setPanel] = useState<Panel>('map');
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
+  const [imagery, setImagery] = useState<ImageryMode>('terrain');
+  const [satelliteAvailable, setSatelliteAvailable] = useState(false);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualHutId, setManualHutId] = useState<string>(STOPS[0].id);
@@ -96,14 +98,55 @@ export function MapScreen() {
 
       <div className="map-elev-grid">
         <div className={`card map-card ${panel === 'map' ? '' : 'panel-hidden'}`}>
-          <MapView
-            ref={mapRef}
-            selectedStageId={viewStageId}
-            onSelectStage={(id) => setViewStageId(id)}
-            onSelectWaypoint={(id) => setSelectedWaypointId(id)}
-            onBasemapMode={setBasemapMode}
-            gps={geo.coord}
-          />
+          <div className="map-canvas-wrap">
+            <MapView
+              ref={mapRef}
+              selectedStageId={viewStageId}
+              onSelectStage={(id) => setViewStageId(id)}
+              onSelectWaypoint={(id) => setSelectedWaypointId(id)}
+              onBasemapMode={setBasemapMode}
+              onSatelliteAvailable={setSatelliteAvailable}
+              imagery={imagery}
+              gps={geo.coord}
+            />
+            <div
+              className="map-layer-toggle seg"
+              role="radiogroup"
+              aria-label="Basemap imagery"
+            >
+              <button
+                role="radio"
+                aria-checked={imagery === 'terrain'}
+                className="seg-btn"
+                onClick={() => setImagery('terrain')}
+              >
+                Terrain
+              </button>
+              <button
+                role="radio"
+                aria-checked={imagery === 'satellite'}
+                className="seg-btn"
+                onClick={() => setImagery('satellite')}
+                disabled={!satelliteAvailable}
+                title={
+                  satelliteAvailable
+                    ? undefined
+                    : 'Download the satellite imagery in Settings to enable this layer'
+                }
+              >
+                Satellite
+              </button>
+            </div>
+          </div>
+          {!satelliteAvailable ? (
+            <div className="banner-warn" style={{ margin: 10 }}>
+              <span>🛰️</span>
+              <span>
+                Satellite imagery isn’t on this device yet — download it in Settings → Satellite
+                imagery to use the satellite layer offline.
+              </span>
+            </div>
+          ) : null}
           {basemapMode === 'none' ? (
             <div className="banner-warn" style={{ margin: 10 }}>
               <span>🗺️</span>

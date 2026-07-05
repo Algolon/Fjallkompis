@@ -4,7 +4,7 @@ import { ScreenHeader } from '../components/ui';
 import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
-import { OfflineMapCard } from '../components/OfflineMapCard';
+import { OfflineMapCard, SatelliteMapCard } from '../components/OfflineMapCard';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 
@@ -115,6 +115,8 @@ export function SettingsScreen() {
       </div>
 
       <OfflineMapCard />
+
+      <SatelliteMapCard />
 
       <div className="card">
         <span className="card-title">Status</span>

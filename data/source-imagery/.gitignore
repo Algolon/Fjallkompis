@@ -1,0 +1,5 @@
+# User-provided satellite source imagery lives here (large georeferenced
+# GeoTIFFs exported from Copernicus Browser etc.). Keep the directory in the
+# repo but never commit its contents.
+*
+!.gitignore

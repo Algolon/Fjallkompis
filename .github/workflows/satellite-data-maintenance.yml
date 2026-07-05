@@ -1,0 +1,234 @@
+# Satellite map-data maintenance — MANUAL only.
+#
+# Regenerates the bounded satellite PMTiles archive from EOX Sentinel-2 cloudless
+# imagery on a GitHub-hosted runner (which, unlike the Claude session, can reach
+# tiles.maps.eox.at), verifies it, uploads it as an artifact, and can OPTIONALLY
+# publish it as a versioned GitHub Release asset consumed by the app
+# (VITE_SATELLITE_URL).
+#
+# It commits nothing — neither the source GeoTIFF nor the PMTiles archive ever
+# enters git. Use it to cut a NEW imagery version (e.g. satellite-data-v2). The
+# v1 asset was published from the originally verified build artifact.
+name: Satellite map data (maintenance)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag for the archive (e.g. satellite-data-v2)'
+        default: 'satellite-data-v2'
+        required: true
+      maxzoom:
+        description: 'Max zoom stored in the archive'
+        default: '13'
+        required: true
+      tile_format:
+        description: 'Tile format: WEBP or JPEG'
+        default: 'WEBP'
+        required: true
+      quality:
+        description: 'Lossy tile quality (1-100)'
+        default: '80'
+        required: true
+      publish_release:
+        description: 'Publish a GitHub Release with the generated asset'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-satellite:
+    name: Build, verify & (optionally) publish satellite archive
+    runs-on: ubuntu-latest
+    env:
+      PMTILES_VERSION: v1.30.3
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v4
+
+      - name: Install curl + GDAL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl gdal-bin
+
+      - name: Set up Node (repo's supported version)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Install pinned pmtiles CLI
+        run: |
+          set -euo pipefail
+          ver="${PMTILES_VERSION#v}"
+          url="https://github.com/protomaps/go-pmtiles/releases/download/${PMTILES_VERSION}/go-pmtiles_${ver}_Linux_x86_64.tar.gz"
+          curl -fsSL --retry 4 --retry-delay 3 -o /tmp/pmtiles.tgz "$url"
+          bin="$(tar tzf /tmp/pmtiles.tgz | grep -E '(^|/)(pmtiles|go-pmtiles)$' | head -1)"
+          tar xzf /tmp/pmtiles.tgz -C /tmp "$bin"
+          sudo install -m 0755 "/tmp/$bin" /usr/local/bin/pmtiles
+
+      - name: Print tool versions
+        run: |
+          echo "node    : $(node --version)"
+          echo "npm     : $(npm --version)"
+          echo "curl    : $(curl --version | head -1)"
+          echo "gdalinfo: $(gdalinfo --version)"
+          echo "pmtiles : $(pmtiles version 2>&1 | head -1)"
+
+      - name: Prepare report directory
+        run: mkdir -p satellite-build-report
+
+      - name: Download EOX Sentinel-2 imagery → GeoTIFF
+        run: bash scripts/download-kungsleden-satellite.sh .
+
+      - name: Assert the source GeoTIFF exists
+        run: test -f data/source-imagery/sentinel2-kungsleden.tif
+
+      - name: Save full gdalinfo report
+        run: gdalinfo data/source-imagery/sentinel2-kungsleden.tif | tee satellite-build-report/gdalinfo.txt
+
+      - name: Validate the source GeoTIFF
+        run: |
+          set -euo pipefail
+          gdalinfo -json data/source-imagery/sentinel2-kungsleden.tif > /tmp/src.json
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/src.json'))
+          errs = []
+          wkt = json.dumps(d.get('coordinateSystem', {}))
+          epsg = str(d.get('stac', {}).get('proj:epsg', ''))
+          if '3857' not in wkt and epsg != '3857':
+              errs.append(f"expected EPSG:3857 (stac proj:epsg={epsg!r})")
+          bands = d.get('bands', [])
+          if len(bands) != 3:
+              errs.append(f"expected exactly 3 bands, found {len(bands)}")
+          for b in bands:
+              if b.get('type') != 'Byte':
+                  errs.append(f"band {b.get('band')} type {b.get('type')} != Byte (8-bit)")
+          w, h = d.get('size', [0, 0])
+          def near(v, t, tol=0.05): return abs(v - t) <= t * tol
+          if not (near(w, 5120) and near(h, 7680)):
+              errs.append(f"size {w}x{h} not ~5120x7680")
+          ext = d.get('wgs84Extent', {}).get('coordinates', [[]])[0]
+          xs = [p[0] for p in ext]; ys = [p[1] for p in ext]
+          want = (18.0244, 67.762, 19.2328, 68.4392)
+          got = (min(xs), min(ys), max(xs), max(ys))
+          if any(abs(g - v) > 0.02 for g, v in zip(got, want)):
+              errs.append(f"extent {tuple(round(x,4) for x in got)} != corridor {want}")
+          print(f"size={w}x{h} bands={len(bands)} epsg~3857 extent={tuple(round(x,4) for x in got)}")
+          if errs:
+              print("VALIDATION FAILED:", *("\n  - " + e for e in errs))
+              sys.exit(1)
+          print("Source GeoTIFF validation passed.")
+          PY
+
+      - name: Generate route data (pipeline reads mapCutoutBounds)
+        run: npm run generate:route
+
+      - name: Build the satellite PMTiles archive
+        env:
+          MAXZOOM: ${{ inputs.maxzoom }}
+          TILE_FORMAT: ${{ inputs.tile_format }}
+          QUALITY: ${{ inputs.quality }}
+        run: npm run generate:map:satellite -- data/source-imagery/sentinel2-kungsleden.tif
+
+      - name: Assert the PMTiles archive exists
+        run: test -f public/maps/kungsleden-satellite.pmtiles
+
+      - name: Verify PMTiles archive
+        run: pmtiles verify public/maps/kungsleden-satellite.pmtiles
+
+      - name: Save pmtiles show report
+        run: pmtiles show public/maps/kungsleden-satellite.pmtiles | tee satellite-build-report/pmtiles-show.txt
+
+      - name: Record checksums and sizes
+        run: |
+          set -euo pipefail
+          {
+            echo "# Generated $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            for f in data/source-imagery/sentinel2-kungsleden.tif public/maps/kungsleden-satellite.pmtiles; do
+              sz_h="$(ls -lh "$f" | awk '{print $5}')"
+              sz_b="$(stat -c '%s' "$f")"
+              sha="$(sha256sum "$f" | awk '{print $1}')"
+              printf '%s\n  size : %s (%s bytes)\n  sha256: %s\n\n' "$f" "$sz_h" "$sz_b" "$sha"
+            done
+          } | tee satellite-build-report/checksums.txt
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kungsleden-satellite-build
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            data/source-imagery/sentinel2-kungsleden.tif
+            public/maps/kungsleden-satellite.pmtiles
+            satellite-build-report/gdalinfo.txt
+            satellite-build-report/pmtiles-show.txt
+            satellite-build-report/checksums.txt
+
+      # ---- Optional: publish a versioned GitHub Release asset ---------------
+      - name: Publish GitHub Release asset
+        if: ${{ inputs.publish_release }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          version="${TAG#satellite-data-}"
+          {
+            echo "Bounded satellite basemap for the Kungsleden route (Abisko–Nikkaluokta), consumed by the app's Satellite layer (VITE_SATELLITE_URL)."
+            echo
+            echo "**Attribution:** Sentinel-2 cloudless — s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)"
+            echo
+            echo '### Archive metadata'
+            echo '```'
+            cat satellite-build-report/pmtiles-show.txt
+            echo '```'
+            echo '```'
+            cat satellite-build-report/checksums.txt
+            echo '```'
+          } > satellite-build-report/release-notes.md
+          asset="public/maps/kungsleden-satellite.pmtiles"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$asset" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "$asset" \
+              --repo "$GITHUB_REPOSITORY" --target main \
+              --title "Fjällkompis satellite map data $version" \
+              --notes-file satellite-build-report/release-notes.md
+          fi
+
+      - name: Verify published asset resolves (binary + range)
+        if: ${{ inputs.publish_release }}
+        env:
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/kungsleden-satellite.pmtiles"
+          echo "Testing $url"
+          echo "(Note: release assets send no CORS headers; the app consumes the"
+          echo " same-origin Pages copy injected by deploy.yml, not this URL.)"
+          curl -sSL -H 'Range: bytes=0-16383' -D /tmp/hdrs.txt "$url" -o /tmp/range.bin
+          grep -iE 'HTTP/|content-range|content-type|accept-ranges' /tmp/hdrs.txt || true
+          code="$(curl -sSL -o /dev/null -w '%{http_code}' -H 'Range: bytes=0-16383' "$url")"
+          test "$code" = "206" || { echo "expected HTTP 206 for range request, got $code"; exit 1; }
+          head -c 7 /tmp/range.bin | grep -q 'PMTiles' || { echo "asset did not start with PMTiles magic"; exit 1; }
+          echo "✓ Release asset resolves, returns 206 binary range, PMTiles magic OK."
+          echo "Now update the pinned tag + SHA-256 + size in deploy.yml."

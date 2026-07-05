@@ -1,10 +1,14 @@
 /**
  * Offline basemap download management.
  *
- * The regional PMTiles archive is deliberately NOT part of the Workbox
- * precache: map data downloads are an explicit user choice (Settings →
- * Offline map). The complete file is stored as ONE full 200 response in a
- * dedicated Cache Storage cache, separate from the app-shell cache.
+ * Two regional PMTiles archives are managed here, each in its own Cache
+ * Storage cache, separate from the Workbox app-shell precache:
+ *   - the vector basemap (kungsleden.pmtiles), the offline-capable default;
+ *   - the satellite raster imagery (kungsleden-satellite.pmtiles), the
+ *     optional second layer.
+ * Neither is part of the precache: map data downloads are an explicit user
+ * choice (Settings → Offline map / Satellite imagery). Each complete file is
+ * stored as ONE full 200 response.
  *
  * Offline reads happen through two complementary paths:
  *  1. Primary: the map reads the cached blob directly via a blob-backed
@@ -17,12 +21,67 @@
  *     be sufficient — only the full response is ever cached.
  */
 
-export const OFFLINE_MAP_CACHE = 'fjallkompis-offline-map-v1';
+/** Descriptor for one downloadable PMTiles archive. */
+export interface ArchiveSpec {
+  /** Cache Storage cache name (kept in sync with vite.config.ts). */
+  cacheName: string;
+  /** Same-origin path under BASE_URL (default location / dev fallback). */
+  path: string;
+  /**
+   * Resolves the absolute URL used BOTH to fetch the archive and as its Cache
+   * Storage key. Defaults to the same-origin BASE_URL path; the satellite
+   * archive overrides this with the off-repo GitHub Release asset URL.
+   */
+  resolveUrl?: () => string;
+}
 
-/** Absolute URL of the regional basemap, correct under /Fjallkompis/. */
+const sameOriginUrl = (path: string): string =>
+  new URL(`${import.meta.env.BASE_URL}${path}`, window.location.origin).toString();
+
+export const VECTOR_ARCHIVE: ArchiveSpec = {
+  cacheName: 'fjallkompis-offline-map-v1',
+  path: 'maps/kungsleden.pmtiles',
+};
+
+export const SATELLITE_ARCHIVE: ArchiveSpec = {
+  cacheName: 'fjallkompis-offline-satellite-v1',
+  path: 'maps/kungsleden-satellite.pmtiles',
+  // Same-origin by default: deployment downloads the canonical archive from
+  // the pinned GitHub Release (satellite-data-vN) into the Pages build (see
+  // deploy.yml), so browsers fetch it from the app's own origin — no CORS.
+  // The 42 MB binary is never committed. VITE_SATELLITE_URL remains an
+  // optional override for alternative hosting; if the file is absent (e.g.
+  // local dev), resolveSatellite() detects the HTML/404 fallback and the
+  // Satellite toggle stays disabled.
+  resolveUrl: () => {
+    const configured = import.meta.env.VITE_SATELLITE_URL?.trim();
+    return configured
+      ? configured
+      : sameOriginUrl('maps/kungsleden-satellite.pmtiles');
+  },
+};
+
+/** @deprecated kept for existing imports; prefer VECTOR_ARCHIVE.cacheName. */
+export const OFFLINE_MAP_CACHE = VECTOR_ARCHIVE.cacheName;
+
+/**
+ * Absolute URL of an archive: fetch target AND Cache Storage key. Both must be
+ * identical so a downloaded blob is found again on the next load; bumping the
+ * satellite release tag deliberately changes this URL so a new archive is
+ * re-downloaded rather than served stale.
+ */
+export function archiveUrl(spec: ArchiveSpec): string {
+  return spec.resolveUrl ? spec.resolveUrl() : sameOriginUrl(spec.path);
+}
+
+/** Absolute URL of the regional vector basemap. */
 export function offlineMapUrl(): string {
-  return new URL(`${import.meta.env.BASE_URL}maps/kungsleden.pmtiles`, window.location.origin)
-    .toString();
+  return archiveUrl(VECTOR_ARCHIVE);
+}
+
+/** Absolute URL of the satellite raster imagery archive. */
+export function satelliteMapUrl(): string {
+  return archiveUrl(SATELLITE_ARCHIVE);
 }
 
 export interface OfflineMapStatus {
@@ -31,20 +90,20 @@ export interface OfflineMapStatus {
   sizeBytes: number | null;
 }
 
-export async function getOfflineMapStatus(): Promise<OfflineMapStatus> {
+export async function getArchiveStatus(spec: ArchiveSpec): Promise<OfflineMapStatus> {
   if (!('caches' in window)) return { supported: false, downloaded: false, sizeBytes: null };
-  const cache = await caches.open(OFFLINE_MAP_CACHE);
-  const match = await cache.match(offlineMapUrl());
+  const cache = await caches.open(spec.cacheName);
+  const match = await cache.match(archiveUrl(spec));
   if (!match) return { supported: true, downloaded: false, sizeBytes: null };
   const blob = await match.clone().blob();
   return { supported: true, downloaded: true, sizeBytes: blob.size };
 }
 
-/** Cached full-file blob, or null if not downloaded. */
-export async function getOfflineMapBlob(): Promise<Blob | null> {
+/** Cached full-file blob for an archive, or null if not downloaded. */
+export async function getArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
   if (!('caches' in window)) return null;
-  const cache = await caches.open(OFFLINE_MAP_CACHE);
-  const match = await cache.match(offlineMapUrl());
+  const cache = await caches.open(spec.cacheName);
+  const match = await cache.match(archiveUrl(spec));
   return match ? match.blob() : null;
 }
 
@@ -52,10 +111,11 @@ export async function getOfflineMapBlob(): Promise<Blob | null> {
  * Download the full PMTiles file and store it as a single complete response.
  * Reports progress when the server provides Content-Length.
  */
-export async function downloadOfflineMap(
+export async function downloadArchive(
+  spec: ArchiveSpec,
   onProgress: (loadedBytes: number, totalBytes: number | null) => void,
 ): Promise<number> {
-  const url = offlineMapUrl();
+  const url = archiveUrl(spec);
   // cache: 'no-store' so we bypass any stale HTTP-cache copy on re-download.
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Map download failed (HTTP ${res.status})`);
@@ -81,7 +141,7 @@ export async function downloadOfflineMap(
   }
 
   const blob = new Blob(chunks, { type: 'application/octet-stream' });
-  const cache = await caches.open(OFFLINE_MAP_CACHE);
+  const cache = await caches.open(spec.cacheName);
   await cache.put(
     url,
     new Response(blob, {
@@ -95,11 +155,20 @@ export async function downloadOfflineMap(
   return blob.size;
 }
 
-export async function removeOfflineMap(): Promise<void> {
+export async function removeArchive(spec: ArchiveSpec): Promise<void> {
   if (!('caches' in window)) return;
-  const cache = await caches.open(OFFLINE_MAP_CACHE);
-  await cache.delete(offlineMapUrl());
+  const cache = await caches.open(spec.cacheName);
+  await cache.delete(archiveUrl(spec));
 }
+
+// ---- Vector-basemap convenience wrappers (existing call sites) ------------
+
+export const getOfflineMapStatus = () => getArchiveStatus(VECTOR_ARCHIVE);
+export const getOfflineMapBlob = () => getArchiveBlob(VECTOR_ARCHIVE);
+export const downloadOfflineMap = (
+  onProgress: (loadedBytes: number, totalBytes: number | null) => void,
+) => downloadArchive(VECTOR_ARCHIVE, onProgress);
+export const removeOfflineMap = () => removeArchive(VECTOR_ARCHIVE);
 
 export function formatBytes(bytes: number | null): string {
   if (bytes == null) return '—';
