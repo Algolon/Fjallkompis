@@ -1,11 +1,20 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
+/**
+ * App version injected at build time from package.json (see the `define`
+ * block in vite.config.ts). Never hard-code a version literal elsewhere —
+ * scripts/check-version-consistency.mjs fails the build if one appears.
+ */
+declare const __APP_VERSION__: string;
+
 interface ImportMetaEnv {
   /**
-   * Absolute URL of the satellite raster PMTiles archive (hosted off-repo as a
-   * versioned GitHub Release asset in production). When unset, the app falls
-   * back to the same-origin maps/ path (dev only). See src/map/offlineMap.ts.
+   * Optional build-time override for the satellite archive URL, for
+   * alternative hosting (the host must send CORS headers and support Range
+   * requests). Production does not need it: deploy.yml injects the verified
+   * GitHub Release asset into the Pages build, so the archive is served
+   * same-origin from maps/. See src/map/offlineMap.ts.
    */
   readonly VITE_SATELLITE_URL?: string;
 }

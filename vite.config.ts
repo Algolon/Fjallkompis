@@ -1,12 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+// package.json is the single source of truth for the app version; it is
+// injected at build time as the __APP_VERSION__ global (declared in
+// src/vite-env.d.ts, re-exported as APP_VERSION from src/constants.ts).
+// scripts/check-version-consistency.mjs guards this wiring in CI.
+import pkg from './package.json';
 
 // NOTE: `base` matches the GitHub Pages project subpath
 // (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
 // custom domain served from the root, change this to '/'.
 export default defineConfig({
   base: '/Fjallkompis/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({
@@ -59,11 +67,13 @@ export default defineConfig({
             // ensures a network 206 partial is never cached — caching
             // individual range responses would NOT work offline.
             //
-            // Scoped to the SAME-ORIGIN vector basemap only. The satellite
-            // archive is a cross-origin GitHub Release asset read from its
-            // own Cache Storage blob (not via the SW), so this rule must not
-            // intercept it — otherwise online satellite streaming would pull
-            // the whole 42 MB file through the SW into the wrong cache.
+            // Scoped to the VECTOR basemap only. The satellite archive is
+            // also same-origin (deploy.yml injects the verified Release asset
+            // into dist/maps, so Pages serves it from the app's own origin),
+            // but it is read from its own Cache Storage blob (not via the
+            // SW), so this rule must not intercept it — otherwise online
+            // satellite streaming would pull the whole 42 MB file through
+            // the SW into the wrong cache.
             urlPattern: ({ sameOrigin, request }) =>
               sameOrigin && request.url.endsWith('/maps/kungsleden.pmtiles'),
             handler: 'CacheFirst',

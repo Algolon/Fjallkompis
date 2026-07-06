@@ -74,13 +74,14 @@ function looksLikeArchive(res: Response): boolean {
 }
 
 /**
- * Probe a hosted archive with a tiny ranged GET. Works for the cross-origin
- * GitHub Release asset (`Range` is a CORS-safelisted header, so no preflight;
- * GitHub answers 206 + `access-control-allow-origin: *`), and also confirms the
- * host serves binary range data rather than a 404/HTML fallback. Same-origin
- * hosts answer it just as happily. The body is discarded — if the server ever
- * ignores `Range` and returns the full 200, we cancel it instead of downloading
- * the whole archive.
+ * Probe a hosted archive with a tiny ranged GET. Confirms the host serves
+ * binary range data rather than a 404/HTML fallback (e.g. local dev without
+ * the satellite archive). Works same-origin (production: Pages serves the
+ * deploy-injected archive from the app's own origin) and, for the optional
+ * VITE_SATELLITE_URL override, cross-origin too (`Range` is a CORS-safelisted
+ * header, so no preflight). The body is discarded — if the server ever
+ * ignores `Range` and returns the full 200, we cancel it instead of
+ * downloading the whole archive.
  */
 async function probeHostedArchive(url: string): Promise<boolean> {
   const res = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' } });
@@ -123,9 +124,11 @@ export async function resolveBasemap(): Promise<BasemapResolution> {
  * null sourceUrl when no satellite archive is available anywhere, so callers
  * can disable the toggle instead of adding a broken layer.
  *
- * The archive is hosted off-repo as a versioned GitHub Release asset
- * (VITE_SATELLITE_URL); once the user downloads it in Settings the offline blob
- * is preferred and no network is touched. The hosted probe is a cross-origin
+ * The canonical archive lives on a versioned GitHub Release; deploy.yml
+ * downloads and verifies it into the Pages build, so production serves it
+ * same-origin from maps/ (VITE_SATELLITE_URL is only an optional override for
+ * alternative hosting). Once the user downloads it in Settings the offline
+ * blob is preferred and no network is touched. The hosted probe is a tiny
  * ranged GET (see probeHostedArchive).
  */
 export async function resolveSatellite(): Promise<BasemapResolution> {

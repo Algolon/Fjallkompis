@@ -30,7 +30,8 @@ export interface ArchiveSpec {
   /**
    * Resolves the absolute URL used BOTH to fetch the archive and as its Cache
    * Storage key. Defaults to the same-origin BASE_URL path; the satellite
-   * archive overrides this with the off-repo GitHub Release asset URL.
+   * archive overrides this to honour the optional VITE_SATELLITE_URL
+   * alternative-hosting override (production serves it same-origin).
    */
   resolveUrl?: () => string;
 }

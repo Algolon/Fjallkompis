@@ -2,8 +2,8 @@
 
 An offline-first, mobile-first **trail companion PWA** for a solo hut-to-hut hike
 on the Kungsleden (Abisko → Nikkaluokta). A Today homepage, a curated stops
-guide, daily + packing lists, route awareness, elevation profiles, and
-journaling — all stored locally on your device.
+guide, daily + packing lists, route awareness and elevation profiles — all
+stored locally on your device.
 
 > ⚠️ **Prototype. Not for primary navigation.** Always carry a proper map,
 > compass, and an offline navigation/safety device.
@@ -163,9 +163,12 @@ pmtiles verify public/maps/kungsleden-satellite.pmtiles
 pmtiles show   public/maps/kungsleden-satellite.pmtiles   # bounds, min/max zoom, tile type
 ```
 
-Then `VITE_SATELLITE_URL=<release-url> npm run build && npm run preview`, open the
-Map screen, and switch to **Satellite**; **Settings → Satellite imagery**
-downloads it for offline use.
+Then place the archive at `public/maps/kungsleden-satellite.pmtiles` and run
+`npm run build && npm run preview` — the preview serves it same-origin exactly
+like the Pages deployment. Open the Map screen and switch to **Satellite**;
+**Settings → Satellite imagery** downloads it for offline use. (Setting
+`VITE_SATELLITE_URL` instead only works if that host sends CORS headers and
+supports Range requests — plain GitHub Release asset URLs do neither.)
 
 ## Stops guide data
 
@@ -210,12 +213,16 @@ npm run build && npm run preview   # production PWA (SW active only in build)
 
 ```
 fjallkompis/
+├─ ROADMAP.md                   # canonical roadmap (Now/Next/Later/Blocked)
+├─ CHANGELOG.md                 # delivered iterations (Keep a Changelog)
 ├─ scripts/
 │  ├─ generate-route-data.mjs   # GPX → JSON preprocessing + validation
-│  └─ extract-offline-map.sh    # bounded PMTiles extraction (pmtiles CLI)
+│  ├─ extract-offline-map.sh    # bounded PMTiles extraction (pmtiles CLI)
+│  └─ check-version-consistency.mjs  # version-drift guard (npm run check:version)
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
-│  └─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
+│  ├─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
+│  └─ version-consistency.test.mjs   # the guard passes AND fails correctly
 ├─ public/
 │  ├─ gpx/…                     # source GPX (verified route)
 │  ├─ images/stops/             # optional licensed stop photos (see README there)
@@ -238,12 +245,37 @@ fjallkompis/
 - "Distance to next hut" is straight-line, not along-route progress.
 - Stage time estimates are personal guesses; the GPX has no time data.
 
-## Next iteration
+## Project status & roadmap
 
-1. Route progress: project the GPS fix onto the stage line for "km done / km
-   left" instead of straight-line distance.
-2. Local glyphs for general map labels (self-hosted PBF fonts), contours or
-   hillshade from a terrain PMTiles source.
-3. Installable-PWA polish: custom install prompt, SW-update toast, richer
-   offline states.
-4. Code-split MapLibre behind a lazy route to trim the initial bundle.
+[ROADMAP.md](ROADMAP.md) is the single source of truth for priority and
+progress (Now / Next / Later / Blocked / Completed). Delivered iterations are
+summarised in [CHANGELOG.md](CHANGELOG.md). Future-work lists are not
+duplicated here.
+
+## Versioning & releases
+
+`package.json` is the only place the app version lives — Vite injects it at
+build time as `__APP_VERSION__` (exported as `APP_VERSION` from
+`src/constants.ts`), and `npm run check:version` fails the test and build
+gates on any drift. Bump with `npm version <x.y.z> --no-git-tag-version` so
+`package-lock.json` stays aligned.
+
+Versions represent meaningful delivered iterations, not individual commits.
+While pre-1.0:
+
+- **no bump** — documentation-only work, tests, internal refactors with no
+  delivered change;
+- **PATCH** (0.3.0 → 0.3.1) — bug fixes, copy corrections, accessibility
+  fixes, small visual refinements;
+- **MINOR** (0.3.0 → 0.4.0) — a coherent user-facing feature, meaningful data
+  capability or substantial UX iteration;
+- **1.0.0** — the first stable, field-tested, trip-ready release.
+
+Release checklist for a meaningful user-facing PR (also in the
+[PR template](.github/pull_request_template.md)):
+
+1. Decide explicitly: no bump, patch, minor or major?
+2. Does [CHANGELOG.md](CHANGELOG.md) need an entry?
+3. Did [ROADMAP.md](ROADMAP.md) priorities or statuses change?
+4. Are `package.json` and `package-lock.json` still aligned?
+   (`npm run check:version` verifies this.)
