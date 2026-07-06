@@ -63,7 +63,12 @@ export const DELFT_PILOT_CONFIG = {
   requireElevation: false,
   /** Modest buffer: the pilot archive should cover the walk, not all of Delft. */
   mapBufferKm: 2,
-  nameOverrides: {},
+  // The GPX <name> fields carry the machine ids; give the map markers
+  // human-readable labels instead.
+  nameOverrides: {
+    START_DELFT: 'Delft pilot start',
+    END_DELFT: 'Delft pilot end',
+  },
 };
 
 export const ROUTE_CONFIGS = [KUNGSLEDEN_CONFIG, DELFT_PILOT_CONFIG];
