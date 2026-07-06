@@ -12,10 +12,16 @@
  */
 import { layers as protomapsLayers, namedFlavor } from '@protomaps/basemaps';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
+import { BASEMAP_SOURCE_INFO, SATELLITE_SOURCE_INFO } from '../data/attribution';
 
 export const BASEMAP_SOURCE = 'protomaps';
-export const BASEMAP_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>';
+/**
+ * Attribution strings live in the central registry (src/data/attribution.ts)
+ * so the map control, the Settings archive cards and the credits sheet can
+ * never drift apart. MapLibre's attribution control is layer-aware: it only
+ * shows credits for sources present in the style.
+ */
+export const BASEMAP_ATTRIBUTION = BASEMAP_SOURCE_INFO.mapAttributionHtml!;
 
 /**
  * Optional second basemap: satellite imagery from a raster PMTiles archive.
@@ -29,9 +35,8 @@ export const BASEMAP_ATTRIBUTION =
 export const SATELLITE_SOURCE = 'satellite';
 export const SATELLITE_LAYER = 'satellite';
 // EOX Sentinel-2 cloudless is the shipped source (see README). If you build the
-// archive from a different provider, update this credit accordingly.
-export const SATELLITE_ATTRIBUTION =
-  'Sentinel-2 cloudless — <a href="https://s2maps.eu" target="_blank" rel="noopener">s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)';
+// archive from a different provider, update the registry entry accordingly.
+export const SATELLITE_ATTRIBUTION = SATELLITE_SOURCE_INFO.mapAttributionHtml!;
 /**
  * Pixel size of the raster tiles in the archive. Standard slippy-map tiles are
  * 256; set to 512 here if the supplied archive uses 512px tiles.
