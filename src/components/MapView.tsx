@@ -23,8 +23,15 @@ import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ROUTE } from '../route/routeData';
+import type { ParsedRoute } from '../route/types';
 import { buildMapStyle, routeLayers, SATELLITE_LAYER } from '../map/mapStyle';
-import { resolveBasemap, resolveSatellite, type BasemapMode } from '../map/pmtilesProtocol';
+import {
+  resolveArchiveBasemap,
+  resolveSatellite,
+  type BasemapMode,
+  type BasemapResolution,
+} from '../map/pmtilesProtocol';
+import { VECTOR_ARCHIVE, type ArchiveSpec } from '../map/offlineMap';
 import type { LatLng } from '../types';
 
 export interface MapViewHandle {
@@ -39,6 +46,16 @@ export interface MapViewHandle {
 export type ImageryMode = 'terrain' | 'satellite';
 
 interface MapViewProps {
+  /**
+   * Route dataset to render (defaults to the Kungsleden ROUTE). Captured at
+   * mount — to show a different route, remount the component (e.g. with a
+   * React key); GPS/selection updates never rebuild the map.
+   */
+  route?: ParsedRoute;
+  /** Basemap archive for this route (defaults to the Kungsleden archive). */
+  archive?: ArchiveSpec;
+  /** Resolve/offer the satellite layer (Kungsleden only; pilot passes false). */
+  enableSatellite?: boolean;
   /** null → overview mode (all stages); id → stage mode. */
   selectedStageId: string | null;
   onSelectStage: (stageId: string) => void;
@@ -49,6 +66,12 @@ interface MapViewProps {
   /** 'terrain' (offline vector) or 'satellite' (offline raster PMTiles). */
   imagery: ImageryMode;
   gps: LatLng | null;
+  /** Breadcrumb trail as [lon, lat] positions (live-tracking pilot). */
+  trail?: [number, number][];
+  /** Keep the camera on the GPS position as fixes arrive (deliberate opt-in). */
+  follow?: boolean;
+  /** User panned/zoomed by hand — callers use this to switch follow off. */
+  onUserInteract?: () => void;
 }
 
 const EMPTY_FC: FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -60,6 +83,9 @@ const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   {
+    route = ROUTE,
+    archive = VECTOR_ARCHIVE,
+    enableSatellite = true,
     selectedStageId,
     onSelectStage,
     onSelectWaypoint,
@@ -67,6 +93,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     onSatelliteAvailable,
     imagery,
     gps,
+    trail,
+    follow = false,
+    onUserInteract,
   },
   ref,
 ) {
@@ -75,8 +104,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const [loaded, setLoaded] = useState(false);
 
   // Keep latest callbacks reachable from map event handlers without rebinding.
-  const callbacksRef = useRef({ onSelectStage, onSelectWaypoint });
-  callbacksRef.current = { onSelectStage, onSelectWaypoint };
+  const callbacksRef = useRef({ onSelectStage, onSelectWaypoint, onUserInteract });
+  callbacksRef.current = { onSelectStage, onSelectWaypoint, onUserInteract };
+  // The dataset is captured at mount (see the route prop doc); a ref keeps
+  // the imperative handle and effects reading the mounted value.
+  const routeRef = useRef(route);
+  const followRef = useRef(follow);
+  followRef.current = follow;
 
   const animate = () => ({ duration: prefersReducedMotion() ? 0 : 700 });
 
@@ -102,9 +136,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           : EMPTY_FC,
       );
     },
-    fitRoute: () => fitBounds(ROUTE.bounds),
+    fitRoute: () => fitBounds(routeRef.current.bounds),
     fitStage: (stageId) => {
-      const stage = ROUTE.stages.find((s) => s.id === stageId);
+      const stage = routeRef.current.stages.find((s) => s.id === stageId);
       if (stage) fitBounds(stage.bounds);
     },
     resetBearing: () => mapRef.current?.resetNorthPitch(animate()),
@@ -117,8 +151,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const markers: maplibregl.Marker[] = [];
     let resizeObs: ResizeObserver | null = null;
 
+    const mountedRoute = routeRef.current;
+
     (async () => {
-      const [basemap, satellite] = await Promise.all([resolveBasemap(), resolveSatellite()]);
+      const noSatellite: BasemapResolution = { mode: 'none', sourceUrl: null };
+      const [basemap, satellite] = await Promise.all([
+        resolveArchiveBasemap(archive),
+        enableSatellite ? resolveSatellite() : Promise.resolve(noSatellite),
+      ]);
       if (cancelled || !containerRef.current) return;
       onBasemapMode?.(basemap.mode);
       onSatelliteAvailable?.(satellite.sourceUrl != null);
@@ -126,7 +166,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       map = new maplibregl.Map({
         container: containerRef.current,
         style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl),
-        bounds: ROUTE.bounds,
+        bounds: mountedRoute.bounds,
         fitBoundsOptions: { padding: FIT_PADDING },
         attributionControl: { compact: true },
         // Cap zoom to what the offline tileset actually contains (+overzoom).
@@ -146,13 +186,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       map.on('load', () => {
         if (!map) return;
-        map.addSource('overview', { type: 'geojson', data: ROUTE.overviewGeoJson });
+        map.addSource('overview', { type: 'geojson', data: mountedRoute.overviewGeoJson });
         map.addSource('stages', {
           type: 'geojson',
-          data: { type: 'FeatureCollection', features: ROUTE.stages.map((s) => s.geoJson) },
+          data: {
+            type: 'FeatureCollection',
+            features: mountedRoute.stages.map((s) => s.geoJson),
+          },
         });
         map.addSource('gps', { type: 'geojson', data: EMPTY_FC });
         map.addSource('scrub', { type: 'geojson', data: EMPTY_FC });
+        map.addSource('trail', { type: 'geojson', data: EMPTY_FC });
         for (const layer of routeLayers()) map.addLayer(layer);
 
         // Tap a stage line to select it.
@@ -167,8 +211,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           map!.getCanvas().style.cursor = '';
         });
 
+        // A hand pan/zoom means the user wants manual control — let the
+        // caller switch follow mode off. Only user-originated events carry
+        // originalEvent, so programmatic easeTo/fitBounds never trigger it.
+        const userMoved = (e: { originalEvent?: unknown }) => {
+          if (e.originalEvent) callbacksRef.current.onUserInteract?.();
+        };
+        map.on('dragstart', userMoved);
+        map.on('zoomstart', userMoved);
+
         // Waypoints as local HTML markers (no glyphs/sprites needed).
-        for (const w of ROUTE.waypoints) {
+        for (const w of mountedRoute.waypoints) {
           const el = document.createElement('button');
           el.type = 'button';
           el.className = 'map-wpt';
@@ -222,8 +275,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       sel === '' ? 0.9 : ['case', ['==', ['get', 'stageId'], sel], 0, 0.25],
     );
 
-    const stage = ROUTE.stages.find((s) => s.id === selectedStageId);
-    fitBounds(stage ? stage.bounds : ROUTE.bounds);
+    const stage = routeRef.current.stages.find((s) => s.id === selectedStageId);
+    fitBounds(stage ? stage.bounds : routeRef.current.bounds);
   }, [selectedStageId, loaded]);
 
   // ---- Basemap imagery toggle (terrain vs satellite) ----------------------
@@ -258,7 +311,47 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           }
         : EMPTY_FC,
     );
+    // Deliberate follow mode only — never recenter on every fix by default.
+    if (gps && followRef.current) {
+      map.easeTo({
+        center: [gps.lng, gps.lat],
+        duration: prefersReducedMotion() ? 0 : 500,
+      });
+    }
   }, [gps, loaded]);
+
+  // ---- Follow toggled on: snap to the latest fix immediately ---------------
+  // (Subsequent fixes are handled by the GPS effect above.)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded || !follow || !gps) return;
+    map.easeTo({
+      center: [gps.lng, gps.lat],
+      duration: prefersReducedMotion() ? 0 : 500,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [follow, loaded]);
+
+  // ---- Breadcrumb trail (live tracking) ------------------------------------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded) return;
+    const src = map.getSource('trail') as GeoJSONSource | undefined;
+    src?.setData(
+      trail && trail.length >= 2
+        ? {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'LineString', coordinates: trail },
+              },
+            ],
+          }
+        : EMPTY_FC,
+    );
+  }, [trail, loaded]);
 
   return <div ref={containerRef} className="mapview" />;
 });

@@ -10,6 +10,45 @@ pre-1.0 rules in the [README](README.md#versioning--releases).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-06
+
+### Added
+
+- **Delft pilot mode (temporary)**: a feature-flagged
+  (`VITE_ENABLE_DELFT_PILOT`) route context on the Map tab for field-testing
+  the map functionality on a short walk in Delft before the Kungsleden trip.
+  Kungsleden remains the default; the pilot renders its own GPX-derived route
+  and bounded PMTiles basemap with a fully separate offline-map cache, and no
+  pilot state is ever persisted. Protocol and removal plan in
+  [docs/delft-pilot-test.md](docs/delft-pilot-test.md).
+- **Live GPS tracking (pilot-only)**: an explicit start/stop foreground
+  tracking session (`watchPosition`, high accuracy, single watcher with
+  guaranteed cleanup) that updates the position marker, a breadcrumb trail,
+  along-route progress and cross-track distance as fixes arrive, plus a
+  deliberate follow/recenter mode. Stale, invalid and very-low-accuracy
+  readings are rejected; progress freezes (labelled stale) instead of jumping
+  when the projection becomes unreliable.
+- **Qualified off-route states (pilot-only)**: on route / uncertain / likely
+  off route, derived from cross-track distance *and* reported GPS accuracy
+  (documented thresholds), with a 3-consecutive-fix debounce before declaring
+  off-route and instant recovery.
+- **Pilot diagnostics panel**: per-fix log (timestamp, position, accuracy,
+  fix age, cross-track, along-route km/%, projection reliability, status,
+  acceptance) with JSON/CSV export. The log is session-only and stays on the
+  device unless exported.
+- Route manifest (`scripts/route-configs.mjs`): the GPX generator, the
+  PMTiles extraction script and the app's dataset loading are now driven by
+  per-route configuration instead of hard-coded Kungsleden values (structural
+  expectations, stage-id prefixes, map buffer, output paths).
+
+### Changed
+
+- `MapView` accepts an optional route dataset, basemap archive and breadcrumb
+  trail/follow props (defaults preserve the existing Kungsleden behaviour;
+  the map instance is still created exactly once per mount).
+- `scripts/extract-offline-map.sh` takes an optional route id
+  (`kungsleden` default, `delft-pilot` for the pilot cutout).
+
 ## [0.4.0] - 2026-07-06
 
 ### Added

@@ -22,11 +22,52 @@ import { projectOntoRoute } from '../utils/routeProgress.mjs';
 import type { RouteProjection } from '../utils/routeProgress.mjs';
 import { formatDistanceKm } from '../utils/format';
 import type { LatLng } from '../types';
+// TEMPORARY Delft pilot (docs/delft-pilot-test.md). Hidden unless the
+// VITE_ENABLE_DELFT_PILOT build flag is on; Kungsleden stays the default.
+import { DELFT_PILOT_ENABLED } from '../route/delftPilot';
+import { DelftPilotPanel } from './DelftPilotPanel';
 
 /** Whole metres, phrased as an approximation ("~38 m", "~640 m"). */
 const approxMeters = (m: number) => `~${Math.round(m)} m`;
 
 type Panel = 'map' | 'elevation';
+
+/** Which route dataset the Map tab is looking at. Session-only, never
+ *  persisted: a fresh app start ALWAYS opens on Kungsleden. */
+type RouteContext = 'kungsleden' | 'delft-pilot';
+
+/** Compact route-context chips, rendered only while the pilot flag is on. */
+function RouteContextSelector({
+  value,
+  onChange,
+}: {
+  value: RouteContext;
+  onChange: (ctx: RouteContext) => void;
+}) {
+  return (
+    <div
+      className="stage-select"
+      role="group"
+      aria-label="Route context (pilot testing)"
+      style={{ marginBottom: 14 }}
+    >
+      <button
+        className="chip"
+        aria-pressed={value === 'kungsleden'}
+        onClick={() => onChange('kungsleden')}
+      >
+        Kungsleden
+      </button>
+      <button
+        className="chip"
+        aria-pressed={value === 'delft-pilot'}
+        onClick={() => onChange('delft-pilot')}
+      >
+        Delft pilot
+      </button>
+    </div>
+  );
+}
 
 /** Along-route progress state for the GPS/manual result card. */
 type Progress =
@@ -166,6 +207,9 @@ export function MapScreen() {
   // map must not silently change persisted app state.
   const [viewStageId, setViewStageId] = useState<string | null>(currentStage?.id ?? null);
   const [panel, setPanel] = useState<Panel>('map');
+  // Kungsleden is ALWAYS the default; the pilot must be chosen explicitly
+  // each session (state is never persisted).
+  const [routeContext, setRouteContext] = useState<RouteContext>('kungsleden');
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [imagery, setImagery] = useState<ImageryMode>('terrain');
   const [satelliteAvailable, setSatelliteAvailable] = useState(false);
@@ -239,9 +283,25 @@ export function MapScreen() {
     };
   }, [geo.status, geo.coord, geo.source, geo.manualStopId, geo.accuracyM, currentStage]);
 
+  // TEMPORARY: the Delft pilot replaces the tab body; switching back (or
+  // away) unmounts it, which stops any live-tracking watcher it started.
+  if (DELFT_PILOT_ENABLED && routeContext === 'delft-pilot') {
+    return (
+      <div className="screen">
+        <ScreenHeader eyebrow="Route" title="Map" />
+        <RouteContextSelector value={routeContext} onChange={setRouteContext} />
+        <DelftPilotPanel />
+      </div>
+    );
+  }
+
   return (
     <div className="screen">
       <ScreenHeader eyebrow="Route" title="Map" />
+
+      {DELFT_PILOT_ENABLED ? (
+        <RouteContextSelector value={routeContext} onChange={setRouteContext} />
+      ) : null}
 
       {/* Map / elevation segmented control (both shown on wide screens) */}
       <div className="seg seg-map" role="tablist" aria-label="Map or elevation view">

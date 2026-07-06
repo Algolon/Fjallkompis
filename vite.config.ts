@@ -88,6 +88,21 @@ export default defineConfig({
               cacheableResponse: { statuses: [200] },
             },
           },
+          {
+            // TEMPORARY: same belt-and-braces range serving for the Delft
+            // pilot basemap (docs/delft-pilot-test.md). Its own cache name —
+            // matching DELFT_ARCHIVE in src/map/offlineMap.ts — keeps it
+            // fully separate from the Kungsleden archives. Remove together
+            // with the pilot.
+            urlPattern: ({ sameOrigin, request }) =>
+              sameOrigin && request.url.endsWith('/maps/delft-pilot.pmtiles'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'fjallkompis-delft-pilot-map-v1',
+              rangeRequests: true,
+              cacheableResponse: { statuses: [200] },
+            },
+          },
         ],
       },
       devOptions: {
