@@ -12,10 +12,36 @@
  */
 import { layers as protomapsLayers, namedFlavor } from '@protomaps/basemaps';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
+import { BASEMAP_SOURCE_INFO, SATELLITE_SOURCE_INFO } from '../data/attribution';
 
 export const BASEMAP_SOURCE = 'protomaps';
-export const BASEMAP_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a>';
+/**
+ * Attribution strings live in the central registry (src/data/attribution.ts)
+ * so the map control, the Settings archive cards and the credits sheet can
+ * never drift apart. MapLibre's attribution control is layer-aware: it only
+ * shows credits for sources present in the style.
+ */
+export const BASEMAP_ATTRIBUTION = BASEMAP_SOURCE_INFO.mapAttributionHtml!;
+
+/**
+ * Optional second basemap: satellite imagery from a raster PMTiles archive.
+ *
+ * Like the vector basemap, this stays fully offline — tiles are read from a
+ * `pmtiles://…` raster archive (offline blob or hosted file, resolved in
+ * pmtilesProtocol.ts), never from a remote tile provider. The layer is only
+ * added when a satellite archive is actually available, and ships with
+ * visibility:none so it costs nothing until the user switches it on.
+ */
+export const SATELLITE_SOURCE = 'satellite';
+export const SATELLITE_LAYER = 'satellite';
+// EOX Sentinel-2 cloudless is the shipped source (see README). If you build the
+// archive from a different provider, update the registry entry accordingly.
+export const SATELLITE_ATTRIBUTION = SATELLITE_SOURCE_INFO.mapAttributionHtml!;
+/**
+ * Pixel size of the raster tiles in the archive. Standard slippy-map tiles are
+ * 256; set to 512 here if the supplied archive uses 512px tiles.
+ */
+export const SATELLITE_TILE_SIZE = 256;
 
 /** Okabe–Ito palette (colour-blind safe), one colour per day stage. */
 export const STAGE_COLORS: Record<number, string> = {
@@ -38,7 +64,10 @@ const stageColorExpression = [
   OVERVIEW_COLOR,
 ] as unknown as string;
 
-export function buildMapStyle(basemapSourceUrl: string | null): StyleSpecification {
+export function buildMapStyle(
+  basemapSourceUrl: string | null,
+  satelliteSourceUrl: string | null = null,
+): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,
     // Placeholder background stays visible when no basemap is available; the
@@ -65,6 +94,26 @@ export function buildMapStyle(basemapSourceUrl: string | null): StyleSpecificati
     style.layers.push(
       ...(protomapsLayers(BASEMAP_SOURCE, namedFlavor('light'), {}) as LayerSpecification[]),
     );
+  }
+
+  // Satellite raster basemap from a PMTiles archive, added only when one is
+  // available and hidden until the user toggles it on. It sits above the
+  // vector basemap (which it fully covers when visible) but below the
+  // route/GPS layers that MapView adds after load.
+  if (satelliteSourceUrl) {
+    style.sources[SATELLITE_SOURCE] = {
+      type: 'raster',
+      url: satelliteSourceUrl,
+      tileSize: SATELLITE_TILE_SIZE,
+      attribution: SATELLITE_ATTRIBUTION,
+    };
+    style.layers.push({
+      id: SATELLITE_LAYER,
+      type: 'raster',
+      source: SATELLITE_SOURCE,
+      layout: { visibility: 'none' },
+      paint: { 'raster-fade-duration': 200 },
+    });
   }
 
   return style;

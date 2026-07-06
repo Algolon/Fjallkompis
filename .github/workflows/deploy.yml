@@ -25,7 +25,47 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+      # ---- Satellite archive: canonical GitHub Release asset ----------------
+      # The ~42 MB PMTiles binary is NOT committed. The canonical copy lives on
+      # the satellite-data-v1 Release; deployment downloads it into the Pages
+      # build so browsers fetch it SAME-ORIGIN (GitHub Release assets send no
+      # CORS headers, so the app cannot fetch them cross-origin directly).
+      # New imagery ⇒ new release tag ⇒ update TAG/SHA-256/size pins here.
+      - name: Fetch satellite archive from the pinned data release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p public/maps
+          gh release download satellite-data-v1 \
+            --repo Algolon/Fjallkompis \
+            --pattern kungsleden-satellite.pmtiles \
+            --dir public/maps
+      - name: Verify satellite archive integrity
+        run: |
+          set -euo pipefail
+          f=public/maps/kungsleden-satellite.pmtiles
+          expected_sha="42398abf14e66506a9b17867bfe5770675edcc2130cd9b46ffedb08b4c0f28bf"
+          expected_size=43610353
+          actual_sha="$(sha256sum "$f" | awk '{print $1}')"
+          actual_size="$(stat -c '%s' "$f")"
+          echo "sha256: $actual_sha (expected $expected_sha)"
+          echo "size  : $actual_size (expected $expected_size)"
+          [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: satellite archive SHA-256 mismatch"; exit 1; }
+          [ "$actual_size" = "$expected_size" ] || { echo "FATAL: satellite archive size mismatch"; exit 1; }
+
       - run: npm run build
+
+      - name: Verify satellite archive made it into the build
+        run: |
+          set -euo pipefail
+          f=dist/maps/kungsleden-satellite.pmtiles
+          test -f "$f" || { echo "FATAL: $f missing from build output"; exit 1; }
+          expected_sha="42398abf14e66506a9b17867bfe5770675edcc2130cd9b46ffedb08b4c0f28bf"
+          actual_sha="$(sha256sum "$f" | awk '{print $1}')"
+          [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: built archive SHA-256 mismatch"; exit 1; }
+          echo "✓ dist/maps/kungsleden-satellite.pmtiles present, sha256 verified"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

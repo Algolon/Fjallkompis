@@ -14,7 +14,13 @@
 import maplibregl from 'maplibre-gl';
 import { PMTiles, Protocol } from 'pmtiles';
 import type { Source, RangeResponse } from 'pmtiles';
-import { getOfflineMapBlob, offlineMapUrl } from './offlineMap';
+import {
+  getArchiveBlob,
+  getOfflineMapBlob,
+  offlineMapUrl,
+  satelliteMapUrl,
+  SATELLITE_ARCHIVE,
+} from './offlineMap';
 
 let protocol: Protocol | null = null;
 
@@ -52,6 +58,39 @@ export interface BasemapResolution {
 }
 
 const OFFLINE_KEY = 'offline://kungsleden';
+const SATELLITE_OFFLINE_KEY = 'offline://kungsleden-satellite';
+
+/**
+ * Is a response an actual hosted .pmtiles file, not an SPA fallback? Static
+ * hosts (and vite preview) answer a request for a MISSING file with the app
+ * shell — `200 OK` + `text/html` — which would otherwise look like an available
+ * archive and crash MapLibre with "wrong magic number". A real PMTiles file is
+ * served as a binary type (octet-stream / vnd.pmtiles / empty), never text/html.
+ */
+function looksLikeArchive(res: Response): boolean {
+  if (!res.ok) return false;
+  const type = res.headers.get('Content-Type') ?? '';
+  return !type.toLowerCase().includes('text/html');
+}
+
+/**
+ * Probe a hosted archive with a tiny ranged GET. Confirms the host serves
+ * binary range data rather than a 404/HTML fallback (e.g. local dev without
+ * the satellite archive). Works same-origin (production: Pages serves the
+ * deploy-injected archive from the app's own origin) and, for the optional
+ * VITE_SATELLITE_URL override, cross-origin too (`Range` is a CORS-safelisted
+ * header, so no preflight). The body is discarded — if the server ever
+ * ignores `Range` and returns the full 200, we cancel it instead of
+ * downloading the whole archive.
+ */
+async function probeHostedArchive(url: string): Promise<boolean> {
+  const res = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' } });
+  try {
+    return looksLikeArchive(res);
+  } finally {
+    await res.body?.cancel().catch(() => {});
+  }
+}
 
 /**
  * Decide where basemap tiles come from, preferring the offline copy.
@@ -70,11 +109,43 @@ export async function resolveBasemap(): Promise<BasemapResolution> {
 
   try {
     const head = await fetch(offlineMapUrl(), { method: 'HEAD' });
-    if (head.ok) {
+    if (looksLikeArchive(head)) {
       return { mode: 'online', sourceUrl: `pmtiles://${offlineMapUrl()}` };
     }
   } catch {
     // Network down and no offline copy — fall through to 'none'.
+  }
+  return { mode: 'none', sourceUrl: null };
+}
+
+/**
+ * Resolve the optional satellite raster PMTiles archive, preferring the
+ * user-downloaded offline copy and falling back to the hosted file. Returns a
+ * null sourceUrl when no satellite archive is available anywhere, so callers
+ * can disable the toggle instead of adding a broken layer.
+ *
+ * The canonical archive lives on a versioned GitHub Release; deploy.yml
+ * downloads and verifies it into the Pages build, so production serves it
+ * same-origin from maps/ (VITE_SATELLITE_URL is only an optional override for
+ * alternative hosting). Once the user downloads it in Settings the offline
+ * blob is preferred and no network is touched. The hosted probe is a tiny
+ * ranged GET (see probeHostedArchive).
+ */
+export async function resolveSatellite(): Promise<BasemapResolution> {
+  const proto = ensurePmtilesProtocol();
+
+  const blob = await getArchiveBlob(SATELLITE_ARCHIVE);
+  if (blob) {
+    proto.add(new PMTiles(new BlobSource(blob, SATELLITE_OFFLINE_KEY)));
+    return { mode: 'offline', sourceUrl: `pmtiles://${SATELLITE_OFFLINE_KEY}` };
+  }
+
+  try {
+    if (await probeHostedArchive(satelliteMapUrl())) {
+      return { mode: 'online', sourceUrl: `pmtiles://${satelliteMapUrl()}` };
+    }
+  } catch {
+    // No offline copy and the hosted file is unreachable — no satellite.
   }
   return { mode: 'none', sourceUrl: null };
 }

@@ -7,6 +7,7 @@ import { StagesScreen } from './screens/StagesScreen';
 import { StopsScreen } from './screens/StopsScreen';
 import { ListsScreen } from './screens/ListsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { PwaLifecycle } from './components/PwaLifecycle';
 
 interface Nav {
   tab: TabId;
@@ -59,6 +60,7 @@ export default function App() {
           <Screens nav={nav} navigate={navigate} />
         </main>
         <TabBar active={nav.tab} onChange={navigate} />
+        <PwaLifecycle />
       </div>
     </AppStoreProvider>
   );

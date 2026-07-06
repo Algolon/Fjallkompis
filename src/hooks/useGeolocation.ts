@@ -7,6 +7,10 @@ export interface GeoState {
   status: GeoStatus;
   coord: LatLng | null;
   accuracyM: number | null;
+  /** How the current coord was obtained — drives along-route matching. */
+  source: 'gps' | 'manual' | null;
+  /** Manual mode: the stop id the position was pinned to (else null). */
+  manualStopId: string | null;
   /** Human-readable error for the UI. */
   error: string | null;
   timestamp: number | null;
@@ -16,6 +20,8 @@ const initial: GeoState = {
   status: 'idle',
   coord: null,
   accuracyM: null,
+  source: null,
+  manualStopId: null,
   error: null,
   timestamp: null,
 };
@@ -59,6 +65,8 @@ export function useGeolocation() {
           status: 'success',
           coord: { lat: pos.coords.latitude, lng: pos.coords.longitude },
           accuracyM: pos.coords.accuracy ?? null,
+          source: 'gps',
+          manualStopId: null,
           error: null,
           timestamp: pos.timestamp,
         });
@@ -68,6 +76,8 @@ export function useGeolocation() {
           status: 'error',
           coord: null,
           accuracyM: null,
+          source: null,
+          manualStopId: null,
           error: messageFor(err),
           timestamp: null,
         });
@@ -76,11 +86,13 @@ export function useGeolocation() {
     );
   }, []);
 
-  const setManual = useCallback((coord: LatLng) => {
+  const setManual = useCallback((coord: LatLng, stopId: string) => {
     setState({
       status: 'success',
       coord,
       accuracyM: null,
+      source: 'manual',
+      manualStopId: stopId,
       error: null,
       timestamp: Date.now(),
     });

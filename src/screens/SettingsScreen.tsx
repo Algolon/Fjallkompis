@@ -4,27 +4,16 @@ import { ScreenHeader } from '../components/ui';
 import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
-import { OfflineMapCard } from '../components/OfflineMapCard';
+import { OfflineMapCard, SatelliteMapCard } from '../components/OfflineMapCard';
+import { CreditsSheet } from '../components/CreditsSheet';
+import { InstallCard } from '../components/InstallCard';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
-
-function pwaStatus(): string {
-  const standalone =
-    window.matchMedia?.('(display-mode: standalone)').matches ||
-    // iOS Safari
-    (navigator as unknown as { standalone?: boolean }).standalone === true;
-  const swControlled =
-    'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
-
-  if (standalone && swControlled) return 'Installed · offline-ready';
-  if (swControlled) return 'Offline-ready (in browser tab)';
-  if (standalone) return 'Installed (service worker starting…)';
-  return 'Browser tab · install from the share/▾ menu for offline use';
-}
 
 export function SettingsScreen() {
   const { state, storageOk, replaceState, resetAll } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
+  const [creditsOpen, setCreditsOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const doExport = () => {
@@ -81,6 +70,20 @@ export function SettingsScreen() {
       ) : null}
 
       <div className="card">
+        <span className="card-title">Status</span>
+        <div className="row-between" style={{ marginTop: 10 }}>
+          <span className="muted">App version</span>
+          <span className="tnum">{APP_VERSION}</span>
+        </div>
+        <div className="row-between" style={{ marginTop: 8 }}>
+          <span className="muted">Local storage</span>
+          <span>{storageOk ? 'Available' : 'Unavailable (data won’t persist)'}</span>
+        </div>
+      </div>
+
+      <InstallCard />
+
+      <div className="card">
         <span className="card-title">Backup & restore</span>
         <p className="card-sub" style={{ marginTop: 4 }}>
           Export before trips and OS updates. Import merges nothing — it replaces
@@ -116,42 +119,23 @@ export function SettingsScreen() {
 
       <OfflineMapCard />
 
-      <div className="card">
-        <span className="card-title">Status</span>
-        <div className="row-between" style={{ marginTop: 10 }}>
-          <span className="muted">App version</span>
-          <span className="tnum">{APP_VERSION}</span>
-        </div>
-        <div className="row-between" style={{ marginTop: 8 }}>
-          <span className="muted">Local storage</span>
-          <span>{storageOk ? 'Available' : 'Unavailable (data won’t persist)'}</span>
-        </div>
-        <div className="row-between" style={{ marginTop: 8 }}>
-          <span className="muted">PWA</span>
-          <span style={{ textAlign: 'right', maxWidth: '60%' }}>{pwaStatus()}</span>
-        </div>
-      </div>
+      <SatelliteMapCard />
 
       <div className="card">
-        <span className="card-title">Roadmap · TODO</span>
+        <span className="card-title">Data sources &amp; credits</span>
         <p className="card-sub" style={{ marginTop: 4 }}>
-          Planned for the real version — see the README “Next iteration” notes.
+          Information about the maps, imagery, route data and open-source software
+          used in Fjällkompis.
         </p>
-        <ul style={{ margin: '10px 0 0', paddingLeft: 18, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
-          <li>
-            <s>Verified GPX route + real statistics</s> ✓
-          </li>
-          <li>
-            <s>MapLibre GL + PMTiles offline basemap</s> ✓
-          </li>
-          <li>
-            <s>Elevation profile per stage</s> ✓
-          </li>
-          <li>Map labels & contours (local glyphs / terrain tiles)</li>
-          <li>Route progress by projecting GPS onto the route line</li>
-          <li>Installable-PWA polish (custom install prompt, update toast)</li>
-        </ul>
+        <button
+          className="btn btn-block"
+          style={{ marginTop: 12 }}
+          onClick={() => setCreditsOpen(true)}
+        >
+          View sources and licences
+        </button>
       </div>
+      <CreditsSheet open={creditsOpen} onClose={() => setCreditsOpen(false)} />
 
       <p className="app-version">Fjällkompis · prototype · v{APP_VERSION}</p>
     </div>

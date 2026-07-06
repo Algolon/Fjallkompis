@@ -1,17 +1,30 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+// package.json is the single source of truth for the app version; it is
+// injected at build time as the __APP_VERSION__ global (declared in
+// src/vite-env.d.ts, re-exported as APP_VERSION from src/constants.ts).
+// scripts/check-version-consistency.mjs guards this wiring in CI.
+import pkg from './package.json';
 
 // NOTE: `base` matches the GitHub Pages project subpath
 // (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
 // custom domain served from the root, change this to '/'.
 export default defineConfig({
   base: '/Fjallkompis/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Prompt-style updates: a new service worker waits until the user taps
+      // "Update now" in the in-app toast, so we never reload out from under an
+      // unsaved change (see src/components/PwaLifecycle.tsx). Registration is
+      // handled explicitly in React via virtual:pwa-register/react, so the
+      // plugin must NOT also inject its own registration script.
+      registerType: 'prompt',
+      injectRegister: null,
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.png'],
       manifest: {
         name: 'Fjällkompis — Kungsleden trail companion',
@@ -58,7 +71,16 @@ export default defineConfig({
             // src/map/offlineMap.ts. cacheableResponse statuses [200]
             // ensures a network 206 partial is never cached — caching
             // individual range responses would NOT work offline.
-            urlPattern: /\.pmtiles$/,
+            //
+            // Scoped to the VECTOR basemap only. The satellite archive is
+            // also same-origin (deploy.yml injects the verified Release asset
+            // into dist/maps, so Pages serves it from the app's own origin),
+            // but it is read from its own Cache Storage blob (not via the
+            // SW), so this rule must not intercept it — otherwise online
+            // satellite streaming would pull the whole 42 MB file through
+            // the SW into the wrong cache.
+            urlPattern: ({ sameOrigin, request }) =>
+              sameOrigin && request.url.endsWith('/maps/kungsleden.pmtiles'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'fjallkompis-offline-map-v1',

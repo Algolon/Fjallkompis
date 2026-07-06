@@ -2,8 +2,8 @@
 
 An offline-first, mobile-first **trail companion PWA** for a solo hut-to-hut hike
 on the Kungsleden (Abisko → Nikkaluokta). A Today homepage, a curated stops
-guide, daily + packing lists, route awareness, elevation profiles, and
-journaling — all stored locally on your device.
+guide, daily + packing lists, route awareness and elevation profiles — all
+stored locally on your device.
 
 > ⚠️ **Prototype. Not for primary navigation.** Always carry a proper map,
 > compass, and an offline navigation/safety device.
@@ -66,6 +66,110 @@ via Workbox `RangeRequestsPlugin`. Without the download, the basemap streams
 online via HTTP range requests; with no network and no download, the route
 still renders on a clearly-marked placeholder background.
 
+## Satellite imagery layer
+
+The map has an optional **Satellite** basemap alongside the vector **Terrain**
+map. Tiles come from a raster PMTiles archive of **EOX Sentinel‑2 cloudless
+2024** imagery, bounded to the route corridor. The archive is **~42 MB and is
+NOT committed to the repo** — the canonical binary lives on a **versioned
+GitHub Release** and is injected into the Pages build at deploy time:
+
+```
+Release asset (tag satellite-data-v1, kungsleden-satellite.pmtiles)
+  → deploy.yml downloads it (gh release download) + verifies SHA-256 & size
+  → placed in public/maps before the Vite build → copied to dist/maps
+  → GitHub Pages serves it from the app's own origin:
+    https://algolon.github.io/Fjallkompis/maps/kungsleden-satellite.pmtiles
+```
+
+Browsers therefore fetch it **same‑origin** — no CORS involved. (GitHub Release
+assets themselves send no CORS headers, so the app cannot fetch them
+cross‑origin directly; the deploy‑time injection sidesteps that without putting
+the binary into git history.)
+
+Resolution order in the app (`src/map/pmtilesProtocol.ts`): user‑downloaded
+Cache‑Storage blob → the hosted same‑origin file (streamed online) → disabled
+toggle. Once downloaded in **Settings → Satellite imagery** it works fully
+offline, independently of the vector basemap. A *missing* file (e.g. local dev
+without the archive) is detected safely — an HTML/404 fallback is never mistaken
+for an archive — and the Satellite toggle simply stays disabled.
+
+`VITE_SATELLITE_URL` remains an **optional** build‑time override for alternative
+hosting (the host must then send CORS headers and support Range requests);
+production does not require it.
+
+Attribution shown on the map (keep it):
+
+> Sentinel‑2 cloudless — s2maps.eu by EOX IT Services GmbH
+> (Contains modified Copernicus Sentinel data 2024)
+
+### Updating the satellite data
+
+New imagery ⇒ **new versioned release** (never mutate an existing tag):
+
+1. Build a new archive (workflow or scripts below) → publish it as release
+   `satellite-data-v2` with asset name `kungsleden-satellite.pmtiles`.
+2. Update the pinned **tag, SHA‑256 and byte size** in
+   `.github/workflows/deploy.yml` (they gate the deployment — a mismatch fails
+   the deploy rather than shipping unverified bytes).
+3. Merge; the next Pages deploy serves the new file. Users who downloaded the
+   old archive re‑download from Settings when they choose to.
+
+### Regenerating the archive (new imagery → satellite-data-v2, …)
+
+Imagery is built on a GitHub runner, not committed. Two reproducible scripts
+under `scripts/` do the work:
+
+- `scripts/download-kungsleden-satellite.sh .` — downloads EOX Sentinel‑2
+  cloudless for the route corridor into `data/source-imagery/sentinel2-kungsleden.tif`
+  (git‑ignored; **never committed**). Requires `curl` + GDAL.
+- `npm run generate:map:satellite -- data/source-imagery/sentinel2-kungsleden.tif` —
+  the pipeline (`scripts/build-satellite-map.sh`): reads the crop box from
+  `mapCutoutBounds` in the generated route JSON (never hard‑coded), reprojects to
+  EPSG:3857, tiles as 256 px WEBP (matching `SATELLITE_TILE_SIZE`), builds the
+  ~z7–13 pyramid, converts to PMTiles, and runs `pmtiles verify`. Options (env):
+  `MAXZOOM=13 TILE_FORMAT=WEBP QUALITY=80 DEBUG=1`.
+
+The easiest path is the **manual maintenance workflow**
+`.github/workflows/satellite-data-maintenance.yml` (Actions → *Satellite map
+data (maintenance)* → *Run workflow*, available once the workflow is on the
+default branch). It runs both scripts on a runner, verifies the archive, uploads
+it as a downloadable artifact, and — with `publish_release: true` and a
+`release_tag` like `satellite-data-v2` — publishes the versioned Release that
+`deploy.yml` consumes. Then update the pinned tag + SHA‑256 + size in
+`deploy.yml` (see *Updating the satellite data* above).
+
+### Why max zoom 13
+
+Sentinel‑2 true colour is ~10 m/px. In Web Mercator, zoom **13** is ≈19 m/px at
+the equator and finer at this latitude (~7 m/px near 68° N) — the closest zoom
+to the native resolution. Going higher only upsamples pixels and inflates the
+file, so 13 is the default cap; MapLibre over‑zooms beyond it (up to the map's
+`maxZoom` 17) so you can still pinch in. (For this sub‑tile‑sized corridor GDAL
+clamps the smallest overview, so archives come out ~z7–13.)
+
+### Required tools (local builds)
+
+- **GDAL** ≥ 3.6 — `gdalinfo`, `gdalwarp`, `gdal_translate`, `gdaladdo`
+  (`apt-get install gdal-bin`, `brew install gdal`, or `conda install -c conda-forge gdal`).
+- **pmtiles CLI** — [go-pmtiles](https://github.com/protomaps/go-pmtiles/releases)
+  (single static binary; put it on `PATH` or set `PMTILES_BIN`).
+- **curl** and **Node** (Node is used only to read the route bounds).
+
+### Verify manually
+
+```bash
+pmtiles verify public/maps/kungsleden-satellite.pmtiles
+pmtiles show   public/maps/kungsleden-satellite.pmtiles   # bounds, min/max zoom, tile type
+```
+
+Then place the archive at `public/maps/kungsleden-satellite.pmtiles` and run
+`npm run build && npm run preview` — the preview serves it same-origin exactly
+like the Pages deployment. Open the Map screen and switch to **Satellite**;
+**Settings → Satellite imagery** downloads it for offline use. (Setting
+`VITE_SATELLITE_URL` instead only works if that host sends CORS headers and
+supports Range requests — plain GitHub Release asset URLs do neither.)
+
 ## Stops guide data
 
 The Stops screen shows a **curated snapshot** of official facility information
@@ -109,12 +213,16 @@ npm run build && npm run preview   # production PWA (SW active only in build)
 
 ```
 fjallkompis/
+├─ ROADMAP.md                   # canonical roadmap (Now/Next/Later/Blocked)
+├─ CHANGELOG.md                 # delivered iterations (Keep a Changelog)
 ├─ scripts/
 │  ├─ generate-route-data.mjs   # GPX → JSON preprocessing + validation
-│  └─ extract-offline-map.sh    # bounded PMTiles extraction (pmtiles CLI)
+│  ├─ extract-offline-map.sh    # bounded PMTiles extraction (pmtiles CLI)
+│  └─ check-version-consistency.mjs  # version-drift guard (npm run check:version)
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
-│  └─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
+│  ├─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
+│  └─ version-consistency.test.mjs   # the guard passes AND fails correctly
 ├─ public/
 │  ├─ gpx/…                     # source GPX (verified route)
 │  ├─ images/stops/             # optional licensed stop photos (see README there)
@@ -134,15 +242,42 @@ fjallkompis/
 - Basemap has no text labels yet (kept glyph/sprite-free for offline
   reliability); hut names are local HTML markers.
 - Max zoom 14 (+overzoom) — fine for overview, not for close-up detail.
-- "Distance to next hut" is straight-line, not along-route progress.
+- Route progress projects a one-shot GPS fix onto the mapped line — it is
+  approximate (no live tracking), and off-route or low-accuracy fixes are
+  qualified rather than shown as a confident percentage.
 - Stage time estimates are personal guesses; the GPX has no time data.
 
-## Next iteration
+## Project status & roadmap
 
-1. Route progress: project the GPS fix onto the stage line for "km done / km
-   left" instead of straight-line distance.
-2. Local glyphs for general map labels (self-hosted PBF fonts), contours or
-   hillshade from a terrain PMTiles source.
-3. Installable-PWA polish: custom install prompt, SW-update toast, richer
-   offline states.
-4. Code-split MapLibre behind a lazy route to trim the initial bundle.
+[ROADMAP.md](ROADMAP.md) is the single source of truth for priority and
+progress (Now / Next / Later / Blocked / Completed). Delivered iterations are
+summarised in [CHANGELOG.md](CHANGELOG.md). Future-work lists are not
+duplicated here.
+
+## Versioning & releases
+
+`package.json` is the only place the app version lives — Vite injects it at
+build time as `__APP_VERSION__` (exported as `APP_VERSION` from
+`src/constants.ts`), and `npm run check:version` fails the test and build
+gates on any drift. Bump with `npm version <x.y.z> --no-git-tag-version` so
+`package-lock.json` stays aligned.
+
+Versions represent meaningful delivered iterations, not individual commits.
+While pre-1.0:
+
+- **no bump** — documentation-only work, tests, internal refactors with no
+  delivered change;
+- **PATCH** (0.3.0 → 0.3.1) — bug fixes, copy corrections, accessibility
+  fixes, small visual refinements;
+- **MINOR** (0.3.0 → 0.4.0) — a coherent user-facing feature, meaningful data
+  capability or substantial UX iteration;
+- **1.0.0** — the first stable, field-tested, trip-ready release.
+
+Release checklist for a meaningful user-facing PR (also in the
+[PR template](.github/pull_request_template.md)):
+
+1. Decide explicitly: no bump, patch, minor or major?
+2. Does [CHANGELOG.md](CHANGELOG.md) need an entry?
+3. Did [ROADMAP.md](ROADMAP.md) priorities or statuses change?
+4. Are `package.json` and `package-lock.json` still aligned?
+   (`npm run check:version` verifies this.)

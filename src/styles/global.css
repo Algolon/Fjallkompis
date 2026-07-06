@@ -566,6 +566,37 @@ h3 {
   white-space: nowrap;
 }
 
+/* Positioning context for the floating basemap toggle. */
+.map-canvas-wrap {
+  position: relative;
+}
+
+/* Terrain / Satellite switch, floated over the top-left of the map. */
+.map-layer-toggle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  margin-bottom: 0;
+  background: color-mix(in srgb, var(--paper-2) 88%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.25);
+}
+.map-layer-toggle .seg-btn {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+.map-layer-toggle .seg-btn[aria-checked='true'] {
+  background: var(--spruce);
+  color: #f4f8f5;
+  box-shadow: var(--shadow);
+}
+.map-layer-toggle .seg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .map-toolbar {
   display: flex;
   gap: 8px;
@@ -1682,4 +1713,181 @@ h3 {
   color: var(--ink-faint);
   font-size: 12px;
   padding: 18px 0 4px;
+}
+
+/* --- Source attribution blocks (archive cards) ---------------------------- */
+
+.source-block {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.source-heading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.source-attr {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 4px 0 0;
+  overflow-wrap: break-word;
+}
+.source-details {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--paper-bright);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.source-details p {
+  margin: 0;
+}
+.source-details a,
+.credits-links a,
+.credits-app a {
+  color: var(--glacier-700);
+  font-weight: 600;
+}
+.source-links {
+  margin-top: 6px;
+}
+.source-details .source-url {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-faint);
+  word-break: break-all;
+}
+
+/* --- Bottom sheet (Data sources & credits) -------------------------------- */
+
+.sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  max-height: min(82vh, 82dvh);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 -8px 30px rgba(27, 42, 39, 0.18);
+  padding: 0;
+}
+.sheet::backdrop {
+  background: rgba(27, 42, 39, 0.35);
+}
+.sheet-body {
+  padding: 18px 18px calc(18px + var(--safe-bottom));
+  overflow-y: auto;
+  max-height: inherit;
+}
+.sheet-head h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  margin: 0;
+}
+.sheet-body .section-label {
+  display: block;
+  margin: 18px 0 8px;
+}
+.credits-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.credits-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.credits-list li:last-child {
+  border-bottom: 0;
+}
+.credits-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.credits-text {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 4px 0 0;
+  overflow-wrap: break-word;
+}
+.credits-links {
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin: 4px 0 0;
+  overflow-wrap: break-word;
+}
+.credits-app {
+  font-size: 14px;
+}
+
+/* --- PWA lifecycle toast ------------------------------------------------- */
+
+/* Fixed above the in-flow tab bar (tabbar-h + its own safe-area inset) and
+   the viewport safe area, so it never covers primary navigation. Non-modal:
+   it does not trap focus or block the page, but its buttons are reachable. */
+.pwa-toast-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px;
+  pointer-events: none; /* only the card itself is interactive */
+}
+.pwa-toast {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 440px;
+  background: var(--paper-bright);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: pwa-toast-in 220ms ease-out;
+}
+.pwa-toast__msg {
+  margin: 0;
+  color: var(--ink-strong);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.pwa-toast__actions {
+  display: flex;
+  gap: 8px;
+}
+.pwa-toast__actions .btn {
+  flex: 1;
+}
+@keyframes pwa-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pwa-toast {
+    animation: none;
+  }
 }
