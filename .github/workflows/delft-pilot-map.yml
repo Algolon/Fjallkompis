@@ -1,0 +1,144 @@
+# Delft pilot basemap — MANUAL only. TEMPORARY (remove with the pilot).
+#
+# Builds the bounded Delft pilot vector basemap (public/maps/delft-pilot.pmtiles)
+# on a GitHub-hosted runner, because the Protomaps build server is not reachable
+# from every development environment. Uses the same range-read `pmtiles extract`
+# workflow as the Kungsleden basemap (scripts/extract-offline-map.sh) — never
+# raster scraping, never tile.openstreetmap.org. Attribution: © OpenStreetMap
+# contributors · Protomaps (already wired in the app).
+#
+# Requires public/gpx/delft-pilot.gpx to be committed on the branch being run
+# (the bbox comes from the generated route JSON, route bounds + 2 km buffer).
+#
+# The verified archive is uploaded as a workflow artifact and, when
+# commit_to_branch is true (default), committed straight back to the branch the
+# workflow was dispatched on — the archive is small enough to live in the repo
+# next to kungsleden.pmtiles, so no Release/deploy-injection is needed.
+#
+# NOTE: like all workflow_dispatch workflows, this appears in the Actions UI
+# once the file exists on the default branch; until then it can only be
+# dispatched via the API against a branch that contains it.
+name: Delft pilot map data (maintenance)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_date:
+        description: "Protomaps daily build YYYYMMDD (empty = yesterday's build)"
+        default: ''
+        required: false
+      maxzoom:
+        description: 'Max zoom stored in the archive (15 ≈ street-level walking detail)'
+        default: '15'
+        required: true
+      commit_to_branch:
+        description: 'Commit the verified archive back to this branch'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-delft-map:
+    name: Extract, verify & (optionally) commit the Delft pilot basemap
+    runs-on: ubuntu-latest
+    env:
+      PMTILES_VERSION: v1.30.3
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v4
+
+      - name: Assert the Delft pilot GPX is committed
+        run: |
+          test -f public/gpx/delft-pilot.gpx || {
+            echo "FATAL: public/gpx/delft-pilot.gpx is not committed on this branch."
+            echo "The bbox comes from the GPX-derived route data — commit the GPX first."
+            exit 1
+          }
+
+      - name: Set up Node (repo's supported version)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Install pinned pmtiles CLI
+        run: |
+          set -euo pipefail
+          ver="${PMTILES_VERSION#v}"
+          url="https://github.com/protomaps/go-pmtiles/releases/download/${PMTILES_VERSION}/go-pmtiles_${ver}_Linux_x86_64.tar.gz"
+          curl -fsSL --retry 4 --retry-delay 3 -o /tmp/pmtiles.tgz "$url"
+          bin="$(tar tzf /tmp/pmtiles.tgz | grep -E '(^|/)(pmtiles|go-pmtiles)$' | head -1)"
+          tar xzf /tmp/pmtiles.tgz -C /tmp "$bin"
+          sudo install -m 0755 "/tmp/$bin" /usr/local/bin/pmtiles
+
+      - name: Generate Delft route data (bbox source) and validate the GPX
+        run: npm run generate:route:delft
+
+      - name: Extract the bounded Delft basemap
+        run: |
+          set -euo pipefail
+          build_date="${{ inputs.build_date }}"
+          if [ -z "$build_date" ]; then
+            build_date="$(date -d yesterday +%Y%m%d)"
+          fi
+          echo "Using Protomaps build $build_date, maxzoom ${{ inputs.maxzoom }}"
+          bash scripts/extract-offline-map.sh "$build_date" "${{ inputs.maxzoom }}" delft-pilot
+
+      - name: Verify the archive and record metadata
+        run: |
+          set -euo pipefail
+          mkdir -p delft-map-report
+          pmtiles verify public/maps/delft-pilot.pmtiles
+          pmtiles show public/maps/delft-pilot.pmtiles | tee delft-map-report/pmtiles-show.txt
+          {
+            echo "# Generated $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            f=public/maps/delft-pilot.pmtiles
+            printf '%s\n  size : %s (%s bytes)\n  sha256: %s\n' \
+              "$f" "$(ls -lh "$f" | awk '{print $5}')" "$(stat -c '%s' "$f")" \
+              "$(sha256sum "$f" | awk '{print $1}')"
+          } | tee delft-map-report/checksums.txt
+
+      - name: Tests (incl. Delft route pipeline) and production build
+        run: |
+          npm test
+          npm run build
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: delft-pilot-map
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            public/maps/delft-pilot.pmtiles
+            delft-map-report/pmtiles-show.txt
+            delft-map-report/checksums.txt
+
+      - name: Commit the archive back to this branch
+        if: ${{ inputs.commit_to_branch }}
+        run: |
+          set -euo pipefail
+          size="$(stat -c '%s' public/maps/delft-pilot.pmtiles)"
+          # Guard rail: the pilot cutout should be small. If it unexpectedly
+          # exceeds ~30 MB, do NOT put it in git history — fail loudly and use
+          # the Release/deploy-injection pattern (see deploy.yml + README).
+          if [ "$size" -gt 31457280 ]; then
+            echo "FATAL: archive is $size bytes (> 30 MB) — too large to commit."
+            echo "Publish it as a Release asset and inject it in deploy.yml instead."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/maps/delft-pilot.pmtiles
+          if git diff --cached --quiet; then
+            echo "Archive unchanged — nothing to commit."
+          else
+            git commit -m "Add Delft pilot offline basemap (delft-pilot.pmtiles, maxzoom ${{ inputs.maxzoom }})"
+            git push
+          fi

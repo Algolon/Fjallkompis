@@ -67,18 +67,42 @@ Producing it in **gpx.studio**:
    `<trkseg>…</trkseg>` block and paste it immediately after itself inside
    the same `<trk>` (segment 0 stays the overview, the copy becomes stage 1).
 4. Save as `public/gpx/delft-pilot.gpx`.
-5. Run `npm run generate:route` — it validates the structure, prints the
-   route statistics, and writes `src/generated/delft-pilot-route.json`
+5. Run `npm run generate:route:delft` — it validates the structure, prints
+   the route statistics, and writes `src/generated/delft-pilot-route.json`
    (commit it). Hard violations fail with a clear message.
+   (`npm run generate:route` regenerates all routes;
+   `npm run generate:route:kungsleden` only the Kungsleden data. Each route
+   writes only its own output file — generating one can never touch another.)
 
 ### 1.2 The basemap (`public/maps/delft-pilot.pmtiles`)
 
 Reuses the existing Protomaps extraction workflow — range-read extraction
 from the Protomaps daily planet build, **never** scraping
-tile.openstreetmap.org:
+tile.openstreetmap.org.
+
+**Preferred: the GitHub Actions workflow** (no local tooling needed). The
+GPX and its generated JSON must be committed on the branch first. Then:
+
+1. GitHub → **Actions** → *Delft pilot map data (maintenance)* →
+   **Run workflow**;
+2. pick the branch (the pilot feature branch, or `main` after merge), leave
+   *build_date* empty (= yesterday's Protomaps build), *maxzoom* `15`,
+   *commit_to_branch* ticked;
+3. press **Run workflow**. The runner extracts the bounded archive, runs
+   `pmtiles verify`, uploads a `delft-pilot-map` artifact (archive +
+   metadata + checksums) and commits `public/maps/delft-pilot.pmtiles`
+   back to the branch (it refuses to commit anything over 30 MB).
+
+   Caveat: GitHub only lists a `workflow_dispatch` workflow in the Actions
+   UI once the workflow file exists on the **default branch**. If it is not
+   listed yet, either merge the pilot PR first and run it on `main`, or run
+   the local command below.
+
+**Local alternative** (requires the
+[pmtiles CLI](https://github.com/protomaps/go-pmtiles/releases) on PATH):
 
 ```bash
-# after generate:route has produced the delft JSON; pmtiles CLI on PATH
+# after generate:route:delft has produced the delft JSON
 scripts/extract-offline-map.sh <YYYYMMDD|yesterday's build> 15 delft-pilot
 ```
 
@@ -90,9 +114,10 @@ beyond it. Expected size for a ~4 km urban route corridor at z15: roughly
 
 **Hosting recommendation:** if the archive comes out ≲ 15 MB, commit it to
 the repo next to `kungsleden.pmtiles` (~3.5 MB) — simplest, and it is
-temporary. If it is unexpectedly large, do NOT commit it; replicate the
-satellite pattern instead (versioned GitHub Release asset + deploy-time
-injection in `.github/workflows/deploy.yml`).
+temporary (the workflow above does exactly this). If it is unexpectedly
+large, do NOT commit it; replicate the satellite pattern instead (versioned
+GitHub Release asset + deploy-time injection in
+`.github/workflows/deploy.yml`).
 
 Attribution is the same as the Kungsleden basemap (© OpenStreetMap
 contributors · Protomaps) and is already wired.
@@ -125,7 +150,9 @@ Delete, in one commit:
 - `VITE_ENABLE_DELFT_PILOT` in `.env` (or the whole file) and in
   `src/vite-env.d.ts`;
 - `DELFT_PILOT_CONFIG` in `scripts/route-configs.mjs` (keep the manifest and
-  the generalized generator — they are an improvement, not pilot-only);
+  the generalized generator — they are an improvement, not pilot-only) and
+  the `generate:route:delft` npm script;
+- `.github/workflows/delft-pilot-map.yml`;
 - `public/gpx/delft-pilot.gpx`, `public/maps/delft-pilot.pmtiles`,
   `src/generated/delft-pilot-route.json`;
 - `tests/pilot-session.test.mjs`, `tests/route-data-delft.test.mjs`

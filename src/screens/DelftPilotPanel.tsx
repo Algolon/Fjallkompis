@@ -63,12 +63,14 @@ function MissingAssetsCard() {
           their comment/description).
         </li>
         <li>
-          Run <span className="tnum">npm run generate:route</span> and commit the
+          Run <span className="tnum">npm run generate:route:delft</span> and commit the
           regenerated <span className="tnum">src/generated/delft-pilot-route.json</span>.
         </li>
         <li>
-          Build the basemap: <span className="tnum">scripts/extract-offline-map.sh
-          latest 15 delft-pilot</span> → <span className="tnum">public/maps/delft-pilot.pmtiles</span>.
+          Build the basemap via the <em>Delft pilot map data</em> GitHub Actions
+          workflow (or locally: <span className="tnum">scripts/extract-offline-map.sh
+          &lt;YYYYMMDD&gt; 15 delft-pilot</span>) →{' '}
+          <span className="tnum">public/maps/delft-pilot.pmtiles</span>.
         </li>
         <li>Rebuild and redeploy the app.</li>
       </ol>

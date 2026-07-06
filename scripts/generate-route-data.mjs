@@ -41,7 +41,11 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ROUTE_CONFIGS, KUNGSLEDEN_CONFIG } from './route-configs.mjs';
+import {
+  ROUTE_CONFIGS,
+  ROUTE_CONFIG_BY_ID,
+  KUNGSLEDEN_CONFIG,
+} from './route-configs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -427,8 +431,25 @@ function generateRoute(config) {
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
+  // Optional route-id arguments select which routes to (re)generate, e.g.
+  //   node scripts/generate-route-data.mjs delft-pilot
+  // (npm run generate:route:kungsleden / generate:route:delft). Each route
+  // only ever writes its own config.outputPath — generating one route can
+  // never touch another route's GPX or generated JSON. No arguments = all.
+  const requested = process.argv.slice(2);
+  const unknown = requested.filter((id) => !ROUTE_CONFIG_BY_ID[id]);
+  if (unknown.length > 0) {
+    console.error(
+      `Unknown route id(s): ${unknown.join(', ')} — known routes: ${ROUTE_CONFIGS.map((c) => c.id).join(', ')}`,
+    );
+    process.exit(1);
+  }
+  const configs = requested.length
+    ? requested.map((id) => ROUTE_CONFIG_BY_ID[id])
+    : ROUTE_CONFIGS;
+
   let ok = true;
-  for (const config of ROUTE_CONFIGS) {
+  for (const config of configs) {
     ok = generateRoute(config) && ok;
     console.log();
   }

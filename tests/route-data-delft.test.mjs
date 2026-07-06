@@ -95,15 +95,23 @@ test('pilot identifiers never collide with persisted Kungsleden identifiers', ()
   assert.notEqual(DELFT_PILOT_CONFIG.outputPath, KUNGSLEDEN_CONFIG.outputPath);
 });
 
-test('while the Delft GPX is absent, the committed JSON is the stub', () => {
-  const gpxPresent = existsSync(join(ROOT, DELFT_PILOT_CONFIG.gpxPath));
+test('the committed Delft JSON matches the current GPX state (stub or real)', () => {
+  const gpxAbs = join(ROOT, DELFT_PILOT_CONFIG.gpxPath);
   const committed = JSON.parse(
     readFileSync(join(ROOT, DELFT_PILOT_CONFIG.outputPath), 'utf8'),
   );
-  if (gpxPresent) {
-    // Real data generated: it must NOT be the stub and must carry geometry.
+  if (existsSync(gpxAbs)) {
+    // Real data generated: never the stub, exactly one stage, and — like the
+    // Kungsleden drift test — regenerated from the GPX without differences.
     assert.notEqual(committed.available, false);
     assert.ok(Array.isArray(committed.stages) && committed.stages.length === 1);
+    const { data, problems } = buildRouteData(
+      readFileSync(gpxAbs, 'utf8'),
+      DELFT_PILOT_CONFIG,
+    );
+    assert.deepEqual(problems, []);
+    assert.equal(committed.sourceSha256, data.sourceSha256, 'run: npm run generate:route:delft');
+    assert.equal(committed.statistics.distanceKm, data.statistics.distanceKm);
   } else {
     assert.deepEqual(committed, buildMissingRouteStub(DELFT_PILOT_CONFIG));
   }
