@@ -10,6 +10,35 @@ pre-1.0 rules in the [README](README.md#versioning--releases).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-06
+
+### Added
+
+- **Along-route progress**: the Map screen projects the GPS fix (or manual
+  stop pin) onto the persisted current stage and reports km done, km left and
+  percent complete, with a reliability gate (max of 75 m and 3× reported GPS
+  accuracy) that qualifies or rejects off-route/low-accuracy fixes instead of
+  showing a confident-but-wrong number. Pure projection utility with its own
+  test suite.
+- **Install app card** in Settings: native install prompt where the browser
+  supports it, honest Add-to-Home-Screen guidance elsewhere — never a dead
+  button; status updates reactively after install or worker activation.
+- **PWA lifecycle toasts**: "Update now / Later" when a new service worker is
+  waiting, and a one-shot "ready for offline use" confirmation.
+
+### Changed
+
+- Service-worker updates are now **prompt-based** (single React-controlled
+  registration): the app never reloads out from under unsaved input.
+- Manual mode records which stop the position was pinned to, so stage
+  start/end read exactly 0%/100% and an unrelated stop is flagged.
+
+### Removed
+
+- The straight-line "distance to next hut" metric, superseded by along-route
+  progress.
+- The static PWA status row in Settings, superseded by the Install app card.
+
 ## [0.3.0] - 2026-07-06
 
 ### Added
