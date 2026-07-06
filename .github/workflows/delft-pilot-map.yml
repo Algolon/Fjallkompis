@@ -15,9 +15,10 @@
 # workflow was dispatched on — the archive is small enough to live in the repo
 # next to kungsleden.pmtiles, so no Release/deploy-injection is needed.
 #
-# NOTE: like all workflow_dispatch workflows, this appears in the Actions UI
-# once the file exists on the default branch; until then it can only be
-# dispatched via the API against a branch that contains it.
+# NOTE: workflow_dispatch workflows only become dispatchable once the file
+# exists on the DEFAULT branch. Until the pilot PR is merged, the push
+# trigger below covers the gap: pushing a change to the pilot GPX (or this
+# file) on the pilot branch runs the build there, with the input defaults.
 name: Delft pilot map data (maintenance)
 
 on:
@@ -35,6 +36,11 @@ on:
         description: 'Commit the verified archive back to this branch'
         type: boolean
         default: true
+  push:
+    branches: [claude/delft-map-pilot-mpzflz]
+    paths:
+      - public/gpx/delft-pilot.gpx
+      - .github/workflows/delft-pilot-map.yml
 
 permissions:
   contents: write
@@ -86,8 +92,8 @@ jobs:
           if [ -z "$build_date" ]; then
             build_date="$(date -d yesterday +%Y%m%d)"
           fi
-          echo "Using Protomaps build $build_date, maxzoom ${{ inputs.maxzoom }}"
-          bash scripts/extract-offline-map.sh "$build_date" "${{ inputs.maxzoom }}" delft-pilot
+          echo "Using Protomaps build $build_date, maxzoom ${{ inputs.maxzoom || '15' }}"
+          bash scripts/extract-offline-map.sh "$build_date" "${{ inputs.maxzoom || '15' }}" delft-pilot
 
       - name: Verify the archive and record metadata
         run: |
@@ -121,7 +127,7 @@ jobs:
             delft-map-report/checksums.txt
 
       - name: Commit the archive back to this branch
-        if: ${{ inputs.commit_to_branch }}
+        if: ${{ github.event_name == 'push' || inputs.commit_to_branch }}
         run: |
           set -euo pipefail
           size="$(stat -c '%s' public/maps/delft-pilot.pmtiles)"
@@ -139,6 +145,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Archive unchanged — nothing to commit."
           else
-            git commit -m "Add Delft pilot offline basemap (delft-pilot.pmtiles, maxzoom ${{ inputs.maxzoom }})"
+            git commit -m "Add Delft pilot offline basemap (delft-pilot.pmtiles, maxzoom ${{ inputs.maxzoom || '15' }})"
             git push
           fi
