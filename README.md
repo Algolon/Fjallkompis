@@ -242,7 +242,9 @@ fjallkompis/
 - Basemap has no text labels yet (kept glyph/sprite-free for offline
   reliability); hut names are local HTML markers.
 - Max zoom 14 (+overzoom) — fine for overview, not for close-up detail.
-- "Distance to next hut" is straight-line, not along-route progress.
+- Route progress projects a one-shot GPS fix onto the mapped line — it is
+  approximate (no live tracking), and off-route or low-accuracy fixes are
+  qualified rather than shown as a confident percentage.
 - Stage time estimates are personal guesses; the GPX has no time data.
 
 ## Project status & roadmap

@@ -6,22 +6,9 @@ import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
 import { OfflineMapCard, SatelliteMapCard } from '../components/OfflineMapCard';
 import { CreditsSheet } from '../components/CreditsSheet';
+import { InstallCard } from '../components/InstallCard';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
-
-function pwaStatus(): string {
-  const standalone =
-    window.matchMedia?.('(display-mode: standalone)').matches ||
-    // iOS Safari
-    (navigator as unknown as { standalone?: boolean }).standalone === true;
-  const swControlled =
-    'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
-
-  if (standalone && swControlled) return 'Installed · offline-ready';
-  if (swControlled) return 'Offline-ready (in browser tab)';
-  if (standalone) return 'Installed (service worker starting…)';
-  return 'Browser tab · install from the share/▾ menu for offline use';
-}
 
 export function SettingsScreen() {
   const { state, storageOk, replaceState, resetAll } = useStore();
@@ -92,11 +79,9 @@ export function SettingsScreen() {
           <span className="muted">Local storage</span>
           <span>{storageOk ? 'Available' : 'Unavailable (data won’t persist)'}</span>
         </div>
-        <div className="row-between" style={{ marginTop: 8 }}>
-          <span className="muted">PWA</span>
-          <span style={{ textAlign: 'right', maxWidth: '60%' }}>{pwaStatus()}</span>
-        </div>
       </div>
+
+      <InstallCard />
 
       <div className="card">
         <span className="card-title">Backup & restore</span>

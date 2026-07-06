@@ -7,35 +7,30 @@ rules live in the [README](README.md#versioning--releases).
 
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.3.x). The core
+Offline-first Kungsleden trail companion PWA (prototype, v0.4.x). The core
 trip loop works end to end and offline: verified route with stage statistics
-and elevation profiles, an offline vector basemap plus an optional Sentinel-2
-satellite layer (each independently downloadable), a curated stops guide,
-daily/packing lists, and local backup/restore. Not yet field-tested — still
+and elevation profiles, along-route GPS progress on the current stage, an
+offline vector basemap plus an optional Sentinel-2 satellite layer (each
+independently downloadable), a curated stops guide, daily/packing lists,
+install/update UX, and local backup/restore. Not yet field-tested — still
 labelled *prototype, not for primary navigation*.
 
 ## Now
 
-1. **GPS route progress** — project the live GPS fix onto the route line so
-   the app shows along-route "km done / km left" instead of straight-line
-   distance to the next hut. Highest-value gap in the daily hiking loop.
-2. **Installable-PWA polish** — clearer install prompt, a service-worker
-   update toast, and richer offline states, so installing and updating the
-   app is understandable without developer knowledge.
+1. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
+   render general text labels without any remote font dependency (hut names
+   are already local HTML markers).
+2. **Terrain context** — contour lines and/or hillshade from an offline
+   terrain PMTiles source, subject to archive-size measurements.
 
 ## Next
 
-3. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
-   render general text labels without any remote font dependency (hut names
-   are already local HTML markers).
-4. **Terrain context** — contour lines and/or hillshade from an offline
-   terrain PMTiles source, subject to archive-size measurements.
+3. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
+   screen so first paint doesn't pay for the map engine.
 
 ## Later
 
-5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
-   screen so first paint doesn't pay for the map engine.
-6. **Real-device field testing** — battery, GPS accuracy, glove/sunlight
+4. **Real-device field testing** — battery, GPS accuracy, glove/sunlight
    usability and offline behaviour on the trail; a prerequisite for calling
    any release trip-ready (1.0.0).
 
@@ -52,6 +47,10 @@ labelled *prototype, not for primary navigation*.
 
 ## Completed
 
+- Along-route GPS progress (position projected onto the current stage, with a
+  reliability gate).
+- Installable-PWA polish: install card, prompt-based update toast,
+  offline-ready confirmation.
 - Verified GPX route pipeline with generated route statistics.
 - Per-stage elevation profiles.
 - Offline MapLibre + PMTiles vector basemap.
