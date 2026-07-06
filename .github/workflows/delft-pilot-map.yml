@@ -16,9 +16,9 @@
 # next to kungsleden.pmtiles, so no Release/deploy-injection is needed.
 #
 # NOTE: workflow_dispatch workflows only become dispatchable once the file
-# exists on the DEFAULT branch. Until the pilot PR is merged, the push
-# trigger below covers the gap: pushing a change to the pilot GPX (or this
-# file) on the pilot branch runs the build there, with the input defaults.
+# exists on the DEFAULT branch. (During pilot development, a temporary
+# branch-scoped push trigger built the initial archive; it was removed once
+# the archive was committed — manual dispatch is the only trigger now.)
 name: Delft pilot map data (maintenance)
 
 on:
@@ -36,11 +36,6 @@ on:
         description: 'Commit the verified archive back to this branch'
         type: boolean
         default: true
-  push:
-    branches: [claude/delft-map-pilot-mpzflz]
-    paths:
-      - public/gpx/delft-pilot.gpx
-      - .github/workflows/delft-pilot-map.yml
 
 permissions:
   contents: write
@@ -127,7 +122,7 @@ jobs:
             delft-map-report/checksums.txt
 
       - name: Commit the archive back to this branch
-        if: ${{ github.event_name == 'push' || inputs.commit_to_branch }}
+        if: ${{ inputs.commit_to_branch }}
         run: |
           set -euo pipefail
           size="$(stat -c '%s' public/maps/delft-pilot.pmtiles)"
