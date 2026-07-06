@@ -1,111 +1,21 @@
 /**
- * Hydrates the build-time generated route JSON into the typed ParsedRoute
- * model. Runs once at module load (~10k small array allocations, negligible).
- *
- * GeoJSON features and elevation profiles are derived here from the full-
- * resolution points; any chart downsampling happens strictly at render time
- * and never feeds back into distances or statistics.
+ * The canonical Kungsleden route dataset: hydrates the build-time generated
+ * route JSON into the typed ParsedRoute model via the shared hydration in
+ * src/route/hydrate.ts. Runs once at module load (~10k small array
+ * allocations, negligible).
  */
 import generated from '../generated/kungsleden-route.json';
-import type {
-  ElevationSample,
-  LineStringFeature,
-  ParsedRoute,
-  RoutePoint,
-  RouteStage,
-  RouteStatistics,
-  RouteBounds,
-  RouteWaypoint,
-} from './types';
-
-/** Compact generated encoding: [lat, lon, elevationM|null, cumulativeKm]. */
-type PackedPoint = [number, number, number | null, number];
-
-interface GeneratedStage {
-  id: string;
-  day: number;
-  fromWaypointId: string;
-  toWaypointId: string;
-  points: PackedPoint[];
-  bounds: RouteBounds;
-  statistics: RouteStatistics;
-}
-
-interface GeneratedRoute {
-  name: string;
-  waypoints: RouteWaypoint[];
-  overview: { points: PackedPoint[]; bounds: RouteBounds; statistics: RouteStatistics };
-  stages: GeneratedStage[];
-  bounds: RouteBounds;
-  statistics: RouteStatistics;
-  mapCutoutBounds: RouteBounds;
-  diagnostics: Record<string, unknown>;
-}
+import { hydrateRoute, toProfile, type GeneratedRoute } from './hydrate';
+import type { ParsedRoute, RouteStage, RouteWaypoint } from './types';
 
 const raw = generated as unknown as GeneratedRoute;
 
-const unpack = (pts: PackedPoint[]): RoutePoint[] =>
-  pts.map(([lat, lon, elevation, cumulativeDistanceKm]) => ({
-    lat,
-    lon,
-    elevation,
-    cumulativeDistanceKm,
-  }));
-
-const toLineString = (
-  points: RoutePoint[],
-  properties: Record<string, string | number>,
-): LineStringFeature => ({
-  type: 'Feature',
-  properties,
-  geometry: {
-    type: 'LineString',
-    coordinates: points.map((p) => [p.lon, p.lat]),
-  },
-});
-
-const toProfile = (points: RoutePoint[]): ElevationSample[] =>
-  points
-    .filter((p) => p.elevation != null)
-    .map((p) => ({
-      distanceKm: p.cumulativeDistanceKm,
-      elevationM: p.elevation as number,
-      lat: p.lat,
-      lon: p.lon,
-    }));
-
-function hydrateStage(g: GeneratedStage): RouteStage {
-  const points = unpack(g.points);
-  return {
-    id: g.id,
-    day: g.day,
-    fromWaypointId: g.fromWaypointId,
-    toWaypointId: g.toWaypointId,
-    points,
-    geoJson: toLineString(points, { stageId: g.id, day: g.day }),
-    bounds: g.bounds,
-    statistics: g.statistics,
-    elevationProfile: toProfile(points),
-  };
-}
-
-const overviewPoints = unpack(raw.overview.points);
-
-export const ROUTE: ParsedRoute = {
-  name: raw.name,
-  overviewPoints,
-  overviewGeoJson: toLineString(overviewPoints, { role: 'overview' }),
-  stages: raw.stages.map(hydrateStage),
-  waypoints: raw.waypoints,
-  bounds: raw.bounds,
-  statistics: raw.statistics,
-  mapCutoutBounds: raw.mapCutoutBounds,
-};
+export const ROUTE: ParsedRoute = hydrateRoute(raw);
 
 export const ROUTE_DIAGNOSTICS = raw.diagnostics;
 
 /** Full-resolution elevation profile of the complete overview route. */
-export const OVERVIEW_ELEVATION_PROFILE = toProfile(overviewPoints);
+export const OVERVIEW_ELEVATION_PROFILE = toProfile(ROUTE.overviewPoints);
 
 export const STAGE_BY_ID: Record<string, RouteStage> = Object.fromEntries(
   ROUTE.stages.map((s) => [s.id, s]),

@@ -17,22 +17,29 @@ labelled *prototype, not for primary navigation*.
 
 ## Now
 
-1. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
+1. **Delft pilot field test (temporary)** — run the Map-tab pilot walk in
+   Delft (docs/delft-pilot-test.md): produce the pilot GPX + PMTiles assets,
+   walk the route, and evaluate live tracking, off-route behaviour, offline
+   maps and battery on a real phone. Feeds directly into item “Real-device
+   field testing” below; the pilot code is bounded and will be removed after
+   the test.
+2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
    are already local HTML markers).
-2. **Terrain context** — contour lines and/or hillshade from an offline
+3. **Terrain context** — contour lines and/or hillshade from an offline
    terrain PMTiles source, subject to archive-size measurements.
 
 ## Next
 
-3. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
+4. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
 
 ## Later
 
-4. **Real-device field testing** — battery, GPS accuracy, glove/sunlight
-   usability and offline behaviour on the trail; a prerequisite for calling
-   any release trip-ready (1.0.0).
+5. **Real-device field testing on the trail** — battery, GPS accuracy,
+   glove/sunlight usability and offline behaviour on the Kungsleden itself;
+   a prerequisite for calling any release trip-ready (1.0.0). The Delft
+   pilot (Now) de-risks the Map-tab portion beforehand.
 
 ## Blocked / awaiting external action
 

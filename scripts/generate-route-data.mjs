@@ -2,18 +2,20 @@
 /**
  * GPX → route-data preprocessing.
  *
- * Parses public/gpx/kungsleden-abisko-nikkaluokta.gpx at build time and emits
- * src/generated/kungsleden-route.json so the browser never parses ~5,000 XML
- * nodes at runtime.
+ * Parses each route GPX listed in scripts/route-configs.mjs at build time and
+ * emits src/generated/<route>-route.json so the browser never parses
+ * thousands of XML nodes at runtime.
  *
  * GPX semantics (gpx.studio export, GPX 1.1, no timestamps):
- *   - one <trk> with EIGHT <trkseg> elements:
- *       segment index 0   = complete Abisko → Nikkaluokta overview geometry
- *       segment index 1–7 = the seven daily stages, in route order
- *     The overview and the day stages describe the SAME journey twice; they
+ *   - one <trk> with 1 + N <trkseg> elements:
+ *       segment index 0     = complete overview geometry
+ *       segment index 1..N  = the stages, in route order
+ *     The overview and the stages describe the SAME journey twice; they
  *     must never be concatenated or summed together.
- *   - eight <wpt> waypoints; <cmt>/<desc> hold a stable machine id
- *     (START_ABISKO, HUT_*, END_NIKKALUOKTA), <name> is the display name.
+ *   - one <wpt> per stop; <cmt>/<desc> hold a stable machine id
+ *     (e.g. START_ABISKO, HUT_*, END_NIKKALUOKTA), <name> is the display name.
+ *   The expected segment/waypoint counts and stage↔waypoint pairs come from
+ *   the per-route config (see route-configs.mjs).
  *
  * Elevation processing (documented method):
  *   - min/max elevation come from the RAW <ele> values;
@@ -29,34 +31,30 @@
  *
  * The script is deterministic: same GPX in, byte-identical JSON out.
  * It validates the parsed data (counts, distances, waypoint proximity) and
- * exits non-zero on hard violations so a broken GPX fails the build.
+ * exits non-zero on hard violations so a broken GPX fails the build. A
+ * missing GPX for an OPTIONAL route (required: false, e.g. the temporary
+ * Delft pilot) is not an error: a deterministic { available: false } stub is
+ * written instead so the normal build never depends on pilot assets.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  ROUTE_CONFIGS,
+  ROUTE_CONFIG_BY_ID,
+  KUNGSLEDEN_CONFIG,
+} from './route-configs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const GPX_PATH = join(ROOT, 'public/gpx/kungsleden-abisko-nikkaluokta.gpx');
-const OUT_PATH = join(ROOT, 'src/generated/kungsleden-route.json');
 
 // ---- Tunables (documented above) -------------------------------------------
 const SMOOTHING_WINDOW = 5; // centred moving average, ~100 m at ~20 m spacing
 const NOISE_THRESHOLD_M = 2; // hysteresis: ignore accumulated changes < 2 m
 const WAYPOINT_MAX_DRIFT_M = 250; // stage ends must be this close to waypoints
-const MAP_BUFFER_KM = 9; // padding around route bounds for the basemap cutout
-
-// Expected stage → waypoint-pair mapping, in route order.
-const EXPECTED_STAGE_WAYPOINTS = [
-  ['START_ABISKO', 'HUT_ABISKOJAURE'],
-  ['HUT_ABISKOJAURE', 'HUT_ALESJAURE'],
-  ['HUT_ALESJAURE', 'HUT_TJAKTJA'],
-  ['HUT_TJAKTJA', 'HUT_SALKA'],
-  ['HUT_SALKA', 'HUT_SINGI'],
-  ['HUT_SINGI', 'HUT_KEBNEKAISE'],
-  ['HUT_KEBNEKAISE', 'END_NIKKALUOKTA'],
-];
+// Median spacing above which along-route GPS projection starts to feel coarse.
+const SPACING_WARN_M = 60;
 
 // ---- Minimal GPX parsing ----------------------------------------------------
 // Node has no DOMParser; this GPX comes from a single known exporter
@@ -77,13 +75,7 @@ function decodeXml(s) {
     .replace(/&amp;/g, '&');
 }
 
-// Display-name overrides for GPX waypoint names that are too formal for the
-// UI (map labels, waypoint detail panel). Keyed by waypoint id.
-const NAME_OVERRIDES = {
-  START_ABISKO: 'Abisko', // GPX: "Abisko Nationalpark Visitor Centre"
-};
-
-function parseGpx(xml) {
+function parseGpx(xml, nameOverrides = {}) {
   const waypoints = [];
   const wptRe = /<wpt\s+lat="([^"]+)"\s+lon="([^"]+)"\s*>([\s\S]*?)<\/wpt>/g;
   for (const [, lat, lon, body] of xml.matchAll(wptRe)) {
@@ -91,7 +83,7 @@ function parseGpx(xml) {
     if (!id) throw new Error(`Waypoint "${tag(body, 'name')}" has no cmt/desc id`);
     waypoints.push({
       id,
-      name: NAME_OVERRIDES[id] ?? tag(body, 'name') ?? id,
+      name: nameOverrides[id] ?? tag(body, 'name') ?? id,
       description: tag(body, 'desc') ?? undefined,
       symbol: tag(body, 'sym') ?? undefined,
       lat: Number(lat),
@@ -235,24 +227,37 @@ function fail(msg) {
   process.exitCode = 1;
 }
 
-export function buildRouteData(xml) {
-  const { trackName, segments, waypoints } = parseGpx(xml);
+export function buildRouteData(xml, config = KUNGSLEDEN_CONFIG) {
+  const { trackName, segments, waypoints } = parseGpx(xml, config.nameOverrides);
   const problems = [];
   const check = (ok, msg) => {
     if (!ok) problems.push(msg);
   };
 
-  check(segments.length === 8, `expected 8 track segments, found ${segments.length}`);
-  check(waypoints.length === 8, `expected 8 waypoints, found ${waypoints.length}`);
+  check(
+    segments.length === config.expectedSegments,
+    `expected ${config.expectedSegments} track segments, found ${segments.length}`,
+  );
+  check(
+    waypoints.length === config.expectedWaypoints,
+    `expected ${config.expectedWaypoints} waypoints, found ${waypoints.length}`,
+  );
 
   const waypointById = Object.fromEntries(waypoints.map((w) => [w.id, w]));
 
-  // Segment 0 is the overview; 1..7 are day stages. Never combined.
+  // A track without at least an overview + one stage cannot be processed at
+  // all — report cleanly instead of crashing on segments[0].
+  if (segments.length < 2 || segments.some((s) => s.length < 2)) {
+    problems.push('track needs ≥ 2 segments with ≥ 2 points each (overview + stages)');
+    return { data: null, problems };
+  }
+
+  // Segment 0 is the overview; 1..N are the stages. Never combined.
   const overviewPts = withCumulativeDistance(segments[0]);
   const stageSegs = segments.slice(1).map(withCumulativeDistance);
 
   const stages = stageSegs.map((pts, i) => {
-    const [fromId, toId] = EXPECTED_STAGE_WAYPOINTS[i] ?? [null, null];
+    const [fromId, toId] = config.stageWaypoints[i] ?? [null, null];
     const from = waypointById[fromId];
     const to = waypointById[toId];
     check(!!from && !!to, `stage ${i + 1}: missing expected waypoint ${fromId}/${toId}`);
@@ -273,7 +278,7 @@ export function buildRouteData(xml) {
     }
 
     return {
-      id: `d${i + 1}`,
+      id: `${config.stageIdPrefix}${i + 1}`,
       day: i + 1,
       fromWaypointId: fromId,
       toWaypointId: toId,
@@ -287,25 +292,45 @@ export function buildRouteData(xml) {
   const stageSumKm = stages.reduce((s, st) => s + st.statistics.distanceKm, 0);
   const diffPct = Math.abs(overviewStats.distanceKm - stageSumKm) / overviewStats.distanceKm * 100;
 
-  check(stages.length === 7, `expected 7 stages, generated ${stages.length}`);
+  check(
+    stages.length === config.stageWaypoints.length,
+    `expected ${config.stageWaypoints.length} stages, generated ${stages.length}`,
+  );
   check(
     diffPct < 1,
     `overview (${overviewStats.distanceKm} km) vs stage sum (${round(stageSumKm, 2)} km) differ by ${round(diffPct, 2)}% (limit 1%)`,
   );
-  check(
-    overviewStats.minimumElevationM != null,
-    'route has no elevation data',
-  );
+  if (config.requireElevation) {
+    check(
+      overviewStats.minimumElevationM != null,
+      'route has no elevation data',
+    );
+  }
+
+  // Along-route GPS projection interpolates between points; warn (not fail)
+  // when the geometry is sampled too coarsely for a smooth readout.
+  const spacings = overviewPts
+    .slice(1)
+    .map((p, i) => (p.cumKm - overviewPts[i].cumKm) * 1000)
+    .sort((a, b) => a - b);
+  const medianSpacingM = spacings.length
+    ? spacings[Math.floor(spacings.length / 2)]
+    : 0;
+  if (medianSpacingM > SPACING_WARN_M) {
+    console.warn(
+      `WARN: ${config.id}: median point spacing ${Math.round(medianSpacingM)} m > ${SPACING_WARN_M} m — GPS projection will feel coarse; export the GPX with more track points.`,
+    );
+  }
 
   const routeBounds = boundsOf(overviewPts);
   check(
     routeBounds[0][0] < routeBounds[1][0] && routeBounds[0][1] < routeBounds[1][1],
     'route bounds are degenerate',
   );
-  const mapCutoutBounds = padBounds(routeBounds, MAP_BUFFER_KM);
+  const mapCutoutBounds = padBounds(routeBounds, config.mapBufferKm);
 
   const data = {
-    sourceFile: 'public/gpx/kungsleden-abisko-nikkaluokta.gpx',
+    sourceFile: config.gpxPath,
     sourceSha256: createHash('sha256').update(xml).digest('hex'),
     name: trackName,
     // Encoding notes for consumers:
@@ -337,6 +362,7 @@ export function buildRouteData(xml) {
       stageSumKm: round(stageSumKm, 3),
       overviewVsStageSumDiffPct: round(diffPct, 3),
       elevationRangeM: [overviewStats.minimumElevationM, overviewStats.maximumElevationM],
+      medianPointSpacingM: round(medianSpacingM, 1),
       routeBounds,
       mapCutoutBounds,
       smoothing: `centred moving average, window ${SMOOTHING_WINDOW} pts; hysteresis threshold ${NOISE_THRESHOLD_M} m`,
@@ -346,34 +372,89 @@ export function buildRouteData(xml) {
   return { data, problems };
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) {
-  const xml = readFileSync(GPX_PATH, 'utf8');
-  const { data, problems } = buildRouteData(xml);
+/**
+ * Deterministic stub written for an optional route whose GPX does not exist
+ * yet. The app treats { available: false } as "dataset not generated" and the
+ * pilot UI explains what is missing instead of rendering a route.
+ */
+export function buildMissingRouteStub(config) {
+  return {
+    available: false,
+    routeId: config.id,
+    note: `Source GPX ${config.gpxPath} not present when generate-route-data.mjs ran.`,
+  };
+}
 
-  for (const p of problems) fail(p);
-  if (problems.length > 0) {
-    console.error('Route data generation aborted — fix the GPX or expectations above.');
-    process.exit(1);
+function generateRoute(config) {
+  const gpxAbs = join(ROOT, config.gpxPath);
+  const outAbs = join(ROOT, config.outputPath);
+  mkdirSync(dirname(outAbs), { recursive: true });
+
+  if (!existsSync(gpxAbs)) {
+    if (config.required) {
+      fail(`${config.id}: required GPX ${config.gpxPath} is missing`);
+      return false;
+    }
+    writeFileSync(outAbs, JSON.stringify(buildMissingRouteStub(config)));
+    console.log(
+      `Route "${config.id}": GPX not present (${config.gpxPath}) — wrote { available: false } stub → ${config.outputPath}`,
+    );
+    return true;
   }
 
-  mkdirSync(dirname(OUT_PATH), { recursive: true });
-  writeFileSync(OUT_PATH, JSON.stringify(data));
+  const xml = readFileSync(gpxAbs, 'utf8');
+  const { data, problems } = buildRouteData(xml, config);
+
+  for (const p of problems) fail(`${config.id}: ${p}`);
+  if (problems.length > 0) return false;
+
+  writeFileSync(outAbs, JSON.stringify(data));
 
   const d = data.diagnostics;
-  console.log('Route data generated → src/generated/kungsleden-route.json');
+  console.log(`Route data generated → ${config.outputPath}`);
   console.log(`  track:            ${data.name}`);
   console.log(`  tracks/segments:  ${d.trackCount} track, ${d.segmentCount} segments (1 overview + ${data.stages.length} stages)`);
   console.log(`  waypoints:        ${d.waypointCount}`);
   console.log(`  overview:         ${data.statistics.distanceKm} km, ${d.overviewPointCount} pts`);
   data.stages.forEach((s) =>
     console.log(
-      `  day ${s.day}:            ${s.statistics.distanceKm.toFixed(2)} km  (+${s.statistics.totalAscentM} m / -${s.statistics.totalDescentM} m)  ${s.fromWaypointId} → ${s.toWaypointId}`,
+      `  stage ${s.id}:         ${s.statistics.distanceKm.toFixed(2)} km  (+${s.statistics.totalAscentM ?? '—'} m / -${s.statistics.totalDescentM ?? '—'} m)  ${s.fromWaypointId} → ${s.toWaypointId}`,
     ),
   );
   console.log(`  stage sum:        ${d.stageSumKm} km (diff vs overview: ${d.overviewVsStageSumDiffPct}%)`);
-  console.log(`  ascent/descent:   +${data.statistics.totalAscentM} m / -${data.statistics.totalDescentM} m (overview)`);
-  console.log(`  elevation range:  ${d.elevationRangeM[0]}–${d.elevationRangeM[1]} m`);
+  console.log(`  ascent/descent:   +${data.statistics.totalAscentM ?? '—'} m / -${data.statistics.totalDescentM ?? '—'} m (overview)`);
+  console.log(`  elevation range:  ${d.elevationRangeM[0] ?? '—'}–${d.elevationRangeM[1] ?? '—'} m`);
   console.log(`  route bounds:     ${JSON.stringify(d.routeBounds)}`);
-  console.log(`  map cutout:       ${JSON.stringify(d.mapCutoutBounds)} (${MAP_BUFFER_KM} km buffer)`);
+  console.log(`  map cutout:       ${JSON.stringify(d.mapCutoutBounds)} (${config.mapBufferKm} km buffer)`);
+  return true;
+}
+
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  // Optional route-id arguments select which routes to (re)generate, e.g.
+  //   node scripts/generate-route-data.mjs delft-pilot
+  // (npm run generate:route:kungsleden / generate:route:delft). Each route
+  // only ever writes its own config.outputPath — generating one route can
+  // never touch another route's GPX or generated JSON. No arguments = all.
+  const requested = process.argv.slice(2);
+  const unknown = requested.filter((id) => !ROUTE_CONFIG_BY_ID[id]);
+  if (unknown.length > 0) {
+    console.error(
+      `Unknown route id(s): ${unknown.join(', ')} — known routes: ${ROUTE_CONFIGS.map((c) => c.id).join(', ')}`,
+    );
+    process.exit(1);
+  }
+  const configs = requested.length
+    ? requested.map((id) => ROUTE_CONFIG_BY_ID[id])
+    : ROUTE_CONFIGS;
+
+  let ok = true;
+  for (const config of configs) {
+    ok = generateRoute(config) && ok;
+    console.log();
+  }
+  if (!ok) {
+    console.error('Route data generation aborted — fix the GPX or expectations above.');
+    process.exit(1);
+  }
 }

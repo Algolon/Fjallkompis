@@ -18,6 +18,12 @@ interface ImportMetaEnv {
    * same-origin from maps/. See src/map/offlineMap.ts.
    */
   readonly VITE_SATELLITE_URL?: string;
+  /**
+   * TEMPORARY feature flag for the Delft Map-tab pilot (set to the exact
+   * string 'true' to show the pilot route context; see .env and
+   * docs/delft-pilot-test.md). Remove together with the pilot.
+   */
+  readonly VITE_ENABLE_DELFT_PILOT?: string;
 }
 
 interface ImportMeta {

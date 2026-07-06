@@ -170,6 +170,17 @@ like the Pages deployment. Open the Map screen and switch to **Satellite**;
 `VITE_SATELLITE_URL` instead only works if that host sends CORS headers and
 supports Range requests — plain GitHub Release asset URLs do neither.)
 
+## Delft pilot mode (temporary)
+
+A bounded, temporary Map-tab field test on a short walk in Delft: its own GPX
+route (`public/gpx/delft-pilot.gpx`), its own bounded basemap
+(`public/maps/delft-pilot.pmtiles`, separate cache), one-shot GPS, an explicit
+foreground **live-tracking** session (`watchPosition`) with a breadcrumb
+trail, qualified off-route states and an exportable diagnostics log. Hidden
+unless `VITE_ENABLE_DELFT_PILOT=true` (see `.env`); Kungsleden always stays
+the default and pilot state is never persisted. Protocol, asset production
+and removal instructions: [docs/delft-pilot-test.md](docs/delft-pilot-test.md).
+
 ## Stops guide data
 
 The Stops screen shows a **curated snapshot** of official facility information
