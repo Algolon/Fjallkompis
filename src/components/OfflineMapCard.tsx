@@ -16,6 +16,12 @@ import {
   type ArchiveSpec,
   type OfflineMapStatus,
 } from '../map/offlineMap';
+import {
+  BASEMAP_SOURCE_INFO,
+  SATELLITE_SOURCE_INFO,
+  type DataSourceAttribution,
+} from '../data/attribution';
+import { SourceSummary } from './SourceSummary';
 
 type Phase =
   | { kind: 'checking' }
@@ -30,9 +36,20 @@ interface ArchiveCardProps {
   description: string;
   /** Confirmation text shown before removing the archive. */
   removeConfirm: string;
+  /** Heading of the source/attribution block, e.g. "Map data" or "Imagery". */
+  sourceHeading: string;
+  /** Attribution entry from the central registry (src/data/attribution.ts). */
+  source: DataSourceAttribution;
 }
 
-function ArchiveCard({ spec, title, description, removeConfirm }: ArchiveCardProps) {
+function ArchiveCard({
+  spec,
+  title,
+  description,
+  removeConfirm,
+  sourceHeading,
+  source,
+}: ArchiveCardProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
 
   const refresh = async () => {
@@ -163,9 +180,7 @@ function ArchiveCard({ spec, title, description, removeConfirm }: ArchiveCardPro
         </button>
       )}
 
-      <p className="card-sub" style={{ marginTop: 10, wordBreak: 'break-all' }}>
-        Source: {archiveUrl(spec)}
-      </p>
+      <SourceSummary heading={sourceHeading} source={source} assetUrl={archiveUrl(spec)} />
     </div>
   );
 }
@@ -177,6 +192,8 @@ export function OfflineMapCard() {
       title="Offline map"
       description="A bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~9 km). Download it while online; the route itself always works offline."
       removeConfirm="Remove the offline map? The map screen will need a connection again."
+      sourceHeading="Map data"
+      source={BASEMAP_SOURCE_INFO}
     />
   );
 }
@@ -188,6 +205,8 @@ export function SatelliteMapCard() {
       title="Satellite imagery"
       description="Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~42 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap."
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
+      sourceHeading="Imagery"
+      source={SATELLITE_SOURCE_INFO}
     />
   );
 }
