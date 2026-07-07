@@ -10,6 +10,43 @@ pre-1.0 rules in the [README](README.md#versioning--releases).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-07
+
+### Added
+
+- **Live tracking (beta) on the Kungsleden Map screen**: explicit opt-in,
+  foreground-only GPS tracking of the persisted current stage, graduated
+  from the field-validated Delft pilot mechanics. A compact control row
+  under the map offers one-shot Locate, Start/Stop live tracking and a
+  deliberate Follow mode (auto-disabled by manual panning); starting focuses
+  the tracked stage and enables Follow. Requires a current stage; never
+  persists "tracking active" or any location history.
+- **In-map tracking status overlay** (visible in fullscreen too): a compact
+  status stack showing *Live tracking · Day X · higher battery use*, a
+  damped *GPS signal uncertain* state, and — highest priority — the
+  persistent, qualified off-route warning ("You may be off route ·
+  approximately X m from the mapped route") that clears immediately on
+  recovery. Non-modal, no sound/vibration/notifications; screen readers are
+  told about status transitions only, never per-fix updates.
+- **Full-route vs current-stage separation**: on/off-route status is judged
+  against the complete Kungsleden route, while completed/remaining/percent
+  progress uses the current stage only — standing on a different stage reads
+  "On the mapped route, but not reliably matched to today's stage" instead
+  of a false off-route warning or a misleading percentage.
+
+### Changed
+
+- The pilot tracking core is now shared production code
+  (`src/utils/trackingSession.mjs`, `src/hooks/useRouteTracking.ts`) with
+  the validated classification, debounce and acceptance rules unchanged;
+  the Delft pilot runs on the same core with its diagnostics log, breadcrumb
+  and exports enabled — production Kungsleden tracking keeps none of those
+  (no per-reading log, no breadcrumb, no exports, no raw coordinates).
+- The Kungsleden position card no longer prints raw coordinates; it shows
+  the position source and accuracy instead (the map marker is the position).
+- One position source at a time: one-shot Locate and manual mode are
+  disabled/hidden while a live session is running.
+
 ## [0.5.2] - 2026-07-07
 
 ### Added

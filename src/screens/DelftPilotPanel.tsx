@@ -10,14 +10,14 @@
  *  - it never reads or writes the persisted app store (current stage, notes);
  *  - the GPS log stays in memory unless the user exports it;
  *  - unmounting (switching back to Kungsleden, changing tab) stops any
- *    running geolocation watcher via useLiveTracking's cleanup.
+ *    running geolocation watcher via useRouteTracking's cleanup.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapView, type MapViewHandle } from '../components/MapView';
 import { DelftPilotMapCard } from '../components/OfflineMapCard';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { useLiveTracking } from '../hooks/useLiveTracking';
+import { useRouteTracking } from '../hooks/useRouteTracking';
 import { DELFT_ROUTE, DELFT_STAGE } from '../route/delftPilot';
 import { DELFT_ARCHIVE } from '../map/offlineMap';
 import type { BasemapMode } from '../map/pmtilesProtocol';
@@ -28,8 +28,8 @@ import {
   sessionToExport,
   ACCURACY_UNCERTAIN_M,
   OFF_ROUTE_CONSECUTIVE,
-} from '../utils/pilotSession.mjs';
-import type { SessionRouteStatus } from '../utils/pilotSession.mjs';
+} from '../utils/trackingSession.mjs';
+import type { SessionRouteStatus } from '../utils/trackingSession.mjs';
 import { downloadJson, downloadTextFile } from '../utils/exportImport';
 import { formatDistanceKm, todayIso } from '../utils/format';
 import { APP_VERSION } from '../constants';
@@ -81,7 +81,15 @@ function MissingAssetsCard() {
 export function DelftPilotPanel() {
   const mapRef = useRef<MapViewHandle>(null);
   const geo = useGeolocation();
-  const tracking = useLiveTracking(DELFT_STAGE?.points ?? null);
+  // Diagnostics mode: full per-reading log + breadcrumb trail (pilot only).
+  // Single-stage route: the same geometry drives status AND progress.
+  const tracking = useRouteTracking({
+    routePoints: DELFT_STAGE?.points ?? null,
+    stagePoints: DELFT_STAGE?.points ?? null,
+    stageId: DELFT_STAGE?.id ?? null,
+    keepLog: true,
+    keepTrail: true,
+  });
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [follow, setFollow] = useState(false);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
@@ -118,15 +126,8 @@ export function DelftPilotPanel() {
   const fixAgeS =
     fixTimestamp != null ? Math.max(0, Math.round((Date.now() - fixTimestamp) / 1000)) : null;
 
-  const lastAccepted = useMemo(() => {
-    for (let i = session.log.length - 1; i >= 0; i--) {
-      if (session.log[i].accepted) return session.log[i];
-    }
-    return null;
-  }, [session.log]);
-
   const crossTrackM = live
-    ? lastAccepted?.crossTrackM ?? null
+    ? session.lastAccepted?.crossTrackM ?? null
     : oneShotProj?.ok
       ? oneShotProj.crossTrackM
       : null;

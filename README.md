@@ -253,9 +253,15 @@ fjallkompis/
 - Basemap has no text labels yet (kept glyph/sprite-free for offline
   reliability); hut names are local HTML markers.
 - Max zoom 14 (+overzoom) — fine for overview, not for close-up detail.
-- Route progress projects a one-shot GPS fix onto the mapped line — it is
-  approximate (no live tracking), and off-route or low-accuracy fixes are
-  qualified rather than shown as a confident percentage.
+- Route progress projects GPS fixes onto the mapped line — approximate, and
+  off-route or low-accuracy fixes are qualified rather than shown as a
+  confident percentage. **Live tracking (beta)** is explicit opt-in and
+  foreground-only: it follows the persisted current stage with a single
+  high-accuracy `watchPosition` watcher, judges on/off-route against the
+  complete route (so standing on another stage is never called "off route"),
+  shows a compact in-map status (active / GPS-uncertain / qualified
+  off-route), and stops when you leave the Map tab or the screen locks. No
+  background tracking, no location history retained or persisted.
 - Stage time estimates are personal guesses; the GPX has no time data.
 
 ## Project status & roadmap
