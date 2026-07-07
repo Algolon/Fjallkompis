@@ -102,17 +102,39 @@ h3 {
 .app {
   max-width: 560px;
   margin: 0 auto;
-  /* dvh tracks the visible viewport on mobile; 100vh includes the space
-     behind the collapsible browser chrome and forces phantom scrolling.
-     A bounded *height* (not min-height) keeps the shell exactly one viewport
+  /* A bounded *height* (not min-height) keeps the shell exactly one viewport
      tall so the document itself never scrolls — scrolling is delegated to
-     <main> below, and only when a screen's content genuinely overflows. */
+     <main> below, and only when a screen's content genuinely overflows.
+
+     Sizing is layered, most-reliable last:
+       1. 100vh — universal fallback; includes the space behind collapsible
+          browser chrome, so on its own it can force phantom scrolling.
+       2. 100dvh (in the @supports block below) — tracks the visible viewport
+          in CSS alone, but Android Chrome can leave it stale after the
+          reload that applies a service-worker update and after resuming
+          from background, which stranded the tab bar below the viewport.
+       3. --app-height — the JS-measured *visible* viewport height (the
+          visual viewport, since after the buggy reload even the layout
+          viewport can be oversized), refreshed on resize / visualViewport
+          resize / orientationchange / pageshow / visibilitychange (see
+          src/utils/viewportHeight.mjs). The var() fallbacks keep 1–2 in
+          charge until the first measurement lands. */
   height: 100vh;
-  height: 100dvh;
+  height: var(--app-height, 100vh);
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
+}
+
+/* Prefer 100dvh over 100vh as the pre-measurement fallback where supported.
+   This must live in @supports: an unsupported unit inside var()'s fallback
+   would not fall back to the earlier declaration — it would invalidate the
+   whole property at computed-value time. */
+@supports (height: 100dvh) {
+  .app {
+    height: var(--app-height, 100dvh);
+  }
 }
 
 /* The single scroll region. flex:1 + min-height:0 lets it fill the space the
@@ -1983,11 +2005,14 @@ button.map-status-pill {
 
 /* --- PWA lifecycle toast ------------------------------------------------- */
 
-/* Fixed above the in-flow tab bar (tabbar-h + its own safe-area inset) and
-   the viewport safe area, so it never covers primary navigation. Non-modal:
+/* Floated above the in-flow tab bar (tabbar-h + its own safe-area inset).
+   Anchored to the .app shell (position: relative) rather than the viewport:
+   the shell's height is the measured --app-height, so the toast stays above
+   the tab bar even when the browser's own viewport metrics are stale (the
+   same Android Chrome bug the shell sizing defends against). Non-modal:
    it does not trap focus or block the page, but its buttons are reachable. */
 .pwa-toast-region {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
