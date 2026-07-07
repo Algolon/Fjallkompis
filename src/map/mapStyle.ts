@@ -10,9 +10,10 @@
  * stages; stage identity is never communicated by colour alone (day numbers
  * appear on chips, markers and summaries).
  */
-import { layers as protomapsLayers, namedFlavor } from '@protomaps/basemaps';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 import { BASEMAP_SOURCE_INFO, SATELLITE_SOURCE_INFO } from '../data/attribution';
+import { basemapLayersForStyle, DEFAULT_MAP_STYLE_ID } from './mapStyles.mjs';
+import type { MapStyleId } from './mapStyles.mjs';
 
 export const BASEMAP_SOURCE = 'protomaps';
 /**
@@ -69,6 +70,9 @@ const stageColorExpression = [
 export function buildMapStyle(
   basemapSourceUrl: string | null,
   satelliteSourceUrl: string | null = null,
+  // Comparison-prototype hook (docs/map-style-comparison.md). The default is
+  // the production style, so existing callers are byte-for-byte unchanged.
+  mapStyleId: MapStyleId = DEFAULT_MAP_STYLE_ID,
 ): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,
@@ -90,12 +94,11 @@ export function buildMapStyle(
       url: basemapSourceUrl,
       attribution: BASEMAP_ATTRIBUTION,
     };
-    // Calm "light" flavour; no `lang` → no symbol layers → no glyph/sprite
-    // dependencies. Layers cover land, landcover/landuse, water, waterways,
-    // roads, paths/trails, railways, buildings and boundaries where present.
-    style.layers.push(
-      ...(protomapsLayers(BASEMAP_SOURCE, namedFlavor('light'), {}) as LayerSpecification[]),
-    );
+    // All styles cover land, landcover/landuse, water, waterways, roads,
+    // paths/trails, railways, buildings and boundaries where present, and
+    // none emits symbol layers → no glyph/sprite dependencies. 'current' is
+    // the calm @protomaps/basemaps "light" flavour (production style).
+    style.layers.push(...basemapLayersForStyle(mapStyleId, BASEMAP_SOURCE));
   }
 
   // Satellite raster basemap from a PMTiles archive, added only when one is

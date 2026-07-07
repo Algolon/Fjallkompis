@@ -10,6 +10,26 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-07
+
+### Added
+
+- **Map-style comparison prototype**: a developer-facing "Style · prototype"
+  selector on the Map screen renders three basemap styles from the same
+  offline PMTiles source — **Current** (production, unchanged), **Liberty
+  Topo** (the gpx.studio Liberty Topo design adapted to the Protomaps
+  schema; style only, no gpx.studio tiles/fonts/sprites) and **Liberty Topo
+  — Nordic** (the same structure in the Nordic Trail palette). Switching is
+  instant and in place: camera, route overlays, hut markers, GPS dot and UI
+  state are preserved, and all three stay glyph-, sprite- and network-free.
+  Architecture, licence lineage, the Liberty layer-mapping table and the
+  evaluation checklist are documented in `docs/map-style-comparison.md`;
+  guarded by `tests/map-styles.test.mjs`. **No production style decision has
+  been made** — the default style is unchanged.
+- Liberty Topo / OSM Liberty style attribution (MIT · BSD-3-Clause ·
+  CC BY 4.0 lineage) registered in the central credits registry and shown in
+  Settings → Data sources & credits.
+
 ## [0.7.0] - 2026-07-07
 
 ### Added
@@ -145,6 +165,7 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   the map instance is still created exactly once per mount).
 - `scripts/extract-offline-map.sh` takes an optional route id
   (`kungsleden` default, `delft-pilot` for the pilot cutout).
+
 
 ## [0.4.0] - 2026-07-06
 

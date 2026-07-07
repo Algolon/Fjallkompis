@@ -167,6 +167,23 @@ like the Pages deployment. Open the Map screen and switch to **Satellite**;
 `VITE_SATELLITE_URL` instead only works if that host sends CORS headers and
 supports Range requests — plain GitHub Release asset URLs do neither.)
 
+## Map-style comparison prototype
+
+The Map screen has a developer-facing **Style · prototype** selector with
+three basemap styles rendered from the **same** offline PMTiles source:
+**Current** (production, unchanged), **Liberty Topo** (the
+[gpx.studio styles](https://github.com/gpxstudio/styles) Liberty Topo design
+adapted to the Protomaps schema — style only, never gpx.studio
+tiles/fonts/sprites) and **Liberty Topo — Nordic** (the same structure in the
+Nordic Trail palette). Switching swaps basemap paint layers in place, so
+camera, route, markers and GPS are preserved, and everything stays glyph-,
+sprite- and network-free. **No production style decision has been made** —
+the default remains Current. Architecture, licences (MIT / BSD-3-Clause /
+CC BY 4.0 lineage), the full layer-mapping table and the evaluation checklist
+live in [map-style-comparison.md](map-style-comparison.md); the roadmap item
+*Evaluate Current vs Liberty Topo vs Nordic Liberty Topo* holds the exit
+criteria. Guarded by `tests/map-styles.test.mjs`.
+
 ## Stops guide data
 
 The Stops screen shows a **curated snapshot** of official facility information
