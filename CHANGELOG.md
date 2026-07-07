@@ -10,6 +10,24 @@ pre-1.0 rules in the [README](README.md#versioning--releases).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-07-07
+
+### Added
+
+- **Inline off-route warning during live tracking** (pilot): while tracking
+  is active and the debounced session status is *off-route*, a non-modal
+  banner states "You may be off route · approximately X m from the mapped
+  trail. Check the map and your surroundings." It never appears for
+  *uncertain*, reuses the accuracy-aware classification and 3-fix debounce,
+  and clears immediately on recovery. No notifications, vibration or sound.
+- **Battery note while live tracking is active** (pilot): plain statement
+  that high-accuracy location stays active while the screen is open — no
+  measured percentages claimed.
+- Anonymised Delft field-test results
+  (docs/pilot-results/delft-2026-07-07-summary.md): the pilot was
+  functionally successful; documents the accepted nearest-segment
+  along-route ambiguity between geographically close route sections.
+
 ## [0.5.1] - 2026-07-06
 
 ### Changed

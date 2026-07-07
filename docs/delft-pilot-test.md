@@ -1,5 +1,9 @@
 # Delft pilot — Map-tab field test (temporary)
 
+> **Status: the field test was performed on 2026-07-07 and was functionally
+> successful.** Anonymised results:
+> [pilot-results/delft-2026-07-07-summary.md](pilot-results/delft-2026-07-07-summary.md).
+
 A bounded, temporary pilot mode for field-testing the Map tab (route
 rendering, offline basemap, one-shot GPS, live tracking, along-route
 projection, off-route behaviour) on a short walk in Delft, because the

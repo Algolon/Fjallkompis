@@ -293,12 +293,36 @@ export function DelftPilotPanel() {
             </div>
 
             {tracking.active ? (
-              <p className="banner-info" style={{ marginTop: 12 }}>
-                <span>🛰️</span>
+              <>
+                <p className="banner-info" style={{ marginTop: 12 }}>
+                  <span>🛰️</span>
+                  <span>
+                    <strong>Live tracking active</strong> — foreground only: updates
+                    pause when the screen locks or the browser suspends the app.
+                    This is not reliable background tracking.
+                  </span>
+                </p>
+                <p className="card-sub" style={{ marginTop: 8 }}>
+                  Live tracking uses additional battery. High-accuracy location
+                  remains active while this screen is open. Stop tracking when
+                  you no longer need it.
+                </p>
+              </>
+            ) : null}
+
+            {/* Qualified off-route hint: live tracking only, and only for the
+                debounced session status (never for 'uncertain'). Rendering is
+                purely derived, so recovery removes it immediately. Kept apart
+                from the geolocation/API error banner below. */}
+            {tracking.active && session.routeStatus === 'off-route' ? (
+              <p className="banner-warn" style={{ marginTop: 12 }} role="status">
+                <span>🧭</span>
                 <span>
-                  <strong>Live tracking active</strong> — foreground only: updates
-                  pause when the screen locks or the browser suspends the app.
-                  This is not reliable background tracking.
+                  You may be off route
+                  {crossTrackM != null && isFinite(crossTrackM)
+                    ? ` · approximately ${Math.round(crossTrackM)} m from the mapped trail`
+                    : ''}
+                  . Check the map and your surroundings.
                 </span>
               </p>
             ) : null}

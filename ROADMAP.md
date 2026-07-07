@@ -7,22 +7,24 @@ rules live in the [README](README.md#versioning--releases).
 
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.4.x). The core
+Offline-first Kungsleden trail companion PWA (prototype, v0.5.x). The core
 trip loop works end to end and offline: verified route with stage statistics
 and elevation profiles, along-route GPS progress on the current stage, an
 offline vector basemap plus an optional Sentinel-2 satellite layer (each
 independently downloadable), a curated stops guide, daily/packing lists,
-install/update UX, and local backup/restore. Not yet field-tested — still
-labelled *prototype, not for primary navigation*.
+install/update UX, and local backup/restore. The Map-tab GPS mechanics
+(one-shot fix, foreground live tracking, projection, off-route states,
+offline pilot basemap) were validated in a real-device Delft pilot walk
+(docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has
+not been field-tested — still labelled *prototype, not for primary
+navigation*.
 
 ## Now
 
-1. **Delft pilot field test (temporary)** — run the Map-tab pilot walk in
-   Delft (docs/delft-pilot-test.md): produce the pilot GPX + PMTiles assets,
-   walk the route, and evaluate live tracking, off-route behaviour, offline
-   maps and battery on a real phone. Feeds directly into item “Real-device
-   field testing” below; the pilot code is bounded and will be removed after
-   the test.
+1. **Decide the Delft pilot's future** — the field test is complete and the
+   pilot code is still in the app behind its flag: either remove the
+   temporary pilot and its assets, or refactor the generic live-tracking
+   pieces into an opt-in Kungsleden beta (separate PR either way).
 2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
    are already local HTML markers).
@@ -39,7 +41,7 @@ labelled *prototype, not for primary navigation*.
 5. **Real-device field testing on the trail** — battery, GPS accuracy,
    glove/sunlight usability and offline behaviour on the Kungsleden itself;
    a prerequisite for calling any release trip-ready (1.0.0). The Delft
-   pilot (Now) de-risks the Map-tab portion beforehand.
+   pilot de-risked the Map-tab portion.
 
 ## Blocked / awaiting external action
 
@@ -54,6 +56,10 @@ labelled *prototype, not for primary navigation*.
 
 ## Completed
 
+- **Delft pilot field test** (2026-07-07): real-device validation of the Map
+  tab — live tracking, projection, off-route classification and the offline
+  pilot basemap all behaved correctly on a walked route; functionally
+  successful (docs/pilot-results/delft-2026-07-07-summary.md).
 - Along-route GPS progress (position projected onto the current stage, with a
   reliability gate).
 - Installable-PWA polish: install card, prompt-based update toast,
