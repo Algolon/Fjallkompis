@@ -1,7 +1,7 @@
 {
   "name": "fjallkompis",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "Fjällkompis — offline-first hut-to-hut trail companion PWA for the Kungsleden (prototype).",
   "scripts": {
@@ -11,6 +11,8 @@
     "typecheck": "tsc -b --noEmit",
     "check:version": "node scripts/check-version-consistency.mjs",
     "generate:route": "node scripts/generate-route-data.mjs",
+    "generate:route:kungsleden": "node scripts/generate-route-data.mjs kungsleden",
+    "generate:route:delft": "node scripts/generate-route-data.mjs delft-pilot",
     "generate:map:satellite": "./scripts/build-satellite-map.sh",
     "test": "npm run check:version && npm run generate:route && node --test 'tests/**/*.test.mjs'"
   },

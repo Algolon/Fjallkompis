@@ -15,11 +15,12 @@ import maplibregl from 'maplibre-gl';
 import { PMTiles, Protocol } from 'pmtiles';
 import type { Source, RangeResponse } from 'pmtiles';
 import {
+  archiveUrl,
   getArchiveBlob,
-  getOfflineMapBlob,
-  offlineMapUrl,
   satelliteMapUrl,
   SATELLITE_ARCHIVE,
+  VECTOR_ARCHIVE,
+  type ArchiveSpec,
 } from './offlineMap';
 
 let protocol: Protocol | null = null;
@@ -57,7 +58,6 @@ export interface BasemapResolution {
   sourceUrl: string | null;
 }
 
-const OFFLINE_KEY = 'offline://kungsleden';
 const SATELLITE_OFFLINE_KEY = 'offline://kungsleden-satellite';
 
 /**
@@ -93,29 +93,41 @@ async function probeHostedArchive(url: string): Promise<boolean> {
 }
 
 /**
- * Decide where basemap tiles come from, preferring the offline copy.
- * Called on map mount; cheap (one cache lookup + at most one HEAD request).
+ * Decide where an archive's basemap tiles come from, preferring the offline
+ * copy. Called on map mount; cheap (one cache lookup + at most one tiny
+ * ranged probe). Works for any vector-basemap ArchiveSpec: the Kungsleden
+ * default and the temporary Delft pilot archive. A hosted archive that does
+ * not exist (e.g. the pilot file before it is built) is detected safely via
+ * probeHostedArchive and resolves to 'none' instead of crashing MapLibre.
  */
-export async function resolveBasemap(): Promise<BasemapResolution> {
+export async function resolveArchiveBasemap(
+  spec: ArchiveSpec,
+): Promise<BasemapResolution> {
   const proto = ensurePmtilesProtocol();
+  // In-memory protocol key, unique per archive (never persisted).
+  const offlineKey = `offline://${spec.cacheName}`;
 
-  const blob = await getOfflineMapBlob();
+  const blob = await getArchiveBlob(spec);
   if (blob) {
     // Re-adding under the same key replaces the previous instance, which is
     // exactly what we want after a re-download.
-    proto.add(new PMTiles(new BlobSource(blob, OFFLINE_KEY)));
-    return { mode: 'offline', sourceUrl: `pmtiles://${OFFLINE_KEY}` };
+    proto.add(new PMTiles(new BlobSource(blob, offlineKey)));
+    return { mode: 'offline', sourceUrl: `pmtiles://${offlineKey}` };
   }
 
   try {
-    const head = await fetch(offlineMapUrl(), { method: 'HEAD' });
-    if (looksLikeArchive(head)) {
-      return { mode: 'online', sourceUrl: `pmtiles://${offlineMapUrl()}` };
+    if (await probeHostedArchive(archiveUrl(spec))) {
+      return { mode: 'online', sourceUrl: `pmtiles://${archiveUrl(spec)}` };
     }
   } catch {
     // Network down and no offline copy — fall through to 'none'.
   }
   return { mode: 'none', sourceUrl: null };
+}
+
+/** The Kungsleden vector basemap (existing call sites). */
+export function resolveBasemap(): Promise<BasemapResolution> {
+  return resolveArchiveBasemap(VECTOR_ARCHIVE);
 }
 
 /**

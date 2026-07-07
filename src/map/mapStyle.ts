@@ -56,6 +56,8 @@ export const STAGE_COLORS: Record<number, string> = {
 
 export const OVERVIEW_COLOR = '#5c6f68';
 export const GPS_COLOR = '#2c7a8c';
+/** Live-tracking breadcrumb trail (Delft pilot). */
+export const TRAIL_COLOR = '#b3452c';
 
 const stageColorExpression = [
   'match',
@@ -189,6 +191,20 @@ export function routeLayers(): LayerSpecification[] {
         'circle-color': '#1b2a27',
         'circle-stroke-color': '#fff',
         'circle-stroke-width': 2,
+      },
+    },
+    // Live-tracking breadcrumb trail: empty for the normal Kungsleden map;
+    // fed by the Delft pilot's tracking session via the 'trail' source.
+    {
+      id: 'trail-line',
+      type: 'line',
+      source: 'trail',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': TRAIL_COLOR,
+        'line-width': 3,
+        'line-opacity': 0.8,
+        'line-dasharray': [1, 1.5],
       },
     },
     // GPS fix.

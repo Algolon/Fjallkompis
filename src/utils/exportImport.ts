@@ -17,11 +17,13 @@ export function buildExport(state: PersistentState): ExportEnvelope {
   };
 }
 
-/** Trigger a file download in the browser. */
-export function downloadJson(filename: string, data: unknown): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
+/** Trigger a text-file download in the browser. */
+export function downloadTextFile(
+  filename: string,
+  text: string,
+  mimeType: string,
+): void {
+  const blob = new Blob([text], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -30,6 +32,11 @@ export function downloadJson(filename: string, data: unknown): void {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Trigger a JSON file download in the browser. */
+export function downloadJson(filename: string, data: unknown): void {
+  downloadTextFile(filename, JSON.stringify(data, null, 2), 'application/json');
 }
 
 export type ImportResult =

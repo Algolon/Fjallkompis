@@ -62,6 +62,18 @@ export const SATELLITE_ARCHIVE: ArchiveSpec = {
   },
 };
 
+/**
+ * TEMPORARY: bounded vector basemap for the Delft pilot walk (see
+ * docs/delft-pilot-test.md). Its own cache name keeps it fully separate from
+ * the Kungsleden archives — neither can ever overwrite the other. Remove this
+ * spec (and the matching runtimeCaching rule in vite.config.ts) together with
+ * the rest of the pilot.
+ */
+export const DELFT_ARCHIVE: ArchiveSpec = {
+  cacheName: 'fjallkompis-delft-pilot-map-v1',
+  path: 'maps/delft-pilot.pmtiles',
+};
+
 /** @deprecated kept for existing imports; prefer VECTOR_ARCHIVE.cacheName. */
 export const OFFLINE_MAP_CACHE = VECTOR_ARCHIVE.cacheName;
 
