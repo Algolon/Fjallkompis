@@ -1,7 +1,9 @@
 # Delft pilot field test — results summary (2026-07-07)
 
 Anonymised summary of the real outdoor Android field test of the Map-tab
-pilot (see [docs/delft-pilot-test.md](../delft-pilot-test.md)). The raw
+pilot (the pilot itself, its assets and its documentation were removed after
+the tracking mechanics graduated to the Kungsleden Map screen — see the git
+history for `docs/delft-pilot-test.md`). The raw
 session export contains location history and stays on the tester's device —
 only aggregate findings are recorded here. No coordinates or raw timestamps.
 

@@ -1,27 +1,38 @@
 /**
- * Compact map-level live-tracking status stack. Rendered INSIDE the MapLibre
+ * Compact map-level live-tracking status. Rendered INSIDE the MapLibre
  * container (via MapView's `overlay` prop) so it stays visible in the normal
- * and fullscreen map experience, positioned to avoid the navigation/
- * fullscreen controls (top-right), the imagery toggle (top-left) and the
- * scale/attribution (bottom edges).
+ * and fullscreen map experience.
  *
- * Priority (top of the stack = highest):
- *  1. off-route  — persistent qualified warning while the debounced session
- *     status is 'off-route'; disappears immediately on recovery. Non-modal,
- *     no dismissal, no sound/vibration/notifications, never a toast.
- *  2. uncertain  — lower-severity "GPS signal uncertain" once accuracy/
- *     distance has been ambiguous for ≥ UNCERTAIN_UI_CONSECUTIVE fixes
- *     (damps flicker without a second status system).
- *  3. active     — always shown while tracking: what's running, which stage,
- *     and that it costs battery.
+ * Layout (per the 0.6.0 field feedback — the old bottom-centre stack could
+ * overlap the user's own tracking dot while Follow centres the map):
  *
- * Accessibility: the visible pills are NOT live regions (a live region here
- * would re-announce every metre change). Instead one visually-hidden
- * role="status" element announces only meaningful TRANSITIONS (off-route
- * entered / recovered / GPS uncertain), derived from the debounced status.
+ *  - TOP, beside the Terrain/Satellite toggle: a small "● Live Tracking 🔋"
+ *    button (blinking dot, battery hint). Tapping it expands a compact
+ *    details card below: tracked stage, battery note, foreground-only note.
+ *    The damped "GPS signal uncertain" pill appears underneath when
+ *    applicable.
+ *  - BOTTOM, between the scale (left) and the attribution ⓘ (right): a small
+ *    off-route bar — compass icon + "You may be off route" + a ⚠ affordance.
+ *    Tapping it pops the detail above the bar (approximate distance +
+ *    "check the map and your surroundings"), attribution-control style.
+ *    The bar itself stays while the debounced status is off-route and
+ *    disappears immediately on recovery; only the DETAIL is toggleable.
+ *
+ * Never a modal, never a toast, no sound/vibration/notifications. Screen
+ * readers are told about status TRANSITIONS only (visually-hidden
+ * role="status"), never per-fix distance updates. The blink respects
+ * reduced-motion.
  */
+import { useState } from 'react';
 import { UNCERTAIN_UI_CONSECUTIVE } from '../utils/trackingSession.mjs';
 import type { TrackingSession } from '../utils/trackingSession.mjs';
+
+/** "approximately 240 m" / "approximately 12.4 km" (sane at any distance). */
+export function approxDistanceLabel(m: number): string {
+  if (m < 1000) return `approximately ${Math.round(m)} m`;
+  if (m < 10_000) return `approximately ${(m / 1000).toFixed(1)} km`;
+  return `approximately ${Math.round(m / 1000)} km`;
+}
 
 interface TrackingStatusProps {
   session: TrackingSession;
@@ -30,6 +41,9 @@ interface TrackingStatusProps {
 }
 
 export function TrackingStatusOverlay({ session, stageLabel }: TrackingStatusProps) {
+  const [liveOpen, setLiveOpen] = useState(false);
+  const [warnOpen, setWarnOpen] = useState(false);
+
   const offRoute = session.routeStatus === 'off-route';
   const uncertain =
     !offRoute &&
@@ -47,37 +61,70 @@ export function TrackingStatusOverlay({ session, stageLabel }: TrackingStatusPro
         : '';
 
   return (
-    <div className="map-status-stack">
+    <>
       <span className="sr-only" role="status">
         {announcement}
       </span>
-      {offRoute ? (
-        <div className="map-status-pill map-status-warn">
-          <span aria-hidden>🧭</span>
-          <span>
-            You may be off route
-            {crossTrackM != null && isFinite(crossTrackM)
-              ? ` · approximately ${Math.round(crossTrackM)} m from the mapped route`
-              : ''}
-            . Check the map and your surroundings.
-          </span>
-        </div>
-      ) : null}
-      {uncertain ? (
-        <div className="map-status-pill map-status-muted">
-          <span aria-hidden>📡</span>
-          <span>GPS signal uncertain · route status unavailable</span>
-        </div>
-      ) : null}
-      <div
-        className="map-status-pill map-status-live"
-        title="Foreground only — updates pause if the screen locks or you leave the Map tab."
-      >
-        <span className="map-status-dot" aria-hidden />
-        <span>
-          Live tracking · {stageLabel} · higher battery use
-        </span>
+
+      {/* Top status: beside the Terrain/Satellite toggle. */}
+      <div className="map-status-top">
+        <button
+          type="button"
+          className="map-status-pill map-status-live"
+          aria-expanded={liveOpen}
+          onClick={() => setLiveOpen((o) => !o)}
+          title="Live tracking details"
+        >
+          <span className="map-status-dot" aria-hidden />
+          <span>Live Tracking</span>
+          <span aria-hidden>🔋</span>
+        </button>
+        {liveOpen ? (
+          <div className="map-status-details">
+            <div>
+              <strong>Tracking:</strong> {stageLabel}
+            </div>
+            <div>🔋 Higher battery usage while active</div>
+            <div>
+              Foreground only — pauses if the screen locks or you leave the
+              Map tab.
+            </div>
+          </div>
+        ) : null}
+        {uncertain ? (
+          <div className="map-status-pill map-status-muted">
+            <span aria-hidden>📡</span>
+            <span>GPS signal uncertain</span>
+          </div>
+        ) : null}
       </div>
-    </div>
+
+      {/* Bottom off-route bar: between the scale and the attribution ⓘ. */}
+      {offRoute ? (
+        <div className="map-status-bottom">
+          {warnOpen ? (
+            <div className="map-status-details map-status-details-warn">
+              {crossTrackM != null && isFinite(crossTrackM)
+                ? `${approxDistanceLabel(crossTrackM)} from the mapped route. `
+                : ''}
+              Check the map and your surroundings.
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="map-status-pill map-status-warn"
+            aria-expanded={warnOpen}
+            onClick={() => setWarnOpen((o) => !o)}
+            title="Off-route details"
+          >
+            <span aria-hidden>🧭</span>
+            <span>You may be off route</span>
+            <span className="map-status-warn-badge" aria-hidden>
+              ⚠
+            </span>
+          </button>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -3,11 +3,11 @@
 Canonical roadmap for Fjällkompis. This file — not the README, code comments
 or commit messages — is the single source of truth for priority and progress.
 Delivered iterations are summarised in [CHANGELOG.md](CHANGELOG.md); versioning
-rules live in the [README](README.md#versioning--releases).
+rules live in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.6.x). The core
+Offline-first Kungsleden trail companion PWA (prototype, v0.7.x). The core
 trip loop works end to end and offline: verified route with stage statistics
 and elevation profiles, along-route GPS progress on the current stage, an
 offline vector basemap plus an optional Sentinel-2 satellite layer (each
@@ -15,18 +15,18 @@ independently downloadable), a curated stops guide, daily/packing lists,
 install/update UX, opt-in foreground live tracking (beta) on the Map
 screen, and local backup/restore. The Map-tab GPS mechanics
 (one-shot fix, foreground live tracking, projection, off-route states,
-offline pilot basemap) were validated in a real-device Delft pilot walk
+offline basemap handling) were validated in a real-device Delft pilot walk
 (docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has
 not been field-tested — still labelled *prototype, not for primary
 navigation*.
 
 ## Now
 
-1. **Remove the temporary Delft pilot** — the graduation decision is
-   taken: the tracking core now powers the Kungsleden live-tracking beta,
-   and the pilot remains only as a real-device regression harness. Once the
-   Kungsleden integration is reviewed and deployed, delete the pilot panel,
-   route/map assets, flag and workflow per docs/delft-pilot-test.md §3.
+1. **Community beta testing** — share the app with real hikers (Kungsleden
+   and elsewhere), collect structured feedback through the in-app Feedback
+   card and the GitHub beta-feedback issue template, and fold findings back
+   into the Map/tracking experience. Kick-off requires nothing more than
+   sharing the app link.
 2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
    are already local HTML markers).
@@ -58,6 +58,16 @@ navigation*.
 
 ## Completed
 
+- **Delft pilot removed** after graduation: panel, route/map assets, feature
+  flag, workflow and pilot docs deleted; the field-validated tracking core
+  lives on as production code. Anonymised results remain in
+  docs/pilot-results/.
+- **Beta-tester readiness**: user-facing README with a direct app link and
+  usage best practices (technical docs moved to docs/DEVELOPMENT.md), an
+  in-app Feedback card, a structured GitHub beta-feedback issue template,
+  and map-status refinements from the first device feedback (compact
+  top-of-map Live Tracking button with expandable details, bottom off-route
+  bar with tap-for-detail, one-shot Locate recentring the map).
 - **Production live-tracking UX for Kungsleden (beta)**: opt-in,
   foreground-only live tracking on the Map screen with a map-centric status
   overlay (active / GPS-uncertain / qualified off-route), full-route status

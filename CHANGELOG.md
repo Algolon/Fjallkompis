@@ -2,13 +2,46 @@
 
 Notable, user-meaningful changes to Fjällkompis. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the
-pre-1.0 rules in the [README](README.md#versioning--releases).
+pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 
 > Entries for 0.1.0 and 0.2.0 were reconstructed from git history on
 > 2026-07-06, when this changelog was introduced; they are deliberately
 > summaries, not complete lists.
 
 ## [Unreleased]
+
+## [0.7.0] - 2026-07-07
+
+### Added
+
+- **Feedback path for beta testers**: a Feedback card in Settings linking to
+  a structured GitHub *Beta feedback* issue form (app version, device,
+  screen, what happened, privacy checkbox — never exact coordinates). A free
+  GitHub account is required to submit; the card says so honestly.
+- **Tap-for-detail map status**: the off-route warning is now a compact bar
+  at the bottom edge of the map (between the scale and the attribution ⓘ) —
+  compass icon, "You may be off route", and a ⚠ affordance that pops the
+  approximate distance ("… m"/"… km" as appropriate) and guidance above it.
+  It no longer covers the tracking dot while Follow centres the map.
+- One-shot **Locate now recentres the map** on the fix (previously it only
+  placed the marker, which read as "nothing happened").
+
+### Changed
+
+- The live-tracking status is a compact "● Live Tracking 🔋" button on the
+  top edge of the map beside the layer toggle; tapping it expands the
+  details (tracked day, battery note, foreground-only note).
+- **README rewritten for app users** — what Fjällkompis is, a direct link to
+  the app, getting-started steps and on-trail best practices; all technical
+  documentation moved to docs/DEVELOPMENT.md.
+
+### Removed
+
+- **The temporary Delft pilot**, completed and graduated: pilot panel, route
+  context selector, Delft GPX/PMTiles/generated data, feature flag, map
+  cache rule, Actions workflow and pilot docs. The validated tracking core
+  remains as production code; anonymised field-test results remain in
+  docs/pilot-results/.
 
 ## [0.6.0] - 2026-07-07
 

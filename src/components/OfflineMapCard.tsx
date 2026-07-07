@@ -7,7 +7,6 @@
 import { useEffect, useState } from 'react';
 import {
   archiveUrl,
-  DELFT_ARCHIVE,
   downloadArchive,
   formatBytes,
   getArchiveStatus,
@@ -212,22 +211,3 @@ export function SatelliteMapCard() {
   );
 }
 
-/**
- * TEMPORARY: offline download for the Delft pilot basemap. Rendered only
- * inside the pilot panel (never in Settings), so it is invisible unless the
- * VITE_ENABLE_DELFT_PILOT flag is on AND the pilot route is selected. Its
- * archive uses its own Cache Storage cache — it can never overwrite the
- * Kungsleden map (see DELFT_ARCHIVE in src/map/offlineMap.ts).
- */
-export function DelftPilotMapCard() {
-  return (
-    <ArchiveCard
-      spec={DELFT_ARCHIVE}
-      title="Delft pilot map"
-      description="A small OpenStreetMap-derived basemap of the Delft pilot walk (route + ~2 km). Separate from the Kungsleden offline map — downloading or removing it never touches the Kungsleden archives."
-      removeConfirm="Remove the Delft pilot map? The pilot map screen will need a connection again. The Kungsleden offline map is not affected."
-      sourceHeading="Map data"
-      source={BASEMAP_SOURCE_INFO}
-    />
-  );
-}
