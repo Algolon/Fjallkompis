@@ -41,6 +41,8 @@ export interface MapViewHandle {
   fitRoute: () => void;
   fitStage: (stageId: string) => void;
   resetBearing: () => void;
+  /** Ease the camera to a position (e.g. after a one-shot locate). */
+  centerOn: (p: { lat: number; lng: number }) => void;
 }
 
 /** Which basemap the user is looking at: the offline vector map or satellite. */
@@ -150,6 +152,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       if (stage) fitBounds(stage.bounds);
     },
     resetBearing: () => mapRef.current?.resetNorthPitch(animate()),
+    centerOn: (p) => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.easeTo({
+        center: [p.lng, p.lat],
+        // Zoom in for a useful "where am I" view, but never zoom OUT on the
+        // user or fight a level they already chose.
+        zoom: Math.max(map.getZoom(), 13),
+        ...animate(),
+      });
+    },
   }));
 
   // ---- Create the map once ------------------------------------------------

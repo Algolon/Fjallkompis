@@ -5,6 +5,7 @@ import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
 import { OfflineMapCard, SatelliteMapCard } from '../components/OfflineMapCard';
+import { REPOSITORY_URL } from '../data/attribution';
 import { CreditsSheet } from '../components/CreditsSheet';
 import { InstallCard } from '../components/InstallCard';
 
@@ -120,6 +121,29 @@ export function SettingsScreen() {
       <OfflineMapCard />
 
       <SatelliteMapCard />
+
+      <div className="card">
+        <span className="card-title">Feedback (beta)</span>
+        <p className="card-sub" style={{ marginTop: 4 }}>
+          Testing Fjällkompis? Problems, GPS oddities and ideas are all
+          welcome — mention your app version ({APP_VERSION}) and device, and
+          please don’t include exact GPS coordinates.
+        </p>
+        <a
+          className="btn btn-block"
+          style={{ marginTop: 12, textDecoration: 'none' }}
+          href={`${REPOSITORY_URL}/issues/new?template=beta-feedback.yml`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Give feedback on GitHub
+        </a>
+        <p className="card-sub" style={{ marginTop: 8 }}>
+          Opens a short pre-structured form (a free GitHub account is needed
+          to submit). No account? Send your feedback through whatever channel
+          you received the app link from.
+        </p>
+      </div>
 
       <div className="card">
         <span className="card-title">Data sources &amp; credits</span>

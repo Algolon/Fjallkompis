@@ -32,9 +32,8 @@
  * The script is deterministic: same GPX in, byte-identical JSON out.
  * It validates the parsed data (counts, distances, waypoint proximity) and
  * exits non-zero on hard violations so a broken GPX fails the build. A
- * missing GPX for an OPTIONAL route (required: false, e.g. the temporary
- * Delft pilot) is not an error: a deterministic { available: false } stub is
- * written instead so the normal build never depends on pilot assets.
+ * missing GPX for an OPTIONAL route (required: false) is not an error: a
+ * deterministic { available: false } stub is written instead.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -432,8 +431,8 @@ function generateRoute(config) {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
   // Optional route-id arguments select which routes to (re)generate, e.g.
-  //   node scripts/generate-route-data.mjs delft-pilot
-  // (npm run generate:route:kungsleden / generate:route:delft). Each route
+  //   node scripts/generate-route-data.mjs kungsleden
+  // (npm run generate:route:kungsleden). Each route
   // only ever writes its own config.outputPath — generating one route can
   // never touch another route's GPX or generated JSON. No arguments = all.
   const requested = process.argv.slice(2);

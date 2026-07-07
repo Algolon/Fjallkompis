@@ -20,11 +20,8 @@
 #   BUILD_DATE  Protomaps daily build to extract from, YYYYMMDD.
 #               Defaults to yesterday (today's build may not exist yet).
 #   MAXZOOM     Maximum zoom level to include. Default 14 (~10 m/px detail;
-#               good hiking overview while keeping the file small). For the
-#               small delft-pilot cutout, 15 is a reasonable urban-walk value.
+#               good hiking overview while keeping the file small).
 #   ROUTE_ID    Route from scripts/route-configs.mjs. Default: kungsleden.
-#               'delft-pilot' builds the TEMPORARY pilot basemap
-#               (public/maps/delft-pilot.pmtiles, see docs/delft-pilot-test.md).
 #
 # Requires the pmtiles CLI: https://github.com/protomaps/go-pmtiles/releases
 # (single static binary; put it on PATH or set PMTILES_BIN).

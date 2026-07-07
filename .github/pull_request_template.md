@@ -5,7 +5,7 @@
 ## Release checklist (user-facing changes)
 
 - [ ] Version decision made explicitly: **no bump / patch / minor / major**
-      (pre-1.0 rules: see “Versioning & releases” in the README)
+      (pre-1.0 rules: see “Versioning & releases” in docs/DEVELOPMENT.md)
 - [ ] `CHANGELOG.md` updated (or genuinely nothing user-meaningful changed)
 - [ ] `ROADMAP.md` priorities/statuses still accurate
 - [ ] `package.json` and `package-lock.json` aligned — `npm run check:version` passes

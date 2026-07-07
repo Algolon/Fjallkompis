@@ -4,10 +4,9 @@
  * routes exist, where their GPX lives, what structure the GPX must have and
  * where the generated JSON / PMTiles archives go.
  *
- * The Kungsleden entry is the permanent, canonical route. The delft-pilot
- * entry is a TEMPORARY test route for a local Map-tab field test (see
- * docs/delft-pilot-test.md); remove it — and everything it references — when
- * the pilot is over.
+ * The Kungsleden entry is the permanent, canonical route. Optional entries
+ * (required: false) may be added for bounded tests; a missing optional GPX
+ * yields an { available: false } stub instead of failing the build.
  */
 
 export const KUNGSLEDEN_CONFIG = {
@@ -40,38 +39,8 @@ export const KUNGSLEDEN_CONFIG = {
   nameOverrides: { START_ABISKO: 'Abisko' },
 };
 
-export const DELFT_PILOT_CONFIG = {
-  id: 'delft-pilot',
-  gpxPath: 'public/gpx/delft-pilot.gpx',
-  outputPath: 'src/generated/delft-pilot-route.json',
-  pmtilesPath: 'public/maps/delft-pilot.pmtiles',
-  /**
-   * Optional: while the Delft GPX has not been produced yet the generator
-   * writes an { available: false } stub instead of failing, so the normal
-   * Kungsleden build keeps working.
-   */
-  required: false,
-  // One <trk>, segment 0 = overview, segment 1 = pilot stage 1 (the same
-  // walk described twice, mirroring the Kungsleden convention).
-  expectedSegments: 2,
-  expectedWaypoints: 2,
-  stageWaypoints: [['START_DELFT', 'END_DELFT']],
-  // 'p' (pilot) — never 'd', so pilot stage ids can never collide with the
-  // persisted Kungsleden stage ids (d1..d7).
-  stageIdPrefix: 'p',
-  /** Delft is flat; elevation in the GPX is welcome but not required. */
-  requireElevation: false,
-  /** Modest buffer: the pilot archive should cover the walk, not all of Delft. */
-  mapBufferKm: 2,
-  // The GPX <name> fields carry the machine ids; give the map markers
-  // human-readable labels instead.
-  nameOverrides: {
-    START_DELFT: 'Delft pilot start',
-    END_DELFT: 'Delft pilot end',
-  },
-};
 
-export const ROUTE_CONFIGS = [KUNGSLEDEN_CONFIG, DELFT_PILOT_CONFIG];
+export const ROUTE_CONFIGS = [KUNGSLEDEN_CONFIG];
 
 export const ROUTE_CONFIG_BY_ID = Object.fromEntries(
   ROUTE_CONFIGS.map((c) => [c.id, c]),
