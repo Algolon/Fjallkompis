@@ -20,6 +20,8 @@ import {
   stagesForWaypoint,
 } from '../route/routeData';
 import { STAGE_COLORS } from '../map/mapStyle';
+import { MAP_STYLE_OPTIONS, DEFAULT_MAP_STYLE_ID, isMapStyleId } from '../map/mapStyles.mjs';
+import type { MapStyleId } from '../map/mapStyles.mjs';
 import type { BasemapMode } from '../map/pmtilesProtocol';
 import { projectOntoRoute } from '../utils/routeProgress.mjs';
 import type { RouteProjection } from '../utils/routeProgress.mjs';
@@ -217,6 +219,9 @@ export function MapScreen() {
   const [panel, setPanel] = useState<Panel>('map');
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [imagery, setImagery] = useState<ImageryMode>('terrain');
+  // Map-style comparison PROTOTYPE (docs/map-style-comparison.md): developer
+  // facing, not persisted, always starts on the production style.
+  const [mapStyleId, setMapStyleId] = useState<MapStyleId>(DEFAULT_MAP_STYLE_ID);
   const [satelliteAvailable, setSatelliteAvailable] = useState(false);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
@@ -369,6 +374,7 @@ export function MapScreen() {
               onBasemapMode={setBasemapMode}
               onSatelliteAvailable={setSatelliteAvailable}
               imagery={imagery}
+              mapStyleId={mapStyleId}
               gps={marker}
               follow={follow}
               onUserInteract={() => setFollow(false)}
@@ -409,6 +415,47 @@ export function MapScreen() {
                 Satellite
               </button>
             </div>
+            {/* Map-style comparison PROTOTYPE — temporary selector for the
+                Current vs Liberty Topo vs Nordic evaluation (see
+                docs/map-style-comparison.md). Styled inline on purpose: it is
+                removed or promoted once the evaluation concludes. Hidden while
+                the satellite raster covers the vector basemap. */}
+            {imagery === 'terrain' ? (
+              <label
+                style={{
+                  position: 'absolute',
+                  top: 54,
+                  left: 10,
+                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 8px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  background: 'color-mix(in srgb, var(--paper-2) 88%, transparent)',
+                  backdropFilter: 'blur(6px)',
+                  boxShadow: '0 1px 4px rgba(27, 42, 39, 0.25)',
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>Style · prototype</span>
+                <select
+                  className="select"
+                  style={{ fontSize: 12, padding: '2px 6px' }}
+                  value={mapStyleId}
+                  aria-label="Map style (comparison prototype)"
+                  onChange={(e) => {
+                    if (isMapStyleId(e.target.value)) setMapStyleId(e.target.value);
+                  }}
+                >
+                  {MAP_STYLE_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
           {!satelliteAvailable ? (
             <div className="banner-warn" style={{ margin: 10 }}>

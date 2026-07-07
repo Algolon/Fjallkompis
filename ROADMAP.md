@@ -7,7 +7,7 @@ rules live in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.7.x). The core
+Offline-first Kungsleden trail companion PWA (prototype, v0.8.x). The core
 trip loop works end to end and offline: verified route with stage statistics
 and elevation profiles, along-route GPS progress on the current stage, an
 offline vector basemap plus an optional Sentinel-2 satellite layer (each
@@ -27,20 +27,34 @@ navigation*.
    card and the GitHub beta-feedback issue template, and fold findings back
    into the Map/tracking experience. Kick-off requires nothing more than
    sharing the app link.
-2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
+2. **Evaluate Current vs Liberty Topo vs Nordic Liberty Topo** — the Map
+   screen ships a prototype style selector rendering all three from the same
+   offline source ([docs/map-style-comparison.md](docs/map-style-comparison.md)).
+   Exit criteria:
+   - comparison completed on the representative route locations in the
+     checklist (overview, Abisko, Kebnekaise, Tjäktjavagge, Sälka
+     surroundings, Alesjaure wetlands, low/high zoom);
+   - mobile outdoor-readability assessment completed on a real device;
+   - offline behaviour confirmed for all three styles;
+   - performance compared (pan/zoom, style switch);
+   - production direction documented in the comparison doc;
+   - prototype selector promoted into a real setting, revised, or removed.
+3. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
    are already local HTML markers).
-3. **Terrain context** — contour lines and/or hillshade from an offline
-   terrain PMTiles source, subject to archive-size measurements.
+4. **Terrain context** — contour lines and/or hillshade from an offline
+   terrain PMTiles source, subject to archive-size measurements. Also a
+   prerequisite for the Liberty Topo variants to show their defining
+   contour/hillshade layers (currently omitted for lack of offline data).
 
 ## Next
 
-4. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
+5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
 
 ## Later
 
-5. **Real-device field testing on the trail** — battery, GPS accuracy,
+6. **Real-device field testing on the trail** — battery, GPS accuracy,
    glove/sunlight usability and offline behaviour on the Kungsleden itself;
    a prerequisite for calling any release trip-ready (1.0.0). The Delft
    pilot de-risked the Map-tab portion.

@@ -25,7 +25,9 @@ import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ROUTE } from '../route/routeData';
 import type { ParsedRoute } from '../route/types';
-import { buildMapStyle, routeLayers, SATELLITE_LAYER } from '../map/mapStyle';
+import { buildMapStyle, routeLayers, BASEMAP_SOURCE, SATELLITE_LAYER } from '../map/mapStyle';
+import { basemapLayersForStyle, DEFAULT_MAP_STYLE_ID } from '../map/mapStyles.mjs';
+import type { MapStyleId } from '../map/mapStyles.mjs';
 import {
   resolveArchiveBasemap,
   resolveSatellite,
@@ -68,6 +70,12 @@ interface MapViewProps {
   onSatelliteAvailable?: (available: boolean) => void;
   /** 'terrain' (offline vector) or 'satellite' (offline raster PMTiles). */
   imagery: ImageryMode;
+  /**
+   * Comparison-prototype basemap style (docs/map-style-comparison.md).
+   * Switching restyles the SAME vector source in place — camera, overlays,
+   * markers and event handlers are untouched. Defaults to production.
+   */
+  mapStyleId?: MapStyleId;
   gps: LatLng | null;
   /** Breadcrumb trail as [lon, lat] positions (live-tracking pilot). */
   trail?: [number, number][];
@@ -101,6 +109,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     onBasemapMode,
     onSatelliteAvailable,
     imagery,
+    mapStyleId = DEFAULT_MAP_STYLE_ID,
     gps,
     trail,
     follow = false,
@@ -112,6 +121,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  // Which comparison style the map currently shows, and the exact basemap
+  // layer ids it consists of — needed to remove them cleanly on a switch.
+  const appliedStyleRef = useRef<{ id: MapStyleId; layerIds: string[] } | null>(null);
+  // Latest prop value, readable from the one-time map-creation closure.
+  const mapStyleIdRef = useRef(mapStyleId);
+  mapStyleIdRef.current = mapStyleId;
 
   // Keep latest callbacks reachable from map event handlers without rebinding.
   const callbacksRef = useRef({ onSelectStage, onSelectWaypoint, onUserInteract });
@@ -184,9 +200,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       onBasemapMode?.(basemap.mode);
       onSatelliteAvailable?.(satellite.sourceUrl != null);
 
+      const initialStyleId = mapStyleIdRef.current;
+      appliedStyleRef.current = {
+        id: initialStyleId,
+        layerIds: basemap.sourceUrl
+          ? basemapLayersForStyle(initialStyleId, BASEMAP_SOURCE).map((l) => l.id)
+          : [],
+      };
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl),
+        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, initialStyleId),
         bounds: mountedRoute.bounds,
         fitBoundsOptions: { padding: FIT_PADDING },
         attributionControl: { compact: true },
@@ -195,6 +218,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         minZoom: 4,
       });
       mapRef.current = map;
+      if (import.meta.env.DEV) {
+        // Dev-only handle for the style-comparison evaluation checklist
+        // (docs/map-style-comparison.md): lets reviewers jump the camera to
+        // the listed test locations from the console. Stripped from builds.
+        (window as unknown as Record<string, unknown>).__fjallkompisMap = map;
+      }
 
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
@@ -299,6 +328,32 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const stage = routeRef.current.stages.find((s) => s.id === selectedStageId);
     fitBounds(stage ? stage.bounds : routeRef.current.bounds);
   }, [selectedStageId, loaded]);
+
+  // ---- Comparison-prototype basemap style switch ---------------------------
+  // Swaps ONLY the basemap paint layers, in place, on the shared vector
+  // source: the camera is never touched (position/zoom/bearing/pitch are
+  // preserved by construction), sources stay registered, and the
+  // route/GPS/scrub overlays and hut markers above are left alone. Removing
+  // the previous style's layers before adding the next set means repeated
+  // switching cannot accumulate layers, sources or handlers.
+  useEffect(() => {
+    const map = mapRef.current;
+    const applied = appliedStyleRef.current;
+    if (!map || !loaded || !applied || applied.id === mapStyleId) return;
+    // No basemap resolved → nothing to restyle (placeholder background only).
+    if (!map.getSource(BASEMAP_SOURCE)) return;
+
+    const nextLayers = basemapLayersForStyle(mapStyleId, BASEMAP_SOURCE);
+    // Keep the stack order stable: basemap layers always sit between the
+    // placeholder background and the satellite/route layers.
+    const anchorId = map.getLayer(SATELLITE_LAYER) ? SATELLITE_LAYER : 'route-overview';
+    const beforeId = map.getLayer(anchorId) ? anchorId : undefined;
+    for (const id of applied.layerIds) {
+      if (map.getLayer(id)) map.removeLayer(id);
+    }
+    for (const layer of nextLayers) map.addLayer(layer, beforeId);
+    appliedStyleRef.current = { id: mapStyleId, layerIds: nextLayers.map((l) => l.id) };
+  }, [mapStyleId, loaded]);
 
   // ---- Basemap imagery toggle (terrain vs satellite) ----------------------
   useEffect(() => {

@@ -143,6 +143,22 @@ export const SOFTWARE_CREDITS: SoftwareCredit[] = [
     licenseName: 'MIT',
     url: 'https://react.dev',
   },
+  // Style reference for the map-style comparison prototype
+  // (docs/map-style-comparison.md). Only the style design is reused —
+  // adapted in src/map/libertyTopoLayers.mjs to the offline Protomaps
+  // source; no gpx.studio tiles, fonts or sprites are ever requested.
+  {
+    name: 'Liberty Topo style (gpx.studio styles)',
+    role: 'Basemap style reference (comparison prototype)',
+    licenseName: 'MIT (OpenFreeMap Styles, © 2023 Zsolt Ero)',
+    url: 'https://github.com/gpxstudio/styles',
+  },
+  {
+    name: 'OSM Liberty / OSM Bright',
+    role: 'Design lineage of the Liberty Topo style',
+    licenseName: 'BSD-3-Clause (code) · CC BY 4.0 (design)',
+    url: 'https://github.com/maputnik/osm-liberty',
+  },
 ];
 
 export const REPOSITORY_URL = 'https://github.com/Algolon/Fjallkompis';
