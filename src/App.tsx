@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppStoreProvider } from './store/AppStore';
+import { startViewportHeightSync } from './utils/viewportHeight.mjs';
 import { TabBar, type TabId } from './components/TabBar';
 import { TodayScreen, type NavPayload } from './screens/TodayScreen';
 import { MapScreen } from './screens/MapScreen';
@@ -42,6 +43,11 @@ export default function App() {
   // Simple in-memory tab state. A router is intentionally omitted to keep the
   // prototype dependency-light; trade-off is no per-tab deep links / back nav.
   const [nav, setNav] = useState<Nav>({ tab: 'today' });
+
+  // Keep --app-height in sync with the measured viewport so the shell (and
+  // the tab bar at its bottom) survives stale dvh after SW-update reloads,
+  // background resume, and orientation changes. See viewportHeight.mjs.
+  useEffect(() => startViewportHeightSync(), []);
 
   const navigate = (tab: TabId, payload?: NavPayload) => {
     // Screens swap inside one document, so the previous tab's scroll
