@@ -69,6 +69,64 @@ live tracking uses additional battery while the screen is open.
 - An inline **battery note** while tracking is active (no measured
   percentages claimed).
 
+## Final validation (real device, 2026-07-07, app 0.5.2)
+
+The one remaining check — the inline off-route warning added in 0.5.2 — was
+confirmed on a real Android device (evidence reviewed privately; no
+coordinates recorded here):
+
+- foreground live tracking active, reported GPS accuracy ≈ **±6 m**;
+- measured cross-track distance ≈ **105 m**;
+- the debounced route status read **Likely off route**;
+- the inline warning appeared with an appropriate approximate distance
+  ("approximately 105 m from the mapped trail"), phrased as a qualified
+  possibility, not a certainty;
+- route progress was correctly **withheld** while no reliable route match
+  existed (no misleading percentage shown).
+
+**The Delft pilot is complete. No further Delft field-test walk is
+required.**
+
+> Delft pilot completed successfully. Functional tracking and off-route
+> detection were validated on a real device. Final placement, hierarchy and
+> simplification of tracking status messages remain production-UX work for a
+> separate Kungsleden integration.
+
+## Production UX direction (documented, not implemented)
+
+The final check also produced a UX finding: the warning **works**, but its
+current placement — inside the long pilot controls/diagnostics section — is
+not the model for production. On the trail, with the map possibly scrolled
+out of view, safety-relevant state must be more immediate and map-centric.
+
+**Map-level tracking status.** For a future Kungsleden integration,
+safety-relevant live-tracking states should appear in or directly above the
+map as a compact, persistent, non-modal overlay (top-of-map overlay or a
+compact banner immediately above the map — final visual design deliberately
+not decided here). Relevant states: *Live tracking active*; *You may be off
+route · approximately X m*; an accuracy-qualified *GPS signal uncertain*
+when appropriate; a compact battery-use indication. The off-route message
+must remain visible while the debounced status is off-route, disappear
+automatically on recovery, never be a modal or a self-dismissing toast while
+the condition persists, require no dismissal, use no sound/vibration/browser
+notifications by default, keep the map and key controls accessible, and stay
+qualified.
+
+**Battery and active-tracking communication.** The pilot's full battery
+paragraph is right for a test, too prominent for production: explain the
+battery cost when tracking is *started*; while active, reduce it to a
+compact persistent status or icon; always keep a clear Stop tracking action;
+keep foreground-only behaviour explicit; keep the current
+stop-on-leaving-the-Map-tab lifecycle unless a later product decision
+explicitly changes it.
+
+**Pilot diagnostics are not the production layout.** Precise coordinates,
+fix age, cross-track metres, accepted/rejected counts and exports were
+essential for validation but should not define the normal Kungsleden UI. A
+normal user needs: position on the map, route progress, tracking status, the
+off-route warning, GPS uncertainty only when relevant, follow/recentre, and
+start/stop. Detailed diagnostics may remain behind a debug/test mode only.
+
 ## Remaining validation (Kungsleden, before trip-ready 1.0.0)
 
 - Multi-hour battery behaviour with the screen mostly off between checks

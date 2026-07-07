@@ -1,8 +1,11 @@
 # Delft pilot — Map-tab field test (temporary)
 
-> **Status: the field test was performed on 2026-07-07 and was functionally
-> successful.** Anonymised results:
+> **Status: COMPLETE.** The field test was performed on 2026-07-07 and was
+> functionally successful; the final real-device check of the inline
+> off-route warning (added in 0.5.2) also passed. **No further Delft field
+> test is required.** Anonymised results and the production-UX direction:
 > [pilot-results/delft-2026-07-07-summary.md](pilot-results/delft-2026-07-07-summary.md).
+> What remains is the graduation-or-removal decision (see ROADMAP → Now).
 
 A bounded, temporary pilot mode for field-testing the Map tab (route
 rendering, offline basemap, one-shot GPS, live tracking, along-route
