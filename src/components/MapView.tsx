@@ -17,6 +17,7 @@ import {
   useImperativeHandle,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
@@ -72,6 +73,12 @@ interface MapViewProps {
   follow?: boolean;
   /** User panned/zoomed by hand — callers use this to switch follow off. */
   onUserInteract?: () => void;
+  /**
+   * Compact status UI rendered INSIDE the map container, so it remains
+   * visible in fullscreen mode (the FullscreenControl fullscreens this
+   * element). Positioned by .map-status-stack to avoid MapLibre controls.
+   */
+  overlay?: ReactNode;
 }
 
 const EMPTY_FC: FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -96,6 +103,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     trail,
     follow = false,
     onUserInteract,
+    overlay,
   },
   ref,
 ) {
@@ -353,5 +361,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }, [trail, loaded]);
 
-  return <div ref={containerRef} className="mapview" />;
+  // The overlay lives inside the map container: MapLibre appends its canvas
+  // as a sibling child, so React-managed children coexist safely, and the
+  // FullscreenControl fullscreens exactly this element — the overlay stays
+  // visible in fullscreen.
+  return (
+    <div ref={containerRef} className="mapview">
+      {overlay}
+    </div>
+  );
 });

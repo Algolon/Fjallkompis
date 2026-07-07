@@ -7,12 +7,13 @@ rules live in the [README](README.md#versioning--releases).
 
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.5.x). The core
+Offline-first Kungsleden trail companion PWA (prototype, v0.6.x). The core
 trip loop works end to end and offline: verified route with stage statistics
 and elevation profiles, along-route GPS progress on the current stage, an
 offline vector basemap plus an optional Sentinel-2 satellite layer (each
 independently downloadable), a curated stops guide, daily/packing lists,
-install/update UX, and local backup/restore. The Map-tab GPS mechanics
+install/update UX, opt-in foreground live tracking (beta) on the Map
+screen, and local backup/restore. The Map-tab GPS mechanics
 (one-shot fix, foreground live tracking, projection, off-route states,
 offline pilot basemap) were validated in a real-device Delft pilot walk
 (docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has
@@ -21,10 +22,11 @@ navigation*.
 
 ## Now
 
-1. **Decide the Delft pilot's future** — the field test is complete and the
-   pilot code is still in the app behind its flag: either remove the
-   temporary pilot and its assets, or refactor the generic live-tracking
-   pieces into an opt-in Kungsleden beta (separate PR either way).
+1. **Remove the temporary Delft pilot** — the graduation decision is
+   taken: the tracking core now powers the Kungsleden live-tracking beta,
+   and the pilot remains only as a real-device regression harness. Once the
+   Kungsleden integration is reviewed and deployed, delete the pilot panel,
+   route/map assets, flag and workflow per docs/delft-pilot-test.md §3.
 2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
    are already local HTML markers).
@@ -33,22 +35,12 @@ navigation*.
 
 ## Next
 
-4. **Design and integrate production live-tracking UX for Kungsleden** —
-   turn the pilot-validated tracking mechanics into a production experience:
-   opt-in and foreground-only; a map-centric, compact, persistent, non-modal
-   status overlay for safety-relevant states (tracking active, qualified
-   off-route with approximate distance, GPS-uncertain, compact battery
-   indication); battery cost explained at start rather than as a standing
-   paragraph; a normal-user UI without the pilot's diagnostics (those stay
-   behind a debug/test mode). Direction documented in
-   docs/pilot-results/delft-2026-07-07-summary.md. Separate from — and a
-   prerequisite quality bar for — the later real Kungsleden field validation.
-5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
+4. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
 
 ## Later
 
-6. **Real-device field testing on the trail** — battery, GPS accuracy,
+5. **Real-device field testing on the trail** — battery, GPS accuracy,
    glove/sunlight usability and offline behaviour on the Kungsleden itself;
    a prerequisite for calling any release trip-ready (1.0.0). The Delft
    pilot de-risked the Map-tab portion.
@@ -66,6 +58,12 @@ navigation*.
 
 ## Completed
 
+- **Production live-tracking UX for Kungsleden (beta)**: opt-in,
+  foreground-only live tracking on the Map screen with a map-centric status
+  overlay (active / GPS-uncertain / qualified off-route), full-route status
+  separated from current-stage progress, compact battery communication, and
+  none of the pilot diagnostics. Browser-validated with simulated
+  geolocation; real Kungsleden trail validation still outstanding (Later).
 - **Delft pilot field test** (2026-07-07): real-device validation of the Map
   tab — live tracking, projection, off-route classification, the inline
   off-route warning and the offline pilot basemap all behaved correctly on a

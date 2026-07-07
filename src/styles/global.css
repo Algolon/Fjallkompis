@@ -608,6 +608,105 @@ h3 {
   min-height: 42px;
   font-size: 14px;
 }
+/* Second, live-tracking control row: sits directly under the stage
+   navigation row; buttons may carry longer labels, so allow wrapping and
+   let the primary action take the widest share. */
+.map-track-row {
+  padding-top: 0;
+  border-top: 0;
+  flex-wrap: wrap;
+}
+.map-track-row .btn {
+  white-space: nowrap;
+  padding-inline: 10px;
+}
+.map-track-row .btn-primary,
+.map-track-row .btn-danger {
+  flex: 1.6;
+}
+
+/* Map-level live-tracking status stack (rendered INSIDE the MapLibre
+   container so it survives fullscreen). Bottom-centred: clear of the
+   navigation/fullscreen controls (top-right), the imagery toggle
+   (top-left), the scale (bottom-left) and attribution (bottom-right). */
+.map-status-stack {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 30px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: min(92%, 420px);
+  pointer-events: none; /* never block map gestures; pills re-enable */
+}
+.map-status-pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.18);
+}
+.map-status-live {
+  background: rgba(223, 233, 219, 0.94);
+  border-color: #c4d4be;
+  color: #46603f;
+}
+.map-status-warn {
+  background: rgba(243, 224, 216, 0.96);
+  border-color: #ddbcab;
+  color: #7c4a2d;
+}
+.map-status-muted {
+  background: rgba(236, 239, 236, 0.94);
+  color: var(--ink-soft);
+}
+.map-status-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #2c7a8c;
+  flex: none;
+  animation: statusPulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-status-dot {
+    animation: none;
+  }
+}
+@keyframes statusPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Visually hidden but screen-reader announced (status transitions). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* Stage chips ---------------------------------------------------------------- */
 

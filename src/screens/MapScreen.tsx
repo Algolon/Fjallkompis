@@ -1,10 +1,13 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
 import { ElevationProfile } from '../components/ElevationProfile';
+import { TrackingStatusOverlay } from '../components/TrackingStatus';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
+import { useRouteTracking } from '../hooks/useRouteTracking';
+import type { TrackingSession } from '../utils/trackingSession.mjs';
 import { STOPS, STOPS_BY_ID, stopShortName } from '../data/stops';
 import { STAGES_BY_ID } from '../data/stages';
 import {
@@ -197,6 +200,51 @@ function renderProgress(
   );
 }
 
+/**
+ * Live-tracking progress readout. Progress comes from CURRENT-STAGE
+ * projections only; the full-route status decides how a non-match is
+ * explained — a hiker on another Kungsleden stage is on the mapped route,
+ * never "off route" merely because the persisted stage differs.
+ */
+function renderLiveProgress(session: TrackingSession, stageTitle: string | null) {
+  const onRouteNotStage =
+    session.routeStatus === 'on-route' && !session.stageMatched;
+
+  if (!session.progress) {
+    return onRouteNotStage ? (
+      <p className="card-sub" style={{ marginTop: 4 }}>
+        On the mapped route, but not reliably matched to today’s stage
+        {stageTitle ? ` (${stageTitle})` : ''}. Stage progress appears once you
+        are on today’s section.
+      </p>
+    ) : (
+      <p className="card-sub" style={{ marginTop: 4 }}>
+        No reliable route match yet — stage progress appears once a fix lands
+        close enough to today’s stage for its reported accuracy.
+      </p>
+    );
+  }
+
+  const accuracyM = session.lastFix?.accuracyM ?? null;
+  const note = session.progressStale
+    ? onRouteNotStage
+      ? 'Progress frozen at the last reliable match — you are on the mapped route, but not on today’s stage right now.'
+      : 'Progress frozen at the last reliable match — recent fixes were off today’s stage or too inaccurate to trust.'
+    : `Live — matched to today’s stage${
+        accuracyM != null ? ` · GPS accuracy ±${Math.round(accuracyM)} m` : ''
+      } — approximate, not exact.`;
+
+  return (
+    <ProgressReadout
+      stageTitle={stageTitle}
+      completedKm={session.progress.alongKm}
+      remainingKm={session.progress.remainingKm}
+      percent={session.progress.percent}
+      note={note}
+    />
+  );
+}
+
 export function MapScreen() {
   const { currentStage, setCurrentStage, getStopNote } = useStore();
   const geo = useGeolocation();
@@ -219,6 +267,59 @@ export function MapScreen() {
 
   const viewStage = viewStageId ? STAGE_BY_ID[viewStageId] : null;
   const appStage = viewStageId ? STAGES_BY_ID[viewStageId] : null;
+
+  // ---- Live tracking (beta, opt-in, foreground-only) ----------------------
+  // Status is judged against the COMPLETE route; progress against the
+  // persisted CURRENT stage only (never the stage merely browsed above).
+  // Production mode: no diagnostic log, no breadcrumb (see trackingSession).
+  const currentRouteStage = currentStage ? STAGE_BY_ID[currentStage.id] : null;
+  const tracking = useRouteTracking({
+    routePoints: ROUTE.overviewPoints,
+    stagePoints: currentRouteStage?.points ?? null,
+    stageId: currentStage?.id ?? null,
+    keepLog: false,
+    keepTrail: false,
+  });
+  const [follow, setFollow] = useState(false);
+  const { session } = tracking;
+
+  // Live fixes take precedence while tracking; after stopping, the last
+  // live marker is kept for this screen session unless a NEWER one-shot/
+  // manual position arrives.
+  const liveCurrent =
+    session.lastFix != null &&
+    (tracking.active || geo.timestamp == null || session.lastFix.timestamp >= geo.timestamp);
+  const marker = liveCurrent
+    ? { lat: session.lastFix!.lat, lng: session.lastFix!.lon }
+    : geo.coord;
+
+  const startTracking = () => {
+    if (!currentStage) return;
+    // One position source at a time: clear one-shot/manual state so it can
+    // never compete with the live session.
+    geo.reset();
+    setManualOpen(false);
+    tracking.start();
+    setFollow(true);
+    // Focus the tracked stage if the user was browsing elsewhere.
+    setViewStageId(currentStage.id);
+  };
+
+  const stopTracking = () => {
+    tracking.stop();
+    setFollow(false);
+  };
+
+  // TEMPORARY: switching to the Delft pilot must release the Kungsleden
+  // watcher (the pilot panel replaces the body but this component stays
+  // mounted). Remove with the pilot.
+  useEffect(() => {
+    if (routeContext === 'delft-pilot') {
+      tracking.stop();
+      setFollow(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeContext]);
 
   const profile = viewStage ? viewStage.elevationProfile : OVERVIEW_ELEVATION_PROFILE;
   const stats = viewStage ? viewStage.statistics : ROUTE.statistics;
@@ -329,7 +430,17 @@ export function MapScreen() {
               onBasemapMode={setBasemapMode}
               onSatelliteAvailable={setSatelliteAvailable}
               imagery={imagery}
-              gps={geo.coord}
+              gps={marker}
+              follow={follow}
+              onUserInteract={() => setFollow(false)}
+              overlay={
+                tracking.active && currentStage ? (
+                  <TrackingStatusOverlay
+                    session={session}
+                    stageLabel={`Day ${currentStage.day}`}
+                  />
+                ) : null
+              }
             />
             <div
               className="map-layer-toggle seg"
@@ -394,6 +505,58 @@ export function MapScreen() {
               Next ›
             </button>
           </div>
+
+          {/* Live tracking (beta): a second compact control row, separate
+              from stage navigation above. One position source at a time —
+              one-shot Locate is disabled while a live session runs. */}
+          <div className="map-toolbar map-track-row">
+            <button
+              className="btn btn-ghost"
+              onClick={geo.locate}
+              disabled={tracking.active || geo.status === 'locating'}
+              title={
+                tracking.active
+                  ? 'One-shot location is off while live tracking runs'
+                  : undefined
+              }
+            >
+              <IconLocate />
+              {geo.status === 'locating' ? 'Locating…' : 'Locate'}
+            </button>
+            {!tracking.active ? (
+              <button
+                className="btn btn-primary"
+                onClick={startTracking}
+                disabled={!currentStage}
+                title={
+                  currentStage
+                    ? undefined
+                    : 'Select a current stage first (below, or in Stages)'
+                }
+              >
+                ▶ Live tracking · Beta
+              </button>
+            ) : (
+              <button className="btn btn-danger" onClick={stopTracking}>
+                ■ Stop tracking
+              </button>
+            )}
+            <button
+              className="btn btn-ghost"
+              aria-pressed={follow}
+              onClick={() => setFollow((f) => !f)}
+              disabled={!marker}
+              title={marker ? undefined : 'No position yet'}
+            >
+              {follow ? '◉ Following' : '○ Follow'}
+            </button>
+          </div>
+          {!currentStage ? (
+            <p className="card-sub" style={{ margin: '0 12px 12px' }}>
+              Live tracking (beta) follows today’s stage — select a current
+              stage first with “Set as current” below, or from the Stages tab.
+            </p>
+          ) : null}
         </div>
 
         <div className={`card ${panel === 'elevation' ? '' : 'panel-hidden'} panel-elev`}>
@@ -520,28 +683,49 @@ export function MapScreen() {
         </div>
       ) : null}
 
-      {/* GPS */}
+      {/* Position & progress. No raw coordinates in the normal UI — the
+          marker on the map IS the position; here we show source, accuracy
+          and along-stage progress. */}
       <div className="card">
-        <button
-          className="btn btn-glacier btn-block"
-          onClick={geo.locate}
-          disabled={geo.status === 'locating'}
-        >
-          <IconLocate />
-          {geo.status === 'locating' ? 'Locating…' : 'Use my location'}
-        </button>
-
-        {geo.status === 'success' && geo.coord ? (
-          <div style={{ marginTop: 14 }}>
+        {liveCurrent && session.lastFix ? (
+          <div>
             <div className="row-between">
-              <span className="muted">Your position</span>
-              <span className="tnum">
-                {geo.coord.lat.toFixed(4)}, {geo.coord.lng.toFixed(4)}
+              <span className="muted">Position</span>
+              <span>
+                {tracking.active ? 'Live GPS' : 'Last live fix'}
+                {session.lastFix.accuracyM != null
+                  ? ` · ±${Math.round(session.lastFix.accuracyM)} m`
+                  : ''}
+              </span>
+            </div>
+            <div className="hr" />
+            {renderLiveProgress(session, currentStageTitle)}
+          </div>
+        ) : geo.status === 'success' && geo.coord ? (
+          <div>
+            <div className="row-between">
+              <span className="muted">Position</span>
+              <span>
+                {geo.source === 'manual' ? 'Manual (pinned to a stop)' : 'GPS one-shot'}
+                {geo.accuracyM != null ? ` · ±${Math.round(geo.accuracyM)} m` : ''}
               </span>
             </div>
             <div className="hr" />
             {renderProgress(progress, currentStageTitle, geo.accuracyM)}
           </div>
+        ) : (
+          <p className="card-sub">
+            Use <strong>Locate</strong> under the map for a one-shot GPS fix, or{' '}
+            <strong>Live tracking · Beta</strong> to follow today’s stage as you
+            walk (foreground only — approximate, not for primary navigation).
+          </p>
+        )}
+
+        {tracking.error ? (
+          <p className="banner-warn" style={{ marginTop: 12 }}>
+            <span>📍</span>
+            <span>{tracking.error}</span>
+          </p>
         ) : null}
 
         {geo.status === 'error' && geo.error ? (
@@ -551,7 +735,9 @@ export function MapScreen() {
           </p>
         ) : null}
 
-        {geo.status === 'error' || geo.status === 'idle' ? (
+        {/* Manual fallback: available when GPS fails or nothing located yet —
+            hidden entirely while a live session runs (one source at a time). */}
+        {!tracking.active && (geo.status === 'error' || geo.status === 'idle') ? (
           <div style={{ marginTop: 12 }}>
             {!manualOpen ? (
               <button className="btn btn-ghost btn-block" onClick={() => setManualOpen(true)}>

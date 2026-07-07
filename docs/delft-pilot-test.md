@@ -147,8 +147,10 @@ contributors · Protomaps) and is already wired.
 
 Delete, in one commit:
 
-- `src/screens/DelftPilotPanel.tsx`, `src/route/delftPilot.ts`,
-  `src/hooks/useLiveTracking.ts`, `src/utils/pilotSession.mjs` + `.d.mts`;
+- `src/screens/DelftPilotPanel.tsx` and `src/route/delftPilot.ts`
+  (the tracking core — `src/hooks/useRouteTracking.ts`,
+  `src/utils/trackingSession.mjs` + `.d.mts` — is now shared production
+  code behind the Kungsleden live tracking and MUST stay);
 - the pilot block in `src/screens/MapScreen.tsx` (`RouteContext`,
   `RouteContextSelector`, the early return, the two imports);
 - `DELFT_ARCHIVE` in `src/map/offlineMap.ts` and `DelftPilotMapCard` in
