@@ -10,6 +10,15 @@ pre-1.0 rules in the [README](README.md#versioning--releases).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-06
+
+### Changed
+
+- **Delft pilot route replaced** with the final walkable version (2.0 km,
+  81 points, distinct start/end 513 m apart); the pilot offline basemap is
+  re-extracted around the new route corridor (+2 km buffer). Kungsleden data
+  is untouched.
+
 ## [0.5.0] - 2026-07-06
 
 ### Added
