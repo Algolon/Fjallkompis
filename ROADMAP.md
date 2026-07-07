@@ -33,12 +33,22 @@ navigation*.
 
 ## Next
 
-4. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
+4. **Design and integrate production live-tracking UX for Kungsleden** —
+   turn the pilot-validated tracking mechanics into a production experience:
+   opt-in and foreground-only; a map-centric, compact, persistent, non-modal
+   status overlay for safety-relevant states (tracking active, qualified
+   off-route with approximate distance, GPS-uncertain, compact battery
+   indication); battery cost explained at start rather than as a standing
+   paragraph; a normal-user UI without the pilot's diagnostics (those stay
+   behind a debug/test mode). Direction documented in
+   docs/pilot-results/delft-2026-07-07-summary.md. Separate from — and a
+   prerequisite quality bar for — the later real Kungsleden field validation.
+5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
 
 ## Later
 
-5. **Real-device field testing on the trail** — battery, GPS accuracy,
+6. **Real-device field testing on the trail** — battery, GPS accuracy,
    glove/sunlight usability and offline behaviour on the Kungsleden itself;
    a prerequisite for calling any release trip-ready (1.0.0). The Delft
    pilot de-risked the Map-tab portion.
@@ -57,9 +67,10 @@ navigation*.
 ## Completed
 
 - **Delft pilot field test** (2026-07-07): real-device validation of the Map
-  tab — live tracking, projection, off-route classification and the offline
-  pilot basemap all behaved correctly on a walked route; functionally
-  successful (docs/pilot-results/delft-2026-07-07-summary.md).
+  tab — live tracking, projection, off-route classification, the inline
+  off-route warning and the offline pilot basemap all behaved correctly on a
+  walked route; functionally successful and fully validated, no further Delft
+  testing required (docs/pilot-results/delft-2026-07-07-summary.md).
 - Along-route GPS progress (position projected onto the current stage, with a
   reliability gate).
 - Installable-PWA polish: install card, prompt-based update toast,
