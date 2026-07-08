@@ -184,6 +184,52 @@ live in [map-style-comparison.md](map-style-comparison.md); the roadmap item
 *Evaluate Current vs Liberty Topo vs Nordic Liberty Topo* holds the exit
 criteria. Guarded by `tests/map-styles.test.mjs`.
 
+## Adaptive shell & navigation (multi-device access)
+
+One adaptive application serves phone, tablet and desktop from the same URL
+— shared screens, data and components with different layout compositions.
+Terminology used consistently in code and docs:
+
+- **Multi-device access** (delivered): the same app opens and works on
+  mobile, tablet and desktop through the same URL.
+- **Device transfer** (existing, preserved): moving personal data between
+  devices is manual full-state export → import in Settings
+  (`tests/device-transfer.test.mjs` guards the round trip).
+- **Cross-device sync** (out of scope): no accounts, no cloud, no backend,
+  no automatic sync — see ROADMAP.md "Much later".
+
+Mechanics:
+
+- **Routing**: a dependency-free hash router. The route table (order,
+  labels, `#/…` hashes for the six destinations) lives in
+  `src/navigation/routes.mjs` — the single source of truth rendered by the
+  TabBar on every device class, fenced by
+  `tests/navigation-routes.test.mjs`. Hash routing is deliberate: it needs
+  no server rewrites, so deep links work on the GitHub Pages project
+  subpath. One-shot navigation payloads (e.g. Today → a specific stop)
+  stay in React memory; URLs identify destinations, not entity state.
+- **Shell**: the compact (< 760px) layout is the untouched mobile baseline
+  — bottom tab bar, 560px column, measured `--app-height` sizing
+  (`src/utils/viewportHeight.mjs`). At ≥ 760px the tab bar becomes a
+  vertical navigation rail; at ≥ 1160px a labelled sidebar. It is one
+  `<nav>` (TabBar) restyled by media queries in the "Adaptive shell"
+  section at the end of `src/styles/global.css` — no device/UA detection,
+  no second navigation implementation.
+- **Screens**: per-screen `screen--*` classes set intentional content
+  widths inside the wider shell; ≥ 900px selected screens use two-column
+  compositions (Today, Stages, Stops, Lists, Settings; the Map's
+  map+elevation grid predates this iteration). MapLibre resize is handled
+  by MapView's own ResizeObserver.
+- **PWA**: the manifest orientation lock was removed (`orientation: 'any'`);
+  install/update flows, the offline app shell and the separate offline-map
+  downloads are unchanged. Large offline assets are never auto-downloaded
+  on a new device.
+
+Mobile is the regression baseline: changes to compact behaviour (tab order,
+labels, screen hierarchy, interaction patterns) must be deliberate,
+documented decisions — not side effects of desktop work. Test compact
+layouts at 320×568, 360×800 and 390×844 before merging layout changes.
+
 ## Stops guide data
 
 The Stops screen shows a **curated snapshot** of official facility information

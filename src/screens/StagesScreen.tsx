@@ -9,7 +9,7 @@ export function StagesScreen() {
   const { state, currentStage, setCurrentStage } = useStore();
 
   return (
-    <div className="screen">
+    <div className="screen screen--stages">
       <ScreenHeader eyebrow="7 days · 8 stops" title="Stages">
         The route as an ordered sequence. Tap a day to make it your current
         stage. Distances and climbing come from the GPX; ± times are personal

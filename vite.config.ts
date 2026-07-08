@@ -35,7 +35,10 @@ export default defineConfig({
         theme_color: '#2f4a3d',
         background_color: '#dce4d8',
         display: 'standalone',
-        orientation: 'portrait',
+        // No orientation lock: the app is adaptive and must work in mobile
+        // portrait/landscape, tablet portrait/landscape and desktop PWA
+        // windows (multi-device access iteration).
+        orientation: 'any',
         // Scope/start_url pinned to the GitHub Pages project subpath (base).
         scope: '/Fjallkompis/',
         start_url: '/Fjallkompis/',

@@ -49,7 +49,7 @@ export function SettingsScreen() {
   };
 
   return (
-    <div className="screen">
+    <div className="screen screen--settings">
       <ScreenHeader eyebrow="Your data stays on this device" title="Settings">
         No account, no server. Everything lives in this browser — back it up
         before you wipe your phone.
@@ -70,6 +70,10 @@ export function SettingsScreen() {
         </div>
       ) : null}
 
+      {/* .settings-grid is layout-neutral on compact (plain block, cards
+          keep their stacked margins); at ≥900px it becomes a two-column
+          card grid (global.css). Section order is unchanged. */}
+      <div className="settings-grid">
       <div className="card">
         <span className="card-title">Status</span>
         <div className="row-between" style={{ marginTop: 10 }}>
@@ -158,6 +162,7 @@ export function SettingsScreen() {
         >
           View sources and licences
         </button>
+      </div>
       </div>
       <CreditsSheet open={creditsOpen} onClose={() => setCreditsOpen(false)} />
 

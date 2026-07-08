@@ -49,6 +49,9 @@ function DailyView() {
         </button>
       </div>
 
+      {/* .lists-cats is layout-neutral on compact (plain block); at ≥900px
+          it lays the category blocks out in two columns (global.css). */}
+      <div className="lists-cats">
       {CHECKLIST.map((cat) => {
         const done = cat.items.filter((i) => state.checklist[i.id]).length;
         return (
@@ -80,6 +83,7 @@ function DailyView() {
           </div>
         );
       })}
+      </div>
 
       <p className="card-sub" style={{ marginTop: 18, textAlign: 'center' }}>
         There’s no auto-reset — that’s deliberate, so nothing clears while you
@@ -392,7 +396,8 @@ function PackingView() {
         ))}
       </div>
 
-      {/* Categories */}
+      {/* Categories — same two-column treatment as the daily view ≥900px. */}
+      <div className="lists-cats">
       {PACKING_CATEGORIES.map((cat) => {
         const catItems = items.filter((i) => i.categoryId === cat.id);
         if (catItems.length === 0) return null;
@@ -450,6 +455,7 @@ function PackingView() {
           </div>
         );
       })}
+      </div>
 
       {visible.length === 0 ? (
         <div className="card empty" style={{ marginTop: 14 }}>
@@ -480,7 +486,7 @@ export function ListsScreen({ initialMode }: { initialMode?: ListsMode }) {
   const [mode, setMode] = useState<ListsMode>(initialMode ?? 'daily');
 
   return (
-    <div className="screen">
+    <div className="screen screen--lists">
       <ScreenHeader eyebrow="Stay on top of it" title="Lists">
         Reset the daily list each morning — packing is one big job before you
         go.
