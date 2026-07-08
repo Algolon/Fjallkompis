@@ -34,12 +34,23 @@ const TAB_ICONS: Record<TabId, (p: { className?: string }) => JSX.Element> = {
 export function TabBar({
   active,
   onChange,
+  variant = 'bar',
 }: {
   active: TabId;
   onChange: (id: TabId) => void;
+  /**
+   * Which shell slot this instance fills. The app renders BOTH: 'rail'
+   * before <main> (shown ≥760px×500px, so keyboard focus reaches the
+   * left-hand navigation before the content, matching the visual order)
+   * and 'bar' after <main> (the compact bottom bar, same position in the
+   * focus order as production mobile). CSS displays exactly one at a time;
+   * the display:none instance is out of layout, tab order and the
+   * accessibility tree, so there is never a duplicate primary navigation.
+   */
+  variant?: 'bar' | 'rail';
 }) {
   return (
-    <nav className="tabbar" aria-label="Primary">
+    <nav className={`tabbar tabbar--${variant}`} aria-label="Primary">
       {TAB_ROUTES.map(({ tab, label }) => {
         const Icon = TAB_ICONS[tab];
         return (

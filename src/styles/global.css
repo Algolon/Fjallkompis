@@ -2072,18 +2072,33 @@ button.map-status-pill {
    the compact/mobile layout above is the untouched baseline (regression
    contract — see the multi-device iteration in CHANGELOG.md).
 
-   Three presentation contexts, driven by available width only (no UA or
+   Three presentation contexts, driven by available space only (no UA or
    device detection):
-     - compact  (< 760px): the existing single-column app with the bottom
-       tab bar. Nothing in this section applies.
-     - medium   (≥ 760px): the tab bar becomes a compact vertical
+     - compact: the existing single-column app with the bottom tab bar.
+       Nothing in this section applies. This includes LANDSCAPE PHONES:
+       every non-compact context below also requires min-height 500px, so
+       a 800×360 or 844×390 landscape phone keeps the exact production
+       mobile interaction model. 500px separates the tallest landscape
+       phones (~440px CSS height) from the shortest rail-worthy viewports
+       (tablet landscape 768px, typical desktop ≥ 600px) with margin on
+       both sides — and a window shorter than ~500px genuinely lacks the
+       vertical room the rail and multi-column compositions assume.
+     - medium   (≥ 760px wide AND ≥ 500px tall): a compact vertical
        navigation rail on the left; content gets an intentionally
        constrained, centred column. 760 rather than 768 so tablet portrait
        (768×1024) receives the rail.
-     - wide     (≥ 1160px): the same rail widens into a persistent sidebar
-       with icons AND visible labels; screens may use two-column
-       compositions. Same destinations, order and active-state meaning in
-       all three presentations — it is one <nav> (TabBar), restyled.
+     - wide     (≥ 1160px wide AND ≥ 500px tall): the same rail widens
+       into a persistent sidebar with icons AND visible labels; screens
+       may use two-column compositions.
+
+   Navigation is ONE component (TabBar) rendered twice by the shell:
+   .tabbar--rail before <main> (visible in medium/wide, so keyboard focus
+   reaches the left-hand navigation before the content — focus order
+   matches visual order) and .tabbar--bar after <main> (the compact bottom
+   bar, its production position in the focus order). Exactly one is
+   displayed at any viewport; the other is display:none and therefore out
+   of layout, tab order and the accessibility tree. Same destinations,
+   order, labels and active-state meaning in all three presentations.
 
    IMPORTANT: the shell still relies on --app-height (viewportHeight.mjs);
    none of the rules below change the shell's height model.
@@ -2095,9 +2110,15 @@ button.map-status-pill {
   --safe-left: env(safe-area-inset-left, 0px);
 }
 
-/* --- Medium (≥ 760px): navigation rail + centred content column ---------- */
+/* Compact default: only the bottom-bar navigation instance exists for
+   layout, keyboard and assistive tech; the rail instance is inert. */
+.tabbar--rail {
+  display: none;
+}
 
-@media (min-width: 760px) {
+/* --- Medium (≥ 760×500): navigation rail + centred content column -------- */
+
+@media (min-width: 760px) and (min-height: 500px) {
   :root {
     --nav-w: 84px;
   }
@@ -2108,16 +2129,15 @@ button.map-status-pill {
     max-width: none;
     flex-direction: row;
   }
-  /* Visual order: nav left, content right — while the DOM keeps <main>
-     first (same interaction order as compact for screen readers). */
-  .app > main {
-    order: 2;
-  }
 
-  /* The bottom tab bar becomes a vertical rail: same element, same
-     buttons, same order — flex direction and box model change only. */
-  .tabbar {
-    order: 1;
+  /* Swap navigation instances: the pre-<main> rail becomes the one
+     navigation (nav left, content right — in DOM, focus and visual
+     order alike); the post-<main> bottom bar leaves the tree. */
+  .tabbar--bar {
+    display: none;
+  }
+  .tabbar--rail {
+    display: flex;
     flex-direction: column;
     justify-content: flex-start;
     gap: 6px;
@@ -2127,12 +2147,12 @@ button.map-status-pill {
     border-top: 0;
     border-right: 1px solid var(--line);
   }
-  .tab {
+  .tabbar--rail .tab {
     flex: 0 0 auto;
     font-size: 10px;
     padding: 0;
   }
-  .tab-pill {
+  .tabbar--rail .tab-pill {
     width: 100%;
     padding: 8px 4px;
   }
@@ -2178,9 +2198,11 @@ button.map-status-pill {
   }
 }
 
-/* --- Roomy content (≥ 900px): selective multi-column screens -------------- */
+/* --- Roomy content (≥ 900×500): selective multi-column screens ------------ */
+/* Height-gated like the rail: a ≥900px-wide landscape PHONE stays on the
+   untouched compact composition. */
 
-@media (min-width: 900px) {
+@media (min-width: 900px) and (min-height: 500px) {
   /* Map: the dominant visual area (map-elev-grid above already goes
      side-by-side at this width); give the canvas real height. */
   .screen--map {
@@ -2235,6 +2257,13 @@ button.map-status-pill {
     gap: 14px;
     align-items: start;
   }
+  /* The legacy stacked-card rule (.card + .card { margin-top }) must not
+     leak into the grids: it would push every card after the first down by
+     14px and misalign the first row. Spacing is the grid gap's job here. */
+  .screen--stages .stack > .card,
+  .screen--stops .stack > .card {
+    margin-top: 0;
+  }
 
   /* Lists: categories in two columns (wrapper div is display:block on
      compact, so mobile rendering is unchanged). */
@@ -2263,34 +2292,34 @@ button.map-status-pill {
   }
 }
 
-/* --- Wide (≥ 1160px): persistent sidebar with visible labels -------------- */
+/* --- Wide (≥ 1160×500): persistent sidebar with visible labels ------------ */
 
-@media (min-width: 1160px) {
+@media (min-width: 1160px) and (min-height: 500px) {
   :root {
     --nav-w: 236px;
   }
 
-  .tabbar {
+  .tabbar--rail {
     align-items: stretch;
     gap: 4px;
     padding-left: calc(var(--safe-left) + 12px);
     padding-right: 12px;
   }
-  .tab {
+  .tabbar--rail .tab {
     font-size: 14px;
   }
-  .tab-pill {
+  .tabbar--rail .tab-pill {
     flex-direction: row;
     justify-content: flex-start;
     gap: 12px;
     padding: 10px 14px;
     border-radius: 12px;
   }
-  .tab .ic {
+  .tabbar--rail .tab .ic {
     width: 20px;
     height: 20px;
   }
-  .tab-label {
+  .tabbar--rail .tab-label {
     font-size: 13.5px;
     font-weight: 600;
   }

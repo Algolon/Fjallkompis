@@ -26,9 +26,13 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   same screen, and primary destinations are bookmarkable — including on
   the GitHub Pages subpath. Unknown hashes fall back safely.
 - **Adaptive navigation**: the bottom tab bar (compact), a vertical
-  navigation rail (tablet, ≥ 760px) and a persistent sidebar with visible
-  labels (desktop, ≥ 1160px) are one and the same component with identical
-  destinations, order and active-state meaning.
+  navigation rail (tablet, ≥ 760px wide and ≥ 500px tall) and a
+  persistent sidebar with visible labels (desktop, ≥ 1160px wide, same
+  height gate) are one and the same component with identical
+  destinations, order and active-state meaning. The height condition
+  keeps landscape phones on the familiar bottom tab bar, and on tablet/
+  desktop the navigation precedes the content in focus order — keyboard
+  and screen-reader order match what you see.
 - **Wider screen compositions** (≥ 900px): Today places the journey card
   beside the Tonight/Daily cards under a full-width hero; Map keeps its
   existing side-by-side map + elevation layout, now with a taller canvas

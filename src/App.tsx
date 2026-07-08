@@ -103,11 +103,19 @@ export default function App() {
   return (
     <AppStoreProvider>
       <div className="app">
+        {/* Two instances of the SAME navigation (shared route table, active
+            state and handler); CSS displays exactly one per viewport. The
+            rail sits before <main> so that on tablet/desktop the keyboard
+            focus order matches the visual order (nav left, content right);
+            the bar sits after <main>, exactly where production mobile has
+            always had it. The hidden instance is display:none — out of
+            layout, tab order and the accessibility tree. */}
+        <TabBar active={nav.tab} onChange={navigate} variant="rail" />
         {/* key forces the fade-in animation per tab change */}
         <main key={nav.tab}>
           <Screens nav={nav} navigate={navigate} />
         </main>
-        <TabBar active={nav.tab} onChange={navigate} />
+        <TabBar active={nav.tab} onChange={navigate} variant="bar" />
         <PwaLifecycle />
       </div>
     </AppStoreProvider>
