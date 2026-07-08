@@ -12,7 +12,9 @@ signal disappears, which on the Kungsleden is most of the time.
 
 The same link works in the browser on your **phone, tablet and computer**:
 plan at a desk with a big map and roomy lists, walk with the phone in your
-pocket. Installing it as an app (PWA) is optional on every device. Note that
+pocket. On phones the app is portrait-only (it will ask you to rotate
+back); tablets work in portrait and landscape. Installing it as an app
+(PWA) is optional on every device. Note that
 your personal data (lists, notes, progress) lives locally in each browser —
 opening the link on a second device starts empty; use Settings →
 Export/Import to move your data across (see below).

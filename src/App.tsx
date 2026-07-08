@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppStoreProvider } from './store/AppStore';
 import { startViewportHeightSync } from './utils/viewportHeight.mjs';
+import {
+  attemptPhonePortraitLock,
+  readPhoneLandscape,
+  watchPhoneLandscape,
+} from './utils/orientationGuard.mjs';
 import { DEFAULT_TAB, hashForTab, tabForHash } from './navigation/routes.mjs';
+import { RotateGuard } from './components/RotateGuard';
 import { TabBar, type TabId } from './components/TabBar';
 import { TodayScreen, type NavPayload } from './screens/TodayScreen';
 import { MapScreen } from './screens/MapScreen';
@@ -58,6 +64,21 @@ export default function App() {
   // background resume, and orientation changes. See viewportHeight.mjs.
   useEffect(() => startViewportHeightSync(), []);
 
+  // Phones are portrait-only (product decision). The classifier is
+  // capability- and space-based, never user-agent based; while the guard
+  // is up the app tree stays mounted (nav, screen state, GPS/tracking and
+  // the MapLibre instance all survive rotation). See orientationGuard.mjs.
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [phoneLandscape, setPhoneLandscape] = useState(() =>
+    readPhoneLandscape(),
+  );
+  useEffect(() => watchPhoneLandscape(setPhoneLandscape), []);
+  // Best-effort portrait lock for installed phone PWAs — progressive
+  // enhancement only; the RotateGuard is the canonical enforcement.
+  useEffect(() => {
+    attemptPhonePortraitLock();
+  }, []);
+
   useEffect(() => {
     // Normalise the address bar on load ('' or an unknown hash → the actual
     // start tab) without adding a history entry.
@@ -102,7 +123,7 @@ export default function App() {
 
   return (
     <AppStoreProvider>
-      <div className="app">
+      <div className="app" ref={shellRef}>
         {/* Two instances of the SAME navigation (shared route table, active
             state and handler); CSS displays exactly one per viewport. The
             rail sits before <main> so that on tablet/desktop the keyboard
@@ -118,6 +139,8 @@ export default function App() {
         <TabBar active={nav.tab} onChange={navigate} variant="bar" />
         <PwaLifecycle />
       </div>
+      {/* Outside .app so the shell's inert state never affects the guard. */}
+      <RotateGuard active={phoneLandscape} shellRef={shellRef} />
     </AppStoreProvider>
   );
 }

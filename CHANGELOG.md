@@ -29,10 +29,18 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   navigation rail (tablet, ≥ 760px wide and ≥ 500px tall) and a
   persistent sidebar with visible labels (desktop, ≥ 1160px wide, same
   height gate) are one and the same component with identical
-  destinations, order and active-state meaning. The height condition
-  keeps landscape phones on the familiar bottom tab bar, and on tablet/
-  desktop the navigation precedes the content in focus order — keyboard
-  and screen-reader order match what you see.
+  destinations, order and active-state meaning. On tablet/desktop the
+  navigation precedes the content in focus order — keyboard and
+  screen-reader order match what you see.
+- **Portrait-only phones**: on phones Fjällkompis is a portrait-only
+  trail companion. Rotating a phone to landscape shows an accessible
+  full-screen "Rotate your phone" prompt instead of a landscape layout;
+  rotating back resumes exactly where you were (same screen, same state,
+  GPS/live tracking untouched). Detection is capability- and space-based
+  (touch + no hover + phone-short viewport), never device sniffing, so
+  tablets keep both portrait and landscape and desktop windows are
+  unaffected. Installed phone PWAs additionally attempt a best-effort
+  system portrait lock where the browser supports it.
 - **Wider screen compositions** (≥ 900px): Today places the journey card
   beside the Tonight/Daily cards under a full-width hero; Map keeps its
   existing side-by-side map + elevation layout, now with a taller canvas
@@ -50,8 +58,12 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Changed
 
-- The PWA manifest no longer forces portrait orientation — the app now
-  works in mobile landscape, tablet landscape and desktop PWA windows.
+- The PWA manifest no longer forces portrait orientation globally
+  (`orientation: 'any'`), so installed **tablet** PWAs can use landscape
+  and desktop PWA windows stay responsive. Phones remain portrait-only —
+  enforced at runtime by the rotation prompt (and a best-effort system
+  lock in installed phone PWAs), because a single static manifest cannot
+  express "portrait on phones, any on tablets".
 - Bottom sheets (Data sources & credits) become centred modal dialogs on
   wider screens; update/offline toasts anchor to the content area instead
   of a phone-width column.

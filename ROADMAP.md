@@ -14,10 +14,11 @@ offline vector basemap plus an optional Sentinel-2 satellite layer (each
 independently downloadable), a curated stops guide, daily/packing lists,
 install/update UX, opt-in foreground live tracking (beta) on the Map
 screen, and local backup/restore. The app is one adaptive application:
-the same URL works on phones (the protected baseline experience), tablets
-(navigation rail, portrait and landscape) and desktop browsers (persistent
-sidebar), with hash-based URLs (`#/today` … `#/settings`), working browser
-Back/Forward and no orientation lock. The Map-tab GPS mechanics
+the same URL works on phones (the protected baseline experience,
+portrait-only by design — landscape shows a rotate-to-portrait prompt),
+tablets (navigation rail, portrait and landscape) and desktop browsers
+(persistent sidebar), with hash-based URLs (`#/today` … `#/settings`) and
+working browser Back/Forward. The Map-tab GPS mechanics
 (one-shot fix, foreground live tracking, projection, off-route states,
 offline basemap handling) were validated in a real-device Delft pilot walk
 (docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has
@@ -107,8 +108,10 @@ cross-device synchronization is deliberately far down this roadmap.
   bookmarkable primary screens; a responsive shell (bottom tab bar on
   compact, navigation rail on tablet, labelled sidebar on desktop — same
   six destinations, order and labels everywhere); wider screen
-  compositions for Today/Map/Stages/Stops/Lists/Settings; portrait
-  orientation lock removed. The compact/mobile experience is the protected
+  compositions for Today/Map/Stages/Stops/Lists/Settings. Phones are
+  portrait-only (runtime rotate-to-portrait guard + best-effort lock in
+  installed phone PWAs); the manifest stays orientation-neutral so tablet
+  PWAs keep landscape. The compact/mobile experience is the protected
   regression baseline and is functionally unchanged. Device transfer
   remains manual export → import, now covered by a round-trip test.
 - **Delft pilot removed** after graduation: panel, route/map assets, feature
