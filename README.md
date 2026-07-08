@@ -10,6 +10,15 @@ route on an offline map, day stages with elevation profiles, a guide to every
 hut and stop, daily and packing checklists — and it keeps working when the
 signal disappears, which on the Kungsleden is most of the time.
 
+The same link works in the browser on your **phone, tablet and computer**:
+plan at a desk with a big map and roomy lists, walk with the phone in your
+pocket. On phones the app is portrait-only (it will ask you to rotate
+back); tablets work in portrait and landscape. Installing it as an app
+(PWA) is optional on every device. Note that
+your personal data (lists, notes, progress) lives locally in each browser —
+opening the link on a second device starts empty; use Settings →
+Export/Import to move your data across (see below).
+
 > ⚠️ **Beta, and not for primary navigation.** Fjällkompis is a companion,
 > not a safety device. Always carry a paper map, a compass, and know how to
 > use them. GPS positions and route matching are approximate.
@@ -41,10 +50,12 @@ tracking — the app doesn't even have a backend.
 
 ## Getting started (5 minutes, at home on Wi-Fi)
 
-1. **Open** https://algolon.github.io/Fjallkompis/ in Chrome (Android) or
-   Safari (iPhone).
-2. **Install it**: use the *Install app* card in Settings, or your browser's
-   *Add to Home Screen*. It then opens full-screen like a normal app.
+1. **Open** https://algolon.github.io/Fjallkompis/ — Chrome (Android),
+   Safari (iPhone/iPad), or any modern browser on a tablet or computer.
+2. **Optionally install it**: use the *Install app* card in Settings, or
+   your browser's *Add to Home Screen* / *Install*. It then opens
+   full-screen like a normal app. The app works fine in a plain browser
+   tab too.
 3. **Download the offline map**: Settings → *Offline map* → Download
    (~4 MB). Optionally add the satellite imagery (~42 MB) for a second map
    layer.
@@ -66,7 +77,10 @@ tracking — the app doesn't even have a backend.
   an "uncertain" or "off route" message is a prompt to check the map and
   your surroundings, not a verdict.
 - **Back up before and after the trip**: Settings → *Export all data* saves
-  your notes, lists and progress to a file.
+  your notes, lists and progress to a file. The same file moves your data
+  to another device: export on one, import on the other. Opening the app
+  link on a new device never copies data by itself — there is no account
+  and nothing is synced — and offline maps are downloaded per device.
 - **Battery discipline beats everything**: flight mode + screen mostly off
   is the difference between a phone that lasts a week of huts and one that
   dies on day two.

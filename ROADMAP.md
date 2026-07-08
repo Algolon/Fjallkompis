@@ -7,18 +7,27 @@ rules live in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.8.x). The core
+Offline-first Kungsleden trail companion PWA (prototype, v0.9.x). The core
 trip loop works end to end and offline: verified route with stage statistics
 and elevation profiles, along-route GPS progress on the current stage, an
 offline vector basemap plus an optional Sentinel-2 satellite layer (each
 independently downloadable), a curated stops guide, daily/packing lists,
 install/update UX, opt-in foreground live tracking (beta) on the Map
-screen, and local backup/restore. The Map-tab GPS mechanics
+screen, and local backup/restore. The app is one adaptive application:
+the same URL works on phones (the protected baseline experience,
+portrait-only by design — landscape shows a rotate-to-portrait prompt),
+tablets (navigation rail, portrait and landscape) and desktop browsers
+(persistent sidebar), with hash-based URLs (`#/today` … `#/settings`) and
+working browser Back/Forward. The Map-tab GPS mechanics
 (one-shot fix, foreground live tracking, projection, off-route states,
 offline basemap handling) were validated in a real-device Delft pilot walk
 (docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has
 not been field-tested — still labelled *prototype, not for primary
 navigation*.
+
+All personal data remains local to the browser/device in use; moving it
+between devices is a manual export → import (device transfer). Automatic
+cross-device synchronization is deliberately far down this roadmap.
 
 ## Now
 
@@ -26,7 +35,10 @@ navigation*.
    and elsewhere), collect structured feedback through the in-app Feedback
    card and the GitHub beta-feedback issue template, and fold findings back
    into the Map/tracking experience. Kick-off requires nothing more than
-   sharing the app link.
+   sharing the app link. **Multi-device access (delivered, v0.9.0) is the
+   enabling step**: testers can now open the same link on phone, tablet or
+   desktop instead of being limited to a phone-width column, which widens
+   the tester pool and the range of feedback.
 2. **Evaluate Current vs Liberty Topo vs Nordic Liberty Topo** — the Map
    screen ships a prototype style selector rendering all three from the same
    offline source ([docs/map-style-comparison.md](docs/map-style-comparison.md)).
@@ -49,15 +61,33 @@ navigation*.
 
 ## Next
 
-5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
+5. **Custom list portability and templates** — an early follow-up to
+   multi-device access, and deliberately separate from it. Potential
+   capabilities: import a standalone packing list; import or create a custom
+   daily list; export an individual list; preview an import before applying
+   it; map categories; validate invalid rows; detect duplicates; choose
+   between adding, replacing or merging; and keep the current full-state
+   backup as a separate function. Scope is list files only — no accounts,
+   no sync.
+6. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
 
 ## Later
 
-6. **Real-device field testing on the trail** — battery, GPS accuracy,
+7. **Real-device field testing on the trail** — battery, GPS accuracy,
    glove/sunlight usability and offline behaviour on the Kungsleden itself;
    a prerequisite for calling any release trip-ready (1.0.0). The Delft
    pilot de-risked the Map-tab portion.
+
+## Much later (optional)
+
+8. **Cross-device synchronization** — automatic sync of personal data
+   between a user's devices. Explicitly out of scope for the foreseeable
+   future: it implies accounts/cloud or pairing infrastructure that
+   contradicts the current local-only, no-backend architecture. Manual
+   export → import (device transfer) is the supported mechanism until and
+   unless this is ever revisited; it must not influence the architecture
+   beyond avoiding obviously irreversible decisions.
 
 ## Blocked / awaiting external action
 
@@ -72,6 +102,18 @@ navigation*.
 
 ## Completed
 
+- **Multi-device access (v0.9.0)**: one adaptive application through the
+  same URL on phone, tablet and desktop. Hash-based routing (`#/today` …
+  `#/settings`) with working Back/Forward, refresh-safe destinations and
+  bookmarkable primary screens; a responsive shell (bottom tab bar on
+  compact, navigation rail on tablet, labelled sidebar on desktop — same
+  six destinations, order and labels everywhere); wider screen
+  compositions for Today/Map/Stages/Stops/Lists/Settings. Phones are
+  portrait-only (runtime rotate-to-portrait guard + best-effort lock in
+  installed phone PWAs); the manifest stays orientation-neutral so tablet
+  PWAs keep landscape. The compact/mobile experience is the protected
+  regression baseline and is functionally unchanged. Device transfer
+  remains manual export → import, now covered by a round-trip test.
 - **Delft pilot removed** after graduation: panel, route/map assets, feature
   flag, workflow and pilot docs deleted; the field-validated tracking core
   lives on as production code. Anonymised results remain in

@@ -184,6 +184,81 @@ live in [map-style-comparison.md](map-style-comparison.md); the roadmap item
 *Evaluate Current vs Liberty Topo vs Nordic Liberty Topo* holds the exit
 criteria. Guarded by `tests/map-styles.test.mjs`.
 
+## Adaptive shell & navigation (multi-device access)
+
+One adaptive application serves phone, tablet and desktop from the same URL
+— shared screens, data and components with different layout compositions.
+Terminology used consistently in code and docs:
+
+- **Multi-device access** (delivered): the same app opens and works on
+  mobile, tablet and desktop through the same URL.
+- **Device transfer** (existing, preserved): moving personal data between
+  devices is manual full-state export → import in Settings
+  (`tests/device-transfer.test.mjs` guards the round trip).
+- **Cross-device sync** (out of scope): no accounts, no cloud, no backend,
+  no automatic sync — see ROADMAP.md "Much later".
+
+Mechanics:
+
+- **Routing**: a dependency-free hash router. The route table (order,
+  labels, `#/…` hashes for the six destinations) lives in
+  `src/navigation/routes.mjs` — the single source of truth rendered by the
+  TabBar on every device class, fenced by
+  `tests/navigation-routes.test.mjs`. Hash routing is deliberate: it needs
+  no server rewrites, so deep links work on the GitHub Pages project
+  subpath. One-shot navigation payloads (e.g. Today → a specific stop)
+  stay in React memory; URLs identify destinations, not entity state.
+- **Orientation policy (product decision)**: phones are **portrait-only**;
+  tablets support portrait AND landscape; desktop windows are responsive.
+  A phone-class landscape viewport (landscape aspect + coarse pointer +
+  no hover + height < 500px — capability/space signals, never UA
+  sniffing; classifier in `src/utils/orientationGuard.mjs`, fenced by
+  `tests/orientation-guard.test.mjs`) gets the full-screen RotateGuard
+  (`src/components/RotateGuard.tsx`): a top-layer modal `<dialog>` asking
+  for portrait while the app shell is made `inert` — the React tree is
+  NOT unmounted, so hash destination, screen state, GPS/live tracking
+  and the MapLibre instance survive rotation, and focus returns to where
+  it was when portrait comes back. Installed phone PWAs also attempt
+  `screen.orientation.lock('portrait-primary')` once — progressive
+  enhancement only (support varies; iOS has no lock()); **the guard, not
+  the API call, is the canonical enforcement**. The manifest deliberately
+  stays `orientation: 'any'`: it is one static manifest for all device
+  classes, and `'portrait'` there would lock installed tablet PWAs out
+  of landscape.
+- **Shell**: the compact layout is the untouched mobile baseline — bottom
+  tab bar, 560px column, measured `--app-height` sizing
+  (`src/utils/viewportHeight.mjs`). The rail activates at ≥ 760px width
+  **and ≥ 500px height**; the labelled sidebar at ≥ 1160px width and the
+  same height gate. The height condition keeps short mouse-driven
+  desktop windows on the compact layout and matches the RotateGuard's
+  phone threshold — space-driven media conditions, never device/UA
+  detection. Navigation is one component
+  (TabBar) rendered twice by the shell: `tabbar--rail` before `<main>`
+  (visible in medium/wide, so keyboard focus order matches the visual
+  nav-left order) and `tabbar--bar` after `<main>` (compact, its
+  production focus position). CSS displays exactly one; the hidden
+  instance is `display:none` and out of layout, tab order and the
+  accessibility tree. Styling lives in the "Adaptive shell" section at
+  the end of `src/styles/global.css`.
+- **Screens**: per-screen `screen--*` classes set intentional content
+  widths inside the wider shell; at ≥ 900px width (same ≥ 500px height
+  gate) selected screens use two-column compositions (Today, Stages,
+  Stops, Lists, Settings; the Map's map+elevation grid predates this
+  iteration). Inside these grids, spacing belongs to the grid gap — the
+  legacy `.card + .card` stacked margin is reset per grid wrapper.
+  MapLibre resize is handled by MapView's own ResizeObserver.
+- **PWA**: the manifest is orientation-neutral (`orientation: 'any'`, see
+  the orientation policy above for why); install/update flows, the
+  offline app shell and the separate offline-map downloads are unchanged.
+  Large offline assets are never auto-downloaded on a new device.
+
+Mobile is the regression baseline: changes to compact behaviour (tab order,
+labels, screen hierarchy, interaction patterns) must be deliberate,
+documented decisions — not side effects of desktop work. Test compact
+layouts at 320×568, 360×800 and 390×844 — plus phone-landscape 800×360,
+844×390 and 932×430, which must show ONLY the rotate-to-portrait guard —
+before merging layout changes.
+
 ## Stops guide data
 
 The Stops screen shows a **curated snapshot** of official facility information

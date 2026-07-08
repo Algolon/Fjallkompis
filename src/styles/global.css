@@ -2064,3 +2064,329 @@ button.map-status-pill {
     animation: none;
   }
 }
+
+/* ===========================================================================
+   Adaptive shell — multi-device access
+   ---------------------------------------------------------------------------
+   Everything below is additive and lives behind min-width media queries:
+   the compact/mobile layout above is the untouched baseline (regression
+   contract — see the multi-device iteration in CHANGELOG.md).
+
+   Three presentation contexts, driven by available space only (no UA or
+   device detection):
+     - compact: the existing single-column app with the bottom tab bar.
+       Nothing in this section applies. Every non-compact context below
+       also requires min-height 500px: 500px separates the tallest
+       landscape phones (~440px CSS height) from the shortest rail-worthy
+       viewports (tablet landscape 768px, typical desktop ≥ 600px) with
+       margin on both sides — a window shorter than that genuinely lacks
+       the vertical room the rail and multi-column compositions assume.
+       NOTE — phones are portrait-only by product decision: on a
+       phone-class landscape viewport the RotateGuard (.rotate-guard
+       below, classifier in src/utils/orientationGuard.mjs) covers the
+       whole app and asks for portrait. The compact layout underneath
+       these gates is what short-but-mouse-driven DESKTOP windows get,
+       and what a rotating phone instantly returns to.
+     - medium   (≥ 760px wide AND ≥ 500px tall): a compact vertical
+       navigation rail on the left; content gets an intentionally
+       constrained, centred column. 760 rather than 768 so tablet portrait
+       (768×1024) receives the rail.
+     - wide     (≥ 1160px wide AND ≥ 500px tall): the same rail widens
+       into a persistent sidebar with icons AND visible labels; screens
+       may use two-column compositions.
+
+   Navigation is ONE component (TabBar) rendered twice by the shell:
+   .tabbar--rail before <main> (visible in medium/wide, so keyboard focus
+   reaches the left-hand navigation before the content — focus order
+   matches visual order) and .tabbar--bar after <main> (the compact bottom
+   bar, its production position in the focus order). Exactly one is
+   displayed at any viewport; the other is display:none and therefore out
+   of layout, tab order and the accessibility tree. Same destinations,
+   order, labels and active-state meaning in all three presentations.
+
+   IMPORTANT: the shell still relies on --app-height (viewportHeight.mjs);
+   none of the rules below change the shell's height model.
+   =========================================================================== */
+
+:root {
+  /* Width of the navigation rail/sidebar; 0 while the bottom tab bar rules. */
+  --nav-w: 0px;
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* Compact default: only the bottom-bar navigation instance exists for
+   layout, keyboard and assistive tech; the rail instance is inert. */
+.tabbar--rail {
+  display: none;
+}
+
+/* --- Medium (≥ 760×500): navigation rail + centred content column -------- */
+
+@media (min-width: 760px) and (min-height: 500px) {
+  :root {
+    --nav-w: 84px;
+  }
+
+  .app {
+    /* The 560px cap is a compact-only concept: wider shells place content
+       through per-screen max-widths instead of stretching every card. */
+    max-width: none;
+    flex-direction: row;
+  }
+
+  /* Swap navigation instances: the pre-<main> rail becomes the one
+     navigation (nav left, content right — in DOM, focus and visual
+     order alike); the post-<main> bottom bar leaves the tree. */
+  .tabbar--bar {
+    display: none;
+  }
+  .tabbar--rail {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 6px;
+    width: var(--nav-w);
+    height: auto;
+    padding: calc(var(--safe-top) + 14px) 6px 14px calc(var(--safe-left) + 6px);
+    border-top: 0;
+    border-right: 1px solid var(--line);
+  }
+  .tabbar--rail .tab {
+    flex: 0 0 auto;
+    font-size: 10px;
+    padding: 0;
+  }
+  .tabbar--rail .tab-pill {
+    width: 100%;
+    padding: 8px 4px;
+  }
+
+  /* Constrained, centred content column inside the wider shell. Screens
+     that can use more space override this via their .screen--* class. */
+  .screen {
+    width: 100%;
+    max-width: 680px;
+    margin-inline: auto;
+    padding: calc(var(--safe-top) + 20px) 24px 24px;
+  }
+  .screen--map {
+    max-width: 1040px;
+  }
+
+  /* Today's decorative contour layer covers the content area beside the
+     rail instead of the compact 560px column. */
+  .today-bg {
+    left: var(--nav-w);
+    right: 0;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+
+  /* No bottom tab bar to float above any more — anchor toasts to the
+     bottom of the content area, clear of the rail. */
+  .pwa-toast-region {
+    left: var(--nav-w);
+    bottom: 20px;
+  }
+
+  /* Bottom sheets become centred modals: a viewport-wide bottom sheet is
+     a thumb-reach pattern that makes no sense next to a pointer. */
+  .sheet {
+    inset: 0;
+    margin: auto;
+    width: min(640px, calc(100vw - 48px));
+    max-height: min(80vh, 720px);
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--r-lg);
+  }
+}
+
+/* --- Roomy content (≥ 900×500): selective multi-column screens ------------ */
+/* Height-gated like the rail: a ≥900px-wide landscape PHONE stays on the
+   untouched compact composition. */
+
+@media (min-width: 900px) and (min-height: 500px) {
+  /* Map: the dominant visual area (map-elev-grid above already goes
+     side-by-side at this width); give the canvas real height. */
+  .screen--map {
+    max-width: 1160px;
+  }
+  .mapview {
+    height: clamp(420px, 58vh, 640px);
+  }
+
+  /* Today: hero and header span; journey sits beside the Tonight/Daily
+     action cards. Grid gaps replace the compact margins. */
+  .today-screen {
+    max-width: 920px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 16px;
+    align-content: start;
+    align-items: start;
+  }
+  .today-screen > .today-topline,
+  .today-screen > .screen-head,
+  .today-screen > .hero,
+  .today-screen > .empty {
+    grid-column: 1 / -1;
+  }
+  .today-screen > .screen-head {
+    margin-bottom: 0;
+  }
+  .today-screen > .hero {
+    margin-bottom: 0;
+  }
+  .today-screen > section.card {
+    grid-column: 1;
+    grid-row: span 2;
+  }
+  .today-screen > .today-action-card {
+    grid-column: 2;
+    margin: 0;
+  }
+
+  /* Stages / Stops: two-column card grids for scanning & comparison.
+     align-items: start keeps an expanded stop accordion from stretching
+     its row neighbour. */
+  .screen--stages,
+  .screen--stops {
+    max-width: 980px;
+  }
+  .screen--stages .stack,
+  .screen--stops .stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  /* The legacy stacked-card rule (.card + .card { margin-top }) must not
+     leak into the grids: it would push every card after the first down by
+     14px and misalign the first row. Spacing is the grid gap's job here. */
+  .screen--stages .stack > .card,
+  .screen--stops .stack > .card {
+    margin-top: 0;
+  }
+
+  /* Lists: categories in two columns (wrapper div is display:block on
+     compact, so mobile rendering is unchanged). */
+  .screen--lists {
+    max-width: 940px;
+  }
+  .lists-cats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 20px;
+    align-items: start;
+  }
+
+  /* Settings: two-column card grid; grid gap replaces card margins. */
+  .screen--settings {
+    max-width: 960px;
+  }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .settings-grid > .card {
+    margin-top: 0;
+  }
+}
+
+/* --- Wide (≥ 1160×500): persistent sidebar with visible labels ------------ */
+
+@media (min-width: 1160px) and (min-height: 500px) {
+  :root {
+    --nav-w: 236px;
+  }
+
+  .tabbar--rail {
+    align-items: stretch;
+    gap: 4px;
+    padding-left: calc(var(--safe-left) + 12px);
+    padding-right: 12px;
+  }
+  .tabbar--rail .tab {
+    font-size: 14px;
+  }
+  .tabbar--rail .tab-pill {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+  }
+  .tabbar--rail .tab .ic {
+    width: 20px;
+    height: 20px;
+  }
+  .tabbar--rail .tab-label {
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  /* Below-map content on the Map screen: keep text/statistic cards at a
+     readable measure under the full-width map instead of 1160px lines. */
+  .screen--map > .stage-select {
+    max-width: 820px;
+    margin-inline: auto;
+  }
+  .screen--map > .card,
+  .screen--map > .map-hint {
+    max-width: 820px;
+    margin-inline: auto;
+  }
+}
+
+/* --- Rotate-to-portrait guard (phones are portrait-only) ------------------ */
+/* A native modal <dialog> (top layer — paints above every app surface,
+   including an open credits sheet). Shown/hidden by RotateGuard.tsx from
+   the orientationGuard.mjs classifier; while open the app shell is inert.
+   Fully opaque: nothing of the app may read through it. No animation —
+   nothing to gate behind prefers-reduced-motion. The UA's
+   dialog:not([open]) { display: none } keeps the closed guard out of
+   layout, tab order and the accessibility tree. */
+
+.rotate-guard {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  margin: 0;
+  padding: 24px;
+  background: var(--stone-bg);
+  color: var(--ink);
+}
+.rotate-guard[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.rotate-guard::backdrop {
+  background: var(--stone-bg);
+}
+.rotate-guard__icon {
+  color: var(--spruce);
+  margin-bottom: 4px;
+}
+.rotate-guard h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.rotate-guard p {
+  margin: 0;
+  max-width: 36ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}

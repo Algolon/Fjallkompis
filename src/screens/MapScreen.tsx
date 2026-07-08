@@ -345,7 +345,7 @@ export function MapScreen() {
   }, [geo.status, geo.coord, geo.source, geo.manualStopId, geo.accuracyM, currentStage]);
 
   return (
-    <div className="screen">
+    <div className="screen screen--map">
       <ScreenHeader eyebrow="Route" title="Map" />
 
       {/* Map / elevation segmented control (both shown on wide screens) */}

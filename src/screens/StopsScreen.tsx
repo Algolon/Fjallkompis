@@ -270,7 +270,7 @@ export function StopsScreen({ initialStopId }: { initialStopId?: string | null }
   };
 
   return (
-    <div className="screen">
+    <div className="screen screen--stops">
       <ScreenHeader eyebrow="Along the way" title="Huts & Stations">
         Eight stops, north to south. Facility details are a verified snapshot —
         tap a stop to see everything.

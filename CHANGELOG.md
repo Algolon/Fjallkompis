@@ -10,6 +10,71 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-09
+
+### Added
+
+- **Multi-device access**: the same app URL now works properly on phones,
+  tablets (portrait and landscape) and desktop/laptop browsers — one
+  adaptive application, one codebase, no separate versions. The existing
+  phone experience is the protected baseline and is functionally
+  unchanged: same bottom tab bar, same six destinations in the same order,
+  same screens, actions and touch interactions.
+- **URL-aware navigation**: hash-based routes for the six primary
+  destinations (`#/today`, `#/map`, `#/stages`, `#/stops`, `#/lists`,
+  `#/settings`). Browser Back/Forward work, refreshing keeps you on the
+  same screen, and primary destinations are bookmarkable — including on
+  the GitHub Pages subpath. Unknown hashes fall back safely.
+- **Adaptive navigation**: the bottom tab bar (compact), a vertical
+  navigation rail (tablet, ≥ 760px wide and ≥ 500px tall) and a
+  persistent sidebar with visible labels (desktop, ≥ 1160px wide, same
+  height gate) are one and the same component with identical
+  destinations, order and active-state meaning. On tablet/desktop the
+  navigation precedes the content in focus order — keyboard and
+  screen-reader order match what you see.
+- **Portrait-only phones**: on phones Fjällkompis is a portrait-only
+  trail companion. Rotating a phone to landscape shows an accessible
+  full-screen "Rotate your phone" prompt instead of a landscape layout;
+  rotating back resumes exactly where you were (same screen, same state,
+  GPS/live tracking untouched). Detection is capability- and space-based
+  (touch + no hover + phone-short viewport), never device sniffing, so
+  tablets keep both portrait and landscape and desktop windows are
+  unaffected. Installed phone PWAs additionally attempt a best-effort
+  system portrait lock where the browser supports it.
+- **Wider screen compositions** (≥ 900px): Today places the journey card
+  beside the Tonight/Daily cards under a full-width hero; Map keeps its
+  existing side-by-side map + elevation layout, now with a taller canvas
+  and readable-width cards beneath; Stages and Stops use two-column card
+  grids; Lists shows categories in two columns; Settings arranges its
+  cards in two columns. Section order and actions are unchanged
+  everywhere.
+- A device-transfer round-trip test (`tests/device-transfer.test.mjs`)
+  protecting the full-state export/import: current stage, daily-list
+  ticks, packing statuses/quantities/custom items, stop notes and journal
+  entries all survive export → import. (They already did — the test
+  fences that behaviour.)
+- A navigation-route test (`tests/navigation-routes.test.mjs`) fencing the
+  six destinations' order, labels and URLs.
+
+### Changed
+
+- The PWA manifest no longer forces portrait orientation globally
+  (`orientation: 'any'`), so installed **tablet** PWAs can use landscape
+  and desktop PWA windows stay responsive. Phones remain portrait-only —
+  enforced at runtime by the rotation prompt (and a best-effort system
+  lock in installed phone PWAs), because a single static manifest cannot
+  express "portrait on phones, any on tablets".
+- Bottom sheets (Data sources & credits) become centred modal dialogs on
+  wider screens; update/offline toasts anchor to the content area instead
+  of a phone-width column.
+
+### Unchanged (deliberately)
+
+- No backend, no accounts, no synchronization. Personal data stays local
+  to each browser/device; offline maps are downloaded separately per
+  device; moving data between devices remains manual export → import in
+  Settings.
+
 ## [0.8.0] - 2026-07-07
 
 ### Added

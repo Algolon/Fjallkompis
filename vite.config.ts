@@ -35,7 +35,14 @@ export default defineConfig({
         theme_color: '#2f4a3d',
         background_color: '#dce4d8',
         display: 'standalone',
-        orientation: 'portrait',
+        // 'any' is DELIBERATE, not an oversight: this one static manifest
+        // serves every device class, and its orientation member applies to
+        // the whole app — 'portrait' here would also lock installed TABLET
+        // PWAs out of landscape. Phones are portrait-only by product
+        // decision, enforced at runtime instead: the RotateGuard overlay
+        // (canonical) plus a best-effort screen.orientation.lock() for
+        // installed phone PWAs. See src/utils/orientationGuard.mjs.
+        orientation: 'any',
         // Scope/start_url pinned to the GitHub Pages project subpath (base).
         scope: '/Fjallkompis/',
         start_url: '/Fjallkompis/',
