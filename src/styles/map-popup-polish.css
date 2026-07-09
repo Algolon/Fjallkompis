@@ -1,0 +1,139 @@
+/*
+ * Map popup and navigation stability refinements.
+ *
+ * Loaded after global.css so these focused overrides do not disturb the
+ * established responsive shell or the rest of the Nordic design system.
+ */
+
+/* Bottom navigation: every compact tab uses the same internal geometry.
+   Active/inactive styling can change, but the icon and label never move. */
+.tabbar--bar .tab-pill {
+  width: 100%;
+  max-width: 68px;
+  min-height: 54px;
+  justify-content: center;
+  padding: 5px 6px;
+}
+
+.tabbar--bar .tab .ic {
+  flex: 0 0 22px;
+  transform: none;
+}
+
+.tabbar--bar .tab-label {
+  line-height: 1;
+}
+
+/* Hut markers: selection remains clear through fill, contrast and halo, not
+   scaling. Keeping the marker box and glyph at one size prevents the subtle
+   pixel jump that was visible while switching between stop previews. */
+.map-hut__badge,
+.map-hut:hover .map-hut__badge,
+.map-hut.is-selected .map-hut__badge,
+.map-hut.is-end.is-selected .map-hut__badge {
+  transform: none;
+}
+
+.map-hut__badge {
+  transform-origin: center;
+  transition:
+    color 0.12s ease,
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease;
+}
+
+@media (hover: hover) {
+  .map-hut:hover .map-hut__badge {
+    color: var(--spruce-700);
+    filter: drop-shadow(0 1px 1px rgba(246, 248, 243, 0.98))
+      drop-shadow(0 0 3px rgba(246, 248, 243, 0.96));
+  }
+
+  .map-hut.is-end:hover .map-hut__badge {
+    color: #9a6a3e;
+  }
+
+  .map-hut.is-selected:hover .map-hut__badge {
+    color: #f4f8f5;
+    filter: none;
+  }
+}
+
+/* Compact liquid-glass stop preview. The popup remains a single generous
+   button, but sheds the large minimum width, excess padding and warning pills. */
+.stop-popup-anchor .maplibregl-popup-content {
+  border-radius: 14px;
+}
+
+.stop-popup {
+  width: max-content;
+  min-width: 0;
+  max-width: min(220px, calc(100vw - 56px));
+  gap: 5px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(240, 245, 238, 0.72);
+  backdrop-filter: blur(10px) saturate(1.15) brightness(1.04);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15) brightness(1.04);
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -12px 20px -18px rgba(12, 24, 20, 0.22),
+    0 2px 6px rgba(12, 24, 20, 0.12),
+    0 12px 28px rgba(12, 24, 20, 0.2);
+}
+
+.stop-popup__row {
+  gap: 12px;
+}
+
+.stop-popup__name {
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.stop-popup__facilities {
+  gap: 4px 6px;
+}
+
+/* Important absences remain available in the full Huts & Stations details,
+   but are intentionally omitted from the lightweight map preview. */
+.stop-popup__absence {
+  display: none;
+}
+
+@media (hover: hover) {
+  .stop-popup:hover {
+    background: rgba(244, 248, 242, 0.82);
+    filter: brightness(1.04);
+  }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .stop-popup {
+    background: rgba(246, 248, 243, 0.96);
+  }
+}
+
+/* Match the semi-transparent glass card with a quiet translucent popup tip. */
+.stop-popup-anchor.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: rgba(240, 245, 238, 0.88);
+}
+
+.stop-popup-anchor.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: rgba(240, 245, 238, 0.88);
+}
+
+.stop-popup-anchor.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: rgba(240, 245, 238, 0.88);
+}
+
+.stop-popup-anchor.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: rgba(240, 245, 238, 0.88);
+}

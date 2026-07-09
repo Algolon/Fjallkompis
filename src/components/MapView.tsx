@@ -211,6 +211,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const routeRef = useRef(route);
   const followRef = useRef(follow);
   followRef.current = follow;
+  // The Map constructor already applies the route bounds. The first selection
+  // effect only needs to set filters; re-fitting the same overview bounds was
+  // causing a visible 700ms camera nudge whenever the Map screen mounted.
+  const selectionCameraInitializedRef = useRef(false);
 
   const animate = () => ({ duration: prefersReducedMotion() ? 0 : 700 });
 
@@ -361,9 +365,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         // Every mapped waypoint is a hut/station stop: render it as a hut
         // marker (local DOM, no glyphs/sprites, no innerHTML — the name is
         // set via textContent). The 44×44 button is the touch target; the
-        // visible ~30px badge sits centred inside it, so anchor:'center'
-        // keeps the badge pinned to the true coordinate at every zoom and
-        // the label hangs above it out of layout flow.
+        // visible glyph sits centred inside it, so anchor:'center' keeps the
+        // badge pinned to the true coordinate at every zoom. Subpixel
+        // positioning avoids one-pixel rounding jumps during camera updates.
         for (const w of mountedRoute.waypoints) {
           const el = document.createElement('button');
           el.type = 'button';
@@ -390,7 +394,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           });
           markerElsRef.current.set(w.id, el);
           markers.push(
-            new maplibregl.Marker({ element: el, anchor: 'center' })
+            new maplibregl.Marker({
+              element: el,
+              anchor: 'center',
+              subpixelPositioning: true,
+            })
               .setLngLat([w.lon, w.lat])
               .addTo(map!),
           );
@@ -498,6 +506,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
 
     const stage = routeRef.current.stages.find((s) => s.id === selectedStageId);
+    if (!selectionCameraInitializedRef.current) {
+      selectionCameraInitializedRef.current = true;
+      // The constructor already fitted the overview. Skip only that duplicate
+      // initial overview fit; a component mounted directly into stage mode
+      // still needs to fit the selected stage once.
+      if (!stage) return;
+    }
     fitBounds(stage ? stage.bounds : routeRef.current.bounds);
   }, [selectedStageId, loaded]);
 

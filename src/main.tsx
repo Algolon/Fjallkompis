@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles/global.css';
+import './styles/map-popup-polish.css';
 
 if (import.meta.env.DEV) {
   // Development-only route-data diagnostics (mirrors the generator output).
