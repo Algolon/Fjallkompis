@@ -10,6 +10,47 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-09
+
+### Added
+
+- **Hut markers on the Map**: every mapped stop is now drawn as a clear
+  hut/cabin badge (the same glyph as the Huts tab) instead of a generic
+  dot, so "this is a hut or station" reads before any interaction. The
+  route's start and end (Abisko, Nikkaluokta) keep the hut badge with a
+  subtle cloudberry accent. Markers are real keyboard-focusable buttons
+  with a 44×44 touch target around the ~30px badge, visible focus rings,
+  and distinct hover and selected states.
+- **Anchored stop previews**: tapping or keyboard-activating a hut marker
+  opens a compact popup pinned to that stop — short name, up to four
+  facility icons (same meaning and iconography as Huts & Stations), a
+  "No shop"-style warning where relevant, and a chevron. The whole card
+  is one action: it opens that stop's full details in Huts & Stations
+  (mobile: the accordion expands and scrolls into view; landscape
+  tablet/desktop: the existing master-detail panel). One popup at a
+  time; it follows the map through pan, zoom and fullscreen; empty-map
+  click, Escape, or tapping the selected marker again closes it. For
+  assistive technology the preview announces one concise facility
+  summary instead of a run of icons.
+
+### Changed
+
+- **The Map opens on the Full route by default.** The Map's browsing
+  selection is now decoupled from the current trip stage: a fresh install
+  (including loading directly at `#/map`) shows the complete route,
+  full-route statistics and the full elevation profile first. Day 1
+  remains the default current trip stage everywhere else (Today,
+  Tonight's stop, Stages, live tracking, progress), selecting a day on
+  the Map still never changes the persisted trip stage, and starting
+  live tracking still focuses the tracked stage.
+
+### Removed
+
+- The below-map "waypoint detail" card. Every rendered waypoint is a real
+  stop, so the anchored preview (and Huts & Stations behind it) replaces
+  that panel — no more selecting a marker and seeing nothing happen
+  because the result rendered off-screen.
+
 ## [0.10.2] - 2026-07-09
 
 ### Changed

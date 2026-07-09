@@ -26,24 +26,11 @@ export const WAYPOINT_BY_ID: Record<string, RouteWaypoint> = Object.fromEntries(
 );
 
 /**
- * GPX waypoint machine ids ↔ the app's existing hut ids. Personal hut notes
- * and shop overrides are keyed by hut id in localStorage, so this mapping is
- * what keeps them intact across route-data regenerations.
+ * GPX waypoint machine ids ↔ the app's existing hut ids. Lives in the plain
+ * waypointStops.mjs module (node --test validates it against the generated
+ * dataset); re-exported here so app code keeps one route-data entry point.
  */
-export const WAYPOINT_TO_HUT: Record<string, string> = {
-  START_ABISKO: 'abisko',
-  HUT_ABISKOJAURE: 'abiskojaure',
-  HUT_ALESJAURE: 'alesjaure',
-  HUT_TJAKTJA: 'tjaktja',
-  HUT_SALKA: 'salka',
-  HUT_SINGI: 'singi',
-  HUT_KEBNEKAISE: 'kebnekaise',
-  END_NIKKALUOKTA: 'nikkaluokta',
-};
-
-export const HUT_TO_WAYPOINT: Record<string, string> = Object.fromEntries(
-  Object.entries(WAYPOINT_TO_HUT).map(([w, h]) => [h, w]),
-);
+export { WAYPOINT_TO_HUT, HUT_TO_WAYPOINT, stopIdForWaypoint } from './waypointStops.mjs';
 
 /** Cumulative km into the total route at which each waypoint is reached. */
 export const WAYPOINT_ROUTE_KM: Record<string, number> = (() => {

@@ -548,35 +548,87 @@ h3 {
   height: 100%;
 }
 
-/* Waypoint markers: local HTML, no glyph/sprite dependencies. */
-.map-wpt {
+/* Hut/station markers: local HTML buttons, no glyph/sprite dependencies.
+   The 44×44 button is the touch target; the visible ~30px badge is centred
+   inside it, so the map anchor (element center) is exactly the badge
+   center — the label and hit padding never shift the true coordinate. */
+.map-hut {
   background: none;
   border: 0;
-  padding: 4px; /* enlarge touch target beyond the visual dot */
+  padding: 0;
+  width: 44px;
+  height: 44px;
   /* No position here: MapLibre's .maplibregl-marker rule must keep this
      element position:absolute, or markers stack in page flow and drift.
      It also serves as the positioning context for the absolute label. */
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.map-wpt-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--spruce);
-  border: 2.5px solid #fff;
-  box-shadow: 0 1px 3px rgba(27, 42, 39, 0.4);
+.map-hut__badge {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  /* Near-opaque paper so the glyph reads over both terrain and satellite. */
+  background: rgba(246, 248, 243, 0.94);
+  border: 1.5px solid var(--line-strong);
+  color: var(--spruce);
+  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.map-hut__badge svg {
   display: block;
 }
-.map-wpt-dot.is-end {
-  background: var(--cloudberry);
+/* Subtle endpoint accent (Abisko start / Nikkaluokta end) — same hut badge,
+   cloudberry glyph, so "hut or station" stays the dominant meaning. */
+.map-hut.is-end .map-hut__badge {
+  color: var(--cloudberry);
 }
-.map-wpt-label {
-  /* Out of layout flow so the marker box stays dot-sized and the map
-     anchor lands on the dot's center; the title sits above the dot. */
+@media (hover: hover) {
+  .map-hut:hover .map-hut__badge {
+    transform: scale(1.08);
+    box-shadow: 0 2px 6px rgba(27, 42, 39, 0.4);
+  }
+}
+.map-hut:focus-visible {
+  outline: none;
+}
+.map-hut:focus-visible .map-hut__badge {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+/* Selected = popup open: inverted fill + halo + slight scale — shape and
+   contrast changes, never colour alone. Raised above neighbouring markers
+   so the popup visually connects to ITS badge. */
+.map-hut.is-selected {
+  z-index: 2;
+}
+.map-hut.is-selected .map-hut__badge {
+  background: var(--spruce);
+  border-color: var(--spruce-700);
+  color: #f4f8f5;
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 3px rgba(47, 74, 61, 0.3),
+    0 2px 6px rgba(27, 42, 39, 0.45);
+}
+.map-hut.is-end.is-selected .map-hut__badge {
+  background: var(--cloudberry);
+  border-color: #9a6a3e;
+  color: #fff;
+  box-shadow:
+    0 0 0 3px rgba(183, 132, 67, 0.3),
+    0 2px 6px rgba(27, 42, 39, 0.45);
+}
+.map-hut__label {
+  /* Out of layout flow so the marker box stays badge-sized and the map
+     anchor lands on the badge's center; the title sits above the badge. */
   position: absolute;
-  bottom: 100%;
+  bottom: calc(100% - 5px);
   left: 50%;
   transform: translateX(-50%);
   font-size: 11px;
@@ -586,6 +638,118 @@ h3 {
     0 1px 2px rgba(246, 248, 243, 0.9),
     0 0 4px rgba(246, 248, 243, 0.9);
   white-space: nowrap;
+  pointer-events: none; /* the button, not the label, is the hit area */
+}
+
+/* --- Anchored stop preview popup ------------------------------------------- */
+
+/* MapLibre wrapper: above markers (incl. the raised selected one); the
+   default white content shell is replaced by the card below. */
+.stop-popup-anchor {
+  z-index: 6;
+}
+.stop-popup-anchor .maplibregl-popup-content {
+  padding: 0;
+  background: transparent;
+  border-radius: 12px;
+  box-shadow: none;
+}
+/* Tip colour matches the card's paper for every auto-anchor direction. */
+.stop-popup-anchor.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: #f2f5ef;
+}
+.stop-popup-anchor.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.stop-popup-anchor.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: #f2f5ef;
+}
+.stop-popup-anchor.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: #f2f5ef;
+}
+.stop-popup-anchor.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: #f2f5ef;
+}
+
+/* The preview card: ONE generous button (the chevron is a hint, not the
+   target). Related to the app's cards but lighter and more compact; high
+   opacity so it stays readable over terrain and satellite imagery. */
+.stop-popup {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 168px;
+  max-width: 240px;
+  padding: 10px 12px;
+  background: rgba(242, 245, 239, 0.97);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(27, 42, 39, 0.28);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.stop-popup:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .stop-popup:hover {
+    background: #f4f7f1;
+  }
+  .stop-popup:hover .stop-popup__chevron {
+    color: var(--spruce);
+  }
+}
+.stop-popup__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.stop-popup__name {
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-strong);
+}
+.stop-popup__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+.stop-popup__facilities {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+}
+.stop-popup__fac {
+  display: inline-flex;
+  color: var(--spruce);
+}
+.stop-popup__absence {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid #dcc4b8;
+  border-radius: 999px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+/* Defensive fallback for a (currently non-existent) unmapped waypoint:
+   name-only preview, not interactive, no Huts & Stations affordance. */
+.stop-popup--plain {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: default;
 }
 
 /* Positioning context for the floating basemap toggle. */
