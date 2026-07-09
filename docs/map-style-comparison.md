@@ -1,9 +1,13 @@
 # Map-style comparison prototype
 
-**Status: prototype — no production style decision has been made.** The
-production default remains the Current style; this comparison exists so that
-decision can be made deliberately (see the roadmap item *Evaluate Current vs
-Liberty Topo vs Nordic Liberty Topo*).
+**Status: DECIDED (v0.10.0) — "Liberty Topo — Nordic" is the production
+Terrain style.** The in-app comparison selector has been removed;
+`DEFAULT_MAP_STYLE_ID` in `src/map/mapStyles.mjs` is `'liberty-nordic'`.
+The registry, the Liberty builder and both palettes are retained, so the
+look remains centrally adjustable (`NORDIC_TOPO_PALETTE` in
+`src/map/libertyTopoLayers.mjs`) and a future comparison can be re-enabled
+by wiring a different id into MapView's `mapStyleId` prop. The rest of this
+document is kept as the record of the evaluation setup.
 
 ## Purpose
 
