@@ -2,6 +2,13 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# Real environment files are never committed (API keys). `*.local` above
+# already covers .env.local; these cover every other .env variant. The
+# tracked template with empty placeholders is .env.example.
+.env
+.env.*
+!.env.example
 .DS_Store
 .vscode/*
 !.vscode/extensions.json

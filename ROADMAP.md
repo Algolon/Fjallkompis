@@ -46,6 +46,11 @@ cross-device synchronization is deliberately far down this roadmap.
    terrain PMTiles source, subject to archive-size measurements. Also a
    prerequisite for the Liberty Topo variants to show their defining
    contour/hillshade layers (currently omitted for lack of offline data).
+   Design input: the Thunderforest Outdoors benchmark and the prioritised
+   Nordic translation plan
+   (docs/maps/thunderforest-outdoors-benchmark.md) — the temporary
+   online-only comparison layer on the Map screen exists solely to serve
+   this restyle work and is removed when it concludes.
 
 ## Next
 

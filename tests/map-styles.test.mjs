@@ -22,6 +22,8 @@ import {
   MAP_STYLE_OPTIONS,
   DEFAULT_MAP_STYLE_ID,
   isMapStyleId,
+  isVectorStyleId,
+  isBenchmarkEnabled,
   basemapLayersForStyle,
 } from '../src/map/mapStyles.mjs';
 import {
@@ -38,6 +40,7 @@ const SOURCE = 'protomaps';
 const RESERVED_LAYER_IDS = [
   'placeholder-background',
   'satellite',
+  'thunderforest-outdoors',
   'route-overview',
   'route-stages',
   'route-stage-selected-casing',
@@ -49,22 +52,60 @@ const RESERVED_LAYER_IDS = [
   'gps-dot',
 ];
 
-test('exactly the three comparison styles are registered', () => {
+test('exactly the three vector styles plus the online benchmark are registered', () => {
   assert.deepEqual(
     MAP_STYLE_OPTIONS.map((o) => o.id),
-    ['current', 'liberty', 'liberty-nordic'],
+    ['current', 'liberty', 'liberty-nordic', 'thunderforest-outdoors'],
   );
   assert.deepEqual(
     MAP_STYLE_OPTIONS.map((o) => o.label),
-    ['Current', 'Liberty Topo', 'Liberty Topo — Nordic'],
+    ['Current', 'Liberty Topo', 'Liberty Topo — Nordic', 'Thunderforest Outdoors'],
   );
   assert.equal(DEFAULT_MAP_STYLE_ID, 'liberty-nordic', 'production default is the decided Nordic style');
   assert.ok(isMapStyleId('liberty-nordic'));
+  assert.ok(isMapStyleId('thunderforest-outdoors'));
   assert.ok(!isMapStyleId('liberty-satellite'));
   assert.throws(() => basemapLayersForStyle('liberty-satellite', SOURCE));
 });
 
-for (const { id } of MAP_STYLE_OPTIONS) {
+test('the online benchmark can never masquerade as an offline vector style', () => {
+  const tf = MAP_STYLE_OPTIONS.find((o) => o.id === 'thunderforest-outdoors');
+  assert.equal(tf.kind, 'raster-online');
+  assert.equal(tf.requiresApiKey, true);
+  assert.equal(tf.supportingLabel, 'Online preview');
+  assert.ok(!isVectorStyleId('thunderforest-outdoors'));
+  assert.notEqual(DEFAULT_MAP_STYLE_ID, 'thunderforest-outdoors', 'never the default basemap');
+  // The vector builder must refuse it: the offline invariants below only
+  // hold because the raster benchmark lives outside basemapLayersForStyle.
+  assert.throws(() => basemapLayersForStyle('thunderforest-outdoors', SOURCE));
+});
+
+test('benchmark selector visibility: dev default on, production opt-in only', () => {
+  // Dev builds show the temporary comparison selector regardless of the flag.
+  assert.equal(isBenchmarkEnabled(true, undefined), true);
+  assert.equal(isBenchmarkEnabled(true, 'false'), true);
+  // Production requires the explicit flag — normal users see only the
+  // production map experience.
+  assert.equal(isBenchmarkEnabled(false, 'true'), true);
+  assert.equal(isBenchmarkEnabled(false, ' true '), true, 'whitespace tolerated');
+  assert.equal(isBenchmarkEnabled(false, undefined), false);
+  assert.equal(isBenchmarkEnabled(false, ''), false);
+  assert.equal(isBenchmarkEnabled(false, 'false'), false);
+  assert.equal(isBenchmarkEnabled(false, '1'), false, 'only the exact word true');
+  assert.equal(isBenchmarkEnabled(false, 'TRUE'), false, 'case-sensitive by design');
+});
+
+const VECTOR_STYLE_OPTIONS = MAP_STYLE_OPTIONS.filter((o) => o.kind === 'vector-offline');
+
+test('every vector style is registered as offline-capable', () => {
+  assert.deepEqual(
+    VECTOR_STYLE_OPTIONS.map((o) => o.id),
+    ['current', 'liberty', 'liberty-nordic'],
+  );
+  for (const o of VECTOR_STYLE_OPTIONS) assert.ok(isVectorStyleId(o.id));
+});
+
+for (const { id } of VECTOR_STYLE_OPTIONS) {
   test(`style '${id}' is offline-compatible with the shipped PMTiles source`, () => {
     const layers = basemapLayersForStyle(id, SOURCE);
     assert.ok(layers.length > 0, 'produces layers');
