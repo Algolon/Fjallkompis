@@ -173,9 +173,14 @@ The 0.8.0 three-way comparison concluded with **Liberty Topo — Nordic as the
 production Terrain style** (v0.10.0, recorded in
 [map-style-comparison.md](map-style-comparison.md)). The registry
 (`src/map/mapStyles.mjs`), the Liberty builder and both palettes were
-retained, and the Map screen's **Style · comparison** selector has been
-reintroduced for the Nordic-restyle benchmark work. It offers the three
-offline vector styles rendered from the **same** PMTiles source — **Current**
+retained, and the Map screen's **Map comparison — temporary** selector has
+been reintroduced for the Nordic-restyle benchmark work. Its *visibility* is
+gated by `VITE_ENABLE_MAP_BENCHMARK` (see below): dev builds show it by
+default, production only when the flag is exactly `true` — otherwise normal
+users get the plain production map with no comparison options at all. The
+default style is always Liberty Topo — Nordic; nothing is persisted. It
+offers the three offline vector styles rendered from the **same** PMTiles
+source — **Current**
 (the pre-decision production style), **Liberty Topo** (the
 [gpx.studio styles](https://github.com/gpxstudio/styles) design adapted to
 the Protomaps schema — style only, never gpx.studio tiles/fonts/sprites) and
@@ -193,12 +198,15 @@ prioritisation. The analysis and the resulting translation plan live in
 [maps/thunderforest-outdoors-benchmark.md](maps/thunderforest-outdoors-benchmark.md).
 It is **not** a migration: never the default, never in offline downloads,
 never converted to PMTiles, never bulk-cached or proxied, and not a
-dependency of anything else — without an API key the option is simply
-unavailable.
+dependency of anything else. It is selectable only when **both** the
+benchmark flag (`VITE_ENABLE_MAP_BENCHMARK`) and the API key are present —
+without the flag the whole selector is hidden; with the flag but without a
+key the option shows as unavailable and no Thunderforest request is made.
 
 Mechanics (`src/map/thunderforestLayer.mjs`, applied by `MapView.tsx`): a
-MapLibre **raster source** on the Thunderforest Map Tiles API
-(`outdoors/{z}/{x}/{y}.png`, 256 px, source maxzoom 17), added lazily on the
+MapLibre **raster source** on the official Thunderforest Map Tiles API
+(`https://api.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=…`, 256 px,
+source maxzoom 17), added lazily on the
 **first explicit selection** — no tile is requested before that — and then
 only toggled by layer visibility, so repeated switching never duplicates
 sources, layers or listeners. The raster sits above the vector basemap and
@@ -210,28 +218,35 @@ rendered by the map control and, in key-configured builds, the credits
 sheet. Guarded by `tests/thunderforest-layer.test.mjs` (key-gating, URL
 template, no offline wiring, repository-wide literal-key scan).
 
-### API key — local development
+### Configuration — local development
 
 1. Copy `.env.example` to `.env.local` (git-ignored via `*.local` and the
    `.env*` rules; never commit a real env file) and set
    `VITE_THUNDERFOREST_API_KEY=<your key>` — a free key comes from the
-   [Thunderforest dashboard](https://manage.thunderforest.com).
+   [Thunderforest dashboard](https://manage.thunderforest.com). The
+   benchmark selector itself needs no flag in dev (`VITE_ENABLE_MAP_BENCHMARK`
+   defaults to on for dev builds only).
 2. `npm run dev` (Vite reads `.env.local` at startup; restart after edits).
-3. Confirm it loaded: the Map screen's Style · comparison dropdown shows
-   **Thunderforest Outdoors — Online preview** as selectable. Without a key
-   the option reads “(unavailable — no API key)”, a concise `console.info`
-   note appears in dev builds only, and **no Thunderforest request is ever
-   made** — everything else works normally.
+3. Confirm it loaded: the Map screen's **Map comparison — temporary**
+   dropdown shows **Thunderforest Outdoors — Online preview** as selectable.
+   Without a key the option reads “(unavailable — no API key)”, a concise
+   `console.info` note appears in dev builds only, and **no Thunderforest
+   request is ever made** — everything else works normally.
 
-### API key — GitHub Actions / Pages
+### Configuration — GitHub Actions / Pages
 
-1. GitHub → repository **Settings → Secrets and variables → Actions →
-   New repository secret**, name exactly `VITE_THUNDERFOREST_API_KEY`.
-2. `deploy.yml` passes it as an env var to the `npm run build` step only.
-   The secret is optional — without it production simply shows the option
-   as unavailable.
-3. A new deployment is required after adding the secret (push to `main` or
-   run the *Deploy to GitHub Pages* workflow manually).
+1. Benchmark visibility (not sensitive): GitHub → repository **Settings →
+   Secrets and variables → Actions → Variables → New repository variable**,
+   name exactly `VITE_ENABLE_MAP_BENCHMARK`, value `true`. Without it,
+   production builds show the normal map with no comparison selector.
+2. API key (sensitive): same page → **Secrets → New repository secret**,
+   name exactly `VITE_THUNDERFOREST_API_KEY`.
+3. `deploy.yml` passes both as env vars to the `npm run build` step only.
+   Both are optional — the build never fails over them.
+4. A new deployment is required after changing either (push to `main` or
+   run the *Deploy to GitHub Pages* workflow manually). To retire the
+   benchmark: remove the variable (selector disappears), then rotate or
+   delete the key in the Thunderforest dashboard.
 
 ### Security reality check
 
@@ -239,10 +254,16 @@ Environment-variable and GitHub-Secret injection keep the key **out of
 tracked files, commit history, docs and prompts — nothing more**. Vite
 inlines `VITE_*` values into the built JavaScript, so the deployed browser
 app **exposes the key in its bundle and in every tile-request URL**; that is
-unavoidable for a client-only static app. Treat the key as
-publicly visible once deployed: use a free-tier key, restrict it to your
-origins in the Thunderforest dashboard, and monitor usage there. Do not
-paste the key into issues, docs, screenshots or committed files.
+unavoidable for a client-only static app, and Referer information may be
+visible to Thunderforest. Treat the key as publicly visible once deployed.
+Relevant controls, in order: use a free-tier key; monitor usage/quota in the
+Thunderforest dashboard; keep the deployment temporary (the flag makes
+turning it off a one-variable change); rotate or remove the key when the
+benchmark work concludes. Thunderforest's public documentation describes
+API keys plus IP/Referer/User-Agent association but does **not** clearly
+document a user-configurable allowed-origin restriction — use an origin
+allowlist only if the dashboard actually offers one. Do not paste the key
+into issues, docs, screenshots or committed files.
 
 ## Adaptive shell & navigation (multi-device access)
 

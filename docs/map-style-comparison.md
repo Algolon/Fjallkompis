@@ -9,9 +9,11 @@ retained, so the look remains centrally adjustable (`NORDIC_TOPO_PALETTE` in
 record of the evaluation setup.
 
 > **Update (v0.12.0):** the selector has been REINTRODUCED as
-> **Style · comparison** for the Nordic-restyle benchmark, now with a fourth,
-> clearly separated ONLINE-ONLY reference option — **Thunderforest Outdoors —
-> Online preview** (raster, API-key-gated, never offline, never the default).
+> **Map comparison — temporary** for the Nordic-restyle benchmark — gated by
+> the `VITE_ENABLE_MAP_BENCHMARK` flag (dev: on by default; production:
+> opt-in only) — now with a fourth, clearly separated ONLINE-ONLY reference
+> option — **Thunderforest Outdoors — Online preview** (raster,
+> API-key-gated, never offline, never the default).
 > See [maps/thunderforest-outdoors-benchmark.md](maps/thunderforest-outdoors-benchmark.md)
 > for the benchmark method, source-layer audit and translation plan. The
 > three-way evaluation below and its decision are unchanged.

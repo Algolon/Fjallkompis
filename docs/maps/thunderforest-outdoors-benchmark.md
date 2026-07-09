@@ -32,10 +32,11 @@ sources assessed in §8).
 
 ## 2. Comparison setup
 
-The Map screen's **Style · comparison** selector offers four options on one
-shared camera — switching swaps styles in place, so position, zoom, bearing,
-pitch, route state and every overlay are identical across styles by
-construction:
+The Map screen's **Map comparison — temporary** selector (visible in dev
+builds by default; in production only with `VITE_ENABLE_MAP_BENCHMARK=true`)
+offers four options on one shared camera — switching swaps styles in place,
+so position, zoom, bearing, pitch, route state and every overlay are
+identical across styles by construction:
 
 | # | Option | Data | Availability |
 | --- | --- | --- | --- |
@@ -149,7 +150,7 @@ deliver the intended benefit.
 | Scrub (fjällbjörk) | Distinct from forest and grass — the "transition belt" is visible | `lt_scrub` separate but nearly identical to grass in value | `landuse` `scrub` | 1 | Keep hue between forest and grassland, raise separation from both (scrub is the treeline signal hikers actually use) | 10–17 | M |
 | Heath | Distinct muted moorland tone — a big part of TF's fell readability | **Impossible** — no heath kind in the archive | — | 3 (or 4 short-term) | Short term: accept grassland as proxy. Long term: custom Planetiler profile adding `natural=heath`/`fell` (§8.2) | 11–17 | M |
 | Grassland / meadow | Soft green, clearly lighter than forest | `lt_grass` (incl. `meadow`) at 0.32 | `landuse` `grass`,`grassland`,`meadow`,`village_green` | 1 | Keep light; ensure ordering grass < scrub < forest in visual weight | 8–17 | H |
-| Wetland | Signature marsh pattern readable at a glance — for Kungsleden the single most navigation-relevant landcover | Flat tint 0.34 — visible but not instantly "wet" | `landuse` `wetland` only (no bog/marsh split) | 1 (pattern: 2*) | Strengthen the flat tint now (cooler, slightly darker, more opaque). The classic horizontal-dash marsh pattern needs `fill-pattern` → sprites; defer to the glyph/sprite iteration (*infrastructure, not data). Drop the dead `bog/marsh/swamp` filter values or keep as future-proofing — document either way | 10–17 | H |
+| Wetland | Signature marsh pattern readable at a glance — for Kungsleden the single most navigation-relevant landcover | Flat tint 0.34, already stacked above wood/grass/scrub — visible but not instantly "wet" | `landuse` `wetland` only (no bog/marsh split); polygons overlap wooded/grassy ground | 1 (pattern: 2*) | Treat as a **semi-transparent overlay wash above the base fills** (§6.1), not a competing base fill: cooler tone, fill-opacity ≈ 0.3–0.45, fade in z10→12, so wet forest reads as both. The classic horizontal-dash marsh pattern needs `fill-pattern` → sprites; defer to the glyph/sprite iteration (*infrastructure, not data). Drop the dead `bog/marsh/swamp` filter values or keep as future-proofing — document either way | 10–17 | H |
 | Marsh (as distinct class) | TF distinguishes marsh/bog nuances | Cannot — single `wetland` kind | — | 4 (3 with custom profile) | Not worth new data alone; fold into the §8.2 custom-profile wish list | — | M |
 | Rock / bare rock | Exposed rock reads as grey, hostile, distinct from soil | `lt_rock` 0.28 grey (Nordic-only extra) | `landuse` `bare_rock` | 1 | Keep; raise slightly at z≥12, and give `lt_landcover` `barren` the same family so low-zoom massifs match | 8–17 | H |
 | Scree | Stipple/texture under peaks | Filter exists, **zero features** — silent no-op | — | 4 (3 via custom profile incl. `natural=scree`) | Remove `scree` from the filter comment-honestly or leave harmless; real scree needs the custom profile | — | H |
@@ -245,21 +246,43 @@ heath — §8.2), **label prioritisation** (reproducible once glyphs ship),
 
 ## 6. Proposed Nordic hierarchies
 
-### 6.1 Terrain (visual weight, strongest → calmest)
+### 6.1 Terrain hierarchy — four rendering strata, not one flat ranking
 
-1. Glacier & ice (bright, outlined — safety-relevant)
-2. Exposed rock (bare_rock; + low-zoom barren)
-3. Wetland (promoted vs today — Kungsleden-specific decision, stronger than
-   its usual cartographic rank because it decides where you can walk)
-4. Forest (clear mass)
-5. Scrub / fjällbjörk belt (treeline signal)
-6. Grassland & meadow
-7. Open alpine terrain (calm background — the stage, not an actor)
-8. Built/artificial (residential, industrial, platforms — minimal)
+Terrain readability is built from four distinct strata, bottom to top in the
+MapLibre layer stack; a category's prominence comes from *which stratum it
+lives in* as much as from its colour:
 
-*(Deviates from the generic template by ranking wetland above forest — the
-audit and the route's terrain justify it; open terrain is deliberately the
-calmest so overlays and lines win.)*
+1. **Base landcover fills** (opaque-ish, mutually exclusive by data):
+   background/open terrain → grassland/meadow → scrub → forest → rock →
+   glacier. Visual weight among the fills, strongest → calmest: glacier &
+   ice (bright, outlined — safety-relevant) · exposed rock · forest ·
+   scrub/fjällbjörk belt (treeline signal) · grassland · open alpine
+   background (deliberately the calmest — the stage, not an actor) ·
+   built/artificial (minimal).
+2. **Terrain overlays & patterns** (semi-transparent, rendered *above* the
+   base fills so they combine with them instead of replacing them):
+   **wetland lives here**, plus — when the data ships — hillshade and, as a
+   future sprite-based iteration, marsh/scree pattern fills. See the wetland
+   note below.
+3. **Linework**: cliffs, contours (future), water lines, paths/tracks/roads,
+   rail, boundaries — ordered per §6.2.
+4. **Application overlays**: route, GPS, warnings, hut markers — always on
+   top, never competed with.
+
+**Wetland (high relevance, overlay treatment).** OSM wetland polygons in the
+corridor overlap wooded and grassy ground (a birch bog is *both*), so a flat
+mutually-exclusive ranking would force a false choice between "wetland
+replaces forest" and "forest hides wetland". Instead `lt_wetland` is placed
+**after** `lt_wood`/`lt_grass`/`lt_scrub` in layer order (it already is
+today) and kept **semi-transparent** (fill-opacity ≈ 0.3–0.45), so where the
+data overlaps, wetland reads as a cool wash *over* the underlying landcover:
+a wet forest still looks forested, an open bog reads clearly against the
+background. Its z-behaviour: fade in from z10, full strength by z12. When
+sprite infrastructure lands, the flat wash is upgraded to the classic
+horizontal-dash marsh pattern at the same stack position with the pattern's
+own transparency — same principle, better glance value. Wetland must still
+sit *below* all water polygons/lines (lakes cut through bogs) and below every
+stratum-3/4 line.
 
 ### 6.2 Lines (top → bottom)
 
@@ -313,7 +336,7 @@ Style-only; zero data risk; online/offline identical by construction.
 | Change | Layers touched |
 | --- | --- |
 | Forest presence up; align low-zoom tone | `lt_wood`, `lt_landcover` (match `forest` slot) |
-| Wetland promoted (tone + opacity) | `lt_wetland` |
+| Wetland as a semi-transparent overlay wash above the base fills (tone + opacity ramp; layer position already correct) | `lt_wetland` |
 | Rock slightly stronger, barren aligned | `lt_rock`, `lt_landcover` (`barren`) |
 | Glacier outline added | **new** `lt_ice_outline` (line, after `lt_ice`) |
 | Lake vs river polygon distinction | `lt_water` → split into `lt_water` (lake/other) + **new** `lt_water_river` (filter `kind_detail=river`) |
@@ -402,12 +425,17 @@ Phases 1–3 prove insufficient, as its own decision.
 ## 9. Unresolved risks & decisions for review
 
 1. **Quota / key exposure**: the deployed app necessarily exposes the API key
-   in tile URLs; a stranger can consume the free-tier quota. Mitigation:
-   origin restriction in the Thunderforest dashboard + it being a temporary
-   layer. Accept or keep the key out of production (dev-only usage) — owner
-   decision.
-2. **Wetland promoted above forest** in the terrain hierarchy (§6.1) — a
-   deliberate Kungsleden-specific deviation; review against field experience.
+   in tile URLs (and Referer information may be visible to Thunderforest); a
+   stranger can consume the free-tier quota. Available controls: quota
+   monitoring in the Thunderforest dashboard, the `VITE_ENABLE_MAP_BENCHMARK`
+   flag keeping the deployment temporary and one variable away from off, and
+   key rotation/removal afterwards. Thunderforest's public docs do not
+   clearly document a user-configurable allowed-origin restriction — use one
+   only if the dashboard actually offers it. Accept this, or keep the key
+   out of production (dev-only usage) — owner decision.
+2. **Wetland as a semi-transparent overlay above the base landcover fills**
+   (§6.1) — a deliberate Kungsleden-specific emphasis (wetland decides where
+   you can walk); review tone/opacity against field experience.
 3. **Fjällkompis has no heath class** until §8.2 ships; grassland serves as
    proxy — acceptable for now?
 4. **Label work is fully gated** on the Offline-map-labels roadmap item;

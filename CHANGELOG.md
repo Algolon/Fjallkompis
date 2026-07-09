@@ -15,17 +15,19 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 ### Added
 
 - **Thunderforest Outdoors comparison layer (online preview, temporary)**:
-  the Map screen's style selector is back as **Style · comparison**, now
-  with four options — the three offline vector styles (Current, Liberty
-  Topo, Liberty Topo — Nordic) plus **Thunderforest Outdoors — Online
-  preview**, an online-only raster reference for improving the Nordic
-  terrain style. The preview streams tiles only after being explicitly
-  selected, needs a build-time API key (`VITE_THUNDERFOREST_API_KEY`;
-  without it the option shows as unavailable and no Thunderforest request
-  is made), is never part of offline downloads, and keeps all route, GPS
-  and hut overlays on top. Switching styles preserves the camera and every
-  overlay. Attribution: Maps © Thunderforest, Data © OpenStreetMap
-  contributors.
+  the Map screen gains a **Map comparison — temporary** selector with four
+  options — the three offline vector styles (Current, Liberty Topo, Liberty
+  Topo — Nordic) plus **Thunderforest Outdoors — Online preview**, an
+  online-only raster reference for improving the Nordic terrain style. The
+  selector is feature-flagged (`VITE_ENABLE_MAP_BENCHMARK`): dev builds show
+  it by default, production only when the flag is `true` — normal users keep
+  the unchanged production map. The preview streams tiles from the official
+  `api.thunderforest.com` endpoint only after being explicitly selected,
+  needs a build-time API key (`VITE_THUNDERFOREST_API_KEY`; without it the
+  option shows as unavailable and no Thunderforest request is made), is
+  never part of offline downloads, and keeps all route, GPS and hut overlays
+  on top. Switching styles preserves the camera and every overlay.
+  Attribution: Maps © Thunderforest, Data © OpenStreetMap contributors.
 - **Cartographic benchmark and Nordic translation plan**
   (docs/maps/thunderforest-outdoors-benchmark.md): a source-layer audit of
   the shipped PMTiles archive (including the so-far-unused `places` and
