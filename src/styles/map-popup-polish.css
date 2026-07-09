@@ -35,7 +35,9 @@
 }
 
 .map-hut__badge {
+  position: relative;
   transform-origin: center;
+  --map-hut-fill: rgba(242, 247, 241, 0.9);
   transition:
     color 0.12s ease,
     background-color 0.12s ease,
@@ -43,27 +45,47 @@
     filter 0.12s ease;
 }
 
-/* The same hut geometry used throughout the app, now with a light interior
-   fill and a strong outline. The existing even-odd path already contains the
-   doorway cut-out, so one path provides both the pale cabin body and the
-   dark/white outline without introducing a second icon language. */
-.map-hut__badge svg path {
-  fill: rgba(242, 247, 241, 0.9);
-  stroke: currentColor;
-  stroke-width: 2.05px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  paint-order: stroke fill;
-  vector-effect: non-scaling-stroke;
+/* Use the exact IconHuts geometry from the Stops tab. The original marker SVG
+   stays in the DOM for stable sizing, while these two masked layers render the
+   shared icon: a pale cabin body below the same three outline paths used by
+   IconHuts in Icons.tsx. */
+.map-hut__badge svg {
+  opacity: 0;
 }
 
-.map-hut.is-end .map-hut__badge svg path {
-  fill: rgba(253, 244, 228, 0.92);
+.map-hut__badge::before,
+.map-hut__badge::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  pointer-events: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
-.map-hut.is-selected .map-hut__badge svg path,
-.map-hut.is-end.is-selected .map-hut__badge svg path {
-  fill: rgba(255, 255, 255, 0.2);
+.map-hut__badge::before {
+  background: var(--map-hut-fill);
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTYgMTAgMTIgNGw2IDZ2OUg2ek0xMCAxOXYtNGg0djR6IiBmaWxsPSJibGFjayIgZmlsbC1ydWxlPSJldmVub2RkIi8+PC9zdmc+");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTYgMTAgMTIgNGw2IDZ2OUg2ek0xMCAxOXYtNGg0djR6IiBmaWxsPSJibGFjayIgZmlsbC1ydWxlPSJldmVub2RkIi8+PC9zdmc+");
+}
+
+.map-hut__badge::after {
+  background: currentColor;
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTEgMTIgNGw4IDciLz48cGF0aCBkPSJNNiAxMHY5aDEydi05Ii8+PHBhdGggZD0iTTEwIDE5di00aDR2NCIvPjwvZz48L3N2Zz4=");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTEgMTIgNGw4IDciLz48cGF0aCBkPSJNNiAxMHY5aDEydi05Ii8+PHBhdGggZD0iTTEwIDE5di00aDR2NCIvPjwvZz48L3N2Zz4=");
+}
+
+.map-hut.is-end .map-hut__badge {
+  --map-hut-fill: rgba(253, 244, 228, 0.92);
+}
+
+.map-hut.is-selected .map-hut__badge,
+.map-hut.is-end.is-selected .map-hut__badge {
+  --map-hut-fill: rgba(255, 255, 255, 0.22);
 }
 
 @media (hover: hover) {
