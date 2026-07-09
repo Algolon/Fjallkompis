@@ -6,17 +6,17 @@
  * Layout (per the 0.6.0 field feedback — the old bottom-centre stack could
  * overlap the user's own tracking dot while Follow centres the map):
  *
- *  - TOP, beside the Terrain/Satellite toggle: a small "● Live Tracking 🔋"
+ *  - TOP-RIGHT, beside the Terrain/Satellite toggle: a small "● Live 🔋"
  *    button (blinking dot, battery hint). Tapping it expands a compact
- *    details card below: tracked stage, battery note, foreground-only note.
- *    The damped "GPS signal uncertain" pill appears underneath when
- *    applicable.
- *  - BOTTOM, between the scale (left) and the attribution ⓘ (right): a small
- *    off-route bar — compass icon + "You may be off route" + a ⚠ affordance.
- *    Tapping it pops the detail above the bar (approximate distance +
- *    "check the map and your surroundings"), attribution-control style.
- *    The bar itself stays while the debounced status is off-route and
- *    disappears immediately on recovery; only the DETAIL is toggleable.
+ *    details card below: "Live Tracking: Day X", battery note,
+ *    foreground-only note. The damped "GPS signal uncertain" pill appears
+ *    underneath when applicable.
+ *  - TOP-LEFT, beneath the Terrain/Satellite toggle: a small off-route bar —
+ *    compass icon + "You may be off route" + a ⚠ affordance. Tapping it pops
+ *    the detail below the bar (approximate distance + "check the map and
+ *    your surroundings"), attribution-control style. The bar itself stays
+ *    while the debounced status is off-route and disappears immediately on
+ *    recovery; only the DETAIL is toggleable.
  *
  * Never a modal, never a toast, no sound/vibration/notifications. Screen
  * readers are told about status TRANSITIONS only (visually-hidden
@@ -76,13 +76,13 @@ export function TrackingStatusOverlay({ session, stageLabel }: TrackingStatusPro
           title="Live tracking details"
         >
           <span className="map-status-dot" aria-hidden />
-          <span>Live Tracking</span>
+          <span>Live</span>
           <span aria-hidden>🔋</span>
         </button>
         {liveOpen ? (
           <div className="map-status-details">
             <div>
-              <strong>Tracking:</strong> {stageLabel}
+              <strong>Live Tracking:</strong> {stageLabel}
             </div>
             <div>🔋 Higher battery usage while active</div>
             <div>
@@ -99,17 +99,9 @@ export function TrackingStatusOverlay({ session, stageLabel }: TrackingStatusPro
         ) : null}
       </div>
 
-      {/* Bottom off-route bar: between the scale and the attribution ⓘ. */}
+      {/* Off-route bar: beneath the Terrain/Satellite toggle. */}
       {offRoute ? (
-        <div className="map-status-bottom">
-          {warnOpen ? (
-            <div className="map-status-details map-status-details-warn">
-              {crossTrackM != null && isFinite(crossTrackM)
-                ? `${approxDistanceLabel(crossTrackM)} from the mapped route. `
-                : ''}
-              Check the map and your surroundings.
-            </div>
-          ) : null}
+        <div className="map-status-offroute">
           <button
             type="button"
             className="map-status-pill map-status-warn"
@@ -123,6 +115,14 @@ export function TrackingStatusOverlay({ session, stageLabel }: TrackingStatusPro
               ⚠
             </span>
           </button>
+          {warnOpen ? (
+            <div className="map-status-details map-status-details-warn">
+              {crossTrackM != null && isFinite(crossTrackM)
+                ? `${approxDistanceLabel(crossTrackM)} from the mapped route. `
+                : ''}
+              Check the map and your surroundings.
+            </div>
+          ) : null}
         </div>
       ) : null}
     </>

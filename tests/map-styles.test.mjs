@@ -58,7 +58,7 @@ test('exactly the three comparison styles are registered', () => {
     MAP_STYLE_OPTIONS.map((o) => o.label),
     ['Current', 'Liberty Topo', 'Liberty Topo — Nordic'],
   );
-  assert.equal(DEFAULT_MAP_STYLE_ID, 'current', 'production default must stay Current');
+  assert.equal(DEFAULT_MAP_STYLE_ID, 'liberty-nordic', 'production default is the decided Nordic style');
   assert.ok(isMapStyleId('liberty-nordic'));
   assert.ok(!isMapStyleId('liberty-satellite'));
   assert.throws(() => basemapLayersForStyle('liberty-satellite', SOURCE));

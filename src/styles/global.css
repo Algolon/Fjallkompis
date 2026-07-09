@@ -652,9 +652,8 @@ h3 {
    - Top: compact "Live Tracking" button on the same strip as the
      Terrain/Satellite toggle (which sits top-left); anchored right of it,
      clear of the zoom/fullscreen controls.
-   - Bottom: compact off-route bar centred between the scale (bottom-left)
-     and the attribution ⓘ (bottom-right); its detail pops up above like the
-     attribution control, so it never covers the tracking dot mid-map. */
+   - Top-left, beneath the Terrain/Satellite toggle: the compact off-route
+     bar; its detail pops below it, clear of the tracking dot mid-map. */
 .map-status-top {
   position: absolute;
   top: 10px;
@@ -666,17 +665,16 @@ h3 {
   gap: 6px;
   max-width: 60%;
 }
-.map-status-bottom {
+.map-status-offroute {
   position: absolute;
-  bottom: 6px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 56px; /* just beneath the Terrain/Satellite toggle (top:10 + ~40px) */
+  left: 10px;
   z-index: 5;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
-  max-width: min(70%, 300px);
+  max-width: min(75%, 300px);
 }
 .map-status-pill {
   display: inline-flex;

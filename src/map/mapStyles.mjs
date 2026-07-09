@@ -1,10 +1,14 @@
 /**
- * Registry for the map-style comparison PROTOTYPE (three basemap styles on
- * the same offline Protomaps source — see docs/map-style-comparison.md).
+ * Basemap style registry. The style comparison (Current vs Liberty Topo vs
+ * Liberty Topo — Nordic, see docs/map-style-comparison.md) concluded with
+ * **'liberty-nordic' adopted as the production Terrain style** — the Liberty
+ * Topo structure restyled with the Nordic Trail design language. The
+ * in-app comparison selector was removed with the decision.
  *
- * Every option styles the IDENTICAL vector source and source-layers; only
- * paint/layout differ, so switching compares cartography, not data. The
- * production default stays 'current' — no style decision has been made.
+ * Every option styles the IDENTICAL vector source and source-layers; the
+ * alternatives are retained so the look stays centrally adjustable
+ * (NORDIC_TOPO_PALETTE in libertyTopoLayers.mjs) and re-comparable later by
+ * passing a different id to MapView's mapStyleId prop.
  *
  * Plain ESM (like src/utils/routeProgress.mjs) so the node --test suite can
  * exercise the registry and builders directly; the app imports it through
@@ -26,7 +30,7 @@ export const MAP_STYLE_OPTIONS = [
   { id: 'liberty-nordic', label: 'Liberty Topo — Nordic' },
 ];
 
-export const DEFAULT_MAP_STYLE_ID = 'current';
+export const DEFAULT_MAP_STYLE_ID = 'liberty-nordic';
 
 export function isMapStyleId(value) {
   return MAP_STYLE_OPTIONS.some((o) => o.id === value);

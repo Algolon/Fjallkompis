@@ -10,6 +10,21 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-07-09
+
+### Changed
+
+- **The map's Terrain style is now "Liberty Topo — Nordic"** — the outcome
+  of the three-way style comparison: the Liberty Topo cartography restyled
+  with the Nordic Trail design language. The temporary *Style · prototype*
+  selector is gone; the alternatives remain in code so the look stays
+  centrally adjustable later.
+- The live-tracking map pill is now minimal — blinking dot, "Live", battery
+  icon; its expanded details read "Live Tracking: Day X".
+- The off-route bar moved from the bottom edge of the map to directly
+  beneath the Terrain/Satellite toggle; its distance/guidance detail now
+  pops below the bar.
+
 ## [0.9.0] - 2026-07-09
 
 ### Added

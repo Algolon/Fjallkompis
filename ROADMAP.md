@@ -39,29 +39,17 @@ cross-device synchronization is deliberately far down this roadmap.
    enabling step**: testers can now open the same link on phone, tablet or
    desktop instead of being limited to a phone-width column, which widens
    the tester pool and the range of feedback.
-2. **Evaluate Current vs Liberty Topo vs Nordic Liberty Topo** — the Map
-   screen ships a prototype style selector rendering all three from the same
-   offline source ([docs/map-style-comparison.md](docs/map-style-comparison.md)).
-   Exit criteria:
-   - comparison completed on the representative route locations in the
-     checklist (overview, Abisko, Kebnekaise, Tjäktjavagge, Sälka
-     surroundings, Alesjaure wetlands, low/high zoom);
-   - mobile outdoor-readability assessment completed on a real device;
-   - offline behaviour confirmed for all three styles;
-   - performance compared (pan/zoom, style switch);
-   - production direction documented in the comparison doc;
-   - prototype selector promoted into a real setting, revised, or removed.
-3. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
+2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
    are already local HTML markers).
-4. **Terrain context** — contour lines and/or hillshade from an offline
+3. **Terrain context** — contour lines and/or hillshade from an offline
    terrain PMTiles source, subject to archive-size measurements. Also a
    prerequisite for the Liberty Topo variants to show their defining
    contour/hillshade layers (currently omitted for lack of offline data).
 
 ## Next
 
-5. **Custom list portability and templates** — an early follow-up to
+4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
    capabilities: import a standalone packing list; import or create a custom
    daily list; export an individual list; preview an import before applying
@@ -102,6 +90,11 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Map style decided: Liberty Topo — Nordic** is the production Terrain
+  style (the Liberty Topo structure restyled with the Nordic Trail design
+  language). The comparison prototype's in-app selector was removed; the
+  registry and palettes remain so the look stays centrally adjustable
+  (docs/map-style-comparison.md records the evaluation and decision).
 - **Multi-device access (v0.9.0)**: one adaptive application through the
   same URL on phone, tablet and desktop. Hash-based routing (`#/today` …
   `#/settings`) with working Back/Forward, refresh-safe destinations and
