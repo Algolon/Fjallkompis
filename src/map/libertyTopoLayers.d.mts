@@ -1,7 +1,18 @@
 /** TypeScript surface for the adapted Liberty Topo layer builder. */
-import type { LayerSpecification } from 'maplibre-gl';
+import type {
+  DataDrivenPropertyValueSpecification,
+  LayerSpecification,
+} from 'maplibre-gl';
 
-/** Colour/opacity tokens; a null slot skips its layer entirely. */
+/** A paint token that may be a constant or a zoom-driven expression. */
+type PaintNumber = DataDrivenPropertyValueSpecification<number>;
+
+/**
+ * Paint tokens; a null slot skips its layer entirely. Most slots are
+ * colours; a few are complete opacity/width expressions or structural
+ * values (zoom thresholds) so the Nordic terrain hierarchy stays
+ * palette-driven (see libertyTopoLayers.mjs).
+ */
 export interface LibertyTopoPalette {
   id: string;
   background: string;
@@ -11,16 +22,26 @@ export interface LibertyTopoPalette {
   grass: string;
   scrub: string;
   wetland: string;
+  wetlandOpacity: PaintNumber;
   ice: string;
+  iceOutline: string | null;
   sand: string;
+  barren: string;
   rock: string | null;
+  rockOpacity: PaintNumber;
   cliff: string | null;
   residentialLowZoom: string;
   residentialHighZoom: string;
   water: string;
+  waterRiver: string | null;
   waterway: string;
+  riverLineWidth: PaintNumber;
+  riverLineOpacity: PaintNumber;
+  streamLineWidth: PaintNumber;
+  streamLineOpacity: PaintNumber;
   trailCasing: string;
   trail: string;
+  trailMinzoom: number;
   trackCasing: string;
   track: string;
   minorCasing: string;
