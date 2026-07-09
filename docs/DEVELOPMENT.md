@@ -167,22 +167,82 @@ like the Pages deployment. Open the Map screen and switch to **Satellite**;
 `VITE_SATELLITE_URL` instead only works if that host sends CORS headers and
 supports Range requests — plain GitHub Release asset URLs do neither.)
 
-## Map-style comparison prototype
+## Map-style comparison
 
-The Map screen has a developer-facing **Style · prototype** selector with
-three basemap styles rendered from the **same** offline PMTiles source:
-**Current** (production, unchanged), **Liberty Topo** (the
-[gpx.studio styles](https://github.com/gpxstudio/styles) Liberty Topo design
-adapted to the Protomaps schema — style only, never gpx.studio
-tiles/fonts/sprites) and **Liberty Topo — Nordic** (the same structure in the
-Nordic Trail palette). Switching swaps basemap paint layers in place, so
-camera, route, markers and GPS are preserved, and everything stays glyph-,
-sprite- and network-free. **No production style decision has been made** —
-the default remains Current. Architecture, licences (MIT / BSD-3-Clause /
-CC BY 4.0 lineage), the full layer-mapping table and the evaluation checklist
-live in [map-style-comparison.md](map-style-comparison.md); the roadmap item
-*Evaluate Current vs Liberty Topo vs Nordic Liberty Topo* holds the exit
-criteria. Guarded by `tests/map-styles.test.mjs`.
+The 0.8.0 three-way comparison concluded with **Liberty Topo — Nordic as the
+production Terrain style** (v0.10.0, recorded in
+[map-style-comparison.md](map-style-comparison.md)). The registry
+(`src/map/mapStyles.mjs`), the Liberty builder and both palettes were
+retained, and the Map screen's **Style · comparison** selector has been
+reintroduced for the Nordic-restyle benchmark work. It offers the three
+offline vector styles rendered from the **same** PMTiles source — **Current**
+(the pre-decision production style), **Liberty Topo** (the
+[gpx.studio styles](https://github.com/gpxstudio/styles) design adapted to
+the Protomaps schema — style only, never gpx.studio tiles/fonts/sprites) and
+**Liberty Topo — Nordic** (the production default) — plus one deliberately
+different fourth option, described next. Switching swaps basemap paint layers
+in place, so camera, route, markers and GPS are preserved. Guarded by
+`tests/map-styles.test.mjs`.
+
+## Thunderforest Outdoors comparison layer (online-only, temporary)
+
+The fourth selector option, **Thunderforest Outdoors — Online preview**, is a
+*temporary external cartographic benchmark* for improving the Nordic style —
+terrain readability, landcover hierarchy, relief, path hierarchy and label
+prioritisation. The analysis and the resulting translation plan live in
+[maps/thunderforest-outdoors-benchmark.md](maps/thunderforest-outdoors-benchmark.md).
+It is **not** a migration: never the default, never in offline downloads,
+never converted to PMTiles, never bulk-cached or proxied, and not a
+dependency of anything else — without an API key the option is simply
+unavailable.
+
+Mechanics (`src/map/thunderforestLayer.mjs`, applied by `MapView.tsx`): a
+MapLibre **raster source** on the Thunderforest Map Tiles API
+(`outdoors/{z}/{x}/{y}.png`, 256 px, source maxzoom 17), added lazily on the
+**first explicit selection** — no tile is requested before that — and then
+only toggled by layer visibility, so repeated switching never duplicates
+sources, layers or listeners. The raster sits above the vector basemap and
+the satellite layer but **below every route/GPS/hut overlay**; the vector
+style underneath stays untouched (it reads the local/streamed PMTiles at
+zero quota cost). Attribution (required): *Maps © Thunderforest, Data ©
+OpenStreetMap contributors* — registered in `src/data/attribution.ts`,
+rendered by the map control and, in key-configured builds, the credits
+sheet. Guarded by `tests/thunderforest-layer.test.mjs` (key-gating, URL
+template, no offline wiring, repository-wide literal-key scan).
+
+### API key — local development
+
+1. Copy `.env.example` to `.env.local` (git-ignored via `*.local` and the
+   `.env*` rules; never commit a real env file) and set
+   `VITE_THUNDERFOREST_API_KEY=<your key>` — a free key comes from the
+   [Thunderforest dashboard](https://manage.thunderforest.com).
+2. `npm run dev` (Vite reads `.env.local` at startup; restart after edits).
+3. Confirm it loaded: the Map screen's Style · comparison dropdown shows
+   **Thunderforest Outdoors — Online preview** as selectable. Without a key
+   the option reads “(unavailable — no API key)”, a concise `console.info`
+   note appears in dev builds only, and **no Thunderforest request is ever
+   made** — everything else works normally.
+
+### API key — GitHub Actions / Pages
+
+1. GitHub → repository **Settings → Secrets and variables → Actions →
+   New repository secret**, name exactly `VITE_THUNDERFOREST_API_KEY`.
+2. `deploy.yml` passes it as an env var to the `npm run build` step only.
+   The secret is optional — without it production simply shows the option
+   as unavailable.
+3. A new deployment is required after adding the secret (push to `main` or
+   run the *Deploy to GitHub Pages* workflow manually).
+
+### Security reality check
+
+Environment-variable and GitHub-Secret injection keep the key **out of
+tracked files, commit history, docs and prompts — nothing more**. Vite
+inlines `VITE_*` values into the built JavaScript, so the deployed browser
+app **exposes the key in its bundle and in every tile-request URL**; that is
+unavoidable for a client-only static app. Treat the key as
+publicly visible once deployed: use a free-tier key, restrict it to your
+origins in the Thunderforest dashboard, and monitor usage there. Do not
+paste the key into issues, docs, screenshots or committed files.
 
 ## Adaptive shell & navigation (multi-device access)
 

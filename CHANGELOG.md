@@ -10,6 +10,30 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-09
+
+### Added
+
+- **Thunderforest Outdoors comparison layer (online preview, temporary)**:
+  the Map screen's style selector is back as **Style · comparison**, now
+  with four options — the three offline vector styles (Current, Liberty
+  Topo, Liberty Topo — Nordic) plus **Thunderforest Outdoors — Online
+  preview**, an online-only raster reference for improving the Nordic
+  terrain style. The preview streams tiles only after being explicitly
+  selected, needs a build-time API key (`VITE_THUNDERFOREST_API_KEY`;
+  without it the option shows as unavailable and no Thunderforest request
+  is made), is never part of offline downloads, and keeps all route, GPS
+  and hut overlays on top. Switching styles preserves the camera and every
+  overlay. Attribution: Maps © Thunderforest, Data © OpenStreetMap
+  contributors.
+- **Cartographic benchmark and Nordic translation plan**
+  (docs/maps/thunderforest-outdoors-benchmark.md): a source-layer audit of
+  the shipped PMTiles archive (including the so-far-unused `places` and
+  `pois` label layers) and a prioritised, implementation-ready plan for
+  reproducing Thunderforest-class terrain readability in the free,
+  offline-capable Nordic style — without copying proprietary styling or
+  data.
+
 ## [0.11.1] - 2026-07-09
 
 ### Changed

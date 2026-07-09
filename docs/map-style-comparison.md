@@ -1,13 +1,20 @@
 # Map-style comparison prototype
 
 **Status: DECIDED (v0.10.0) — "Liberty Topo — Nordic" is the production
-Terrain style.** The in-app comparison selector has been removed;
-`DEFAULT_MAP_STYLE_ID` in `src/map/mapStyles.mjs` is `'liberty-nordic'`.
-The registry, the Liberty builder and both palettes are retained, so the
-look remains centrally adjustable (`NORDIC_TOPO_PALETTE` in
-`src/map/libertyTopoLayers.mjs`) and a future comparison can be re-enabled
-by wiring a different id into MapView's `mapStyleId` prop. The rest of this
-document is kept as the record of the evaluation setup.
+Terrain style.** The in-app comparison selector was removed with the
+decision; `DEFAULT_MAP_STYLE_ID` in `src/map/mapStyles.mjs` is
+`'liberty-nordic'`. The registry, the Liberty builder and both palettes are
+retained, so the look remains centrally adjustable (`NORDIC_TOPO_PALETTE` in
+`src/map/libertyTopoLayers.mjs`). The rest of this document is kept as the
+record of the evaluation setup.
+
+> **Update (v0.12.0):** the selector has been REINTRODUCED as
+> **Style · comparison** for the Nordic-restyle benchmark, now with a fourth,
+> clearly separated ONLINE-ONLY reference option — **Thunderforest Outdoors —
+> Online preview** (raster, API-key-gated, never offline, never the default).
+> See [maps/thunderforest-outdoors-benchmark.md](maps/thunderforest-outdoors-benchmark.md)
+> for the benchmark method, source-layer audit and translation plan. The
+> three-way evaluation below and its decision are unchanged.
 
 ## Purpose
 
