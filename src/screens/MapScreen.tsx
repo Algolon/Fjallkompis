@@ -29,9 +29,6 @@ import type { LatLng } from '../types';
 /** Whole metres, phrased as an approximation ("~38 m", "~640 m"). */
 const approxMeters = (m: number) => `~${Math.round(m)} m`;
 
-type Panel = 'map' | 'elevation';
-
-
 /** Along-route progress state for the GPS/manual result card. */
 type Progress =
   | null // no position yet
@@ -214,7 +211,6 @@ export function MapScreen() {
   // the hiker's current stage but is independent of it: browsing days on the
   // map must not silently change persisted app state.
   const [viewStageId, setViewStageId] = useState<string | null>(currentStage?.id ?? null);
-  const [panel, setPanel] = useState<Panel>('map');
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [imagery, setImagery] = useState<ImageryMode>('terrain');
   const [satelliteAvailable, setSatelliteAvailable] = useState(false);
@@ -343,23 +339,12 @@ export function MapScreen() {
     <div className="screen screen--map">
       <ScreenHeader eyebrow="Route" title="Map" />
 
-      {/* Map / elevation segmented control (both shown on wide screens) */}
-      <div className="seg seg-map" role="tablist" aria-label="Map or elevation view">
-        <button role="tab" aria-selected={panel === 'map'} className="seg-btn" onClick={() => setPanel('map')}>
-          Map
-        </button>
-        <button
-          role="tab"
-          aria-selected={panel === 'elevation'}
-          className="seg-btn"
-          onClick={() => setPanel('elevation')}
-        >
-          Elevation
-        </button>
-      </div>
-
-      <div className="map-elev-grid">
-        <div className={`card map-card ${panel === 'map' ? '' : 'panel-hidden'}`}>
+      {/* Primary Map composition. Compact: plain blocks in DOM order (map
+          card, then the route selector, then the combined summary+elevation
+          card). Roomy landscape (≥ 900×500, see global.css): a map-dominant
+          two-column grid — the complete map card left, .map-side right. */}
+      <div className="map-layout">
+        <div className="card map-card">
           <div className="map-canvas-wrap">
             <MapView
               ref={mapRef}
@@ -498,84 +483,78 @@ export function MapScreen() {
           ) : null}
         </div>
 
-        <div className={`card ${panel === 'elevation' ? '' : 'panel-hidden'} panel-elev`}>
-          <div className="row-between">
-            <span className="card-title">{summaryTitle}</span>
-            <span className="pill tnum">{formatDistanceKm(stats.distanceKm)}</span>
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <ElevationProfile
-              profile={profile}
-              statistics={stats}
-              onScrub={(s) => mapRef.current?.setScrubPoint(s ? { lat: s.lat, lon: s.lon } : null)}
-            />
-          </div>
-          <p className="card-sub" style={{ marginTop: 8 }}>
-            Drag across the profile to see distance & elevation — the marker follows on the map.
-          </p>
-        </div>
-      </div>
-
-      {/* Stage selector below the map: a wrapping block instead of a
-          side-scroller, so every option is visible at once.
-          (Identity = number, not colour.) */}
-      <div className="stage-select" role="group" aria-label="Select stage to view">
-        <button
-          className="chip stage-select__full"
-          aria-pressed={viewStageId === null}
-          onClick={() => setViewStageId(null)}
-        >
-          Full route
-        </button>
-        {ROUTE.stages.map((s) => (
-          <button
-            key={s.id}
-            className="chip stage-select__day"
-            aria-pressed={viewStageId === s.id}
-            onClick={() => setViewStageId(s.id)}
-            aria-label={`Day ${s.day}`}
-          >
-            <span className="chip-swatch" style={{ background: STAGE_COLORS[s.day] }} />
-            {s.day}
-          </button>
-        ))}
-      </div>
-
-      {/* Stage / route summary */}
-      <div className="card">
-        <div className="row-between">
-          <span className="card-title">{summaryTitle}</span>
-          {appStage && currentStage?.id !== appStage.id ? (
-            <button className="link-btn" onClick={() => setCurrentStage(appStage.id)}>
-              Set as current
+        <div className="map-side">
+          {/* Stage selector above the summary: a wrapping block instead of a
+              side-scroller, so every option is visible at once.
+              (Identity = number, not colour.) */}
+          <div className="stage-select" role="group" aria-label="Select stage to view">
+            <button
+              className="chip stage-select__full"
+              aria-pressed={viewStageId === null}
+              onClick={() => setViewStageId(null)}
+            >
+              Full route
             </button>
-          ) : appStage ? (
-            <span className="pill pill-current">Current stage</span>
-          ) : null}
-        </div>
-        <div className="stat-grid" style={{ marginTop: 12 }}>
-          <div className="stat">
-            <div className="k">Distance</div>
-            <div className="v tnum">{formatDistanceKm(stats.distanceKm)}</div>
+            {ROUTE.stages.map((s) => (
+              <button
+                key={s.id}
+                className="chip stage-select__day"
+                aria-pressed={viewStageId === s.id}
+                onClick={() => setViewStageId(s.id)}
+                aria-label={`Day ${s.day}`}
+              >
+                <span className="chip-swatch" style={{ background: STAGE_COLORS[s.day] }} />
+                {s.day}
+              </button>
+            ))}
           </div>
-          <div className="stat">
-            <div className="k">Ascent / descent</div>
-            <div className="v tnum" style={{ fontSize: 17 }}>
-              ↗ {stats.totalAscentM ?? '—'} · ↘ {stats.totalDescentM ?? '—'} m
+
+          {/* Combined stage/route summary: identity and scannable statistics
+              first, the elevation profile as the detailed visual below. */}
+          <div className="card">
+            <div className="row-between">
+              <span className="card-title">{summaryTitle}</span>
+              {appStage && currentStage?.id !== appStage.id ? (
+                <button className="link-btn" onClick={() => setCurrentStage(appStage.id)}>
+                  Set as current
+                </button>
+              ) : appStage ? (
+                <span className="pill pill-current">Current stage</span>
+              ) : null}
             </div>
-          </div>
-          <div className="stat">
-            <div className="k">Elevation range</div>
-            <div className="v tnum" style={{ fontSize: 17 }}>
-              {stats.minimumElevationM != null
-                ? `${Math.round(stats.minimumElevationM)}–${Math.round(stats.maximumElevationM ?? 0)} m`
-                : '—'}
+            <div className="stat-grid" style={{ marginTop: 12 }}>
+              <div className="stat">
+                <div className="k">Distance</div>
+                <div className="v tnum">{formatDistanceKm(stats.distanceKm)}</div>
+              </div>
+              <div className="stat">
+                <div className="k">Ascent / descent</div>
+                <div className="v tnum" style={{ fontSize: 17 }}>
+                  ↗ {stats.totalAscentM ?? '—'} · ↘ {stats.totalDescentM ?? '—'} m
+                </div>
+              </div>
+              <div className="stat">
+                <div className="k">Elevation range</div>
+                <div className="v tnum" style={{ fontSize: 17 }}>
+                  {stats.minimumElevationM != null
+                    ? `${Math.round(stats.minimumElevationM)}–${Math.round(stats.maximumElevationM ?? 0)} m`
+                    : '—'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="k">{appStage ? 'Est. time' : 'Stages · stops'}</div>
+                <div className="v tnum" style={{ fontSize: 17 }}>
+                  {appStage ? `~${appStage.estimatedHours} h` : `${ROUTE.stages.length} · ${ROUTE.waypoints.length}`}
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="stat">
-            <div className="k">{appStage ? 'Est. time' : 'Stages · stops'}</div>
-            <div className="v tnum" style={{ fontSize: 17 }}>
-              {appStage ? `~${appStage.estimatedHours} h` : `${ROUTE.stages.length} · ${ROUTE.waypoints.length}`}
+            <div className="elev-section">
+              <p className="elev-heading">Elevation</p>
+              <ElevationProfile
+                profile={profile}
+                statistics={stats}
+                onScrub={(s) => mapRef.current?.setScrubPoint(s ? { lat: s.lat, lon: s.lon } : null)}
+              />
             </div>
           </div>
         </div>

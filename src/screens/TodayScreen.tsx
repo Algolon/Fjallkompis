@@ -108,7 +108,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
       />
 
       <div className="row-between today-topline" style={{ marginBottom: 8 }}>
-        <span className="eyebrow today-eyebrow">Kungsleden</span>
+        <span className="eyebrow today-eyebrow">KUNGSLEDEN</span>
         <OnlineBadge />
       </div>
 

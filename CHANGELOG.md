@@ -10,6 +10,50 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-07-09
+
+Focused layout and UX refinements following the first real multi-device
+test of the 0.9.0 adaptive shell, rebuilt on top of the 0.10.0 map-style
+and tracking-overlay release. No new capability; app data, tracking,
+offline behaviour, routing, map sources and device transfer are untouched.
+
+### Changed
+
+- **Narrower desktop sidebar**: the labelled sidebar (≥ 1160px) shrinks
+  from 236px to 148px — icons, one-line labels, active states and focus
+  rings all still fit. The tablet icon rail keeps its 84px, and every
+  layout offset that follows the sidebar (Today's contour background, the
+  PWA toast region) follows automatically.
+- **Today subtitle**: the "Kungsleden" eyebrow above the Today heading is
+  now uppercase ("KUNGSLEDEN"), matching the eyebrow styling of the other
+  primary screens. Nothing else on Today changed.
+- **Map information consolidated**: elevation now lives inside the
+  Day/Full-route summary card — title and current-stage action first, the
+  2×2 statistics, then a visually separated "ELEVATION" section with the
+  chart. One panel instead of three overlapping surfaces; scrubbing the
+  chart still moves the marker on the map.
+- **Map on landscape tablet/desktop** (≥ 900×500): one map-dominant
+  two-column composition — the complete map card on the left; a compact
+  route selector ("Full route" then days 1–7 in one row) directly above
+  the combined summary/elevation panel on the right. The canvas height
+  follows the viewport, so heading, selector, map, statistics and chart
+  share one screenful at 1024×768 up to 1440×900 without page scrolling
+  (optional waypoint/position panels below may still scroll).
+- **Huts & Stations on landscape** (≥ 900×500): opening a stop now
+  switches the two-column grid to a clustered master-detail — every other
+  stop stacked tightly on the left, the open stop as a full detail card
+  in a stable right-hand column. No more large blank grid area beside a
+  tall expanded card; selecting another stop no longer means scrolling
+  through whitespace. Mobile and tablet portrait keep the single-column
+  accordion, and the one-open-at-a-time, keyboard-navigation and
+  Today → Tonight's-stop behaviours are unchanged.
+
+### Removed
+
+- The Map screen's Map/Elevation segmented control, the separate
+  elevation panel with its duplicated title and distance, and the
+  "Drag across the profile…" helper text. The map is always visible as
+  the primary surface; elevation is part of the summary card everywhere.
 ## [0.10.0] - 2026-07-09
 
 ### Changed

@@ -867,35 +867,30 @@ button.map-status-pill {
   box-shadow: var(--shadow);
 }
 
-/* Map + elevation layout: tabs on phones, side-by-side on wide screens. */
-.map-elev-grid .panel-hidden {
-  display: none;
-}
-@media (min-width: 900px) {
-  .map-elev-grid {
-    display: grid;
-    grid-template-columns: 3fr 2fr;
-    gap: 14px;
-    align-items: start;
-  }
-  .map-elev-grid .card + .card {
-    margin-top: 0;
-  }
-  .map-elev-grid .panel-hidden {
-    display: block;
-  }
-  .seg-map {
-    display: none;
-  }
-}
-.map-elev-grid + .card {
-  margin-top: 14px;
-}
-.panel-elev {
-  margin-top: 0;
-}
+/* Map screen primary composition (.map-layout > .map-card + .map-side).
+   Compact: plain blocks in DOM order — map card, route selector, combined
+   summary+elevation card. On roomy landscape viewports the wrapper becomes
+   a map-dominant two-column grid (see the adaptive-shell section below). */
 
 /* Elevation profile ------------------------------------------------------------ */
+
+/* Elevation section of the combined stage/route summary card: visually
+   separated below the 2×2 statistics, introduced by a quiet uppercase
+   mini-title (the app's eyebrow/section-label language — it must not
+   compete with the card title above). */
+.elev-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.elev-heading {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
 
 .elev-wrap {
   position: relative;
@@ -1571,6 +1566,12 @@ button.map-status-pill {
 }
 
 .today-eyebrow {
+  /* Same eyebrow treatment as .screen-head .eyebrow (this one sits in the
+     topline row, outside .screen-head, so it needs the typography here). */
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--glacier-700);
 }
 
@@ -2205,13 +2206,52 @@ button.map-status-pill {
    untouched compact composition. */
 
 @media (min-width: 900px) and (min-height: 500px) {
-  /* Map: the dominant visual area (map-elev-grid above already goes
-     side-by-side at this width); give the canvas real height. */
+  /* Map: one primary map-dominant composition — the complete map card
+     left; route selector + the combined summary/elevation panel right,
+     so map, statistics and chart share the screen without scrolling. */
   .screen--map {
     max-width: 1160px;
   }
-  .mapview {
-    height: clamp(420px, 58vh, 640px);
+  .map-layout {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 14px;
+    align-items: start;
+  }
+  /* Size the canvas from the measured viewport height (same source as the
+     app shell) so heading, selector, map, statistics and elevation chart
+     fit one screenful at common laptop sizes; ~270px covers the screen
+     header plus the map card's own toolbars. Optional panels below the
+     composition may still scroll the page. */
+  /* :where() keeps specificity at the base .mapview level so the
+     .mapview:fullscreen { height: 100% } rule above still wins. */
+  :where(.map-layout) .mapview {
+    height: clamp(420px, calc(var(--app-height, 100vh) - 270px), 720px);
+  }
+  /* Route selector, compact: "Full route" then days 1–7 on a single row
+     where the column allows, wrapping gracefully where it does not. All
+     options stay visible — never a horizontal scroller. */
+  .map-layout .stage-select {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 12px;
+  }
+  .map-layout .stage-select .chip {
+    padding: 6px 12px;
+    min-height: 36px;
+    font-size: 13px;
+  }
+  .map-layout .stage-select__full {
+    flex: 0 1 auto;
+  }
+  .map-layout .stage-select__day {
+    /* Grow to share the row, but never balloon: a chip that wraps onto its
+       own row must stay chip-sized, not stretch across the column. */
+    flex: 1 1 30px;
+    min-width: 34px;
+    max-width: 56px;
+    padding: 6px 0;
   }
 
   /* Today: hero and header span; journey sits beside the Tonight/Daily
@@ -2267,6 +2307,30 @@ button.map-status-pill {
     margin-top: 0;
   }
 
+  /* Stops with a stop OPEN (.stops-detail, set by StopsScreen): clustered
+     master-detail instead of the collapsed two-column grid. Every other
+     stop stacks tightly in route order on the left; the open stop is the
+     full detail card in a STABLE right column (never alternating sides),
+     aligned to the top and spanning every row. The trailing 1fr row
+     absorbs the detail card's extra height — items spanning a flexible
+     track do not inflate the intrinsic rows — so the collapsed list gains
+     no artificial whitespace beside a tall detail card. DOM order, the
+     one-open-at-a-time accordion and header keyboard navigation are
+     untouched; --stop-count is supplied by StopsScreen. */
+  .screen--stops .stack.stops-detail {
+    grid-template-columns: 2fr 3fr;
+    grid-template-rows: repeat(calc(var(--stop-count, 8) - 1), min-content) 1fr;
+    gap: 10px 16px;
+  }
+  .screen--stops .stack.stops-detail > .stop-card {
+    grid-column: 1;
+  }
+  .screen--stops .stack.stops-detail > .stop-card.is-open {
+    grid-column: 2;
+    grid-row: 1 / span var(--stop-count, 8);
+    align-self: start;
+  }
+
   /* Lists: categories in two columns (wrapper div is display:block on
      compact, so mobile rendering is unchanged). */
   .screen--lists {
@@ -2298,14 +2362,18 @@ button.map-status-pill {
 
 @media (min-width: 1160px) and (min-height: 500px) {
   :root {
-    --nav-w: 236px;
+    /* Narrow labelled sidebar (was 236px): the six labels are short, so
+       148px still fits icon + one-line label + active pill + a visible
+       2px/2px-offset focus ring inside the 10px side padding, without
+       clipping or abbreviation. The medium rail above keeps its 84px. */
+    --nav-w: 148px;
   }
 
   .tabbar--rail {
     align-items: stretch;
     gap: 4px;
-    padding-left: calc(var(--safe-left) + 12px);
-    padding-right: 12px;
+    padding-left: calc(var(--safe-left) + 10px);
+    padding-right: 10px;
   }
   .tabbar--rail .tab {
     font-size: 14px;
@@ -2313,8 +2381,8 @@ button.map-status-pill {
   .tabbar--rail .tab-pill {
     flex-direction: row;
     justify-content: flex-start;
-    gap: 12px;
-    padding: 10px 14px;
+    gap: 10px;
+    padding: 10px 12px;
     border-radius: 12px;
   }
   .tabbar--rail .tab .ic {
@@ -2326,12 +2394,8 @@ button.map-status-pill {
     font-weight: 600;
   }
 
-  /* Below-map content on the Map screen: keep text/statistic cards at a
-     readable measure under the full-width map instead of 1160px lines. */
-  .screen--map > .stage-select {
-    max-width: 820px;
-    margin-inline: auto;
-  }
+  /* Below-composition content on the Map screen (hint, waypoint and
+     position cards): keep a readable measure instead of 1160px lines. */
   .screen--map > .card,
   .screen--map > .map-hint {
     max-width: 820px;

@@ -242,11 +242,25 @@ Mechanics:
   the end of `src/styles/global.css`.
 - **Screens**: per-screen `screen--*` classes set intentional content
   widths inside the wider shell; at ≥ 900px width (same ≥ 500px height
-  gate) selected screens use two-column compositions (Today, Stages,
-  Stops, Lists, Settings; the Map's map+elevation grid predates this
-  iteration). Inside these grids, spacing belongs to the grid gap — the
-  legacy `.card + .card` stacked margin is reset per grid wrapper.
-  MapLibre resize is handled by MapView's own ResizeObserver.
+  gate) selected screens use two-column compositions (Today, Map, Stages,
+  Stops, Lists, Settings). Inside these grids, spacing belongs to the
+  grid gap — the legacy `.card + .card` stacked margin is reset per grid
+  wrapper. MapLibre resize is handled by MapView's own ResizeObserver.
+  Two screens carry composition-specific behaviour:
+  - **Map** (`.map-layout`): one map-dominant `3fr 2fr` grid — the
+    complete map card left; the route selector and the combined
+    summary+elevation card right. The canvas height derives from the
+    measured viewport (`--app-height`) via `clamp()`, so the primary
+    composition fits one screenful at common laptop sizes. On compact,
+    the same DOM renders as plain stacked blocks — there is no separate
+    elevation panel or Map/Elevation toggle anywhere.
+  - **Stops** (`.stops-detail`, set while a stop is open): the collapsed
+    two-column grid becomes a clustered master-detail — collapsed stops
+    stacked tightly in the left column, the open stop as a stable
+    top-aligned right-hand detail card spanning every row, with a
+    trailing `1fr` row absorbing its extra height so the collapsed list
+    never gains artificial whitespace. Same DOM, order and accordion
+    semantics as compact.
 - **PWA**: the manifest is orientation-neutral (`orientation: 'any'`, see
   the orientation policy above for why); install/update flows, the
   offline app shell and the separate offline-map downloads are unchanged.
