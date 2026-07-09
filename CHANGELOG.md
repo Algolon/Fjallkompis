@@ -10,6 +10,20 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-07-09
+
+### Changed
+
+- **Map screen copy**: the basemap hint moved from below the map to the
+  screen subtitle — directly under the "Map" heading, above the map — and
+  now reads "An offline basemap of the route. Tap a stage line or stop."
+
+### Removed
+
+- The small elevation figures beneath the elevation chart (start → end,
+  min–max, ascent/descent): they duplicated the statistics grid directly
+  above the chart in the combined summary card.
+
 ## [0.10.1] - 2026-07-09
 
 Focused layout and UX refinements following the first real multi-device
@@ -54,6 +68,7 @@ offline behaviour, routing, map sources and device transfer are untouched.
   elevation panel with its duplicated title and distance, and the
   "Drag across the profile…" helper text. The map is always visible as
   the primary surface; elevation is part of the summary card everywhere.
+
 ## [0.10.0] - 2026-07-09
 
 ### Changed

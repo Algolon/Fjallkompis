@@ -167,20 +167,6 @@ export function ElevationProfile({ profile, statistics, onScrub }: Props) {
           <circle r="4" fill="var(--glacier)" stroke="#fff" strokeWidth="1.5" />
         </g>
       </svg>
-
-      <div className="elev-stats tnum">
-        <span title="Start → end elevation">
-          {Math.round(start.elevationM)} → {Math.round(end.elevationM)} m
-        </span>
-        <span title="Minimum – maximum elevation">
-          {statistics.minimumElevationM != null
-            ? `${Math.round(statistics.minimumElevationM)}–${Math.round(statistics.maximumElevationM ?? 0)} m`
-            : '—'}
-        </span>
-        <span title="Total ascent / descent (smoothed)">
-          ↗ {statistics.totalAscentM ?? '—'} m · ↘ {statistics.totalDescentM ?? '—'} m
-        </span>
-      </div>
     </div>
   );
 }

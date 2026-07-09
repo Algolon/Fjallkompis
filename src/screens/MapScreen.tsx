@@ -337,7 +337,9 @@ export function MapScreen() {
 
   return (
     <div className="screen screen--map">
-      <ScreenHeader eyebrow="Route" title="Map" />
+      <ScreenHeader eyebrow="Route" title="Map">
+        An offline basemap of the route. Tap a stage line or stop.
+      </ScreenHeader>
 
       {/* Primary Map composition. Compact: plain blocks in DOM order (map
           card, then the route selector, then the combined summary+elevation
@@ -559,10 +561,6 @@ export function MapScreen() {
           </div>
         </div>
       </div>
-
-      <p className="map-hint">
-        GPX route on a bounded offline basemap. Tap a stage line or a stop.
-      </p>
 
       {/* Waypoint detail panel */}
       {waypoint ? (
