@@ -33,6 +33,17 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   assistive technology the preview announces one concise facility
   summary instead of a run of icons.
 
+### Changed
+
+- **The Map opens on the Full route by default.** The Map's browsing
+  selection is now decoupled from the current trip stage: a fresh install
+  (including loading directly at `#/map`) shows the complete route,
+  full-route statistics and the full elevation profile first. Day 1
+  remains the default current trip stage everywhere else (Today,
+  Tonight's stop, Stages, live tracking, progress), selecting a day on
+  the Map still never changes the persisted trip stage, and starting
+  live tracking still focuses the tracked stage.
+
 ### Removed
 
 - The below-map "waypoint detail" card. Every rendered waypoint is a real

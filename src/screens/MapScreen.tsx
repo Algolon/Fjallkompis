@@ -26,6 +26,7 @@ import {
   stopIdForWaypoint,
 } from '../route/routeData';
 import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
+import { INITIAL_MAP_VIEW_STAGE_ID } from '../map/mapDefaults.mjs';
 import { STAGE_COLORS } from '../map/mapStyle';
 import type { BasemapMode } from '../map/pmtilesProtocol';
 import { projectOntoRoute } from '../utils/routeProgress.mjs';
@@ -267,10 +268,13 @@ export function MapScreen({
   const geo = useGeolocation();
   const mapRef = useRef<MapViewHandle>(null);
 
-  // Which stage the MAP is looking at (null = full-route overview). Starts at
-  // the hiker's current stage but is independent of it: browsing days on the
-  // map must not silently change persisted app state.
-  const [viewStageId, setViewStageId] = useState<string | null>(currentStage?.id ?? null);
+  // Which stage the MAP is looking at (null = full-route overview). Starts
+  // on the FULL ROUTE — deliberately independent of the persisted current
+  // trip stage (Day 1 by default, still driving Today/tracking/progress):
+  // browsing days on the map must not silently change persisted app state,
+  // and a fresh install should see the whole route first. Starting live
+  // tracking (below) is the one action that focuses the tracked stage.
+  const [viewStageId, setViewStageId] = useState<string | null>(INITIAL_MAP_VIEW_STAGE_ID);
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [imagery, setImagery] = useState<ImageryMode>('terrain');
   const [satelliteAvailable, setSatelliteAvailable] = useState(false);
