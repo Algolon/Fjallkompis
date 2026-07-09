@@ -95,6 +95,15 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Thunderforest Outdoors benchmark & Nordic translation plan (v0.12.0,
+  deployed)**: temporary, feature-flagged online comparison layer on the Map
+  screen (repository variable `VITE_ENABLE_MAP_BENCHMARK`, API-key-gated,
+  never offline, never the default), validated live on production Pages; the
+  measured source-layer audit and the prioritised, phased translation plan
+  (docs/maps/thunderforest-outdoors-benchmark.md) are the design input for
+  the *Terrain context* item above. The Nordic terrain restyle itself is NOT
+  started — the benchmark layer and its key are removed when that work
+  concludes.
 - **Map style decided: Liberty Topo — Nordic** is the production Terrain
   style (the Liberty Topo structure restyled with the Nordic Trail design
   language). The comparison prototype's in-app selector was removed; the
