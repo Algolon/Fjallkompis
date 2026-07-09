@@ -568,23 +568,33 @@ h3 {
   -webkit-tap-highlight-color: transparent;
 }
 .map-hut__badge {
-  /* Compact badge: the 17px glyph keeps its size; only the paper margin
-     around it is trimmed (was 30px). The 44px button above stays the
-     touch target, so the tighter badge costs no tappability. */
+  /* PREVIEW: bare hut glyph, no paper container. The 25px box remains
+     for centring/label geometry and becomes the selected-state chip; a
+     paper-coloured halo (drop-shadows) keeps the naked glyph readable
+     over water, forest and contour colours. */
   width: 25px;
   height: 25px;
   display: grid;
   place-items: center;
   border-radius: 8px;
-  /* Near-opaque paper so the glyph reads over both terrain and satellite. */
-  background: rgba(246, 248, 243, 0.94);
-  border: 1.5px solid var(--line-strong);
+  background: none;
+  border: 0;
   color: var(--spruce);
-  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.35);
+  filter: drop-shadow(0 1px 1px rgba(246, 248, 243, 0.95))
+    drop-shadow(0 0 2.5px rgba(246, 248, 243, 0.9));
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .map-hut__badge svg {
   display: block;
+  /* Without a container the glyph IS the marker: one step larger so it
+     holds its own at map scale (was 17px inside the 25px badge). */
+  width: 21px;
+  height: 21px;
+}
+/* Selected: the chip returns as the "open" state — bare icon normally,
+   filled spruce badge while its popup is up. */
+.map-hut.is-selected .map-hut__badge {
+  filter: none;
 }
 /* Subtle endpoint accent (Abisko start / Nikkaluokta end) — same hut badge,
    cloudberry glyph, so "hut or station" stays the dominant meaning. */
@@ -593,8 +603,9 @@ h3 {
 }
 @media (hover: hover) {
   .map-hut:hover .map-hut__badge {
-    transform: scale(1.08);
-    box-shadow: 0 2px 6px rgba(27, 42, 39, 0.4);
+    /* No box-shadow here: the box is transparent in the bare-glyph
+       preview, and a rectangular shadow would betray it. */
+    transform: scale(1.12);
   }
 }
 .map-hut:focus-visible {
