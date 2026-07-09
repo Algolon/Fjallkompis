@@ -124,24 +124,27 @@ const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
  * innerHTML) and marked decorative: the button's aria-label names the stop.
  */
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const HUT_GLYPH_PATHS = ['M4 11 12 4l8 7', 'M6 10v9h12v-9', 'M10 19v-4h4v4'];
+/**
+ * Filled hut silhouette (same proportions as the outline IconHuts): one
+ * evenodd path — house pentagon with the door as a knocked-out hole, so
+ * the door shows the basemap at rest and the chip colour when the
+ * selected badge fills in behind it.
+ */
+const HUT_GLYPH_FILLED =
+  'M12 3.1 20.7 10.6 V20.3 H3.3 V10.6 Z' +
+  'M10.2 20.3 V15.6 Q10.2 14.7 11.1 14.7 H12.9 Q13.8 14.7 13.8 15.6 V20.3 Z';
 
 function createHutGlyph(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('width', '17');
   svg.setAttribute('height', '17');
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '2');
-  svg.setAttribute('stroke-linecap', 'round');
-  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('fill', 'currentColor');
   svg.setAttribute('aria-hidden', 'true');
-  for (const d of HUT_GLYPH_PATHS) {
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', d);
-    svg.appendChild(path);
-  }
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', HUT_GLYPH_FILLED);
+  path.setAttribute('fill-rule', 'evenodd');
+  svg.appendChild(path);
   return svg;
 }
 
