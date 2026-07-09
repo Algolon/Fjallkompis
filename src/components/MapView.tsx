@@ -19,11 +19,17 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ROUTE } from '../route/routeData';
+import {
+  isEndpointWaypoint,
+  markerAriaLabel,
+  markerLabel,
+} from '../map/stopMarkers.mjs';
 import type { ParsedRoute } from '../route/types';
 import { buildMapStyle, routeLayers, BASEMAP_SOURCE, SATELLITE_LAYER } from '../map/mapStyle';
 import { basemapLayersForStyle, DEFAULT_MAP_STYLE_ID } from '../map/mapStyles.mjs';
@@ -65,6 +71,19 @@ interface MapViewProps {
   selectedStageId: string | null;
   onSelectStage: (stageId: string) => void;
   onSelectWaypoint: (waypointId: string) => void;
+  /**
+   * The waypoint whose anchored preview popup is open (controlled by the
+   * caller; MapView only owns positioning, styling and close gestures).
+   */
+  selectedWaypointId?: string | null;
+  /**
+   * Map-level dismissal: empty-map click, Escape, or re-activating the
+   * already-selected marker (activating the selected marker CLOSES its
+   * popup — a deliberate, consistent toggle).
+   */
+  onDismissWaypoint?: () => void;
+  /** Preview content rendered into the anchored popup for the selection. */
+  waypointPopup?: ReactNode;
   onBasemapMode?: (mode: BasemapMode) => void;
   /** Fired once with whether a satellite archive is available to switch to. */
   onSatelliteAvailable?: (available: boolean) => void;
@@ -98,6 +117,34 @@ const prefersReducedMotion = () =>
 
 const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
 
+/**
+ * Hut/cabin marker glyph — the same geometry as the Huts tab icon
+ * (IconHuts in Icons.tsx), so "this is a hut or station" reads consistently
+ * across the app. Built with DOM APIs from static constants only (never
+ * innerHTML) and marked decorative: the button's aria-label names the stop.
+ */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const HUT_GLYPH_PATHS = ['M4 11 12 4l8 7', 'M6 10v9h12v-9', 'M10 19v-4h4v4'];
+
+function createHutGlyph(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '17');
+  svg.setAttribute('height', '17');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const d of HUT_GLYPH_PATHS) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', d);
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   {
     route = ROUTE,
@@ -106,6 +153,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     selectedStageId,
     onSelectStage,
     onSelectWaypoint,
+    selectedWaypointId = null,
+    onDismissWaypoint,
+    waypointPopup,
     onBasemapMode,
     onSatelliteAvailable,
     imagery,
@@ -130,8 +180,29 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   mapStyleIdRef.current = mapStyleId;
 
   // Keep latest callbacks reachable from map event handlers without rebinding.
-  const callbacksRef = useRef({ onSelectStage, onSelectWaypoint, onUserInteract });
-  callbacksRef.current = { onSelectStage, onSelectWaypoint, onUserInteract };
+  const callbacksRef = useRef({
+    onSelectStage,
+    onSelectWaypoint,
+    onDismissWaypoint,
+    onUserInteract,
+  });
+  callbacksRef.current = { onSelectStage, onSelectWaypoint, onDismissWaypoint, onUserInteract };
+
+  // Hut markers and their anchored preview popup. Markers are created once
+  // at map load and never rebuilt on selection changes; the ONE popup
+  // instance is repositioned and its content swapped through a React portal
+  // into popupContentRef (so FacilityIcon etc. render in the main tree —
+  // no extra React roots to leak).
+  const markerElsRef = useRef(new Map<string, HTMLButtonElement>());
+  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const popupContentRef = useRef<HTMLDivElement | null>(null);
+  if (!popupContentRef.current) popupContentRef.current = document.createElement('div');
+  // Read by marker click handlers (toggle-close on the selected marker).
+  const selectedWaypointRef = useRef(selectedWaypointId);
+  selectedWaypointRef.current = selectedWaypointId;
+  // Keyboard activation (click with detail === 0) moves focus into the
+  // popup once it opens; pointer activation deliberately leaves focus alone.
+  const popupFocusPendingRef = useRef(false);
   // The dataset is captured at mount (see the route prop doc); a ref keeps
   // the imperative handle and effects reading the mounted value.
   const routeRef = useRef(route);
@@ -254,6 +325,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           const stageId = e.features?.[0]?.properties?.stageId;
           if (typeof stageId === 'string') callbacksRef.current.onSelectStage(stageId);
         });
+        // Any canvas click (empty map or a stage line) dismisses the stop
+        // popup; marker clicks stopPropagation and never reach the canvas.
+        map.on('click', () => callbacksRef.current.onDismissWaypoint?.());
         map.on('mouseenter', 'route-stages-hit', () => {
           map!.getCanvas().style.cursor = 'pointer';
         });
@@ -270,27 +344,58 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         map.on('dragstart', userMoved);
         map.on('zoomstart', userMoved);
 
-        // Waypoints as local HTML markers (no glyphs/sprites needed).
+        // Every mapped waypoint is a hut/station stop: render it as a hut
+        // marker (local DOM, no glyphs/sprites, no innerHTML — the name is
+        // set via textContent). The 44×44 button is the touch target; the
+        // visible ~30px badge sits centred inside it, so anchor:'center'
+        // keeps the badge pinned to the true coordinate at every zoom and
+        // the label hangs above it out of layout flow.
         for (const w of mountedRoute.waypoints) {
           const el = document.createElement('button');
           el.type = 'button';
-          el.className = 'map-wpt';
-          el.setAttribute('aria-label', `${w.name} — waypoint details`);
-          const isEnd = w.id.startsWith('START_') || w.id.startsWith('END_');
-          el.innerHTML = `<span class="map-wpt-dot${isEnd ? ' is-end' : ''}"></span><span class="map-wpt-label">${w.name.replace('STF ', '')}</span>`;
+          el.className = `map-hut${isEndpointWaypoint(w.id) ? ' is-end' : ''}`;
+          el.setAttribute('aria-label', markerAriaLabel(w.name));
+          const badge = document.createElement('span');
+          badge.className = 'map-hut__badge';
+          badge.appendChild(createHutGlyph());
+          const label = document.createElement('span');
+          label.className = 'map-hut__label';
+          label.textContent = markerLabel(w.name);
+          el.append(badge, label);
           el.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            callbacksRef.current.onSelectWaypoint(w.id);
+            ev.stopPropagation(); // never select the stage line underneath
+            if (selectedWaypointRef.current === w.id) {
+              // Deliberate toggle: activating the selected marker closes
+              // its popup (matches the empty-map/Escape close gestures).
+              callbacksRef.current.onDismissWaypoint?.();
+            } else {
+              // detail === 0 → keyboard (Enter/Space) activation.
+              popupFocusPendingRef.current = ev.detail === 0;
+              callbacksRef.current.onSelectWaypoint(w.id);
+            }
           });
+          markerElsRef.current.set(w.id, el);
           markers.push(
-            // Anchor at the element's center = the dot's center, so the dot
-            // stays pinned to the true coordinate at every zoom; the label
-            // hangs below it out of layout flow.
             new maplibregl.Marker({ element: el, anchor: 'center' })
               .setLngLat([w.lon, w.lat])
               .addTo(map!),
           );
         }
+
+        // ONE anchored preview popup, reused across selections. Dynamic
+        // anchoring (no fixed anchor) prefers "above the marker" and
+        // repositions automatically to stay inside the map view; the offset
+        // clears the marker badge. Visibility is fully state-controlled
+        // (closeOnClick off — the canvas click handler above owns that),
+        // and the content element is a React portal target.
+        popupRef.current = new maplibregl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 26,
+          maxWidth: '272px',
+          focusAfterOpen: false,
+          className: 'stop-popup-anchor',
+        }).setDOMContent(popupContentRef.current!);
 
         setLoaded(true);
       });
@@ -302,6 +407,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return () => {
       cancelled = true;
       resizeObs?.disconnect();
+      popupRef.current?.remove();
+      popupRef.current = null;
+      markerElsRef.current.clear();
       markers.forEach((m) => m.remove());
       map?.remove();
       mapRef.current = null;
@@ -309,6 +417,56 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Stop selection: marker styling + anchored popup ---------------------
+  // Mutates classes on the stable marker elements and repositions the one
+  // popup instance — markers and map are never rebuilt for a selection.
+  useEffect(() => {
+    const map = mapRef.current;
+    const popup = popupRef.current;
+    if (!map || !loaded || !popup) return;
+
+    markerElsRef.current.forEach((el, id) =>
+      el.classList.toggle('is-selected', id === selectedWaypointId),
+    );
+
+    const w = selectedWaypointId
+      ? routeRef.current.waypoints.find((x) => x.id === selectedWaypointId)
+      : null;
+    if (!w) {
+      popup.remove();
+      return;
+    }
+    popup.setLngLat([w.lon, w.lat]);
+    if (!popup.isOpen()) popup.addTo(map);
+    if (popupFocusPendingRef.current) {
+      popupFocusPendingRef.current = false;
+      // The portal content committed with this render; focus its action
+      // after the popup has been positioned.
+      requestAnimationFrame(() =>
+        popupContentRef.current?.querySelector('button')?.focus(),
+      );
+    }
+  }, [selectedWaypointId, loaded]);
+
+  // ---- Escape closes the stop popup -----------------------------------------
+  // In fullscreen the browser consumes Escape to exit fullscreen (never
+  // prevented here); the popup stays open through the transition and the
+  // NEXT Escape — now outside fullscreen — closes it. Documented behaviour.
+  useEffect(() => {
+    if (!selectedWaypointId) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.fullscreenElement) return;
+      const marker = markerElsRef.current.get(selectedWaypointId);
+      const focusWasInPopup =
+        popupContentRef.current?.contains(document.activeElement) ?? false;
+      callbacksRef.current.onDismissWaypoint?.();
+      // Keyboard users return to the marker they came from.
+      if (focusWasInPopup) marker?.focus();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedWaypointId]);
 
   // ---- Selection: update filters/paint + camera, never rebuild ------------
   useEffect(() => {
@@ -436,6 +594,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   return (
     <div ref={containerRef} className="mapview">
       {overlay}
+      {/* Anchored-popup content: portalled into the MapLibre popup element
+          so it tracks the coordinate, works in fullscreen, and still renders
+          in THIS React tree (shared context, no extra roots). */}
+      {createPortal(waypointPopup ?? null, popupContentRef.current!)}
     </div>
   );
 });

@@ -34,7 +34,10 @@ function Screens({
     case 'today':
       return <TodayScreen onNavigate={navigate} />;
     case 'map':
-      return <MapScreen />;
+      // Focused callback (not the whole router): the map's anchored stop
+      // preview opens the stop's full detail in Huts & Stations via the
+      // existing destination + one-shot payload pattern.
+      return <MapScreen onOpenStop={(stopId) => navigate('huts', { stopId })} />;
     case 'stages':
       return <StagesScreen />;
     case 'huts':

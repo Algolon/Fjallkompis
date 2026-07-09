@@ -254,6 +254,23 @@ Mechanics:
     composition fits one screenful at common laptop sizes. On compact,
     the same DOM renders as plain stacked blocks — there is no separate
     elevation panel or Map/Elevation toggle anywhere.
+  - **Map stop markers & preview popup**: every rendered waypoint maps to
+    a Huts & Stations stop (`src/route/waypointStops.mjs`, fenced by
+    `tests/map-stop-markers.test.mjs`), so each renders as a hut-badge
+    marker button (44×44 hit area around a ~30px badge; DOM-built static
+    SVG, names set via textContent — no innerHTML). Activation opens ONE
+    anchored MapLibre `Popup`, reused across selections; its content is a
+    React portal from MapView's own tree (`StopPreview` in MapScreen:
+    short name, `collapsedFacilities` icons, important absences,
+    chevron), so selections never re-create the map or the markers.
+    Ownership: MapView owns marker/popup lifecycle, positioning, selected
+    styling and close gestures — empty-map click, Escape, and
+    re-activating the selected marker (a deliberate toggle-close); in
+    fullscreen, Escape only exits fullscreen and the NEXT Escape closes
+    the popup. MapScreen owns selection state, waypoint→stop resolution
+    and popup content; App supplies the focused `onOpenStop` callback
+    that routes to Huts & Stations with the existing one-shot
+    `{ stopId }` navigation payload.
   - **Stops** (`.stops-detail`, set while a stop is open): the collapsed
     two-column grid becomes a clustered master-detail — collapsed stops
     stacked tightly in the left column, the open stop as a stable

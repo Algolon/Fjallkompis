@@ -1,30 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { TrackingStatusOverlay } from '../components/TrackingStatus';
+import { FacilityIcon } from '../components/FacilityIcon';
 import { IconLocate } from '../components/Icons';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useRouteTracking } from '../hooks/useRouteTracking';
 import type { TrackingSession } from '../utils/trackingSession.mjs';
-import { STOPS, STOPS_BY_ID, stopShortName } from '../data/stops';
+import {
+  STOPS,
+  STOPS_BY_ID,
+  collapsedFacilities,
+  importantAbsences,
+  stopShortName,
+} from '../data/stops';
 import { STAGES_BY_ID } from '../data/stages';
 import {
   ROUTE,
   OVERVIEW_ELEVATION_PROFILE,
   STAGE_BY_ID,
   WAYPOINT_BY_ID,
-  WAYPOINT_TO_HUT,
-  WAYPOINT_ROUTE_KM,
-  stagesForWaypoint,
+  stopIdForWaypoint,
 } from '../route/routeData';
+import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import { STAGE_COLORS } from '../map/mapStyle';
 import type { BasemapMode } from '../map/pmtilesProtocol';
 import { projectOntoRoute } from '../utils/routeProgress.mjs';
 import type { RouteProjection } from '../utils/routeProgress.mjs';
 import { formatDistanceKm } from '../utils/format';
-import type { LatLng } from '../types';
+import type { LatLng, TrailStop } from '../types';
 
 /** Whole metres, phrased as an approximation ("~38 m", "~640 m"). */
 const approxMeters = (m: number) => `~${Math.round(m)} m`;
@@ -202,8 +209,61 @@ function renderLiveProgress(session: TrackingSession, stageTitle: string | null)
   );
 }
 
-export function MapScreen() {
-  const { currentStage, setCurrentStage, getStopNote } = useStore();
+/**
+ * Anchored stop preview — the content of the map popup. A PREVIEW, not a
+ * second detail screen: short name, a compact facility row (same helpers
+ * and iconography as Huts & Stations) and a chevron. The whole card is one
+ * button that navigates to the stop's full detail in Huts & Stations; the
+ * icon row is decorative to AT, replaced by one spoken facility summary.
+ */
+function StopPreview({ stop, onOpen }: { stop: TrailStop; onOpen: () => void }) {
+  const name = stopShortName(stop);
+  const facilities = collapsedFacilities(stop, 4);
+  const absences = importantAbsences(stop);
+  const summaryId = `stop-preview-sum-${stop.id}`;
+  return (
+    <button
+      type="button"
+      className="stop-popup"
+      aria-label={popupActionLabel(name)}
+      aria-describedby={summaryId}
+      onClick={onOpen}
+    >
+      <span className="stop-popup__row">
+        <span className="stop-popup__name">{name}</span>
+        <ChevronRight className="stop-popup__chevron" size={17} strokeWidth={2.2} aria-hidden />
+      </span>
+      {facilities.length > 0 || absences.length > 0 ? (
+        <span className="stop-popup__facilities" aria-hidden>
+          {facilities.map((f) => (
+            <span key={f.id} className="stop-popup__fac" title={f.label}>
+              <FacilityIcon id={f.id} size={14} />
+            </span>
+          ))}
+          {absences.map((f) => (
+            <span key={f.id} className="stop-popup__absence">
+              <TriangleAlert size={11} strokeWidth={2.4} /> {f.label}
+            </span>
+          ))}
+        </span>
+      ) : null}
+      <span id={summaryId} className="sr-only">
+        {facilitySummary(
+          facilities.map((f) => f.label),
+          absences.map((f) => f.label),
+        )}
+      </span>
+    </button>
+  );
+}
+
+export function MapScreen({
+  onOpenStop,
+}: {
+  /** Focused navigation: open this stop's full detail in Huts & Stations. */
+  onOpenStop?: (stopId: string) => void;
+}) {
+  const { currentStage, setCurrentStage } = useStore();
   const geo = useGeolocation();
   const mapRef = useRef<MapViewHandle>(null);
 
@@ -291,10 +351,16 @@ export function MapScreen() {
     }
   };
 
-  const waypoint = selectedWaypointId ? WAYPOINT_BY_ID[selectedWaypointId] : null;
-  const waypointHutId = waypoint ? WAYPOINT_TO_HUT[waypoint.id] : null;
-  const waypointNotes = waypointHutId ? getStopNote(waypointHutId) : '';
-  const wpStages = waypoint ? stagesForWaypoint(waypoint.id) : null;
+  // The selected marker's stop, previewed in the anchored map popup. Every
+  // rendered waypoint currently maps to a stop (fenced by
+  // tests/map-stop-markers.test.mjs); the name-only fallback below is
+  // defensive, for a future unmapped waypoint — it gets a plain preview
+  // with no Huts & Stations action.
+  const selectedStopId = selectedWaypointId ? stopIdForWaypoint(selectedWaypointId) : null;
+  const selectedStop = selectedStopId ? STOPS_BY_ID[selectedStopId] ?? null : null;
+  const selectedWaypointName = selectedWaypointId
+    ? WAYPOINT_BY_ID[selectedWaypointId]?.name ?? null
+    : null;
 
   const summaryTitle = useMemo(() => {
     if (!appStage) return 'Full route';
@@ -353,6 +419,21 @@ export function MapScreen() {
               selectedStageId={viewStageId}
               onSelectStage={(id) => setViewStageId(id)}
               onSelectWaypoint={(id) => setSelectedWaypointId(id)}
+              selectedWaypointId={selectedWaypointId}
+              onDismissWaypoint={() => setSelectedWaypointId(null)}
+              waypointPopup={
+                selectedStop ? (
+                  <StopPreview
+                    stop={selectedStop}
+                    onOpen={() => {
+                      setSelectedWaypointId(null);
+                      onOpenStop?.(selectedStop.id);
+                    }}
+                  />
+                ) : selectedWaypointName ? (
+                  <span className="stop-popup stop-popup--plain">{selectedWaypointName}</span>
+                ) : null
+              }
               onBasemapMode={setBasemapMode}
               onSatelliteAvailable={setSatelliteAvailable}
               imagery={imagery}
@@ -561,43 +642,6 @@ export function MapScreen() {
           </div>
         </div>
       </div>
-
-      {/* Waypoint detail panel */}
-      {waypoint ? (
-        <div className="card" role="region" aria-label={`Waypoint ${waypoint.name}`}>
-          <div className="row-between">
-            <span className="card-title">{waypoint.name}</span>
-            <button className="link-btn" onClick={() => setSelectedWaypointId(null)}>
-              Close
-            </button>
-          </div>
-          <p className="card-sub" style={{ marginTop: 2 }}>
-            <span className="tnum">{waypoint.id}</span>
-            {waypoint.symbol ? ` · ${waypoint.symbol}` : ''}
-          </p>
-          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <span className="pill tnum">
-              ⛰ {waypoint.elevation != null ? `${Math.round(waypoint.elevation)} m` : 'elevation —'}
-            </span>
-            <span className="pill tnum">
-              {formatDistanceKm(WAYPOINT_ROUTE_KM[waypoint.id] ?? 0)} into route
-            </span>
-          </div>
-          {wpStages ? (
-            <p className="card-sub" style={{ marginTop: 10, lineHeight: 1.6 }}>
-              {wpStages.arriving ? `Arrive: day ${wpStages.arriving.day}. ` : 'Route start. '}
-              {wpStages.departing ? `Depart: day ${wpStages.departing.day}.` : 'Route end.'}
-            </p>
-          ) : null}
-          {waypointHutId && waypointNotes.trim() ? (
-            <>
-              <div className="hr" />
-              <span className="card-sub">Your notes</span>
-              <p style={{ marginTop: 6, lineHeight: 1.5 }}>{waypointNotes}</p>
-            </>
-          ) : null}
-        </div>
-      ) : null}
 
       {/* Position & progress. No raw coordinates in the normal UI — the
           marker on the map IS the position; here we show source, accuracy
