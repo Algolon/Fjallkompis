@@ -60,6 +60,23 @@ export function isVectorStyleId(value) {
 }
 
 /**
+ * Visibility rule for the TEMPORARY map-comparison selector, separate from
+ * API-key availability by design (the key is not a feature flag):
+ *  - dev builds show the selector by default (matches the 0.8.0 prototype
+ *    convention of a developer-facing selector);
+ *  - production shows it only when VITE_ENABLE_MAP_BENCHMARK is exactly
+ *    'true' (a non-sensitive repository VARIABLE in deploy.yml);
+ *  - without the flag, normal users get only the production map — no
+ *    comparison options, no unavailable Thunderforest entry.
+ * Pure function (env values are passed in) so node --test can fence it;
+ * the app reads it through benchmarkFlag.ts.
+ */
+export function isBenchmarkEnabled(isDev, flagValue) {
+  if (isDev) return true;
+  return typeof flagValue === 'string' && flagValue.trim() === 'true';
+}
+
+/**
  * Basemap layers for a style id, all bound to the given vector source.
  * 'current' reproduces the production style byte-for-byte (same
  * @protomaps/basemaps call as before the prototype existed).

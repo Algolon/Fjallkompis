@@ -22,6 +22,10 @@ export declare const MAP_STYLE_OPTIONS: MapStyleOption[];
 export declare const DEFAULT_MAP_STYLE_ID: VectorMapStyleId;
 export declare function isMapStyleId(value: unknown): value is MapStyleId;
 export declare function isVectorStyleId(value: unknown): value is VectorMapStyleId;
+export declare function isBenchmarkEnabled(
+  isDev: boolean,
+  flagValue: string | undefined,
+): boolean;
 export declare function basemapLayersForStyle(
   styleId: VectorMapStyleId,
   sourceId: string,

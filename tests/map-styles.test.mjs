@@ -23,6 +23,7 @@ import {
   DEFAULT_MAP_STYLE_ID,
   isMapStyleId,
   isVectorStyleId,
+  isBenchmarkEnabled,
   basemapLayersForStyle,
 } from '../src/map/mapStyles.mjs';
 import {
@@ -77,6 +78,21 @@ test('the online benchmark can never masquerade as an offline vector style', () 
   // The vector builder must refuse it: the offline invariants below only
   // hold because the raster benchmark lives outside basemapLayersForStyle.
   assert.throws(() => basemapLayersForStyle('thunderforest-outdoors', SOURCE));
+});
+
+test('benchmark selector visibility: dev default on, production opt-in only', () => {
+  // Dev builds show the temporary comparison selector regardless of the flag.
+  assert.equal(isBenchmarkEnabled(true, undefined), true);
+  assert.equal(isBenchmarkEnabled(true, 'false'), true);
+  // Production requires the explicit flag — normal users see only the
+  // production map experience.
+  assert.equal(isBenchmarkEnabled(false, 'true'), true);
+  assert.equal(isBenchmarkEnabled(false, ' true '), true, 'whitespace tolerated');
+  assert.equal(isBenchmarkEnabled(false, undefined), false);
+  assert.equal(isBenchmarkEnabled(false, ''), false);
+  assert.equal(isBenchmarkEnabled(false, 'false'), false);
+  assert.equal(isBenchmarkEnabled(false, '1'), false, 'only the exact word true');
+  assert.equal(isBenchmarkEnabled(false, 'TRUE'), false, 'case-sensitive by design');
 });
 
 const VECTOR_STYLE_OPTIONS = MAP_STYLE_OPTIONS.filter((o) => o.kind === 'vector-offline');

@@ -15,9 +15,11 @@
  * (read in src/map/thunderforest.ts, never here — this module stays plain
  * ESM so the node --test suite can exercise it without Vite). NOTE: build-time
  * injection only keeps the key out of the repository; the built browser app
- * necessarily exposes it in tile-request URLs (documented in
- * docs/DEVELOPMENT.md — restrict the key to allowed origins in the
- * Thunderforest dashboard).
+ * necessarily exposes it in tile-request URLs, and Referer information may be
+ * visible to Thunderforest. Controls: quota monitoring in the Thunderforest
+ * dashboard, keeping the deployment temporary, and rotating/removing the key
+ * afterwards — use an origin allowlist only if the dashboard actually offers
+ * one (not clearly documented publicly). See docs/DEVELOPMENT.md.
  *
  * Plain ESM (like mapStyles.mjs); the app imports it through
  * thunderforestLayer.d.mts.
@@ -39,11 +41,14 @@ export const THUNDERFOREST_MINZOOM = 0;
 export const THUNDERFOREST_MAXZOOM = 17;
 
 /**
- * Tile URL template for the given key. The key is interpolated at runtime
- * from the build-time env var — never a literal anywhere in the repo.
+ * Tile URL template for the given key — the officially documented
+ * Thunderforest Map Tiles API endpoint (api.thunderforest.com; see
+ * https://www.thunderforest.com/docs/map-tiles-api/). The key is
+ * interpolated at runtime from the build-time env var — never a literal
+ * anywhere in the repo.
  */
 export function thunderforestTileUrl(apiKey) {
-  return `https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=${apiKey}`;
+  return `https://api.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=${apiKey}`;
 }
 
 /**

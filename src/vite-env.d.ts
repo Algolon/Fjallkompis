@@ -28,6 +28,13 @@ interface ImportMetaEnv {
    * the built app exposes it in tile-request URLs (docs/DEVELOPMENT.md).
    */
   readonly VITE_THUNDERFOREST_API_KEY?: string;
+  /**
+   * Gates the TEMPORARY map-comparison selector in production builds
+   * ('true' → visible; anything else → normal production map only). Dev
+   * builds default to visible. Not sensitive — a repository VARIABLE in
+   * deploy.yml, deliberately separate from the API key.
+   */
+  readonly VITE_ENABLE_MAP_BENCHMARK?: string;
 }
 
 interface ImportMeta {

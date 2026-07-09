@@ -55,15 +55,22 @@ jobs:
           [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: satellite archive SHA-256 mismatch"; exit 1; }
           [ "$actual_size" = "$expected_size" ] || { echo "FATAL: satellite archive size mismatch"; exit 1; }
 
-      # VITE_THUNDERFOREST_API_KEY enables the ONLINE-ONLY Thunderforest
-      # Outdoors comparison basemap (docs/maps/thunderforest-outdoors-
-      # benchmark.md). Optional: with the repository secret absent the option
-      # simply renders as unavailable — the build never fails over it.
-      # NOTE: Vite inlines the value into the built JS, so the deployed app
-      # exposes it in tile-request URLs; the secret only keeps it out of the
-      # repository. Restrict the key to allowed origins at Thunderforest.
+      # Temporary map-comparison benchmark (docs/maps/thunderforest-outdoors-
+      # benchmark.md). Both inputs are optional and the build never fails
+      # over them:
+      #  - VITE_ENABLE_MAP_BENCHMARK (repository VARIABLE, not sensitive):
+      #    production shows the comparison selector only when it is "true";
+      #  - VITE_THUNDERFOREST_API_KEY (repository SECRET): enables the
+      #    ONLINE-ONLY Thunderforest option inside the benchmark selector.
+      # NOTE: Vite inlines the key into the built JS, so the deployed app
+      # exposes it in tile-request URLs (and Referer information may be
+      # visible to Thunderforest); the secret only keeps it out of the
+      # repository. Controls: quota monitoring, temporary deployment, key
+      # rotation/removal — an origin allowlist only if the Thunderforest
+      # dashboard actually supports one.
       - run: npm run build
         env:
+          VITE_ENABLE_MAP_BENCHMARK: ${{ vars.VITE_ENABLE_MAP_BENCHMARK }}
           VITE_THUNDERFOREST_API_KEY: ${{ secrets.VITE_THUNDERFOREST_API_KEY }}
 
       - name: Verify satellite archive made it into the build

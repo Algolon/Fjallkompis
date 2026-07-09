@@ -39,7 +39,7 @@ test('tile URL is the documented Map Tiles API template', () => {
   const url = thunderforestTileUrl('KEY_PLACEHOLDER');
   assert.equal(
     url,
-    'https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=KEY_PLACEHOLDER',
+    'https://api.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=KEY_PLACEHOLDER',
   );
   assert.ok(!url.includes('@2x'), 'no retina tiles during the prototype');
 });
@@ -129,14 +129,18 @@ test('no literal API key anywhere in tracked files', () => {
         offenders.push(`${f}: VITE_THUNDERFOREST_API_KEY has a literal value`);
       }
     }
-    // A concrete apikey=… query value (anything but the runtime template
-    // interpolation or a documentation placeholder) must never be committed.
-    for (const m of content.matchAll(/apikey=([^\s"'`&)\]}<]+)/gi)) {
+    // A concrete query value for the key parameter (anything but the runtime
+    // template interpolation or a documentation placeholder) must never be
+    // committed. The pattern is assembled at runtime so this tracked test
+    // file cannot match its own source.
+    const queryValue = new RegExp('api' + 'key=([^\\s"\'`&)\\]}<]+)', 'gi');
+    for (const m of content.matchAll(queryValue)) {
       const value = m[1];
       const allowed =
         value.startsWith('${') || // template interpolation in the builder
-        /^<[^>]*>$/.test(m[0].slice('apikey='.length)) || // docs placeholder like <key>
-        value === 'KEY_PLACEHOLDER'; // this test file
+        /^<[^>]*>$/.test(value) || // docs placeholder like <key>
+        value === '…' || // docs ellipsis placeholder
+        value === 'KEY_PLACEHOLDER'; // this test file's fixtures
       if (!allowed) offenders.push(`${f}: literal apikey value "${value}"`);
     }
   }
@@ -148,16 +152,25 @@ test('.env.example ships an EMPTY placeholder and real env files are ignored', (
   const line = example.split('\n').find((l) => l.startsWith('VITE_THUNDERFOREST_API_KEY'));
   assert.equal(line, 'VITE_THUNDERFOREST_API_KEY=', 'placeholder must stay empty');
 
+  const benchmarkLine = example
+    .split('\n')
+    .find((l) => l.startsWith('VITE_ENABLE_MAP_BENCHMARK'));
+  assert.equal(benchmarkLine, 'VITE_ENABLE_MAP_BENCHMARK=', 'flag placeholder must stay empty');
+
   const gitignore = readFileSync(join(root, '.gitignore'), 'utf8');
   assert.ok(gitignore.includes('.env'), '.env is git-ignored');
   assert.ok(gitignore.includes('*.local'), '.env.local is git-ignored');
   assert.ok(gitignore.includes('!.env.example'), 'the template stays tracked');
 });
 
-test('deploy workflow injects the key from a secret, never a literal', () => {
+test('deploy workflow injects the key from a secret and the flag from a variable', () => {
   const workflow = readFileSync(join(root, '.github/workflows/deploy.yml'), 'utf8');
   assert.ok(
     workflow.includes('VITE_THUNDERFOREST_API_KEY: ${{ secrets.VITE_THUNDERFOREST_API_KEY }}'),
     'build step reads the repository secret',
+  );
+  assert.ok(
+    workflow.includes('VITE_ENABLE_MAP_BENCHMARK: ${{ vars.VITE_ENABLE_MAP_BENCHMARK }}'),
+    'build step reads the non-sensitive repository variable (not a secret)',
   );
 });

@@ -36,6 +36,7 @@ import {
 import type { MapStyleId } from '../map/mapStyles.mjs';
 import { THUNDERFOREST_STYLE_ID } from '../map/thunderforestLayer.mjs';
 import { thunderforestAvailable } from '../map/thunderforest';
+import { benchmarkEnabled } from '../map/benchmarkFlag';
 import type { BasemapMode } from '../map/pmtilesProtocol';
 import { projectOntoRoute } from '../utils/routeProgress.mjs';
 import type { RouteProjection } from '../utils/routeProgress.mjs';
@@ -494,15 +495,18 @@ export function MapScreen({
                 Satellite
               </button>
             </div>
-            {/* Map-style comparison selector — reintroduced for the
-                Thunderforest Outdoors benchmark (docs/maps/
-                thunderforest-outdoors-benchmark.md). Three offline vector
-                styles plus ONE online-only raster reference, clearly marked
-                and unavailable without a build-time API key. Styled inline on
-                purpose (same convention as the 0.8.0 prototype): removed
-                again once the Nordic restyle work concludes. Hidden while the
-                satellite raster covers the vector basemap. */}
-            {imagery === 'terrain' ? (
+            {/* TEMPORARY map-comparison selector for the Thunderforest
+                Outdoors benchmark (docs/maps/thunderforest-outdoors-
+                benchmark.md). Three offline vector styles plus ONE
+                online-only raster reference, clearly marked and unavailable
+                without a build-time API key. Gated by benchmarkEnabled
+                (VITE_ENABLE_MAP_BENCHMARK; dev defaults on) — normal
+                production users see only the production map, with no
+                comparison options at all. Styled inline on purpose (same
+                convention as the 0.8.0 prototype): removed again once the
+                Nordic restyle work concludes. Hidden while the satellite
+                raster covers the vector basemap. */}
+            {benchmarkEnabled && imagery === 'terrain' ? (
               <label
                 style={{
                   position: 'absolute',
@@ -523,12 +527,12 @@ export function MapScreen({
                   boxShadow: '0 1px 4px rgba(27, 42, 39, 0.25)',
                 }}
               >
-                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Style · comparison</span>
+                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Map comparison — temporary</span>
                 <select
                   className="select"
                   style={{ fontSize: 12, padding: '2px 6px', minWidth: 0, flex: '0 1 auto' }}
                   value={mapStyleId}
-                  aria-label="Map style (comparison benchmark)"
+                  aria-label="Map style (temporary comparison benchmark)"
                   onChange={(e) => {
                     if (isMapStyleId(e.target.value)) setMapStyleId(e.target.value);
                   }}
