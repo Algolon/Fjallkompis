@@ -285,7 +285,17 @@ export function StopsScreen({ initialStopId }: { initialStopId?: string | null }
         </span>
       </div>
 
-      <div className="stack" style={{ marginTop: 14 }}>
+      {/* stops-detail switches the roomy-landscape grid (≥ 900×500, see
+          global.css) into a clustered master-detail: collapsed stops stack
+          tightly on the left, the open stop becomes a stable right-hand
+          detail column. Same DOM, same order, same accordion semantics —
+          compact/portrait presentations ignore the class entirely.
+          --stop-count feeds the grid's row template so CSS never hard-codes
+          the number of stops. */}
+      <div
+        className={`stack${openId ? ' stops-detail' : ''}`}
+        style={{ marginTop: 14, '--stop-count': STOPS.length } as React.CSSProperties}
+      >
         {STOPS.map((stop, i) => (
           <StopCard
             key={stop.id}
