@@ -13,7 +13,7 @@
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 import { BASEMAP_SOURCE_INFO, SATELLITE_SOURCE_INFO } from '../data/attribution';
 import { basemapLayersForStyle, DEFAULT_MAP_STYLE_ID } from './mapStyles.mjs';
-import type { MapStyleId } from './mapStyles.mjs';
+import type { VectorMapStyleId } from './mapStyles.mjs';
 
 export const BASEMAP_SOURCE = 'protomaps';
 /**
@@ -72,7 +72,9 @@ export function buildMapStyle(
   satelliteSourceUrl: string | null = null,
   // Comparison-prototype hook (docs/map-style-comparison.md). The default is
   // the production style, so existing callers are byte-for-byte unchanged.
-  mapStyleId: MapStyleId = DEFAULT_MAP_STYLE_ID,
+  // VECTOR styles only: the online raster benchmark is overlaid separately
+  // by MapView (thunderforestLayer.mjs) and never part of the base style.
+  mapStyleId: VectorMapStyleId = DEFAULT_MAP_STYLE_ID,
 ): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,

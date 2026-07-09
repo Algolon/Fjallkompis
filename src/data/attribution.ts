@@ -12,6 +12,7 @@
  * corresponding archive actually exists in the app.
  */
 import { FACTS_VERIFIED_ON } from './stops';
+import { thunderforestAvailable } from '../map/thunderforest';
 
 export interface DataSourceAttribution {
   id: string;
@@ -86,6 +87,23 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
     provider: 'Svenska Turistföreningen (STF) · Nikkaluokta Sarri',
     sourceUrl: 'https://www.swedishtouristassociation.com',
   },
+  {
+    id: 'thunderforest-outdoors',
+    // Present only in builds configured with an API key: the tiles are an
+    // online-only comparison preview (never downloaded, never offline) — see
+    // src/map/thunderforestLayer.mjs and the benchmark doc.
+    present: thunderforestAvailable,
+    name: 'Thunderforest Outdoors (online preview)',
+    label: 'Maps © Thunderforest · Data © OpenStreetMap contributors',
+    attribution:
+      'Thunderforest Outdoors raster tiles, streamed online as a temporary cartographic comparison layer for the Nordic basemap work. Never included in offline downloads. Maps © Thunderforest, Data © OpenStreetMap contributors.',
+    mapAttributionHtml:
+      'Maps © <a href="https://www.thunderforest.com" target="_blank" rel="noopener">Thunderforest</a>, Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    provider: 'Thunderforest (Gravitystorm Limited)',
+    sourceUrl: 'https://www.thunderforest.com/maps/outdoors/',
+    licenseName: 'Thunderforest terms · data ODbL 1.0',
+    licenseUrl: 'https://www.thunderforest.com/terms/',
+  },
   // ---- Not yet shipped — flip `present` when the archive actually exists ----
   {
     id: 'lantmateriet-ortofoto',
@@ -109,6 +127,7 @@ export const PRESENT_DATA_SOURCES = DATA_SOURCES.filter((s) => s.present);
 
 export const BASEMAP_SOURCE_INFO = DATA_SOURCE_BY_ID['osm-protomaps-basemap'];
 export const SATELLITE_SOURCE_INFO = DATA_SOURCE_BY_ID['sentinel2-eox'];
+export const THUNDERFOREST_SOURCE_INFO = DATA_SOURCE_BY_ID['thunderforest-outdoors'];
 
 export interface SoftwareCredit {
   name: string;

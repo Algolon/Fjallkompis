@@ -32,8 +32,21 @@ import {
 } from '../map/stopMarkers.mjs';
 import type { ParsedRoute } from '../route/types';
 import { buildMapStyle, routeLayers, BASEMAP_SOURCE, SATELLITE_LAYER } from '../map/mapStyle';
-import { basemapLayersForStyle, DEFAULT_MAP_STYLE_ID } from '../map/mapStyles.mjs';
-import type { MapStyleId } from '../map/mapStyles.mjs';
+import {
+  basemapLayersForStyle,
+  isVectorStyleId,
+  DEFAULT_MAP_STYLE_ID,
+} from '../map/mapStyles.mjs';
+import type { MapStyleId, VectorMapStyleId } from '../map/mapStyles.mjs';
+import {
+  THUNDERFOREST_SOURCE,
+  THUNDERFOREST_LAYER,
+  THUNDERFOREST_STYLE_ID,
+  thunderforestSource,
+  thunderforestRasterLayer,
+} from '../map/thunderforestLayer.mjs';
+import { THUNDERFOREST_API_KEY } from '../map/thunderforest';
+import { THUNDERFOREST_SOURCE_INFO } from '../data/attribution';
 import {
   resolveArchiveBasemap,
   resolveSatellite,
@@ -175,9 +188,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // Which comparison style the map currently shows, and the exact basemap
-  // layer ids it consists of — needed to remove them cleanly on a switch.
-  const appliedStyleRef = useRef<{ id: MapStyleId; layerIds: string[] } | null>(null);
+  // Which VECTOR comparison style the map currently shows, and the exact
+  // basemap layer ids it consists of — needed to remove them cleanly on a
+  // switch. The online raster benchmark is tracked separately: it overlays
+  // the vector basemap and never replaces it.
+  const appliedStyleRef = useRef<{ id: VectorMapStyleId; layerIds: string[] } | null>(null);
   // Latest prop value, readable from the one-time map-creation closure.
   const mapStyleIdRef = useRef(mapStyleId);
   mapStyleIdRef.current = mapStyleId;
@@ -278,16 +293,23 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       onBasemapMode?.(basemap.mode);
       onSatelliteAvailable?.(satellite.sourceUrl != null);
 
+      // The map is always CREATED on an offline vector style; if the caller
+      // mounted directly on the online raster benchmark, the style effect
+      // below overlays it after load (tiles are only requested when the
+      // user actually selected the option — never speculatively here).
       const initialStyleId = mapStyleIdRef.current;
+      const initialVectorId = isVectorStyleId(initialStyleId)
+        ? initialStyleId
+        : DEFAULT_MAP_STYLE_ID;
       appliedStyleRef.current = {
-        id: initialStyleId,
+        id: initialVectorId,
         layerIds: basemap.sourceUrl
-          ? basemapLayersForStyle(initialStyleId, BASEMAP_SOURCE).map((l) => l.id)
+          ? basemapLayersForStyle(initialVectorId, BASEMAP_SOURCE).map((l) => l.id)
           : [],
       };
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, initialStyleId),
+        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, initialVectorId),
         bounds: mountedRoute.bounds,
         fitBoundsOptions: { padding: FIT_PADDING },
         attributionControl: { compact: true },
@@ -526,7 +548,39 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => {
     const map = mapRef.current;
     const applied = appliedStyleRef.current;
-    if (!map || !loaded || !applied || applied.id === mapStyleId) return;
+    if (!map || !loaded || !applied) return;
+
+    // ---- Online raster benchmark (Thunderforest Outdoors) ----------------
+    // Lazily added on the FIRST explicit selection — no tile is requested
+    // before that, and never without an API key. Afterwards only layer
+    // visibility toggles, so repeated switching cannot duplicate sources,
+    // layers or listeners. The raster sits above the vector basemap and the
+    // satellite layer but below every route/GPS/scrub overlay; the vector
+    // style underneath is left untouched (offline PMTiles, zero quota cost).
+    const wantsThunderforest = mapStyleId === THUNDERFOREST_STYLE_ID;
+    if (wantsThunderforest && !map.getSource(THUNDERFOREST_SOURCE)) {
+      const source = thunderforestSource(
+        THUNDERFOREST_API_KEY,
+        THUNDERFOREST_SOURCE_INFO.mapAttributionHtml!,
+      );
+      // No key → the UI disables the option; never add a keyless source.
+      if (source) {
+        map.addSource(THUNDERFOREST_SOURCE, source);
+        const anchor = map.getLayer('route-overview') ? 'route-overview' : undefined;
+        map.addLayer(thunderforestRasterLayer(), anchor);
+      }
+    }
+    if (map.getLayer(THUNDERFOREST_LAYER)) {
+      map.setLayoutProperty(
+        THUNDERFOREST_LAYER,
+        'visibility',
+        wantsThunderforest ? 'visible' : 'none',
+      );
+    }
+    if (wantsThunderforest) return;
+
+    // ---- Offline vector styles (in-place layer swap) ----------------------
+    if (applied.id === mapStyleId) return;
     // No basemap resolved → nothing to restyle (placeholder background only).
     if (!map.getSource(BASEMAP_SOURCE)) return;
 

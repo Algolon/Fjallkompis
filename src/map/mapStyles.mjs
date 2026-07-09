@@ -23,17 +23,40 @@ import {
 
 export const MAP_STYLE_OPTIONS = [
   // Production style, unchanged — the control version of the comparison.
-  { id: 'current', label: 'Current' },
+  { id: 'current', label: 'Current', kind: 'vector-offline' },
   // Liberty Topo (gpx.studio styles repo) adapted to the Protomaps schema.
-  { id: 'liberty', label: 'Liberty Topo' },
+  { id: 'liberty', label: 'Liberty Topo', kind: 'vector-offline' },
   // The adapted Liberty structure restyled with Nordic Trail tokens.
-  { id: 'liberty-nordic', label: 'Liberty Topo — Nordic' },
+  { id: 'liberty-nordic', label: 'Liberty Topo — Nordic', kind: 'vector-offline' },
+  // Temporary ONLINE-ONLY cartographic benchmark (thunderforestLayer.mjs,
+  // docs/maps/thunderforest-outdoors-benchmark.md). Never the default, never
+  // offline-capable, unavailable without VITE_THUNDERFOREST_API_KEY.
+  {
+    id: 'thunderforest-outdoors',
+    label: 'Thunderforest Outdoors',
+    supportingLabel: 'Online preview',
+    description:
+      'Detailed outdoor terrain reference for comparing landcover, relief, paths and label hierarchy.',
+    kind: 'raster-online',
+    requiresApiKey: true,
+  },
 ];
 
 export const DEFAULT_MAP_STYLE_ID = 'liberty-nordic';
 
 export function isMapStyleId(value) {
   return MAP_STYLE_OPTIONS.some((o) => o.id === value);
+}
+
+/**
+ * The offline-capable vector styles — the ones basemapLayersForStyle() can
+ * build against the shared PMTiles source. The raster-online benchmark is
+ * deliberately NOT one of them: it is a separate raster source+layer handled
+ * by MapView (thunderforestLayer.mjs), so the offline invariants guarded by
+ * tests/map-styles.test.mjs keep applying to every vector style.
+ */
+export function isVectorStyleId(value) {
+  return MAP_STYLE_OPTIONS.some((o) => o.id === value && o.kind === 'vector-offline');
 }
 
 /**

@@ -18,6 +18,16 @@ interface ImportMetaEnv {
    * same-origin from maps/. See src/map/offlineMap.ts.
    */
   readonly VITE_SATELLITE_URL?: string;
+  /**
+   * Optional Thunderforest Map Tiles API key for the ONLINE-ONLY
+   * "Thunderforest Outdoors" comparison basemap (never offline, never the
+   * default). Absent → the option is unavailable and no Thunderforest
+   * request is made. Local dev: .env.local (git-ignored); production: the
+   * VITE_THUNDERFOREST_API_KEY repository secret injected by deploy.yml.
+   * NOTE: build-time injection does not keep the key secret at runtime —
+   * the built app exposes it in tile-request URLs (docs/DEVELOPMENT.md).
+   */
+  readonly VITE_THUNDERFOREST_API_KEY?: string;
 }
 
 interface ImportMeta {
