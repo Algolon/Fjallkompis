@@ -142,23 +142,39 @@ test("'current' is byte-identical to the production protomaps style", () => {
   );
 });
 
-test('Liberty and Liberty—Nordic share structure; only palette-driven paint differs', () => {
+test('Liberty and Liberty—Nordic share structure; only documented divergences remain', () => {
   const liberty = libertyTopoLayers(SOURCE, LIBERTY_TOPO_PALETTE);
   const nordic = libertyTopoLayers(SOURCE, NORDIC_TOPO_PALETTE);
 
-  // The Nordic palette may enable the palette-gated extras (rock, cliff);
-  // every layer that exists in both must agree on everything except colours.
+  // Documented structural exceptions of the Nordic terrain hierarchy restyle
+  // (benchmark §7 Phase 1 / §9 risk 5): Nordic starts trails one zoom
+  // earlier (z12) than the verbatim Liberty reference (z13). Anything NOT
+  // listed here must stay structurally identical.
+  const MINZOOM_EXCEPTIONS = new Set(['lt_trail', 'lt_trail_casing']);
+
+  // The Nordic palette may enable the palette-gated extras (rock, cliff,
+  // glacier outline, river polygons); every layer that exists in both must
+  // agree on everything except paint.
   const nordicById = new Map(nordic.map((l) => [l.id, l]));
   for (const l of liberty) {
     const n = nordicById.get(l.id);
     assert.ok(n, `Nordic version is missing Liberty layer ${l.id}`);
     assert.deepEqual(n.filter, l.filter, `${l.id}: same filter (same data)`);
-    assert.equal(n.minzoom, l.minzoom, `${l.id}: same minzoom (fair zoom thresholds)`);
+    if (MINZOOM_EXCEPTIONS.has(l.id)) {
+      assert.equal(n.minzoom, 12, `${l.id}: Nordic trail layers start at z12 (documented)`);
+      assert.equal(l.minzoom, 13, `${l.id}: Liberty reference keeps its verbatim z13`);
+    } else {
+      assert.equal(n.minzoom, l.minzoom, `${l.id}: same minzoom (fair zoom thresholds)`);
+    }
     assert.equal(n.maxzoom, l.maxzoom, `${l.id}: same maxzoom`);
     assert.equal(n.type, l.type, `${l.id}: same layer type`);
   }
   const extras = nordic.filter((l) => !liberty.some((x) => x.id === l.id)).map((l) => l.id);
-  assert.deepEqual(extras, ['lt_rock', 'lt_cliff'], 'only the documented palette-gated extras');
+  assert.deepEqual(
+    extras,
+    ['lt_rock', 'lt_ice_outline', 'lt_cliff', 'lt_water_river'],
+    'only the documented palette-gated extras',
+  );
 });
 
 test('no gpx.studio tile endpoints, MapTiler or Liberty Satellite in the source tree', () => {

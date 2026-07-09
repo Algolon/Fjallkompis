@@ -10,6 +10,30 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-10
+
+### Changed
+
+- **Nordic terrain hierarchy restyle** (benchmark Phase 1,
+  docs/maps/thunderforest-outdoors-benchmark.md §7): the production
+  Liberty Topo — Nordic style now renders a deliberate terrain hierarchy
+  instead of a uniform tint. Forest is clearly present (the birch-forest →
+  open-fjäll edge is the strongest landcover boundary), the fjällbjörk
+  scrub belt separates visibly from both forest and grassland, wetland
+  becomes a semi-transparent cool wash *above* the underlying landcover
+  (fading in z10→z12) so wet forest reads as both, exposed rock reads as a
+  muted cool grey that strengthens at z12+, and glaciers gain a thin cool
+  outline. Open alpine terrain stays the lightest, calmest surface.
+- **Water hierarchy**: river and stream polygons render one step deeper
+  than lakes (braided deltas read as flowing water), river lines fade in
+  from z9 with a gentler width ramp, and streams appear reliably from z12
+  — stream crossings are a safety-relevant feature.
+- **Line hierarchy**: trails start one zoom earlier (z12) and keep their
+  cloudberry treatment; track casings gain contrast against minor roads;
+  the E10/major-road fill is desaturated a step so it no longer outshines
+  the trail network. The active route, GPS and hut markers remain the most
+  prominent elements on every screen.
+
 ## [0.12.0] - 2026-07-09
 
 ### Added
