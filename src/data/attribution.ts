@@ -88,6 +88,24 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
     sourceUrl: 'https://www.swedishtouristassociation.com',
   },
   {
+    id: 'copernicus-dem',
+    present: true,
+    name: 'Terrain relief',
+    label: 'Copernicus DEM GLO-30 © DLR/ESA',
+    attribution:
+      'Hillshade and 20 m contour lines derived from the Copernicus DEM GLO-30 global elevation model, processed into two bounded PMTiles archives (terrain-RGB raster + contour vectors) for the Kungsleden area.',
+    mapAttributionHtml:
+      'Terrain: <a href="https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM" target="_blank" rel="noopener">Copernicus DEM</a> © DLR/ESA',
+    provider: 'European Space Agency (Copernicus programme) · DLR · Airbus',
+    sourceUrl:
+      'https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM',
+    licenseName: 'Copernicus DEM licence (free use with notice)',
+    licenseUrl:
+      'https://spacedata.copernicus.eu/documents/20123/121286/CSCDA_ESA_Mission-specific+Annex_31_Oct_22.pdf',
+    modifiedNotice:
+      'Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved',
+  },
+  {
     id: 'thunderforest-outdoors',
     // Present only in builds configured with an API key: the tiles are an
     // online-only comparison preview (never downloaded, never offline) — see
@@ -127,6 +145,7 @@ export const PRESENT_DATA_SOURCES = DATA_SOURCES.filter((s) => s.present);
 
 export const BASEMAP_SOURCE_INFO = DATA_SOURCE_BY_ID['osm-protomaps-basemap'];
 export const SATELLITE_SOURCE_INFO = DATA_SOURCE_BY_ID['sentinel2-eox'];
+export const TERRAIN_SOURCE_INFO = DATA_SOURCE_BY_ID['copernicus-dem'];
 export const THUNDERFOREST_SOURCE_INFO = DATA_SOURCE_BY_ID['thunderforest-outdoors'];
 
 export interface SoftwareCredit {

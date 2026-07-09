@@ -10,8 +10,9 @@ rules live in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 Offline-first Kungsleden trail companion PWA (prototype, v0.9.x). The core
 trip loop works end to end and offline: verified route with stage statistics
 and elevation profiles, along-route GPS progress on the current stage, an
-offline vector basemap plus an optional Sentinel-2 satellite layer (each
-independently downloadable), a curated stops guide, daily/packing lists,
+offline vector basemap with hillshade and contour relief, plus an optional
+Sentinel-2 satellite layer (all independently downloadable), a curated
+stops guide, daily/packing lists,
 install/update UX, opt-in foreground live tracking (beta) on the Map
 screen, and local backup/restore. The app is one adaptive application:
 the same URL works on phones (the protected baseline experience,
@@ -41,16 +42,17 @@ cross-device synchronization is deliberately far down this roadmap.
    the tester pool and the range of feedback.
 2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
-   are already local HTML markers).
-3. **Terrain context** — contour lines and/or hillshade from an offline
-   terrain PMTiles source, subject to archive-size measurements. Also a
-   prerequisite for the Liberty Topo variants to show their defining
-   contour/hillshade layers (currently omitted for lack of offline data).
-   Design input: the Thunderforest Outdoors benchmark and the prioritised
-   Nordic translation plan
-   (docs/maps/thunderforest-outdoors-benchmark.md) — the temporary
-   online-only comparison layer on the Map screen exists solely to serve
-   this restyle work and is removed when it concludes.
+   are already local HTML markers). Now also the gate for the benchmark
+   plan's label hierarchy (peaks with elevations, lake/valley/settlement
+   names) and for contour elevation labels.
+3. **Nordic restyle follow-ups** — the terrain hierarchy restyle (0.13.0)
+   and terrain relief (0.14.0) delivered benchmark Phases 1–2; remaining
+   phases from docs/maps/thunderforest-outdoors-benchmark.md §7: bridge
+   emphasis on trails/tracks (`roads.is_bridge`), wetland pattern fill once
+   sprite infrastructure exists, and — only if styling proves insufficient —
+   the §8.2 custom Planetiler profile (heath/fell, marsh/bog split, scree).
+   The temporary Thunderforest comparison layer and its API key are removed
+   when the restyle work concludes.
 
 ## Next
 
@@ -95,6 +97,21 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Terrain relief — contours & hillshade (v0.14.0)**: the map renders
+  hillshade (MapLibre `hillshade` on a terrain-RGB raster-dem source) and
+  20 m/100 m contour lines from two bounded PMTiles archives (~15 MB
+  together) built from the open Copernicus DEM GLO-30 by
+  `scripts/build-terrain-map.sh`. Distribution mirrors the satellite model
+  (versioned `terrain-data-vN` release, SHA-verified deploy injection,
+  same-origin serving); Settings → Terrain relief downloads both files as
+  one action for offline use; without the archives the map renders exactly
+  as before. This also unblocked the Liberty Topo styles' defining
+  contour/hillshade layers.
+- **Nordic terrain hierarchy restyle (v0.13.0)**: benchmark Phase 1
+  executed — forest/scrub/grass hierarchy, wetland as a translucent overlay
+  wash, stronger rock, outlined glaciers, lake/river distinction, earlier
+  rivers and reliable streams, earlier trails, de-emphasised roads. The
+  route, GPS and hut overlays remain the most prominent layer everywhere.
 - **Thunderforest Outdoors benchmark & Nordic translation plan (v0.12.0,
   deployed)**: temporary, feature-flagged online comparison layer on the Map
   screen (repository variable `VITE_ENABLE_MAP_BENCHMARK`, API-key-gated,

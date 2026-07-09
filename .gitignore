@@ -19,3 +19,9 @@ dev-dist
 # Satellite archive: canonical copy is the satellite-data-vN GitHub Release
 # asset, injected into the Pages build by deploy.yml — never committed.
 public/maps/kungsleden-satellite.pmtiles
+
+# Terrain relief archives: same model — canonical copies live on the
+# terrain-data-vN GitHub Release, injected by deploy.yml, never committed.
+# Build locally with scripts/build-terrain-map.sh.
+public/maps/kungsleden-terrain.pmtiles
+public/maps/kungsleden-contours.pmtiles

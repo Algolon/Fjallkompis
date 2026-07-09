@@ -67,6 +67,15 @@ export const LIBERTY_TOPO_PALETTE = {
   rock: null, // Liberty leaves bare rock unstyled — keep that.
   rockOpacity: 1,
   cliff: null, // OpenMapTiles has no cliff lines; Liberty styles none.
+  // Liberty Topo's defining relief layers (hillshading + contours) target
+  // gpx.studio-hosted sources; these slots are the offline SUBSTITUTION on
+  // the Fjällkompis terrain archives — tones chosen to sit quietly under
+  // Liberty's brighter palette, not copies of gpx.studio values.
+  hillshadeShadow: 'rgba(92, 82, 70, 0.22)',
+  hillshadeHighlight: 'rgba(255, 255, 255, 0.20)',
+  hillshadeExaggeration: 0.35,
+  contour: 'rgba(160, 140, 110, 0.4)',
+  contourIndex: 'rgba(160, 140, 110, 0.6)',
   residentialLowZoom: 'hsla(0, 3%, 85%, 0.84)', // `landuse_residential` z9
   residentialHighZoom: 'hsla(35, 57%, 88%, 0.49)', // `landuse_residential` z12
   water: 'rgb(158, 189, 255)', // `water`
@@ -126,6 +135,14 @@ export const NORDIC_TOPO_PALETTE = {
   rock: 'rgb(158, 160, 155)', // exposed rock: muted cool grey, hostile
   rockOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.3, 12, 0.48],
   cliff: 'rgba(122, 130, 124, 0.7)',
+  // Relief (rendered only when the terrain/contour archives are available):
+  // muted so valleys and ridges read instantly without stealing contrast
+  // from the route, water or wetland — tuned at the benchmark cameras.
+  hillshadeShadow: 'rgba(74, 69, 60, 0.2)',
+  hillshadeHighlight: 'rgba(255, 255, 250, 0.16)',
+  hillshadeExaggeration: 0.32,
+  contour: 'rgba(148, 125, 95, 0.38)', // thin warm grey-brown, z13+
+  contourIndex: 'rgba(148, 125, 95, 0.6)', // heavier every 100 m, z11+
   residentialLowZoom: 'rgba(205, 207, 199, 0.55)',
   residentialHighZoom: 'rgba(205, 207, 199, 0.45)',
   water: '#a3c3cc', // lakes: glacial teal — the primary orientation anchors
@@ -171,13 +188,27 @@ export const PROTOMAPS_SOURCE_LAYERS = [
  * every id prefixed `lt_` so they can never collide with the production
  * (`@protomaps/basemaps`) layer ids.
  *
- * Omitted from Liberty Topo (no offline data / no glyphs / no sprites —
- * recorded in docs/map-style-comparison.md): hillshading, contour lines,
- * every symbol layer (place/POI/peak/road labels, shields, oneway arrows),
- * pattern fills, 3-D buildings, and the separate tunnel/bridge road variants
- * (bridges render like surface roads; the area has no styled tunnels).
+ * Omitted from Liberty Topo (no glyphs / no sprites — recorded in
+ * docs/map-style-comparison.md): every symbol layer (place/POI/peak/road
+ * labels, shields, oneway arrows), pattern fills, 3-D buildings, and the
+ * separate tunnel/bridge road variants (bridges render like surface roads;
+ * the area has no styled tunnels).
+ *
+ * Liberty Topo's defining relief layers (hillshading + contours) are no
+ * longer omitted: when the optional `relief` sources are passed (i.e. the
+ * corresponding offline archives are available — see mapStyle.ts), the
+ * builder emits a MapLibre `hillshade` layer on the terrain-RGB raster-dem
+ * source and two contour line layers on the contour vector source, at their
+ * correct stratum positions (above the landcover fills, below cliffs and
+ * every water/road line — benchmark §6.1 stratum 2/3). Without the sources
+ * the output is exactly the pre-relief style.
+ *
+ * @param {string} sourceId Vector basemap source id.
+ * @param {object} palette LIBERTY_TOPO_PALETTE or NORDIC_TOPO_PALETTE.
+ * @param {{ terrainSourceId?: string, contoursSourceId?: string }} [relief]
+ *   Optional relief sources; omit any that has no archive available.
  */
-export function libertyTopoLayers(sourceId, palette) {
+export function libertyTopoLayers(sourceId, palette, relief = {}) {
   const p = palette;
   /** @type {any[]} */
   const layers = [];
@@ -339,6 +370,59 @@ export function libertyTopoLayers(sourceId, palette) {
       },
     });
   }
+  // -- Relief (benchmark §6.1 stratum 2/3) -----------------------------------
+  // Hillshade sits ABOVE every landcover fill and the wetland wash (terrain
+  // shading combines with them) but BELOW cliffs, contours and all water and
+  // road linework, so lines never lose contrast to shading. Strength comes
+  // from the palette (exaggeration + translucent shadow/highlight colours);
+  // lakes are drawn later and therefore stay unshaded.
+  if (relief.terrainSourceId) {
+    layers.push({
+      id: 'lt_hillshade',
+      type: 'hillshade',
+      source: relief.terrainSourceId,
+      paint: {
+        'hillshade-shadow-color': p.hillshadeShadow,
+        'hillshade-highlight-color': p.hillshadeHighlight,
+        'hillshade-exaggeration': p.hillshadeExaggeration,
+        'hillshade-illumination-direction': 335,
+      },
+    });
+  }
+  // Contours: 20 m interval with every 100 m as the heavier index line (the
+  // Swedish fjällkartan convention — and the honest resolution of the 30 m
+  // Copernicus DEM). Index lines appear from z11 with a fade-in; the full
+  // 20 m set joins at z13. Elevation labels are deliberately absent until
+  // the offline-glyphs roadmap item ships.
+  if (relief.contoursSourceId) {
+    layers.push({
+      id: 'lt_contour',
+      type: 'line',
+      source: relief.contoursSourceId,
+      'source-layer': 'contours',
+      minzoom: 13,
+      filter: ['!=', ['%', ['get', 'elev'], 100], 0],
+      paint: {
+        'line-color': p.contour,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.5, 16, 0.9],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0, 13.5, 1],
+      },
+    });
+    layers.push({
+      id: 'lt_contour_index',
+      type: 'line',
+      source: relief.contoursSourceId,
+      'source-layer': 'contours',
+      minzoom: 11,
+      filter: ['==', ['%', ['get', 'elev'], 100], 0],
+      paint: {
+        'line-color': p.contourIndex,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.6, 16, 1.4],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0, 12, 1],
+      },
+    });
+  }
+
   // Fjällkompis extra (palette-gated): cliff lines from the Protomaps earth
   // layer. No OpenMapTiles equivalent → null (skipped) in the Liberty palette.
   if (p.cliff) {

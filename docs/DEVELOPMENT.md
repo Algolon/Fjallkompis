@@ -63,6 +63,50 @@ via Workbox `RangeRequestsPlugin`. Without the download, the basemap streams
 online via HTTP range requests; with no network and no download, the route
 still renders on a clearly-marked placeholder background.
 
+## Terrain relief (hillshade + contours)
+
+The Nordic terrain style renders **hillshade** (MapLibre's native `hillshade`
+layer on a terrain‑RGB `raster-dem` source) and **contour lines** (20 m
+interval, 100 m index — the Swedish fjällkartan convention) when the two
+relief archives are available:
+
+- `public/maps/kungsleden-terrain.pmtiles` — terrarium‑encoded PNG tiles,
+  z6–12, ~10 MB;
+- `public/maps/kungsleden-contours.pmtiles` — contour vectors (layer
+  `contours`, property `elev`), z11–13, ~4 MB.
+
+Both are built by `npm run generate:map:terrain`
+(`scripts/build-terrain-map.sh`) from the **Copernicus DEM GLO‑30** open
+global elevation model, streamed straight from the public AWS Open Data
+bucket (no account). Requires GDAL (incl. the Python utilities), tippecanoe,
+the pmtiles CLI, node and python3. The crop box comes from `mapCutoutBounds`
+in the generated route JSON, like every other archive. The script embeds the
+validated design decisions (per‑zoom warps, terrarium 1 m rounding, no‑data
+edge extrapolation, contour minzoom tagging) as comments.
+
+Distribution follows the satellite model exactly: the binaries are
+**git‑ignored**, the canonical copies live on the **`terrain-data-vN`
+GitHub Release**, `deploy.yml` downloads and SHA‑verifies them into the
+Pages build, and browsers fetch them same‑origin. In the app, **Settings →
+Terrain relief** downloads both files as one action for offline use;
+resolution order per archive is the same cache‑blob → hosted‑file → absent
+chain as the basemap. Without the archives (e.g. a fresh clone) the map
+simply renders without relief — nothing else changes, and the style builder
+emits no relief sources or layers at all.
+
+Required credit (registered in `src/data/attribution.ts`, shown by the map
+attribution control and the credits sheet): *Produced using Copernicus
+WorldDEM‑30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH
+2014–2018 provided under COPERNICUS by the European Union and ESA; all
+rights reserved.*
+
+Why these caps: GLO‑30 is a ~30 m model, so terrain tiles stop at z12
+(≈14 m/px at 68° N — already finer than the source) and contours at z13;
+MapLibre over‑zooms both up to the map cap. 10 m contours were evaluated
+and rejected: from a 30 m DSM they mostly add noise and 3–4× the archive
+weight; 20 m matches both the data and the national mountain‑map
+convention.
+
 ## Satellite imagery layer
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**

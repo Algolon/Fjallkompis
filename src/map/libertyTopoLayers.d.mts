@@ -30,6 +30,11 @@ export interface LibertyTopoPalette {
   rock: string | null;
   rockOpacity: PaintNumber;
   cliff: string | null;
+  hillshadeShadow: string;
+  hillshadeHighlight: string;
+  hillshadeExaggeration: PaintNumber;
+  contour: string;
+  contourIndex: string;
   residentialLowZoom: string;
   residentialHighZoom: string;
   water: string;
@@ -55,10 +60,17 @@ export interface LibertyTopoPalette {
   boundaryMinor: string;
 }
 
+/** Optional relief sources; omit any whose archive is unavailable. */
+export interface ReliefSources {
+  terrainSourceId?: string;
+  contoursSourceId?: string;
+}
+
 export declare const LIBERTY_TOPO_PALETTE: LibertyTopoPalette;
 export declare const NORDIC_TOPO_PALETTE: LibertyTopoPalette;
 export declare const PROTOMAPS_SOURCE_LAYERS: string[];
 export declare function libertyTopoLayers(
   sourceId: string,
   palette: LibertyTopoPalette,
+  relief?: ReliefSources,
 ): LayerSpecification[];

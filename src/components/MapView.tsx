@@ -31,7 +31,14 @@ import {
   markerLabel,
 } from '../map/stopMarkers.mjs';
 import type { ParsedRoute } from '../route/types';
-import { buildMapStyle, routeLayers, BASEMAP_SOURCE, SATELLITE_LAYER } from '../map/mapStyle';
+import {
+  buildMapStyle,
+  routeLayers,
+  reliefSourcesFor,
+  BASEMAP_SOURCE,
+  SATELLITE_LAYER,
+  type ReliefUrls,
+} from '../map/mapStyle';
 import {
   basemapLayersForStyle,
   isVectorStyleId,
@@ -53,7 +60,12 @@ import {
   type BasemapMode,
   type BasemapResolution,
 } from '../map/pmtilesProtocol';
-import { VECTOR_ARCHIVE, type ArchiveSpec } from '../map/offlineMap';
+import {
+  CONTOURS_ARCHIVE,
+  TERRAIN_ARCHIVE,
+  VECTOR_ARCHIVE,
+  type ArchiveSpec,
+} from '../map/offlineMap';
 import type { LatLng } from '../types';
 
 export interface MapViewHandle {
@@ -80,6 +92,12 @@ interface MapViewProps {
   archive?: ArchiveSpec;
   /** Resolve/offer the satellite layer (Kungsleden only; pilot passes false). */
   enableSatellite?: boolean;
+  /**
+   * Resolve the optional terrain-relief archives (hillshade + contours).
+   * Like satellite this degrades silently: without the archives the style
+   * simply contains no relief sources or layers.
+   */
+  enableRelief?: boolean;
   /** null → overview mode (all stages); id → stage mode. */
   selectedStageId: string | null;
   onSelectStage: (stageId: string) => void;
@@ -166,6 +184,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     route = ROUTE,
     archive = VECTOR_ARCHIVE,
     enableSatellite = true,
+    enableRelief = true,
     selectedStageId,
     onSelectStage,
     onSelectWaypoint,
@@ -193,6 +212,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // switch. The online raster benchmark is tracked separately: it overlays
   // the vector basemap and never replaces it.
   const appliedStyleRef = useRef<{ id: VectorMapStyleId; layerIds: string[] } | null>(null);
+  // Relief availability resolved at mount; the style-swap effect needs it to
+  // rebuild the SAME layer set (incl. hillshade/contours) for the next style.
+  const reliefRef = useRef<ReliefUrls | null>(null);
   // Latest prop value, readable from the one-time map-creation closure.
   const mapStyleIdRef = useRef(mapStyleId);
   mapStyleIdRef.current = mapStyleId;
@@ -284,14 +306,20 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const mountedRoute = routeRef.current;
 
     (async () => {
-      const noSatellite: BasemapResolution = { mode: 'none', sourceUrl: null };
-      const [basemap, satellite] = await Promise.all([
+      const none: BasemapResolution = { mode: 'none', sourceUrl: null };
+      const [basemap, satellite, terrain, contours] = await Promise.all([
         resolveArchiveBasemap(archive),
-        enableSatellite ? resolveSatellite() : Promise.resolve(noSatellite),
+        enableSatellite ? resolveSatellite() : Promise.resolve(none),
+        enableRelief ? resolveArchiveBasemap(TERRAIN_ARCHIVE) : Promise.resolve(none),
+        enableRelief ? resolveArchiveBasemap(CONTOURS_ARCHIVE) : Promise.resolve(none),
       ]);
       if (cancelled || !containerRef.current) return;
       onBasemapMode?.(basemap.mode);
       onSatelliteAvailable?.(satellite.sourceUrl != null);
+      reliefRef.current = {
+        terrainSourceUrl: terrain.sourceUrl,
+        contoursSourceUrl: contours.sourceUrl,
+      };
 
       // The map is always CREATED on an offline vector style; if the caller
       // mounted directly on the online raster benchmark, the style effect
@@ -304,12 +332,21 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       appliedStyleRef.current = {
         id: initialVectorId,
         layerIds: basemap.sourceUrl
-          ? basemapLayersForStyle(initialVectorId, BASEMAP_SOURCE).map((l) => l.id)
+          ? basemapLayersForStyle(
+              initialVectorId,
+              BASEMAP_SOURCE,
+              reliefSourcesFor(reliefRef.current),
+            ).map((l) => l.id)
           : [],
       };
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, initialVectorId),
+        style: buildMapStyle(
+          basemap.sourceUrl,
+          satellite.sourceUrl,
+          initialVectorId,
+          reliefRef.current,
+        ),
         bounds: mountedRoute.bounds,
         fitBoundsOptions: { padding: FIT_PADDING },
         attributionControl: { compact: true },
@@ -584,7 +621,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     // No basemap resolved → nothing to restyle (placeholder background only).
     if (!map.getSource(BASEMAP_SOURCE)) return;
 
-    const nextLayers = basemapLayersForStyle(mapStyleId, BASEMAP_SOURCE);
+    const nextLayers = basemapLayersForStyle(
+      mapStyleId,
+      BASEMAP_SOURCE,
+      reliefSourcesFor(reliefRef.current),
+    );
     // Keep the stack order stable: basemap layers always sit between the
     // placeholder background and the satellite/route layers.
     const anchorId = map.getLayer(SATELLITE_LAYER) ? SATELLITE_LAYER : 'route-overview';

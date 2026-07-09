@@ -1,5 +1,6 @@
 /** TypeScript surface for the plain-ESM map-style comparison registry. */
 import type { LayerSpecification } from 'maplibre-gl';
+import type { ReliefSources } from './libertyTopoLayers.mjs';
 
 /** Offline-capable vector styles, built on the shared PMTiles source. */
 export type VectorMapStyleId = 'current' | 'liberty' | 'liberty-nordic';
@@ -29,4 +30,5 @@ export declare function isBenchmarkEnabled(
 export declare function basemapLayersForStyle(
   styleId: VectorMapStyleId,
   sourceId: string,
+  relief?: ReliefSources,
 ): LayerSpecification[];

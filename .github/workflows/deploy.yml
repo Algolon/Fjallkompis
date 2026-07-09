@@ -26,6 +26,36 @@ jobs:
       - run: npm ci
       - run: npm test
 
+      # ---- Terrain relief archives: canonical GitHub Release assets ---------
+      # Hillshade terrain-RGB + contour vectors (built by
+      # scripts/build-terrain-map.sh from the Copernicus GLO-30 DEM). Same
+      # model as the satellite archive: never committed, downloaded from the
+      # pinned terrain-data release into the Pages build and served
+      # same-origin. New data ⇒ new release tag ⇒ update TAG/SHA-256 pins.
+      - name: Fetch terrain relief archives from the pinned data release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p public/maps
+          gh release download terrain-data-v1 \
+            --repo Algolon/Fjallkompis \
+            --pattern 'kungsleden-terrain.pmtiles' \
+            --pattern 'kungsleden-contours.pmtiles' \
+            --dir public/maps
+      - name: Verify terrain relief archive integrity
+        run: |
+          set -euo pipefail
+          verify() {
+            local f="$1" expected_sha="$2"
+            local actual_sha
+            actual_sha="$(sha256sum "$f" | awk '{print $1}')"
+            echo "$f sha256: $actual_sha (expected $expected_sha)"
+            [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: $f SHA-256 mismatch"; exit 1; }
+          }
+          verify public/maps/kungsleden-terrain.pmtiles "b33da31c8f7e5b4ba2f07c1a5ee5c266551fbac570cdbce6c6bba68baf578479"
+          verify public/maps/kungsleden-contours.pmtiles "174b3c58df6d90376dd4a90c8c775afeb406b4226c26c28cf911ff20b523bd0e"
+
       # ---- Satellite archive: canonical GitHub Release asset ----------------
       # The ~42 MB PMTiles binary is NOT committed. The canonical copy lives on
       # the satellite-data-v1 Release; deployment downloads it into the Pages
@@ -73,6 +103,13 @@ jobs:
           VITE_ENABLE_MAP_BENCHMARK: ${{ vars.VITE_ENABLE_MAP_BENCHMARK }}
           VITE_THUNDERFOREST_API_KEY: ${{ secrets.VITE_THUNDERFOREST_API_KEY }}
 
+      - name: Verify terrain relief archives made it into the build
+        run: |
+          set -euo pipefail
+          for f in dist/maps/kungsleden-terrain.pmtiles dist/maps/kungsleden-contours.pmtiles; do
+            test -f "$f" || { echo "FATAL: $f missing from build output"; exit 1; }
+          done
+          echo "✓ terrain relief archives present in dist/maps"
       - name: Verify satellite archive made it into the build
         run: |
           set -euo pipefail

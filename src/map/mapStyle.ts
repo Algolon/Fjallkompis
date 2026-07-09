@@ -11,7 +11,11 @@
  * appear on chips, markers and summaries).
  */
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
-import { BASEMAP_SOURCE_INFO, SATELLITE_SOURCE_INFO } from '../data/attribution';
+import {
+  BASEMAP_SOURCE_INFO,
+  SATELLITE_SOURCE_INFO,
+  TERRAIN_SOURCE_INFO,
+} from '../data/attribution';
 import { basemapLayersForStyle, DEFAULT_MAP_STYLE_ID } from './mapStyles.mjs';
 import type { VectorMapStyleId } from './mapStyles.mjs';
 
@@ -35,6 +39,21 @@ export const BASEMAP_ATTRIBUTION = BASEMAP_SOURCE_INFO.mapAttributionHtml!;
  */
 export const SATELLITE_SOURCE = 'satellite';
 export const SATELLITE_LAYER = 'satellite';
+
+/**
+ * Optional terrain relief: a terrain-RGB raster-dem archive (hillshade) and
+ * a contour-line vector archive, both built from the Copernicus GLO-30 DEM
+ * by scripts/build-terrain-map.sh and downloaded like the other archives
+ * (Settings → Terrain relief). Their layers are emitted by the style
+ * builder (libertyTopoLayers.mjs) at the correct stack positions; sources
+ * are only added when the archives actually resolved, so a build without
+ * relief data renders exactly the pre-relief style.
+ */
+export const TERRAIN_SOURCE = 'terrain-dem';
+export const CONTOURS_SOURCE = 'contours';
+/** Terrarium encoding, 256px tiles, z6–12 (kept in sync with the build script). */
+export const TERRAIN_TILE_SIZE = 256;
+export const TERRAIN_MAX_ZOOM = 12;
 // EOX Sentinel-2 cloudless is the shipped source (see README). If you build the
 // archive from a different provider, update the registry entry accordingly.
 export const SATELLITE_ATTRIBUTION = SATELLITE_SOURCE_INFO.mapAttributionHtml!;
@@ -67,6 +86,20 @@ const stageColorExpression = [
   OVERVIEW_COLOR,
 ] as unknown as string;
 
+/** Resolved relief archive URLs (null when an archive is unavailable). */
+export interface ReliefUrls {
+  terrainSourceUrl: string | null;
+  contoursSourceUrl: string | null;
+}
+
+/** Style-builder relief argument for the archives that actually resolved. */
+export function reliefSourcesFor(relief: ReliefUrls | null | undefined) {
+  return {
+    terrainSourceId: relief?.terrainSourceUrl ? TERRAIN_SOURCE : undefined,
+    contoursSourceId: relief?.contoursSourceUrl ? CONTOURS_SOURCE : undefined,
+  };
+}
+
 export function buildMapStyle(
   basemapSourceUrl: string | null,
   satelliteSourceUrl: string | null = null,
@@ -75,6 +108,7 @@ export function buildMapStyle(
   // VECTOR styles only: the online raster benchmark is overlaid separately
   // by MapView (thunderforestLayer.mjs) and never part of the base style.
   mapStyleId: VectorMapStyleId = DEFAULT_MAP_STYLE_ID,
+  relief: ReliefUrls | null = null,
 ): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,
@@ -96,11 +130,32 @@ export function buildMapStyle(
       url: basemapSourceUrl,
       attribution: BASEMAP_ATTRIBUTION,
     };
+    // Relief sources are registered before the layers that reference them.
+    // Both stay fully offline: pmtiles:// URLs resolved exactly like the
+    // basemap (offline blob preferred, hosted range requests otherwise).
+    if (relief?.terrainSourceUrl) {
+      style.sources[TERRAIN_SOURCE] = {
+        type: 'raster-dem',
+        url: relief.terrainSourceUrl,
+        tileSize: TERRAIN_TILE_SIZE,
+        maxzoom: TERRAIN_MAX_ZOOM,
+        encoding: 'terrarium',
+        attribution: TERRAIN_SOURCE_INFO.mapAttributionHtml!,
+      };
+    }
+    if (relief?.contoursSourceUrl) {
+      style.sources[CONTOURS_SOURCE] = {
+        type: 'vector',
+        url: relief.contoursSourceUrl,
+      };
+    }
     // All styles cover land, landcover/landuse, water, waterways, roads,
     // paths/trails, railways, buildings and boundaries where present, and
     // none emits symbol layers → no glyph/sprite dependencies. 'current' is
     // the calm @protomaps/basemaps "light" flavour (production style).
-    style.layers.push(...basemapLayersForStyle(mapStyleId, BASEMAP_SOURCE));
+    style.layers.push(
+      ...basemapLayersForStyle(mapStyleId, BASEMAP_SOURCE, reliefSourcesFor(relief)),
+    );
   }
 
   // Satellite raster basemap from a PMTiles archive, added only when one is
