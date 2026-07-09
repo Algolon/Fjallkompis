@@ -307,6 +307,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       map.on('load', () => {
         if (!map) return;
+
+        // MapLibre's compact attribution starts EXPANDED on load; collapse
+        // it so the credits don't cover the map. The ⓘ button (a native
+        // <details>/<summary> toggle) re-opens it on demand, and the full
+        // credits remain in Settings → Data sources & credits.
+        const attrib = containerRef.current?.querySelector(
+          'details.maplibregl-ctrl-attrib',
+        );
+        attrib?.removeAttribute('open');
+        attrib?.classList.remove('maplibregl-compact-show');
+
         map.addSource('overview', { type: 'geojson', data: mountedRoute.overviewGeoJson });
         map.addSource('stages', {
           type: 'geojson',
