@@ -568,11 +568,14 @@ h3 {
   -webkit-tap-highlight-color: transparent;
 }
 .map-hut__badge {
-  width: 30px;
-  height: 30px;
+  /* Compact badge: the 17px glyph keeps its size; only the paper margin
+     around it is trimmed (was 30px). The 44px button above stays the
+     touch target, so the tighter badge costs no tappability. */
+  width: 25px;
+  height: 25px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 8px;
   /* Near-opaque paper so the glyph reads over both terrain and satellite. */
   background: rgba(246, 248, 243, 0.94);
   border: 1.5px solid var(--line-strong);
@@ -626,9 +629,10 @@ h3 {
 }
 .map-hut__label {
   /* Out of layout flow so the marker box stays badge-sized and the map
-     anchor lands on the badge's center; the title sits above the badge. */
+     anchor lands on the badge's center; the title sits above the badge
+     (-7px compensates the hit-area padding around the compact badge). */
   position: absolute;
-  bottom: calc(100% - 5px);
+  bottom: calc(100% - 7px);
   left: 50%;
   transform: translateX(-50%);
   font-size: 11px;
@@ -978,13 +982,6 @@ button.map-status-pill {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-/* The optional waypoint/position cards follow the primary composition
-   directly (the freestanding hint that used to separate them is now the
-   screen subtitle); the stacked-card rhythm needs restating here because
-   .card + .card cannot see across the .map-layout wrapper. */
-.map-layout + .card {
-  margin-top: 14px;
-}
 
 /* Map screen stage selector: a block grid with every option visible at
    once — no horizontal scrolling. "Full route" spans the row; the seven
@@ -2549,12 +2546,6 @@ button.map-status-pill {
     font-weight: 600;
   }
 
-  /* Below-composition content on the Map screen (waypoint and position
-     cards): keep a readable measure instead of 1160px lines. */
-  .screen--map > .card {
-    max-width: 820px;
-    margin-inline: auto;
-  }
 }
 
 /* --- Rotate-to-portrait guard (phones are portrait-only) ------------------ */

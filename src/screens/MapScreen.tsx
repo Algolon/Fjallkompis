@@ -644,95 +644,95 @@ export function MapScreen({
               />
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Position & progress. No raw coordinates in the normal UI — the
-          marker on the map IS the position; here we show source, accuracy
-          and along-stage progress. */}
-      <div className="card">
-        {liveCurrent && session.lastFix ? (
-          <div>
-            <div className="row-between">
-              <span className="muted">Position</span>
-              <span>
-                {tracking.active ? 'Live GPS' : 'Last live fix'}
-                {session.lastFix.accuracyM != null
-                  ? ` · ±${Math.round(session.lastFix.accuracyM)} m`
-                  : ''}
-              </span>
-            </div>
-            <div className="hr" />
-            {renderLiveProgress(session, currentStageTitle)}
-          </div>
-        ) : geo.status === 'success' && geo.coord ? (
-          <div>
-            <div className="row-between">
-              <span className="muted">Position</span>
-              <span>
-                {geo.source === 'manual' ? 'Manual (pinned to a stop)' : 'GPS one-shot'}
-                {geo.accuracyM != null ? ` · ±${Math.round(geo.accuracyM)} m` : ''}
-              </span>
-            </div>
-            <div className="hr" />
-            {renderProgress(progress, currentStageTitle, geo.accuracyM)}
-          </div>
-        ) : (
-          <p className="card-sub">
-            Use <strong>Locate</strong> under the map for a one-shot GPS fix, or{' '}
-            <strong>Live tracking · Beta</strong> to follow today’s stage as you
-            walk (foreground only — approximate, not for primary navigation).
-          </p>
-        )}
-
-        {tracking.error ? (
-          <p className="banner-warn" style={{ marginTop: 12 }}>
-            <span>📍</span>
-            <span>{tracking.error}</span>
-          </p>
-        ) : null}
-
-        {geo.status === 'error' && geo.error ? (
-          <p className="banner-warn" style={{ marginTop: 12 }}>
-            <span>📍</span>
-            <span>{geo.error}</span>
-          </p>
-        ) : null}
-
-        {/* Manual fallback: available when GPS fails or nothing located yet —
-            hidden entirely while a live session runs (one source at a time). */}
-        {!tracking.active && (geo.status === 'error' || geo.status === 'idle') ? (
-          <div style={{ marginTop: 12 }}>
-            {!manualOpen ? (
-              <button className="btn btn-ghost btn-block" onClick={() => setManualOpen(true)}>
-                Use manual mode instead
-              </button>
-            ) : (
+          {/* Position & progress. No raw coordinates in the normal UI — the
+              marker on the map IS the position; here we show source, accuracy
+              and along-stage progress. */}
+          <div className="card">
+            {liveCurrent && session.lastFix ? (
               <div>
-                <label className="field">
-                  <span>I’m currently at</span>
-                  <select
-                    className="select"
-                    value={manualHutId}
-                    onChange={(e) => setManualHutId(e.target.value)}
-                  >
-                    {STOPS.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {stopShortName(s)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={applyManual}>
-                  Set position from stop
-                </button>
-                <p className="card-sub" style={{ marginTop: 8 }}>
-                  Manual mode pins you to a stop so distances still work without GPS.
-                </p>
+                <div className="row-between">
+                  <span className="muted">Position</span>
+                  <span>
+                    {tracking.active ? 'Live GPS' : 'Last live fix'}
+                    {session.lastFix.accuracyM != null
+                      ? ` · ±${Math.round(session.lastFix.accuracyM)} m`
+                      : ''}
+                  </span>
+                </div>
+                <div className="hr" />
+                {renderLiveProgress(session, currentStageTitle)}
               </div>
+            ) : geo.status === 'success' && geo.coord ? (
+              <div>
+                <div className="row-between">
+                  <span className="muted">Position</span>
+                  <span>
+                    {geo.source === 'manual' ? 'Manual (pinned to a stop)' : 'GPS one-shot'}
+                    {geo.accuracyM != null ? ` · ±${Math.round(geo.accuracyM)} m` : ''}
+                  </span>
+                </div>
+                <div className="hr" />
+                {renderProgress(progress, currentStageTitle, geo.accuracyM)}
+              </div>
+            ) : (
+              <p className="card-sub">
+                Use <strong>Locate</strong> under the map for a one-shot GPS fix, or{' '}
+                <strong>Live tracking · Beta</strong> to follow today’s stage as you
+                walk (foreground only — approximate, not for primary navigation).
+              </p>
             )}
+
+            {tracking.error ? (
+              <p className="banner-warn" style={{ marginTop: 12 }}>
+                <span>📍</span>
+                <span>{tracking.error}</span>
+              </p>
+            ) : null}
+
+            {geo.status === 'error' && geo.error ? (
+              <p className="banner-warn" style={{ marginTop: 12 }}>
+                <span>📍</span>
+                <span>{geo.error}</span>
+              </p>
+            ) : null}
+
+            {/* Manual fallback: available when GPS fails or nothing located yet —
+                hidden entirely while a live session runs (one source at a time). */}
+            {!tracking.active && (geo.status === 'error' || geo.status === 'idle') ? (
+              <div style={{ marginTop: 12 }}>
+                {!manualOpen ? (
+                  <button className="btn btn-ghost btn-block" onClick={() => setManualOpen(true)}>
+                    Use manual mode instead
+                  </button>
+                ) : (
+                  <div>
+                    <label className="field">
+                      <span>I’m currently at</span>
+                      <select
+                        className="select"
+                        value={manualHutId}
+                        onChange={(e) => setManualHutId(e.target.value)}
+                      >
+                        {STOPS.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {stopShortName(s)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={applyManual}>
+                      Set position from stop
+                    </button>
+                    <p className="card-sub" style={{ marginTop: 8 }}>
+                      Manual mode pins you to a stop so distances still work without GPS.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
       </div>
     </div>
   );
