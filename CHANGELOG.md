@@ -10,6 +10,22 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-07-09
+
+### Changed
+
+- **Compact hut-marker badge**: the marker's paper container shrinks from
+  30px to 25px while the hut glyph keeps its size — less blank margin
+  around the icon. The 44×44 touch target and the anchored coordinate are
+  unchanged.
+- **Position panel beside the map**: the Locate/live-tracking/manual-mode
+  card moved from below the Map composition into the right-hand column,
+  directly under the Day/Full-route summary panel. On mobile the stacking
+  order is unchanged.
+- **Map credits start collapsed**: the map's attribution ⓘ no longer
+  opens expanded over the map on load; tap it to read the credits (also
+  in Settings → Data sources & credits).
+
 ## [0.11.0] - 2026-07-09
 
 ### Added
