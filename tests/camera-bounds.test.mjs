@@ -3,8 +3,11 @@
  * viewport classes. Pins the bounded-map behaviour:
  *  - portrait-ish viewports never need the overview expansion (the route
  *    overview fits inside the strict user bounds);
- *  - wide viewports (fullscreen on a landscape monitor) get an east/west
- *    expansion that is active only below the viewport's zoom threshold;
+ *  - square desktop viewports (the 1:1 map card) and wide viewports
+ *    (fullscreen on a landscape monitor) get an east/west expansion that
+ *    is active only below the viewport's zoom threshold;
+ *  - the square card's exact fit is never envelope-capped — the physical
+ *    z7 terrain footprint has comfortable headroom at every supported size;
  *  - the hysteresis in activeBoundsForZoom cannot oscillate;
  *  - the expansion never widens further than the fitted overview needs.
  */
@@ -36,12 +39,11 @@ const constraintsFor = (w, h) =>
     padding: PADDING,
   });
 
-test('portrait and 4:5 viewports fit the route inside the strict user bounds', () => {
+test('portrait viewports fit the route inside the strict user bounds', () => {
   // Mobile portrait at the shipped height rule (clamp(460px,
   // calc(108vw + 80px), min(62vh, 560px)) in global.css — h ≥ 1.073·w + 80
-  // is the exact no-expansion fit relation) and the 4:5 desktop/tablet
-  // frames.
-  for (const [w, h] of [[360, 469], [375, 485], [412, 525], [500, 625], [560, 700]]) {
+  // is the exact no-expansion fit relation).
+  for (const [w, h] of [[360, 469], [375, 485], [412, 525]]) {
     const c = constraintsFor(w, h);
     assert.equal(
       c.overviewBounds,
@@ -49,6 +51,49 @@ test('portrait and 4:5 viewports fit the route inside the strict user bounds', (
       `${w}x${h}: route overview must fit without expansion`,
     );
     assert.deepEqual(c.interactionBounds, route.userBounds);
+  }
+});
+
+test('square desktop viewports (1:1 map card) get an uncapped exact-fit expansion', () => {
+  // The desktop/tablet-landscape map card is a square whose edge follows
+  // clamp(420px, app-height − 270px, 720px), width-capped by the grid
+  // column (global.css .map-layout). Fitting the full route's padded
+  // height into a square needs an east/west view of ~182–200 km — wider
+  // than the ~150.6 km user bounds, so every supported square size uses
+  // the overview expansion. Recalculated 2026-07-10 for the square layout:
+  // the exact fit must sit INSIDE the ~309 km physical z7 envelope with
+  // headroom (never capped), so the full-route composition is always the
+  // true fit, never an over-filled compromise.
+  const [[ew], [ee]] = overviewEnvelope(route.mapCutoutBounds);
+  const [[uw, us], [ue, un]] = route.userBounds;
+  for (const size of [420, 530, 620, 720]) {
+    const c = constraintsFor(size, size);
+    assert.ok(c.overviewBounds, `${size}²: square fit needs the expansion`);
+    const [[ow, os], [oe, on]] = c.overviewBounds;
+    assert.ok(ow < uw && oe > ue, `${size}²: widened east/west`);
+    assert.equal(os, us, 'south edge unchanged');
+    assert.equal(on, un, 'north edge unchanged');
+    // Exact fit, not the envelope cap: the same constraints WITHOUT the
+    // physical envelope must produce identical bounds.
+    const uncapped = cameraConstraintsFor({
+      userBounds: route.userBounds,
+      routeBounds: route.bounds,
+      viewportWidth: size,
+      viewportHeight: size,
+      padding: PADDING,
+    });
+    assert.deepEqual(
+      c.overviewBounds,
+      uncapped.overviewBounds,
+      `${size}²: exact fit uncapped — envelope headroom holds`,
+    );
+    // …and strictly inside the envelope, with real margin on both edges.
+    assert.ok(ow > ew && oe < ee, `${size}²: strictly inside the physical envelope`);
+    // Threshold is a real overview zoom above the backstop.
+    assert.ok(
+      c.zoomThreshold > MIN_ZOOM_BACKSTOP && c.zoomThreshold < 12,
+      `${size}²: sane zoom threshold`,
+    );
   }
 });
 
