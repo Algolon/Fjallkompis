@@ -97,7 +97,8 @@ echo
 
 # ---- 4. Inspect source ----------------------------------------------------
 echo "── Source raster ────────────────────────────────────────────────────"
-gdalinfo "$SRC" | sed -n '/^Driver/p;/Size is/p;/Coordinate System/,/^ /{/PROJCRS\|GEOGCRS\|ID\["EPSG/p};/^Pixel Size/p;/Upper Left\|Lower Right/p'
+# Portable summary (BSD and GNU sed disagree on multi-command blocks).
+gdalinfo "$SRC" | grep -E '^Driver|^Size is|^Pixel Size|^Upper Left|^Lower Right|PROJCRS|GEOGCRS' | head -8
 BANDS="$(gdalinfo "$SRC" | grep -c '^Band ')"
 echo "Bands       : $BANDS"
 [ "$BANDS" -ge 3 ] || die "source must be an RGB raster (>=3 bands); found $BANDS."

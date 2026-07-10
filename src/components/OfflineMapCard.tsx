@@ -230,7 +230,7 @@ export function OfflineMapCard() {
     <ArchiveCard
       specs={[VECTOR_ARCHIVE]}
       title="Offline map"
-      description="A bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~9 km). Download it while online; the route itself always works offline."
+      description="A bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline."
       removeConfirm="Remove the offline map? The map screen will need a connection again."
       sourceHeading="Map data"
       source={BASEMAP_SOURCE_INFO}
@@ -243,7 +243,7 @@ export function TerrainReliefCard() {
     <ArchiveCard
       specs={[TERRAIN_ARCHIVE, CONTOURS_ARCHIVE]}
       title="Terrain relief"
-      description="Hillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~15 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap."
+      description="Hillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap."
       removeConfirm="Remove the terrain relief? The map will render without hillshade and contour lines."
       sourceHeading="Elevation data"
       source={TERRAIN_SOURCE_INFO}
@@ -256,7 +256,7 @@ export function SatelliteMapCard() {
     <ArchiveCard
       specs={[SATELLITE_ARCHIVE]}
       title="Satellite imagery"
-      description="Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~42 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap."
+      description="Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap."
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
       sourceHeading="Imagery"
       source={SATELLITE_SOURCE_INFO}

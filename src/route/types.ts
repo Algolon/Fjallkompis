@@ -71,6 +71,12 @@ export interface ParsedRoute {
   waypoints: RouteWaypoint[];
   bounds: RouteBounds;
   statistics: RouteStatistics;
-  /** Route bounds + buffer; the offline basemap cutout should cover this. */
+  /**
+   * Route bounds + userBufferKm (coverage contract): the area the camera may
+   * reach — MapLibre maxBounds. Every archive guarantees complete data here
+   * plus a hidden margin.
+   */
+  userBounds: RouteBounds;
+  /** Route bounds + user buffer + hidden margin; archives cover this. */
   mapCutoutBounds: RouteBounds;
 }

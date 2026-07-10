@@ -541,11 +541,73 @@ h3 {
 
 .mapview {
   width: 100%;
-  height: 420px;
+  /* Mobile portrait: taller than the old fixed 420px, and WIDTH-RELATIVE.
+     The bounded-map "Fit route" keeps the fitted view's width inside the
+     12 km user bounds only when height ≥ ~1.28 × map width (measured with
+     the exact camera maths in tests/camera-bounds.test.mjs): 360-wide
+     screens need ≥461px, 375 ≥477px, 412 ≥516px. Fixed candidates were
+     compared — 460px and 480px both force the overview expansion on wider
+     phones, 500px wastes height on narrow ones — so the height follows the
+     exact fit relation h = 1.073 × width + 80px vertical fit padding
+     (108vw is a safe ceiling of the factor; the map is slightly narrower
+     than the viewport, adding margin). Floored at 460px and capped by the
+     screen (62vh, never beyond 560px) so short screens keep their actions
+     above the fold and tablet-class portrait widths hand over to the
+     overview-expansion mechanism instead of a monster map. */
+  height: clamp(460px, calc(108vw + 80px), min(62vh, 560px));
   background: #dce4d8;
 }
 .mapview:fullscreen {
+  /* Fullscreen uses the whole screen, whatever its shape — the camera
+     constraints recompute per viewport (MapView 'resize' handler), so the
+     bounds contract holds without letterboxing. */
   height: 100%;
+  width: 100%;
+  aspect-ratio: auto;
+  max-width: none;
+}
+
+/* Temporary map-comparison selector (docs/maps/thunderforest-outdoors-
+   benchmark.md) — removed with the benchmark when the restyle concludes.
+   Compact by design: phone widths swap the long caption for "Style" so the
+   select keeps enough room to show the selected option untruncated, and the
+   whole pill stays clear of the MapLibre controls in the top-right. */
+.map-style-picker {
+  position: absolute;
+  top: 54px;
+  left: 10px;
+  max-width: calc(100% - 76px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--paper-2) 88%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.25);
+}
+.map-style-picker__caption {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.map-style-picker select {
+  font-size: 12px;
+  padding: 2px 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.map-style-picker__caption-short {
+  display: none;
+}
+@media (max-width: 559px) {
+  .map-style-picker__caption-full {
+    display: none;
+  }
+  .map-style-picker__caption-short {
+    display: inline;
+  }
 }
 
 /* Hut/station markers: local HTML buttons, no glyph/sprite dependencies.
@@ -2387,9 +2449,21 @@ button.map-status-pill {
      header plus the map card's own toolbars. Optional panels below the
      composition may still scroll the page. */
   /* :where() keeps specificity at the base .mapview level so the
-     .mapview:fullscreen { height: 100% } rule above still wins. */
+     .mapview:fullscreen rules above still win.
+
+     Desktop/tablet landscape: a 4:5 (W:H) map viewport — the governing
+     bounded-map decision. The strongly north–south route fills the padded
+     height of a 4:5 frame with ~62% width occupancy; wider frames only add
+     east/west terrain the product deliberately does not cover, and squarer
+     ones would demand a larger data buffer for no route benefit (audit,
+     2026-07-10). Height comes from the measured app viewport as before;
+     width follows from the aspect ratio instead of stretching across the
+     whole grid column. */
   :where(.map-layout) .mapview {
     height: clamp(420px, calc(var(--app-height, 100vh) - 270px), 720px);
+    aspect-ratio: 4 / 5;
+    width: auto;
+    max-width: 100%;
   }
   /* Route selector, compact: "Full route" then days 1–7 on a single row
      where the column allows, wrapping gracefully where it does not. All

@@ -326,7 +326,16 @@ export function buildRouteData(xml, config = KUNGSLEDEN_CONFIG) {
     routeBounds[0][0] < routeBounds[1][0] && routeBounds[0][1] < routeBounds[1][1],
     'route bounds are degenerate',
   );
-  const mapCutoutBounds = padBounds(routeBounds, config.mapBufferKm);
+  // Coverage contract (see route-configs.mjs): userBounds is what the camera
+  // may reach; mapCutoutBounds (user + hidden margin) is what every archive
+  // build generates data for. Keeping the historical mapCutoutBounds field
+  // name means the vector/terrain/satellite pipelines pick up the data
+  // bounds without any per-script coordinates.
+  const userBounds = padBounds(routeBounds, config.userBufferKm);
+  const mapCutoutBounds = padBounds(
+    routeBounds,
+    config.userBufferKm + config.dataMarginKm,
+  );
 
   const data = {
     sourceFile: config.gpxPath,
@@ -350,6 +359,7 @@ export function buildRouteData(xml, config = KUNGSLEDEN_CONFIG) {
     stages,
     bounds: routeBounds,
     statistics: overviewStats,
+    userBounds,
     mapCutoutBounds,
     diagnostics: {
       trackCount: 1,
@@ -363,6 +373,7 @@ export function buildRouteData(xml, config = KUNGSLEDEN_CONFIG) {
       elevationRangeM: [overviewStats.minimumElevationM, overviewStats.maximumElevationM],
       medianPointSpacingM: round(medianSpacingM, 1),
       routeBounds,
+      userBounds,
       mapCutoutBounds,
       smoothing: `centred moving average, window ${SMOOTHING_WINDOW} pts; hysteresis threshold ${NOISE_THRESHOLD_M} m`,
     },
@@ -424,7 +435,8 @@ function generateRoute(config) {
   console.log(`  ascent/descent:   +${data.statistics.totalAscentM ?? '—'} m / -${data.statistics.totalDescentM ?? '—'} m (overview)`);
   console.log(`  elevation range:  ${d.elevationRangeM[0] ?? '—'}–${d.elevationRangeM[1] ?? '—'} m`);
   console.log(`  route bounds:     ${JSON.stringify(d.routeBounds)}`);
-  console.log(`  map cutout:       ${JSON.stringify(d.mapCutoutBounds)} (${config.mapBufferKm} km buffer)`);
+  console.log(`  user bounds:      ${JSON.stringify(d.userBounds)} (${config.userBufferKm} km buffer — camera maxBounds)`);
+  console.log(`  data cutout:      ${JSON.stringify(d.mapCutoutBounds)} (+${config.dataMarginKm} km hidden margin — archive builds)`);
   return true;
 }
 

@@ -63,6 +63,49 @@ via Workbox `RangeRequestsPlugin`. Without the download, the basemap streams
 online via HTTP range requests; with no network and no download, the route
 still renders on a clearly-marked placeholder background.
 
+## Map coverage contract (bounded map)
+
+Fjällkompis is a bounded route companion, not a general map browser. One
+contract, defined in `scripts/route-configs.mjs` and materialised by
+`npm run generate:route` into the route JSON, governs everything:
+
+- **routeBounds** — the GPX bounding box;
+- **userBounds** = route + `userBufferKm` (12 km) — the **interaction
+  bounds**: the area of regular panning/zooming (`maxBounds` in MapView).
+  Selected so the full-route "Fit route" view stays inside the bounds on
+  every supported portrait/4:5 viewport. Wide viewports additionally get
+  temporary, deterministic **overview bounds** (an east/west widening
+  active only below that viewport's overview zoom threshold, clamped
+  per-edge to the physical z7 terrain envelope — see
+  src/map/cameraBounds.mjs for the full three-level model);
+- **mapCutoutBounds** = user bounds + `dataMarginKm` (3 km hidden margin) —
+  what every archive build (vector, terrain, contours, satellite)
+  generates data for, before per-zoom outward tile alignment.
+
+The terrain build MEASURES the physical post-alignment margin between the
+user bounds and each archive edge and fails below 2 km;
+`tests/coverage-contract.test.mjs` fails when generated bounds or any
+locally present archive stop covering the user bounds, and
+`tests/camera-bounds.test.mjs` pins the camera maths.
+
+Camera policy (src/map/cameraBounds.mjs + MapView): `maxBounds` is the
+authority (it also imposes the real minimum zoom per viewport; a static
+`minZoom` 7 is only a backstop), pitch is disabled (`maxPitch: 0`), and the
+map is permanently north-up — rotation gestures are off and the compass
+control is omitted. Viewports much wider than the bounds' aspect
+(fullscreen on landscape monitors) get a temporary east/west "overview
+expansion" of `maxBounds`, active only below the zoom threshold where the
+viewport already spans the full bounds width; the expanded area renders
+real z7–9 relief because the terrain source download covers the
+tile-aligned footprint of the lowest generated zoom.
+
+Viewport proportions (global.css): desktop/tablet `.map-layout` maps are
+4:5 (route ≈ 85% of map height in one Fit-route view); mobile portrait
+height follows `h ≈ 1.073 × width + 80px` (the exact no-expansion fit
+relation, shipped as `clamp(460px, calc(108vw + 80px), min(62vh, 560px))`);
+`.mapview:fullscreen` uses the whole screen and relies on the camera
+constraints instead of CSS shaping.
+
 ## Terrain relief (hillshade + contours)
 
 The Nordic terrain style renders **hillshade** (MapLibre's native `hillshade`
@@ -136,7 +179,7 @@ resolution, visual comparison, contour noise and storage measurements.
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**
 map. Tiles come from a raster PMTiles archive of **EOX Sentinel‑2 cloudless
-2024** imagery, bounded to the route corridor. The archive is **~42 MB and is
+2024** imagery, bounded to the route corridor. The archive is **~59 MB and is
 NOT committed to the repo** — the canonical binary lives on a **versioned
 GitHub Release** and is injected into the Pages build at deploy time:
 
@@ -174,14 +217,14 @@ Attribution shown on the map (keep it):
 New imagery ⇒ **new versioned release** (never mutate an existing tag):
 
 1. Build a new archive (workflow or scripts below) → publish it as release
-   `satellite-data-v2` with asset name `kungsleden-satellite.pmtiles`.
+   `satellite-data-v4` with asset name `kungsleden-satellite.pmtiles`.
 2. Update the pinned **tag, SHA‑256 and byte size** in
    `.github/workflows/deploy.yml` (they gate the deployment — a mismatch fails
    the deploy rather than shipping unverified bytes).
 3. Merge; the next Pages deploy serves the new file. Users who downloaded the
    old archive re‑download from Settings when they choose to.
 
-### Regenerating the archive (new imagery → satellite-data-v2, …)
+### Regenerating the archive (new imagery → satellite-data-v4, …)
 
 Imagery is built on a GitHub runner, not committed. Two reproducible scripts
 under `scripts/` do the work:
@@ -201,7 +244,7 @@ The easiest path is the **manual maintenance workflow**
 data (maintenance)* → *Run workflow*, available once the workflow is on the
 default branch). It runs both scripts on a runner, verifies the archive, uploads
 it as a downloadable artifact, and — with `publish_release: true` and a
-`release_tag` like `satellite-data-v2` — publishes the versioned Release that
+`release_tag` like `satellite-data-v4` — publishes the versioned Release that
 `deploy.yml` consumes. Then update the pinned tag + SHA‑256 + size in
 `deploy.yml` (see *Updating the satellite data* above).
 
