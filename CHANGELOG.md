@@ -10,6 +10,25 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.16.3] - 2026-07-10
+
+### Fixed
+
+- **The desktop map card now truly ends ~20 px above the viewport at
+  laptop heights.** v0.16.2 delivered the ~20 px remainder only on tall
+  windows (≥ 890 px); shorter desktop windows still reserved the
+  worst-case wrapped control rows and three-line banner, leaving a
+  60–80 px dead band below the card and a narrower map than necessary.
+  The vertical reserves are now state-aware: for each combination of
+  status banner / tracking hint actually present in the card, the exact
+  single-line reserves apply from the height at which the resulting
+  square is provably too wide for anything to wrap (gates at
+  700/750/770/820/890 px). At a ~1330×720 desktop window the map grows
+  from ~425 px to ~475 px square, the column divider shifts right, the
+  information column narrows correspondingly, and the card ends ~20 px
+  above the viewport. Visual design (radii, backgrounds, borders,
+  spacing) is untouched; mobile portrait and fullscreen are unchanged.
+
 ## [0.16.2] - 2026-07-10
 
 ### Changed
