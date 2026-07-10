@@ -2659,6 +2659,17 @@ button.map-status-pill {
       padding: 6px 8px;
     }
   }
+  /* Flatter elevation chart in the two-column composition. The chart's
+     intrinsic 360×150 shape grows ~0.42 × column width tall, and the wide
+     information column would let it push the tracking-hint card ("Use
+     Locate…") below the fold on fullscreen landscape screens. An explicit
+     height caps it — scaled to the viewport so short laptops get the
+     flattest chart — and ElevationProfile.tsx adapts its viewBox to the
+     rendered box, so the drawing stays uniform-scale and edge-to-edge:
+     no letterboxing, no stretched labels, exact scrub mapping. */
+  .map-layout .elev-svg {
+    height: clamp(120px, calc(var(--app-height, 100vh) * 0.19), 200px);
+  }
   /* :where() keeps specificity at the base .mapview level so the
      .mapview:fullscreen rules above still win.
 
