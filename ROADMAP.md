@@ -101,10 +101,13 @@ cross-device synchronization is deliberately far down this roadmap.
 - **Square desktop map layout (v0.16.0)**: corrected the v0.15.0
   desktop/landscape composition — the map viewport is a 1:1 square whose
   card (with its navigation and tracking rows) is exactly as wide as the
-  map, and the route-information column takes all remaining width; the
-  east/west coverage for the square full-route view was recalculated
-  (~182–200 km fit via the existing overview expansion, inside the
-  ~309 km physical z7 envelope — no archive rebuild).
+  map and fits COMPLETELY inside one viewport (the square consumes only
+  the height left after reserving measured space for header, action rows
+  and status banners; landscape screens under 700px tall fall back to the
+  compact stacked layout), and the route-information column takes all
+  remaining width; the east/west coverage for the square full-route view
+  was recalculated (~186–220 km fit via the existing overview expansion,
+  inside the ~309 km physical z7 envelope — no archive rebuild).
 
 - **Bounded Kungsleden map (v0.15.0)**: coverage contract (route
   + 12 km user bounds as camera maxBounds, + 3 km hidden data margin, all

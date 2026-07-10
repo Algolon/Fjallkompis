@@ -30,8 +30,9 @@
  *
  * One wrinkle remains: viewports WIDER than the user bounds' aspect — the
  * square 1:1 desktop/tablet map card (whose full-route fit needs an
- * east/west view of ~182–200 km against ~150.6 km of user bounds,
- * recalculated 2026-07-10 for the square layout) and, more extremely,
+ * east/west view of ~186–220 km across its supported 300–600px edges,
+ * against ~150.6 km of user bounds — recalculated 2026-07-10 for the
+ * square layout) and, more extremely,
  * fullscreen on a landscape monitor. Fitting the full route
  * there needs a view wider than the user bounds, which plain maxBounds
  * forbids — MapLibre would clamp the zoom and crop the route. For exactly
