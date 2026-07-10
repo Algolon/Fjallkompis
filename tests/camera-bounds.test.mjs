@@ -55,21 +55,23 @@ test('portrait viewports fit the route inside the strict user bounds', () => {
 });
 
 test('square desktop viewports (1:1 map card) get an uncapped exact-fit expansion', () => {
-  // The desktop/tablet-landscape map card is a square whose edge follows
-  // clamp(300px, app-height − reserved-chrome, 600px), width-capped by
-  // the grid column (global.css .map-layout ≥ 900×660). Fitting the full
-  // route's padded height into a square needs an east/west view of
-  // ~186–220 km — wider than the ~150.6 km user bounds, so every
-  // supported square size uses the overview expansion. Recalculated
-  // 2026-07-10 for the square layout: the exact fit must sit INSIDE the
-  // ~309 km physical z7 envelope with headroom (never capped), so the
-  // full-route composition is always the true fit, never an over-filled
-  // compromise. 300 is the tightest case — its fit leaves only a few km
-  // of slack to the envelope's east edge, which is exactly why the CSS
-  // floor must not drop further without re-running this maths.
+  // The desktop/tablet-landscape map card is a square whose edge is
+  // max(300px, app-height − reserved-chrome), width-capped by the grid
+  // column at min(62%, 100% − 314px) of the ≤ 1400px screen — i.e. edges
+  // from the 300px floor up to ~838px (global.css .map-layout ≥ 900×700).
+  // Fitting the full route's padded height into a square needs an
+  // east/west view of ~179–220 km — wider than the ~150.6 km user bounds,
+  // so every supported square size uses the overview expansion.
+  // Recalculated 2026-07-10 for the square layout: the exact fit must sit
+  // INSIDE the ~309 km physical z7 envelope with headroom (never capped),
+  // so the full-route composition is always the true fit, never an
+  // over-filled compromise. 300 is the tightest case — its fit leaves
+  // only a few km of slack to the envelope's east edge, which is exactly
+  // why the CSS floor must not drop further without re-running this
+  // maths.
   const [[ew], [ee]] = overviewEnvelope(route.mapCutoutBounds);
   const [[uw, us], [ue, un]] = route.userBounds;
-  for (const size of [300, 340, 450, 600]) {
+  for (const size of [300, 340, 450, 600, 838]) {
     const c = constraintsFor(size, size);
     assert.ok(c.overviewBounds, `${size}²: square fit needs the expansion`);
     const [[ow, os], [oe, on]] = c.overviewBounds;

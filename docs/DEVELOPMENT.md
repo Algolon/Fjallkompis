@@ -79,8 +79,8 @@ contract, defined in `scripts/route-configs.mjs` and materialised by
   (an east/west widening active only below that viewport's overview zoom
   threshold, clamped per-edge to the physical z7 terrain envelope — see
   src/map/cameraBounds.mjs for the full three-level model). Recalculated
-  for the square card (2026-07-10): across its supported 300–600px edges
-  the full-route fit spans ~186–220 km east/west against ~150.6 km of
+  for the square card (2026-07-10): across its supported 300–838px edges
+  the full-route fit spans ~179–220 km east/west against ~150.6 km of
   user bounds, an exact fit that always sits inside the ~309 km envelope
   with headroom (pinned by tests/camera-bounds.test.mjs — the smallest
   300px square is the tightest case);
@@ -110,16 +110,20 @@ Viewport proportions (global.css): desktop/tablet-landscape (≥ 900×700)
 column (`min(--map-edge, 56%)`), so the card and its action rows are
 precisely as wide as the map and the route-information column takes all
 remaining width (screen capped at 1400px for readable line lengths). The
-governing contract is the VERTICAL FIT: `--map-edge = clamp(300px,
-app-height − 148px − controls − banner/note allowances, 600px)` — the
-square gets the height left over after reserving measured space for the
+governing contract is the VERTICAL FIT: `--map-edge = max(300px,
+app-height − 132px − controls − banner/note allowances)` — the square
+consumes ALL the height left over after reserving measured space for the
 header chrome, both action rows (worst-case wrapped tracking row below
 890px-tall viewports, single-line above), any status banners
-(`:has()`-gated allowances; banners render compact on desktop) and the
-tracking hint, so the complete card (map + banners + both button rows)
-always fits one viewport without page scrolling. Landscape viewports
-shorter than 700px fall back to the compact stacked composition instead
-of a partially hidden desktop layout.
+(`:has()`-gated allowances; banners render compact on desktop), the
+tracking hint, and a deliberate ~20px remainder below the card (= the
+Map screen's bottom padding), so the complete card always fits one
+viewport without page scrolling and without a dead band beneath it.
+Width is the only ceiling: the grid track is `min(--map-edge, 62%,
+100% − 314px)`, so the information column keeps ≥ 38% of the layout
+(~500px at the 1400px screen cap) and never drops under 300px. Landscape
+viewports shorter than 700px fall back to the compact stacked
+composition instead of a partially hidden desktop layout.
 The full-route Fit-route view fills the padded square height with the
 route at ≈ 45% of the width (comfortable east/west terrain context via
 the overview bounds above). Mobile portrait

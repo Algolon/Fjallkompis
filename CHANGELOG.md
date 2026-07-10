@@ -10,6 +10,23 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-07-10
+
+### Changed
+
+- **The desktop map now uses the full window height.** The square map's
+  fixed 600 px ceiling left a large blank band under both columns on
+  taller desktop windows. The square now keeps growing with the window —
+  anchored left, taking the released width from the route-information
+  column — until only ~20 px of breathing room remains below the map
+  card (still zero page scrolling). Width caps protect the composition:
+  the information column always keeps at least 38 % of the layout
+  (~500 px at the ultrawide screen cap) and never drops below 300 px.
+  Camera coverage revalidated for the larger squares (edges up to
+  ~838 px fit the full route with ~179 km of east/west view, well inside
+  the physical terrain envelope — pinned by tests). Mobile portrait and
+  fullscreen are unchanged.
+
 ## [0.16.1] - 2026-07-10
 
 ### Fixed
