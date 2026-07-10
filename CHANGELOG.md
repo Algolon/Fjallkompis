@@ -10,6 +10,20 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-07-10
+
+### Fixed
+
+- **Flatter elevation chart on desktop so the location panel stays in
+  view.** In the two-column Map layout the elevation chart grew with the
+  widened information column (~0.42 × its width) and pushed the
+  Locate/manual-mode panel below the fold on fullscreen landscape
+  screens. The chart now has a height cap on desktop (viewport-scaled,
+  120–200 px) and adapts its drawing to the rendered shape at uniform
+  scale — labels keep their size, scrubbing stays exact, and the panel
+  below the summary card is visible without scrolling. Mobile portrait
+  keeps the chart's original proportions.
+
 ## [0.16.0] - 2026-07-10
 
 ### Changed

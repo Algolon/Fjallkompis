@@ -9,11 +9,19 @@
  * - Pointer moves update the crosshair via direct DOM refs and notify the
  *   map through an rAF-throttled callback — zero React re-renders per move.
  */
-import { useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ElevationSample, RouteStatistics } from '../route/types';
 import { formatDistanceKm } from '../utils/format';
 
 const W = 360;
+/** Intrinsic viewBox height — the chart's shape when CSS leaves `height`
+ *  auto (mobile). Layouts that give .elev-svg an explicit CSS height (the
+ *  desktop map column caps it so the tracking-hint card below the summary
+ *  stays in view) get a DYNAMIC viewBox height instead, matched to the
+ *  rendered box, so the drawing always fills the element edge-to-edge at
+ *  uniform scale: no letterboxed dead zones (which would break the scrub
+ *  x-mapping below) and no stretched axis labels (preserveAspectRatio
+ *  "none" would distort text). */
 const H = 150;
 const PAD_L = 34;
 const PAD_R = 10;
@@ -32,6 +40,31 @@ export function ElevationProfile({ profile, statistics, onScrub }: Props) {
   const tipRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef(0);
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // viewBox height follows the RENDERED box (see the H comment above).
+  // Where CSS keeps `height: auto` the box ratio IS vbH/W, so the measured
+  // value equals the current one and this settles immediately — no feedback
+  // loop. Where CSS fixes the height, one measurement locks the flatter
+  // shape (re-measured on resize via ResizeObserver).
+  const [vbH, setVbH] = useState(H);
+  useLayoutEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const measure = () => {
+      const r = svg.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return;
+      // Clamp: never flatter than the drawable area needs (padding + a
+      // little room) and never taller than the intrinsic shape.
+      const next = Math.round(
+        Math.min(H, Math.max(PAD_T + PAD_B + 40, (W * r.height) / r.width)),
+      );
+      setVbH((prev) => (Math.abs(prev - next) < 1 ? prev : next));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, []);
 
   const { linePath, areaPath, xMax, yMin, yMax } = useMemo(() => {
     const xMax = profile.length ? profile[profile.length - 1].distanceKm : 1;
@@ -63,14 +96,14 @@ export function ElevationProfile({ profile, statistics, onScrub }: Props) {
     if (last) pts.push([last.distanceKm, last.elevationM]);
 
     const sx = (d: number) => PAD_L + (d / xMax) * (W - PAD_L - PAD_R);
-    const sy = (e: number) => PAD_T + (1 - (e - yMin) / (yMax - yMin)) * (H - PAD_T - PAD_B);
+    const sy = (e: number) => PAD_T + (1 - (e - yMin) / (yMax - yMin)) * (vbH - PAD_T - PAD_B);
     const line = pts.map(([d, e], i) => `${i === 0 ? 'M' : 'L'}${sx(d).toFixed(1)},${sy(e).toFixed(1)}`).join('');
-    const area = `${line}L${sx(xMax).toFixed(1)},${H - PAD_B}L${PAD_L},${H - PAD_B}Z`;
+    const area = `${line}L${sx(xMax).toFixed(1)},${vbH - PAD_B}L${PAD_L},${vbH - PAD_B}Z`;
     return { linePath: line, areaPath: area, xMax, yMin, yMax };
-  }, [profile]);
+  }, [profile, vbH]);
 
   const sx = (d: number) => PAD_L + (d / xMax) * (W - PAD_L - PAD_R);
-  const sy = (e: number) => PAD_T + (1 - (e - yMin) / (yMax - yMin)) * (H - PAD_T - PAD_B);
+  const sy = (e: number) => PAD_T + (1 - (e - yMin) / (yMax - yMin)) * (vbH - PAD_T - PAD_B);
 
   /** Binary search the FULL profile for the sample nearest to distance d. */
   const nearestSample = (d: number): ElevationSample | null => {
@@ -133,7 +166,7 @@ export function ElevationProfile({ profile, statistics, onScrub }: Props) {
       <svg
         ref={svgRef}
         className="elev-svg"
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${W} ${vbH}`}
         role="img"
         aria-label={`Elevation profile: ${formatDistanceKm(statistics.distanceKm)}, from ${Math.round(start.elevationM)} m to ${Math.round(end.elevationM)} m, minimum ${statistics.minimumElevationM} m, maximum ${statistics.maximumElevationM} m, total ascent ${statistics.totalAscentM} m, total descent ${statistics.totalDescentM} m`}
         onPointerMove={(e) => handlePointer(e.clientX)}
@@ -152,10 +185,10 @@ export function ElevationProfile({ profile, statistics, onScrub }: Props) {
             </text>
           </g>
         ))}
-        <text x={W - PAD_R} y={H - 6} fontSize="9" fill="var(--ink-faint)" textAnchor="end">
+        <text x={W - PAD_R} y={vbH - 6} fontSize="9" fill="var(--ink-faint)" textAnchor="end">
           {xMax.toFixed(0)} km
         </text>
-        <text x={PAD_L} y={H - 6} fontSize="9" fill="var(--ink-faint)">
+        <text x={PAD_L} y={vbH - 6} fontSize="9" fill="var(--ink-faint)">
           0 km
         </text>
 
@@ -163,7 +196,7 @@ export function ElevationProfile({ profile, statistics, onScrub }: Props) {
         <path d={linePath} fill="none" stroke="var(--glacier)" strokeWidth="1.8" />
 
         <g ref={crosshairRef} visibility="hidden">
-          <line y1={PAD_T} y2={H - PAD_B} stroke="var(--ink-soft)" strokeWidth="1" strokeDasharray="3 3" />
+          <line y1={PAD_T} y2={vbH - PAD_B} stroke="var(--ink-soft)" strokeWidth="1" strokeDasharray="3 3" />
           <circle r="4" fill="var(--glacier)" stroke="#fff" strokeWidth="1.5" />
         </g>
       </svg>
