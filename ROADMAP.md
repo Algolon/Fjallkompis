@@ -45,7 +45,8 @@ cross-device synchronization is deliberately far down this roadmap.
    are already local HTML markers). Now also the gate for the benchmark
    plan's label hierarchy (peaks with elevations, lake/valley/settlement
    names) and for contour elevation labels.
-3. **Nordic restyle follow-ups** — the terrain hierarchy restyle (0.13.0)
+3. **Nordic restyle follow-ups** — *(the bounded-map iteration below took
+   priority after real-device testing of 0.14.0)* — the terrain hierarchy restyle (0.13.0)
    and terrain relief (0.14.0) delivered benchmark Phases 1–2; remaining
    phases from docs/maps/thunderforest-outdoors-benchmark.md §7: bridge
    emphasis on trails/tracks (`roads.is_bridge`), wetland pattern fill once
@@ -96,6 +97,16 @@ cross-device synchronization is deliberately far down this roadmap.
   until its imagery actually ships.
 
 ## Completed
+
+- **Bounded Kungsleden map (v0.15.0, in review)**: coverage contract (route
+  + 12 km user bounds as camera maxBounds, + 3 km hidden data margin, all
+  archives generated from one source of truth in
+  scripts/route-configs.mjs); terrain pipeline rebuilt on real DEM
+  coverage (no extrapolation → no edge streaks/rectangle);
+  terrain-data-v2 + satellite-data-v2 releases; 4:5 desktop map,
+  width-relative mobile map height, full-screen with per-shape camera
+  constraints; north-up policy (rotation/pitch disabled); compact mobile
+  style selector.
 
 - **Terrain relief — contours & hillshade (v0.14.0)**: the map renders
   hillshade (MapLibre `hillshade` on a terrain-RGB raster-dem source) and

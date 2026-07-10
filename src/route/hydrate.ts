@@ -39,6 +39,7 @@ export interface GeneratedRoute {
   stages: GeneratedStage[];
   bounds: RouteBounds;
   statistics: RouteStatistics;
+  userBounds: RouteBounds;
   mapCutoutBounds: RouteBounds;
   diagnostics: Record<string, unknown>;
 }
@@ -113,6 +114,7 @@ export function hydrateRoute(raw: GeneratedRoute): ParsedRoute {
     waypoints: raw.waypoints,
     bounds: raw.bounds,
     statistics: raw.statistics,
+    userBounds: raw.userBounds,
     mapCutoutBounds: raw.mapCutoutBounds,
   };
 }

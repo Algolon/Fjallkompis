@@ -66,6 +66,12 @@ import {
   VECTOR_ARCHIVE,
   type ArchiveSpec,
 } from '../map/offlineMap';
+import {
+  cameraConstraintsFor,
+  activeBoundsForZoom,
+  MIN_ZOOM_BACKSTOP,
+  type CameraConstraints,
+} from '../map/cameraBounds.mjs';
 import type { LatLng } from '../types';
 
 export interface MapViewHandle {
@@ -219,6 +225,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const mapStyleIdRef = useRef(mapStyleId);
   mapStyleIdRef.current = mapStyleId;
 
+  // Camera-bounds state (coverage contract): the constraint set for the
+  // current viewport shape, and whether the overview expansion is active.
+  const constraintsRef = useRef<CameraConstraints | null>(null);
+  const boundsExpandedRef = useRef(false);
+
   // Keep latest callbacks reachable from map event handlers without rebinding.
   const callbacksRef = useRef({
     onSelectStage,
@@ -339,6 +350,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             ).map((l) => l.id)
           : [],
       };
+      // Bounded route product (0.15.0): the camera is fenced to the coverage
+      // contract's user bounds; wide viewports get the overview expansion so
+      // "Fit route" always works (src/map/cameraBounds.mjs has the design).
+      // The initial view IS the route overview, so start on the expanded
+      // bounds when this viewport needs them; the zoomend handler below
+      // tightens to the strict user bounds as soon as the user zooms in.
+      const computeConstraints = (): CameraConstraints =>
+        cameraConstraintsFor({
+          userBounds: mountedRoute.userBounds,
+          routeBounds: mountedRoute.bounds,
+          viewportWidth: containerRef.current?.clientWidth ?? 1,
+          viewportHeight: containerRef.current?.clientHeight ?? 1,
+          padding: FIT_PADDING,
+        });
+      constraintsRef.current = computeConstraints();
+      boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
       map = new maplibregl.Map({
         container: containerRef.current,
         style: buildMapStyle(
@@ -352,8 +379,25 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         attributionControl: { compact: true },
         // Cap zoom to what the offline tileset actually contains (+overzoom).
         maxZoom: 17,
-        minZoom: 4,
+        // maxBounds is the operative floor (it stops zoom-out once the
+        // viewport spans the bounds); the backstop only guards degenerate
+        // viewport sizes during layout.
+        minZoom: MIN_ZOOM_BACKSTOP,
+        maxBounds: (boundsExpandedRef.current
+          ? constraintsRef.current.overviewBounds!
+          : constraintsRef.current.bounds) as maplibregl.LngLatBoundsLike,
+        // North-up product policy: rotation gestures are disabled (the map
+        // is a route companion; a rotated frame costs orientation and would
+        // let viewport corners peek past the bounds contract), and pitch is
+        // off entirely — a pitched horizon is the one way to see beyond
+        // maxBounds.
+        maxPitch: 0,
+        dragRotate: false,
+        pitchWithRotate: false,
+        touchPitch: false,
       });
+      map.touchZoomRotate.disableRotation();
+      map.keyboard.disableRotation();
       mapRef.current = map;
       if (import.meta.env.DEV) {
         // Dev-only handle for the style-comparison evaluation checklist
@@ -362,7 +406,40 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         (window as unknown as Record<string, unknown>).__fjallkompisMap = map;
       }
 
-      map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+      // Swap between the strict user bounds and the overview expansion as
+      // the camera crosses the viewport-specific threshold (hysteresis in
+      // activeBoundsForZoom prevents oscillation while animations settle).
+      const applyCameraBounds = () => {
+        const c = constraintsRef.current;
+        if (!map || !c) return;
+        const next = activeBoundsForZoom(c, map.getZoom(), boundsExpandedRef.current);
+        if (next.expanded !== boundsExpandedRef.current) {
+          boundsExpandedRef.current = next.expanded;
+          map.setMaxBounds(next.bounds as maplibregl.LngLatBoundsLike);
+        }
+      };
+      map.on('zoomend', applyCameraBounds);
+      // Viewport shape changed (fullscreen, rotation, layout): recompute the
+      // constraint set for the new shape and re-apply immediately. Seeded
+      // from the EXPANDED side deliberately: when a viewport suddenly grows
+      // wider, MapLibre clamps the zoom against the old strict bounds
+      // before this handler runs, parking the camera exactly at the new
+      // threshold — evaluating from the expanded side keeps the overview
+      // reachable there, while a camera genuinely zoomed in past the
+      // threshold still tightens to the strict user bounds.
+      map.on('resize', () => {
+        if (!map) return;
+        constraintsRef.current = computeConstraints();
+        const next = activeBoundsForZoom(constraintsRef.current, map.getZoom(), true);
+        boundsExpandedRef.current = next.expanded;
+        map.setMaxBounds(next.bounds as maplibregl.LngLatBoundsLike);
+      });
+
+      // No compass: bearing is locked north-up (rotation disabled above).
+      map.addControl(
+        new maplibregl.NavigationControl({ showCompass: false }),
+        'top-right',
+      );
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
       if (document.fullscreenEnabled) {
         map.addControl(

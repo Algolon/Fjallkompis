@@ -10,6 +10,37 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-10
+
+### Changed
+
+- **A deliberately bounded Kungsleden map.** The map is now a route
+  companion with a defined supported area instead of an accidental world
+  browser: the camera is fenced to the route plus ~12 km of surrounding
+  terrain (`maxBounds` from the new coverage contract), zooming out stops
+  at a complete overview of that area, pitch is off and the map stays
+  north-up (rotation gestures disabled — the compass control is gone
+  because there is nothing to reset). Every archive — vector, hillshade,
+  contours, satellite — is generated for the same contract with a hidden
+  safety margin, so no camera position can show a data edge.
+- **Terrain relief without edge artefacts.** The relief pipeline now
+  downloads real Copernicus DEM for the full tile-aligned footprint of
+  every generated zoom and drops the no-data extrapolation entirely: the
+  horizontal/vertical shading streaks, the visible relief rectangle and
+  the abrupt relief disappearance seen in v0.14.0 on real devices are
+  gone. Relief data ships as `terrain-data-v2` (terrain z7–12, ~18 MB;
+  contours unchanged in style, ~6 MB); satellite imagery was regenerated
+  to the same coverage as `satellite-data-v2` (~11 MB, down from 42 MB).
+- **Map viewport proportions.** Desktop and tablet-landscape use a compact
+  4:5 map beside the route panel (the full route fills ~85% of the map
+  height in one "Fit route" view) instead of stretching across the layout;
+  mobile portrait grows from a fixed 420 px to a width-relative height so
+  the full-route view fits inside the supported bounds; fullscreen uses
+  the whole screen with camera constraints recomputed for its shape.
+- **Compact map-style selector on phones** (temporary comparison control):
+  the long caption collapses to "Style" and option labels no longer
+  truncate; all four styles stay usable with unchanged accessible labels.
+
 ## [0.14.0] - 2026-07-10
 
 ### Added

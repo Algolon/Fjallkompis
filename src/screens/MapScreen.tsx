@@ -507,30 +507,20 @@ export function MapScreen({
                 Nordic restyle work concludes. Hidden while the satellite
                 raster covers the vector basemap. */}
             {benchmarkEnabled && imagery === 'terrain' ? (
-              <label
-                style={{
-                  position: 'absolute',
-                  top: 54,
-                  left: 10,
-                  // Keep clear of the MapLibre navigation controls (top-right)
-                  // on narrow phone viewports; the select shrinks to fit.
-                  maxWidth: 'calc(100% - 76px)',
-                  zIndex: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 8px',
-                  borderRadius: 10,
-                  fontSize: 12,
-                  background: 'color-mix(in srgb, var(--paper-2) 88%, transparent)',
-                  backdropFilter: 'blur(6px)',
-                  boxShadow: '0 1px 4px rgba(27, 42, 39, 0.25)',
-                }}
-              >
-                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Map comparison — temporary</span>
+              /* Compact styling lives in global.css (.map-style-picker): on
+                 phone widths the long caption collapses to "Style" and the
+                 select gets the freed space, so the selected option no
+                 longer truncates. The select's aria-label keeps the full
+                 wording on every viewport. */
+              <label className="map-style-picker">
+                <span className="map-style-picker__caption" aria-hidden="true">
+                  <span className="map-style-picker__caption-full">
+                    Map comparison — temporary
+                  </span>
+                  <span className="map-style-picker__caption-short">Style</span>
+                </span>
                 <select
                   className="select"
-                  style={{ fontSize: 12, padding: '2px 6px', minWidth: 0, flex: '0 1 auto' }}
                   value={mapStyleId}
                   aria-label="Map style (temporary comparison benchmark)"
                   onChange={(e) => {
@@ -539,11 +529,20 @@ export function MapScreen({
                 >
                   {MAP_STYLE_OPTIONS.map((o) => {
                     const unavailable = o.requiresApiKey && !thunderforestAvailable;
+                    // Visible option text is the short label so the CLOSED
+                    // select never clips it on phones; the supporting label
+                    // ("Online preview") stays in the title tooltip, the
+                    // description, and the online-preview banner shown when
+                    // the option is active.
                     return (
-                      <option key={o.id} value={o.id} disabled={unavailable} title={o.description}>
+                      <option
+                        key={o.id}
+                        value={o.id}
+                        disabled={unavailable}
+                        title={[o.supportingLabel, o.description].filter(Boolean).join(' — ')}
+                      >
                         {o.label}
-                        {o.supportingLabel ? ` — ${o.supportingLabel}` : ''}
-                        {unavailable ? ' (unavailable — no API key)' : ''}
+                        {unavailable ? ' (needs API key)' : ''}
                       </option>
                     );
                   })}

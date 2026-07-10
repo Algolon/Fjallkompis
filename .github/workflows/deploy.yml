@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p public/maps
-          gh release download terrain-data-v1 \
+          gh release download terrain-data-v2 \
             --repo Algolon/Fjallkompis \
             --pattern 'kungsleden-terrain.pmtiles' \
             --pattern 'kungsleden-contours.pmtiles' \
@@ -53,12 +53,12 @@ jobs:
             echo "$f sha256: $actual_sha (expected $expected_sha)"
             [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: $f SHA-256 mismatch"; exit 1; }
           }
-          verify public/maps/kungsleden-terrain.pmtiles "b33da31c8f7e5b4ba2f07c1a5ee5c266551fbac570cdbce6c6bba68baf578479"
-          verify public/maps/kungsleden-contours.pmtiles "174b3c58df6d90376dd4a90c8c775afeb406b4226c26c28cf911ff20b523bd0e"
+          verify public/maps/kungsleden-terrain.pmtiles "89eef71787ceb1f4b827b9eee1906fd799d89c4d4d587be31a4d944efb399aa5"
+          verify public/maps/kungsleden-contours.pmtiles "3e794bffcd0306cd48f24bb8d04bde61cf2445d7b87b58d0dbac3b1fb0471ec5"
 
       # ---- Satellite archive: canonical GitHub Release asset ----------------
       # The ~42 MB PMTiles binary is NOT committed. The canonical copy lives on
-      # the satellite-data-v1 Release; deployment downloads it into the Pages
+      # the satellite-data-v2 Release; deployment downloads it into the Pages
       # build so browsers fetch it SAME-ORIGIN (GitHub Release assets send no
       # CORS headers, so the app cannot fetch them cross-origin directly).
       # New imagery ⇒ new release tag ⇒ update TAG/SHA-256/size pins here.
@@ -68,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p public/maps
-          gh release download satellite-data-v1 \
+          gh release download satellite-data-v2 \
             --repo Algolon/Fjallkompis \
             --pattern kungsleden-satellite.pmtiles \
             --dir public/maps
@@ -76,8 +76,8 @@ jobs:
         run: |
           set -euo pipefail
           f=public/maps/kungsleden-satellite.pmtiles
-          expected_sha="42398abf14e66506a9b17867bfe5770675edcc2130cd9b46ffedb08b4c0f28bf"
-          expected_size=43610353
+          expected_sha="aed1d49072b21c1ada190c3dac19e9cafcd953718c496875192cb1c5078953eb"
+          expected_size=11294208
           actual_sha="$(sha256sum "$f" | awk '{print $1}')"
           actual_size="$(stat -c '%s' "$f")"
           echo "sha256: $actual_sha (expected $expected_sha)"
@@ -115,7 +115,7 @@ jobs:
           set -euo pipefail
           f=dist/maps/kungsleden-satellite.pmtiles
           test -f "$f" || { echo "FATAL: $f missing from build output"; exit 1; }
-          expected_sha="42398abf14e66506a9b17867bfe5770675edcc2130cd9b46ffedb08b4c0f28bf"
+          expected_sha="aed1d49072b21c1ada190c3dac19e9cafcd953718c496875192cb1c5078953eb"
           actual_sha="$(sha256sum "$f" | awk '{print $1}')"
           [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: built archive SHA-256 mismatch"; exit 1; }
           echo "✓ dist/maps/kungsleden-satellite.pmtiles present, sha256 verified"

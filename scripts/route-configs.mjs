@@ -33,8 +33,23 @@ export const KUNGSLEDEN_CONFIG = {
   stageIdPrefix: 'd',
   /** Mountain route: a GPX without elevation data is a hard error. */
   requireElevation: true,
-  /** Padding around the route bounds for the basemap cutout. */
-  mapBufferKm: 9,
+  /**
+   * Coverage contract (single source of truth — every archive build script
+   * and the app's camera constraints consume the bounds derived here):
+   *
+   *  - userBufferKm: route bounds + this buffer = USER BOUNDS, the area the
+   *    camera can actually reach (MapLibre maxBounds). 12 km fits the full
+   *    route inside every supported viewport's "Fit route" view with slack,
+   *    and gives credible off-route/orientation context without regional
+   *    excess (bounded-map audit, 2026-07-10).
+   *  - dataMarginKm: hidden safety margin added on top of the user bounds
+   *    for DATA GENERATION (mapCutoutBounds = route + userBufferKm +
+   *    dataMarginKm, then each pipeline tile-aligns outward per zoom). The
+   *    user must never see a physical archive edge; the post-alignment
+   *    margin is reported by the terrain build.
+   */
+  userBufferKm: 12,
+  dataMarginKm: 3,
   /** Display-name overrides for waypoint ids whose GPX names are too formal. */
   nameOverrides: { START_ABISKO: 'Abisko' },
 };

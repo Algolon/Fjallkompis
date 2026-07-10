@@ -63,6 +63,44 @@ via Workbox `RangeRequestsPlugin`. Without the download, the basemap streams
 online via HTTP range requests; with no network and no download, the route
 still renders on a clearly-marked placeholder background.
 
+## Map coverage contract (bounded map)
+
+Fjällkompis is a bounded route companion, not a general map browser. One
+contract, defined in `scripts/route-configs.mjs` and materialised by
+`npm run generate:route` into the route JSON, governs everything:
+
+- **routeBounds** — the GPX bounding box;
+- **userBounds** = route + `userBufferKm` (12 km) — the area the camera can
+  reach (`maxBounds` in MapView). Selected so the full-route "Fit route"
+  view stays inside the bounds on every supported viewport;
+- **mapCutoutBounds** = user bounds + `dataMarginKm` (3 km hidden margin) —
+  what every archive build (vector, terrain, contours, satellite)
+  generates data for, before per-zoom outward tile alignment.
+
+The terrain build MEASURES the physical post-alignment margin between the
+user bounds and each archive edge and fails below 2 km;
+`tests/coverage-contract.test.mjs` fails when generated bounds or any
+locally present archive stop covering the user bounds, and
+`tests/camera-bounds.test.mjs` pins the camera maths.
+
+Camera policy (src/map/cameraBounds.mjs + MapView): `maxBounds` is the
+authority (it also imposes the real minimum zoom per viewport; a static
+`minZoom` 7 is only a backstop), pitch is disabled (`maxPitch: 0`), and the
+map is permanently north-up — rotation gestures are off and the compass
+control is omitted. Viewports much wider than the bounds' aspect
+(fullscreen on landscape monitors) get a temporary east/west "overview
+expansion" of `maxBounds`, active only below the zoom threshold where the
+viewport already spans the full bounds width; the expanded area renders
+real z7–9 relief because the terrain source download covers the
+tile-aligned footprint of the lowest generated zoom.
+
+Viewport proportions (global.css): desktop/tablet `.map-layout` maps are
+4:5 (route ≈ 85% of map height in one Fit-route view); mobile portrait
+height follows `h ≈ 1.073 × width + 80px` (the exact no-expansion fit
+relation, shipped as `clamp(460px, calc(108vw + 80px), min(62vh, 560px))`);
+`.mapview:fullscreen` uses the whole screen and relies on the camera
+constraints instead of CSS shaping.
+
 ## Terrain relief (hillshade + contours)
 
 The Nordic terrain style renders **hillshade** (MapLibre's native `hillshade`
@@ -136,7 +174,7 @@ resolution, visual comparison, contour noise and storage measurements.
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**
 map. Tiles come from a raster PMTiles archive of **EOX Sentinel‑2 cloudless
-2024** imagery, bounded to the route corridor. The archive is **~42 MB and is
+2024** imagery, bounded to the route corridor. The archive is **~11 MB and is
 NOT committed to the repo** — the canonical binary lives on a **versioned
 GitHub Release** and is injected into the Pages build at deploy time:
 

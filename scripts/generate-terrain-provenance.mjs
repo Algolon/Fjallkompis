@@ -55,6 +55,13 @@ const toolVersion = (cmd) => {
 };
 
 const [west, south, east, north] = args.bounds.split(',').map(Number);
+// Optional camera bounds (route + userBufferKm): recorded so the release
+// documents both the data extent and the user-accessible extent it serves.
+const parseBounds = (csv) => {
+  const [w, s, e, n] = csv.split(',').map(Number);
+  return { west: w, south: s, east: e, north: n };
+};
+const userBounds = args['user-bounds'] ? parseBounds(args['user-bounds']) : undefined;
 const [terrainMinzoom, terrainMaxzoom] = args['terrain-zooms'].split(',').map(Number);
 const [contourInterval, contourIndex] = args['contour-intervals'].split(',').map(Number);
 
@@ -83,7 +90,8 @@ const manifest = {
     'Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved',
   acquisitionDate: args.acquired ?? new Date().toISOString(),
   routeId: args.route,
-  routeBounds: { west, south, east, north },
+  dataBounds: { west, south, east, north },
+  ...(userBounds ? { userBounds } : {}),
   sourceTiles,
   terrain: { encoding: 'terrarium', tileSize: 256, minzoom: terrainMinzoom, maxzoom: terrainMaxzoom },
   contours: { intervalMetres: contourInterval, indexMetres: contourIndex, minzoom: 11, maxzoom: 13, layer: 'contours' },
