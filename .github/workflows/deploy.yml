@@ -32,6 +32,15 @@ jobs:
       # model as the satellite archive: never committed, downloaded from the
       # pinned terrain-data release into the Pages build and served
       # same-origin. New data ⇒ new release tag ⇒ update TAG/SHA-256 pins.
+      #
+      # PENDING (0.17.0 earlier contours): the retiled contours archive
+      # needs a terrain-data-v3 release (assets already built locally by
+      # scripts/build-terrain-map.sh — see CHANGELOG 0.17.0). Once it is
+      # published, change the tag below to terrain-data-v3 and the contours
+      # SHA to 3e8fbcfa6ee1ea8df9abaec641d836e11602867c09c83f77173e522826b7d573
+      # (the terrain archive is bit-identical to v2, its SHA stays). Until
+      # then the deployed map keeps the previous z11/z13 contour behaviour
+      # — the 0.17.0 style degrades gracefully on the v2 archive.
       - name: Fetch terrain relief archives from the pinned data release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -85,23 +94,12 @@ jobs:
           [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: satellite archive SHA-256 mismatch"; exit 1; }
           [ "$actual_size" = "$expected_size" ] || { echo "FATAL: satellite archive size mismatch"; exit 1; }
 
-      # Temporary map-comparison benchmark (docs/maps/thunderforest-outdoors-
-      # benchmark.md). Both inputs are optional and the build never fails
-      # over them:
-      #  - VITE_ENABLE_MAP_BENCHMARK (repository VARIABLE, not sensitive):
-      #    production shows the comparison selector only when it is "true";
-      #  - VITE_THUNDERFOREST_API_KEY (repository SECRET): enables the
-      #    ONLINE-ONLY Thunderforest option inside the benchmark selector.
-      # NOTE: Vite inlines the key into the built JS, so the deployed app
-      # exposes it in tile-request URLs (and Referer information may be
-      # visible to Thunderforest); the secret only keeps it out of the
-      # repository. Controls: quota monitoring, temporary deployment, key
-      # rotation/removal — an origin allowlist only if the Thunderforest
-      # dashboard actually supports one.
+      # The temporary map-comparison benchmark concluded with the 0.17.0
+      # Nordic terrain iteration: the VITE_ENABLE_MAP_BENCHMARK variable and
+      # the VITE_THUNDERFOREST_API_KEY secret are no longer read by the
+      # build. The repository variable can be deleted and the Thunderforest
+      # key rotated/removed in its dashboard.
       - run: npm run build
-        env:
-          VITE_ENABLE_MAP_BENCHMARK: ${{ vars.VITE_ENABLE_MAP_BENCHMARK }}
-          VITE_THUNDERFOREST_API_KEY: ${{ secrets.VITE_THUNDERFOREST_API_KEY }}
 
       - name: Verify terrain relief archives made it into the build
         run: |

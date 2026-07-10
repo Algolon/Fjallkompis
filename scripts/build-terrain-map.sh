@@ -50,9 +50,13 @@
 #  - contours: 20 m interval with every 100 m as the index line — selected
 #    from the 30 m DEM resolution, visual comparison, contour noise and
 #    storage measurements (a 10 m build was rejected: mostly noise at 3-4x
-#    the size). 100 m lines get tile minzoom 11, the rest 13; tiles stop at
-#    z13 (the DEM has no honest information beyond that — MapLibre
-#    overzooms them to the map cap). Contour geometry ends at the data
+#    the size). 100 m index lines get tile minzoom 9 and the 20 m set 12,
+#    so the style can fade the index tier in from z9.5 and the full set
+#    from z12 (0.17.0 — the earlier 11/13 tagging made any earlier contour
+#    styling physically impossible: MapLibre never underzooms vector
+#    tiles). Tiles stop at z13 (the DEM has no honest information beyond
+#    that — MapLibre overzooms them to the map cap). Contour geometry ends
+#    at the data
 #    cutout (route + userBufferKm + dataMarginKm), always outside the
 #    camera's maxBounds;
 #  - terrain spans z7–12: z12 (~14 m/px at 68°N) already out-resolves the
@@ -72,6 +76,12 @@
 #   CONTOUR_INTERVAL                    default 20 (metres)
 #   CONTOUR_INDEX                       default 100 (metres, must be a
 #                                       multiple of the interval)
+#   CONTOUR_MINZOOM_INDEX               default 9 (tile minzoom of the
+#                                       index lines; keep in sync with the
+#                                       lt_contour_index style ramp)
+#   CONTOUR_MINZOOM_FULL                default 12 (tile minzoom of the
+#                                       full interval set; keep in sync
+#                                       with the lt_contour style ramp)
 #   DEBUG                               keep the work directory
 #
 # Requires: GDAL (incl. gdal_calc.py / gdal_create), tippecanoe, the
@@ -85,6 +95,8 @@ TERRAIN_MINZOOM="${TERRAIN_MINZOOM:-7}"
 TERRAIN_MAXZOOM="${TERRAIN_MAXZOOM:-12}"
 CONTOUR_INTERVAL="${CONTOUR_INTERVAL:-20}"
 CONTOUR_INDEX="${CONTOUR_INDEX:-100}"
+CONTOUR_MINZOOM_INDEX="${CONTOUR_MINZOOM_INDEX:-9}"
+CONTOUR_MINZOOM_FULL="${CONTOUR_MINZOOM_FULL:-12}"
 PMTILES_BIN="${PMTILES_BIN:-pmtiles}"
 ROUTE_JSON="src/generated/${ROUTE_ID}-route.json"
 OUT_TERRAIN="public/maps/${ROUTE_ID}-terrain.pmtiles"
@@ -122,7 +134,7 @@ echo "── Terrain relief build ───────────────�
 echo "Route    : $ROUTE_ID"
 echo "Bounds   : W $WEST  S $SOUTH  E $EAST  N $NORTH (from $ROUTE_JSON)"
 echo "Terrain  : terrarium PNG z${TERRAIN_MINZOOM}–${TERRAIN_MAXZOOM} → $OUT_TERRAIN"
-echo "Contours : ${CONTOUR_INTERVAL} m (index ${CONTOUR_INDEX} m) z11–13 → $OUT_CONTOURS"
+echo "Contours : ${CONTOUR_INTERVAL} m (index ${CONTOUR_INDEX} m) z${CONTOUR_MINZOOM_INDEX}–13 → $OUT_CONTOURS"
 echo
 
 # ---- 1. Download GLO-30 for the FULL low-zoom tile footprint ----------------
@@ -267,13 +279,17 @@ rm -f "$OUT_TERRAIN"
 echo "── Contours (${CONTOUR_INTERVAL} m, index ${CONTOUR_INDEX} m) ───────"
 gdal_contour -q -i "$CONTOUR_INTERVAL" -a elev -f GeoJSONSeq \
   "$WORK/crop.tif" "$WORK/contours.geojsons"
-node - "$WORK/contours.geojsons" "$WORK/contours_tagged.geojsons" "$CONTOUR_INDEX" <<'EOF'
-// Tag per-feature tile minzooms: index contours land in z11 tiles, the
-// full interval set in z13 (kept in sync with libertyTopoLayers.mjs).
+node - "$WORK/contours.geojsons" "$WORK/contours_tagged.geojsons" "$CONTOUR_INDEX" \
+  "$CONTOUR_MINZOOM_INDEX" "$CONTOUR_MINZOOM_FULL" <<'EOF'
+// Tag per-feature tile minzooms: index contours land in low-zoom tiles so
+// the style can fade them in early, the full interval set follows later
+// (kept in sync with libertyTopoLayers.mjs).
 const readline = require('node:readline');
 const fs = require('node:fs');
-const [input, output, indexStepArg] = process.argv.slice(2);
+const [input, output, indexStepArg, minzoomIndexArg, minzoomFullArg] = process.argv.slice(2);
 const indexStep = Number(indexStepArg);
+const minzoomIndex = Number(minzoomIndexArg);
+const minzoomFull = Number(minzoomFullArg);
 const rl = readline.createInterface({ input: fs.createReadStream(input) });
 const out = fs.createWriteStream(output);
 let n = 0;
@@ -284,7 +300,7 @@ rl.on('line', (line) => {
   const elev = Math.round(f.properties.elev);
   f.properties = { elev };
   f.tippecanoe = {
-    minzoom: elev % indexStep === 0 ? 11 : 13,
+    minzoom: elev % indexStep === 0 ? minzoomIndex : minzoomFull,
     maxzoom: 13,
     layer: 'contours',
   };
@@ -296,7 +312,7 @@ rl.on('close', () => {
   console.log(`  tagged ${n} contour lines`);
 });
 EOF
-tippecanoe -q -o "$WORK/contours.mbtiles" -Z11 -z13 -y elev \
+tippecanoe -q -o "$WORK/contours.mbtiles" -Z"$CONTOUR_MINZOOM_INDEX" -z13 -y elev \
   --drop-densest-as-needed --force "$WORK/contours_tagged.geojsons"
 
 # Retention check: --drop-densest-as-needed is a safety valve for the 500 kB
@@ -364,6 +380,7 @@ node scripts/generate-terrain-provenance.mjs \
   --user-bounds "$UB_W,$UB_S,$UB_E,$UB_N" \
   --terrain-zooms "$TERRAIN_MINZOOM,$TERRAIN_MAXZOOM" \
   --contour-intervals "$CONTOUR_INTERVAL,$CONTOUR_INDEX" \
+  --contour-zooms "$CONTOUR_MINZOOM_INDEX,$CONTOUR_MINZOOM_FULL" \
   --out "$OUT_PROVENANCE"
 
 # ---- 5. Physical safety-margin measurement -----------------------------------

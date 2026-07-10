@@ -45,15 +45,17 @@ cross-device synchronization is deliberately far down this roadmap.
    are already local HTML markers). Now also the gate for the benchmark
    plan's label hierarchy (peaks with elevations, lake/valley/settlement
    names) and for contour elevation labels.
-3. **Nordic restyle follow-ups** — *(the bounded-map iteration below took
-   priority after real-device testing of 0.14.0)* — the terrain hierarchy restyle (0.13.0)
-   and terrain relief (0.14.0) delivered benchmark Phases 1–2; remaining
-   phases from docs/maps/thunderforest-outdoors-benchmark.md §7: bridge
-   emphasis on trails/tracks (`roads.is_bridge`), wetland pattern fill once
-   sprite infrastructure exists, and — only if styling proves insufficient —
-   the §8.2 custom Planetiler profile (heath/fell, marsh/bog split, scree).
-   The temporary Thunderforest comparison layer and its API key are removed
-   when the restyle work concludes.
+3. **Nordic restyle follow-ups** — the terrain hierarchy restyle (0.13.0),
+   terrain relief (0.14.0) and the terrain-legibility iteration (0.17.0 —
+   solid Nordic palette, z7→z8 handover fix, earlier contours, comparison
+   UI retired) delivered benchmark Phases 1–2 and the production cleanup;
+   remaining phases from docs/maps/thunderforest-outdoors-benchmark.md §7:
+   bridge emphasis on trails/tracks (`roads.is_bridge`), wetland pattern
+   fill once sprite infrastructure exists, and — only if styling proves
+   insufficient — the §8.2 custom Planetiler profile (heath/fell, marsh/bog
+   split, scree). The Thunderforest comparison layer and its key plumbing
+   were removed in 0.17.0; the repository variable/secret can be deleted
+   and the key rotated.
 
 ## Next
 
@@ -97,6 +99,19 @@ cross-device synchronization is deliberately far down this roadmap.
   until its imagery actually ships.
 
 ## Completed
+
+- **Nordic terrain legibility & comparison retirement (v0.17.0)**: measured
+  archive audit (the generalised z≤7 landcover covers ~100% of the corridor
+  and vanishes at z8, leaving most of the map without terrain polygons);
+  solid muted vegetation ladder, deeper open-fjäll base (no longer
+  near-white), peat-brown wetland wash, firmer rock grey and a smooth z7→z8
+  landcover handover; contours appear earlier (100 m index fading in from
+  z9.5, 20 m from z11.5 — needs the retiled terrain-data-v3 contours
+  archive; graceful with older archives); contour elevation labels assessed
+  and deferred to the *Offline map labels* item; the temporary comparison
+  selector, the Current/Liberty runtime styles, the Thunderforest online
+  preview and the `VITE_ENABLE_MAP_BENCHMARK` flag removed — Liberty Topo —
+  Nordic is the single production terrain basemap.
 
 - **Square desktop map layout (v0.16.0)**: corrected the v0.15.0
   desktop/landscape composition — the map viewport is a 1:1 square whose
