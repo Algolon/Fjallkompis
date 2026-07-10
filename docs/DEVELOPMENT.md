@@ -108,6 +108,14 @@ chain as the basemap. Without the archives (e.g. a fresh clone) the map
 simply renders without relief — nothing else changes, and the style builder
 emits no relief sources or layers at all.
 
+Partial sets degrade the same way, by design: the two archives resolve
+independently, so if only one is present (e.g. an interrupted two‑file
+download) the map renders the **available component** — hillshade without
+contours, or contours without hillshade — and never breaks. The Settings
+card, by contrast, treats the pair as one unit: a partial set reports
+**Not downloaded** and the primary button offers the full download again,
+so the UI can never claim offline readiness the map data doesn't have.
+
 Attribution (registered in `src/data/attribution.ts`): the map attribution
 control shows the compact description *“Terrain derived from Copernicus DEM
 GLO‑30”* (deliberately not a shorthand copyright — a compressed “© DLR/ESA”
