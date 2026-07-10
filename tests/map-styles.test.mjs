@@ -117,12 +117,20 @@ test('vegetation ladder: grass lighter than scrub lighter than forest, all disti
   assert.ok(maxChannelGap(scrub, wood) >= 15, 'scrub and forest are clearly separable');
 });
 
-test('open fjäll is a calm tone, no longer near-white', () => {
+test('open fjäll is a calm, perceptibly GREEN surface — sage, not beige', () => {
+  // The background is the map's dominant surface (~85–90% of the corridor
+  // has no terrain polygon at z8+). It is a cartographic generalisation of
+  // open alpine ground, and it must read as vegetated fjäll at a glance:
+  // green channel dominant (a beige/stone tone has r ≥ g and little
+  // green-over-blue separation).
   const bg = parseColor(NORDIC_TOPO_PALETTE.background);
+  assert.ok(bg.g > bg.r, 'green-leaning, never beige (g > r)');
+  assert.ok(bg.g >= bg.b + 12, 'clearly separated from grey/blue (g ≫ b)');
   assert.ok(luminance(bg) < 232, 'background is visibly deeper than white');
   assert.ok(luminance(bg) > 200, 'background stays a calm light base');
   const grass = parseColor(NORDIC_TOPO_PALETTE.grass);
-  assert.ok(maxChannelGap(bg, grass) >= 15, 'open fjäll never reads as meadow');
+  assert.ok(maxChannelGap(bg, grass) >= 15, 'open fjäll never reads as explicit meadow');
+  assert.ok(luminance(bg) > luminance(grass), 'open fjäll stays lighter than explicit grass');
 });
 
 test('low-zoom landcover grassland sits near the background (z7→z8 continuity)', () => {

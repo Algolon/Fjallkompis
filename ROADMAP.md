@@ -103,8 +103,9 @@ cross-device synchronization is deliberately far down this roadmap.
 - **Nordic terrain legibility & comparison retirement (v0.17.0)**: measured
   archive audit (the generalised z≤7 landcover covers ~100% of the corridor
   and vanishes at z8, leaving most of the map without terrain polygons);
-  solid muted vegetation ladder, deeper open-fjäll base (no longer
-  near-white), peat-brown wetland wash, firmer rock grey and a smooth z7→z8
+  solid muted vegetation ladder, sage/lichen-green open-fjäll base (a
+  cartographic generalisation of the unclassified open ground — not mapped
+  grassland), peat-brown wetland wash, firmer rock grey and a smooth z7→z8
   landcover handover; contours appear earlier (100 m index fading in from
   z9.5, 20 m from z11.5 — needs the retiled terrain-data-v3 contours
   archive; graceful with older archives); contour elevation labels assessed

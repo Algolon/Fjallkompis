@@ -18,16 +18,20 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   measured audit of the offline archive (which showed the generalised
   low-zoom landcover covering ~100% of the corridor at z7 and vanishing at
   z8, leaving ~85–90% of the map with no terrain polygon at all): the open
-  fjäll base is now a calm warm-grey stone instead of near-white, the
-  vegetation fills are solid muted tones on one clear ladder (light
-  yellow-green meadow → olive fjällbjörk scrub → deepest forest green)
-  instead of translucent pastels, wetland is a peat-brown overlay wash
-  clearly separate from both water and vegetation, exposed rock is a firmer
-  neutral grey, and the low-zoom generalised grassland now hands over to
-  the open-fjäll background without the previous green-to-white jump at
-  z7→z8. Glaciers keep their bright fill and restrained cool outline; the
-  protected-area tint stays barely visible; route, GPS and hut overlays
-  remain the strongest elements everywhere.
+  fjäll base — the map's dominant surface — is now a light muted
+  sage/lichen green (`#dde3cf`), a deliberate cartographic generalisation
+  of open alpine ground rather than a claim of mapped grassland, so the
+  landscape finally reads as vegetated fjäll instead of beige paper. The
+  explicit, data-driven vegetation fills are solid muted tones on one
+  clear ladder above that base (light yellow-green meadow → medium-olive
+  fjällbjörk scrub → distinctly darker forest green) instead of
+  translucent pastels, wetland is a peat-brown overlay wash clearly
+  separate from both water and vegetation, exposed rock is a firmer cool
+  grey, and the low-zoom generalised grassland hands over to the sage
+  background without the previous green-to-white jump at z7→z8. Glaciers
+  keep their bright cool fill and restrained outline; the protected-area
+  tint stays barely visible; route, GPS and hut overlays remain the
+  strongest elements everywhere.
 - **Terrain structure appears earlier.** 100 m index contours now fade in
   from z9.5 and are clearly legible by z11 (previously invisible before
   z11); the 20 m contours fade in from z11.5 and are fully useful by z13

@@ -37,48 +37,59 @@
  *
  * Terrain hierarchy (0.17.0 legibility iteration — measured against the
  * archive audit in docs/maps/thunderforest-outdoors-benchmark.md §3):
- * the base landcover fills are now SOLID colours on a single muted ladder,
+ * the base landcover fills are SOLID colours on a single muted ladder,
  * because the earlier semi-transparent fills mixed with the background into
- * near-indistinguishable pastels. Strongest → calmest base fill:
- * glacier (bright, outlined — safety-relevant) · forest (deepest green) ·
- * scrub/fjällbjörk (olive treeline belt) · grassland/meadow (light
- * yellow-green) · exposed rock (cool neutral grey) · open-fjäll background
- * (calm warm-grey stone — no longer near-white). Wetland is NOT a base
- * fill: it renders as a translucent peat-brown wash ABOVE wood/grass/scrub,
- * fading in z10→z12, so a wet birch forest reads as both. The protected-
- * area tint stays barely visible and greyer than every vegetation green.
+ * near-indistinguishable pastels. The dominant surface is the BACKGROUND:
+ * ~85–90% of the corridor has no landuse terrain polygon at z8+, so the
+ * background is rendered as a light muted sage/lichen green — a deliberate
+ * CARTOGRAPHIC GENERALISATION of the open-fjäll ground surface (low alpine
+ * vegetation, heath-like ground, tundra) that the archive cannot classify.
+ * It is NOT data-driven grassland and must never be documented as such;
+ * the explicit grass/scrub/forest/wetland/rock/glacier fills ARE
+ * data-driven. Strongest → calmest: glacier (bright, outlined —
+ * safety-relevant) · forest (distinctly darkest green) · scrub/fjällbjörk
+ * (medium olive treeline belt) · grassland/meadow (clear light
+ * yellow-green) · exposed rock (cool medium grey) · open-fjäll background
+ * (the calmest, lightest green). Wetland is NOT a base fill: it renders as
+ * a translucent peat-brown wash ABOVE wood/grass/scrub, fading in z10→z12,
+ * so a wet birch forest reads as both. The protected-area tint stays
+ * barely visible.
  */
 
 export const NORDIC_TOPO_PALETTE = {
   id: 'liberty-nordic',
-  // Open fjäll: calm warm-grey stone. Deliberately DEEPER than the old
-  // near-white #eef0e9 — the audit showed ~85–90% of the corridor has no
-  // terrain polygon at z8+, so this colour IS the open-fjäll surface.
-  background: '#e7e7da',
+  // Open fjäll: light muted sage/lichen green — the map's dominant surface
+  // (~85–90% of the corridor has no terrain polygon at z8+). This is a
+  // deliberate cartographic generalisation of open alpine ground (low
+  // vegetation, heath-like ground, tundra — classes the archive cannot
+  // distinguish), NOT data-driven grassland. Perceptibly green so the
+  // landscape reads as vegetated fjäll instead of beige paper, but calmer
+  // and lighter than every explicit vegetation fill.
+  background: '#dde3cf',
   // Low-zoom (z≤7) landcover 'grassland': the generalised polygon covers
   // essentially the whole corridor at z7 and vanishes at z8, so it must
-  // sit CLOSE to the open-fjäll background (a faint green hint, not the
-  // meadow green) — that is what removes the z7→z8 colour jump.
-  landcoverGrassland: '#e1e4cf',
+  // sit CLOSE to the open-fjäll background (one hint greener, never the
+  // explicit meadow green) — that is what keeps the z7→z8 handover smooth.
+  landcoverGrassland: '#d9e1c9',
   park: 'rgba(122, 151, 118, 0.08)', // barely-there protected-area tint
   parkOutline: 'rgba(95, 130, 98, 0.35)',
   // Vegetation ladder — solid muted tones, one hue family, three clear
-  // steps (the old translucent fills collapsed into near-white pastels):
-  wood: 'rgb(148, 172, 126)', // birch/spruce forest — deepest green
-  grass: 'rgb(207, 216, 171)', // meadow/grassland: light muted yellow-green
-  scrub: 'rgb(174, 188, 133)', // fjällbjörk treeline belt: olive, between the two
+  // steps above the sage background (data-driven, unlike the background):
+  wood: 'rgb(115, 143, 98)', // birch/spruce forest — distinctly darkest green
+  grass: 'rgb(198, 211, 159)', // meadow/grassland: clear light yellow-green
+  scrub: 'rgb(163, 184, 117)', // fjällbjörk treeline belt: medium olive
   // Wetland wash: muted peat/moss olive-brown — hue-separated from every
   // vegetation green AND from the water teals (never "shallow water").
-  wetland: 'rgb(146, 132, 88)',
+  wetland: 'rgb(154, 143, 94)',
   // Overlay behaviour: invisible until z10, full wash strength by z12 —
   // wetland must read at hut-decision zooms without muddying the overview.
-  wetlandOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.12, 12, 0.45],
-  ice: 'rgba(242, 247, 250, 0.96)', // glacier fill: bright, cold
+  wetlandOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.12, 12, 0.5],
+  ice: 'rgba(243, 248, 251, 0.97)', // glacier fill: very light cool blue-white
   iceOutline: 'rgba(116, 154, 173, 0.9)', // thin cool rim so tongues read on rock
   sand: 'rgba(228, 221, 198, 1)',
-  barren: 'rgb(199, 200, 192)', // low-zoom massifs match the rock family
-  rock: 'rgb(169, 172, 164)', // exposed rock: muted cool grey, hostile
-  rockOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.5, 12, 0.7],
+  barren: 'rgb(196, 198, 190)', // low-zoom massifs match the rock family
+  rock: 'rgb(168, 170, 162)', // exposed rock: cool medium grey, hostile
+  rockOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.55, 12, 0.8],
   cliff: 'rgba(122, 130, 124, 0.7)',
   // Relief (rendered only when the terrain/contour archives are available):
   // muted so valleys and ridges read instantly without stealing contrast
