@@ -12,21 +12,16 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ElevationSample, RouteStatistics } from '../route/types';
 import { formatDistanceKm } from '../utils/format';
-
-const W = 360;
-/** Intrinsic viewBox height — the chart's shape when CSS leaves `height`
- *  auto (mobile). Layouts that give .elev-svg an explicit CSS height (the
- *  desktop map column caps it so the tracking-hint card below the summary
- *  stays in view) get a DYNAMIC viewBox height instead, matched to the
- *  rendered box, so the drawing always fills the element edge-to-edge at
- *  uniform scale: no letterboxed dead zones (which would break the scrub
- *  x-mapping below) and no stretched axis labels (preserveAspectRatio
- *  "none" would distort text). */
-const H = 150;
-const PAD_L = 34;
-const PAD_R = 10;
-const PAD_T = 12;
-const PAD_B = 20;
+import {
+  CHART_W as W,
+  CHART_H as H,
+  PAD_L,
+  PAD_R,
+  PAD_T,
+  PAD_B,
+  viewBoxHeightFor,
+  shouldUpdateViewBoxHeight,
+} from './elevationViewBox.mjs';
 
 interface Props {
   profile: ElevationSample[];
@@ -41,24 +36,20 @@ export function ElevationProfile({ profile, statistics, onScrub }: Props) {
   const rafRef = useRef(0);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // viewBox height follows the RENDERED box (see the H comment above).
-  // Where CSS keeps `height: auto` the box ratio IS vbH/W, so the measured
-  // value equals the current one and this settles immediately — no feedback
-  // loop. Where CSS fixes the height, one measurement locks the flatter
-  // shape (re-measured on resize via ResizeObserver).
+  // viewBox height follows the RENDERED box (rationale, maths and the
+  // no-feedback-loop argument live in elevationViewBox.mjs, fenced by
+  // tests/elevation-viewbox.test.mjs). H is the stable pre-measurement
+  // fallback; the sync measure below locks the real shape before first
+  // paint and the ResizeObserver keeps it current, disconnected on
+  // unmount.
   const [vbH, setVbH] = useState(H);
   useLayoutEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const measure = () => {
       const r = svg.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) return;
-      // Clamp: never flatter than the drawable area needs (padding + a
-      // little room) and never taller than the intrinsic shape.
-      const next = Math.round(
-        Math.min(H, Math.max(PAD_T + PAD_B + 40, (W * r.height) / r.width)),
-      );
-      setVbH((prev) => (Math.abs(prev - next) < 1 ? prev : next));
+      const next = viewBoxHeightFor(r.width, r.height);
+      setVbH((prev) => (shouldUpdateViewBoxHeight(prev, next) ? next! : prev));
     };
     measure();
     const ro = new ResizeObserver(measure);
