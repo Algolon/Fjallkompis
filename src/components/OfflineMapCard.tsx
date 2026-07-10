@@ -220,7 +220,7 @@ function ArchiveCard({
         </button>
       )}
 
-      <SourceSummary heading={sourceHeading} source={source} assetUrl={archiveUrl(specs[0])} />
+      <SourceSummary heading={sourceHeading} source={source} assetUrls={specs.map(archiveUrl)} />
     </div>
   );
 }

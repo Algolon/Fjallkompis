@@ -147,6 +147,9 @@ export function buildMapStyle(
       style.sources[CONTOURS_SOURCE] = {
         type: 'vector',
         url: relief.contoursSourceUrl,
+        // Same dataset as the terrain source; carrying the credit here too
+        // keeps the map control accurate when only one archive is present.
+        attribution: TERRAIN_SOURCE_INFO.mapAttributionHtml!,
       };
     }
     // All styles cover land, landcover/landuse, water, waterways, roads,

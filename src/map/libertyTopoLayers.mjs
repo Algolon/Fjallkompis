@@ -389,9 +389,9 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
       },
     });
   }
-  // Contours: 20 m interval with every 100 m as the heavier index line (the
-  // Swedish fjällkartan convention — and the honest resolution of the 30 m
-  // Copernicus DEM). Index lines appear from z11 with a fade-in; the full
+  // Contours: 20 m interval with every 100 m as the heavier index line —
+  // selected from the 30 m DEM resolution, visual comparison, contour noise
+  // and storage measurements. Index lines appear from z11 with a fade-in; the full
   // 20 m set joins at z13. Elevation labels are deliberately absent until
   // the offline-glyphs roadmap item ships.
   if (relief.contoursSourceId) {

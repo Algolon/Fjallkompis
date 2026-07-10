@@ -10,12 +10,21 @@
 #                                            "contours", property `elev`,
 #                                            20 m interval, z11–13)
 #
-# Data source: Copernicus DEM GLO-30 (~30 m global DEM), streamed directly
-# from the public AWS Open Data bucket (no account needed). Required credit
-# (already registered in src/data/attribution.ts): "Produced using
-# Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space
-# GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA;
-# all rights reserved".
+# Data source: Copernicus DEM GLO-30 Public — AWS Open Data mirror, 2021
+# release (~30 m global DEM), streamed directly from the public bucket (no
+# account needed; registry: https://registry.opendata.aws/copernicus-dem/).
+# Required credit (already registered in src/data/attribution.ts): "Produced
+# using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and
+# Space GmbH 2014–2018 provided under COPERNICUS by the European Union and
+# ESA; all rights reserved".
+#
+# Provenance: every run writes public/maps/<route>-terrain-provenance.json
+# (source tile names/URLs/sizes/ETags/SHA-256s, tool versions, parameters,
+# output hashes) — attach it to the terrain-data release next to the
+# archives. The pipeline is REPEATABLE from that manifest, not bit-for-bit
+# reproducible: the AWS mirror exposes one current copy per tile (no
+# version pinning), so a rerun after an upstream update produces different
+# source hashes — the manifest records exactly which inputs a build used.
 #
 # The crop bounding box is read from the GPX-derived route data
 # (mapCutoutBounds in src/generated/kungsleden-route.json = route bounds +
@@ -32,10 +41,12 @@
 #  - tile extents are expanded to whole tiles and the no-data margin is
 #    filled by smooth extrapolation (gdal_fillnodata), so no tile ever
 #    contains padding that would decode as -32768 m and smear the hillshade;
-#  - contours use the Swedish fjällkartan convention: 20 m interval with
-#    every 100 m as the index line. 100 m lines get tile minzoom 11, the
-#    rest 13; tiles stop at z13 (the DEM has no honest information beyond
-#    that — MapLibre overzooms them to the map cap);
+#  - contours: 20 m interval with every 100 m as the index line — selected
+#    from the 30 m DEM resolution, visual comparison, contour noise and
+#    storage measurements (a 10 m build was rejected: mostly noise at 3-4x
+#    the size). 100 m lines get tile minzoom 11, the rest 13; tiles stop at
+#    z13 (the DEM has no honest information beyond that — MapLibre
+#    overzooms them to the map cap);
 #  - terrain tiles stop at z12 (~14 m/px at 68°N, already finer than the
 #    30 m source) and overzoom above.
 #
@@ -106,10 +117,17 @@ for lat in range(math.floor($SOUTH), math.ceil($NORTH)):
         ew = 'E' if lon >= 0 else 'W'
         print(f'Copernicus_DSM_COG_10_{ns}{abs(lat):02d}_00_{ew}{abs(lon):03d}_00_DEM')
 ")"
+: > "$WORK/source-tiles.txt"
 for t in $TILES; do
   echo "  $t"
-  curl -sfS -o "$WORK/$t.tif" "$DEM_BUCKET/$t/$t.tif" \
+  curl -sfS -D "$WORK/$t.headers" -o "$WORK/$t.tif" "$DEM_BUCKET/$t/$t.tif" \
     || die "DEM tile download failed: $t (no GLO-30 coverage here?)"
+  # Provenance row: name|url|bytes|ETag|sha256 (S3 ETag = MD5 for these
+  # single-part objects; the sha256 is computed from the downloaded file).
+  printf '%s|%s|%s|%s|%s\n' \
+    "$t" "$DEM_BUCKET/$t/$t.tif" "$(stat -f%z "$WORK/$t.tif" 2>/dev/null || stat -c%s "$WORK/$t.tif")" \
+    "$(grep -i '^etag:' "$WORK/$t.headers" | tr -d '\r"' | awk '{print $2}')" \
+    "$(shasum -a 256 "$WORK/$t.tif" | awk '{print $1}')" >> "$WORK/source-tiles.txt"
 done
 
 gdalbuildvrt -q "$WORK/merged.vrt" "$WORK"/Copernicus_*.tif
@@ -214,11 +232,56 @@ rl.on('close', () => {
 EOF
 tippecanoe -q -o "$WORK/contours.mbtiles" -Z11 -z13 -y elev \
   --drop-densest-as-needed --force "$WORK/contours_tagged.geojsons"
+
+# Retention check: --drop-densest-as-needed is a safety valve for the 500 kB
+# tile cap; measured on the 0.14.0 build it never fires (no tile close to
+# the cap, all elevation classes retained). This guard fails the build if a
+# future terrain/interval change ever makes it silently drop contour levels.
+echo "── Contour retention check ──────────────────────────────────────────"
+python3 - "$WORK" <<'EOF'
+import json, sqlite3, sys
+work = sys.argv[1]
+src = set()
+with open(f"{work}/contours_tagged.geojsons") as fh:
+    for line in fh:
+        src.add(json.loads(line)["properties"]["elev"])
+db = sqlite3.connect(f"{work}/contours.mbtiles")
+meta = json.loads(db.execute("SELECT value FROM metadata WHERE name='json'").fetchone()[0])
+attr = next(a for lyr in meta["tilestats"]["layers"] if lyr["layer"] == "contours"
+            for a in lyr["attributes"] if a["attribute"] == "elev")
+tiled = set(attr["values"])
+missing = sorted(src - tiled)
+maxsize = {z: s for z, s in db.execute(
+    "SELECT zoom_level, MAX(LENGTH(tile_data)) FROM tiles GROUP BY zoom_level")}
+print(f"  elevation classes: source {len(src)}, in tiles {len(tiled)}")
+print("  max tile bytes per zoom:", maxsize, "(tippecanoe cap: 500000)")
+if missing:
+    sys.exit(f"FATAL: contour levels missing from tiles (dropped?): {missing}")
+if any(s > 450_000 for s in maxsize.values()):
+    sys.exit("FATAL: a contour tile is within 10% of the 500 kB cap — "
+             "the drop-densest safety valve is about to fire; re-evaluate "
+             "the interval/zoom split before shipping.")
+print("  ✓ all contour levels retained; comfortable tile-size headroom")
+EOF
+
 rm -f "$OUT_CONTOURS"
 "$PMTILES_BIN" convert "$WORK/contours.mbtiles" "$OUT_CONTOURS" >/dev/null
 "$PMTILES_BIN" verify "$OUT_CONTOURS"
 
-# ---- 4. Report ---------------------------------------------------------------
+# ---- 4. Provenance manifest ---------------------------------------------------
+# Attach this file to the terrain-data release next to the two archives; it
+# records exactly which upstream inputs and tools produced them (repeatable
+# builds — see the header note on why not bit-for-bit reproducible).
+OUT_PROVENANCE="public/maps/${ROUTE_ID}-terrain-provenance.json"
+node scripts/generate-terrain-provenance.mjs \
+  --source-tiles "$WORK/source-tiles.txt" \
+  --route "$ROUTE_ID" \
+  --bounds "$WEST,$SOUTH,$EAST,$NORTH" \
+  --terrain-zooms "$TERRAIN_MINZOOM,$TERRAIN_MAXZOOM" \
+  --contour-intervals "$CONTOUR_INTERVAL,$CONTOUR_INDEX" \
+  --out "$OUT_PROVENANCE"
+
+# ---- 5. Report ---------------------------------------------------------------
 echo
 echo "── Archive summary ──────────────────────────────────────────────────"
 for f in "$OUT_TERRAIN" "$OUT_CONTOURS"; do
@@ -226,3 +289,4 @@ for f in "$OUT_TERRAIN" "$OUT_CONTOURS"; do
   shasum -a 256 "$f" | awk '{print "  sha256 " $1}'
 done
 echo "✓ Done. The Terrain relief card and map layers detect these archives."
+echo "  Upload $OUT_PROVENANCE to the terrain-data release with the archives."

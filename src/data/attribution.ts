@@ -91,11 +91,15 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
     id: 'copernicus-dem',
     present: true,
     name: 'Terrain relief',
-    label: 'Copernicus DEM GLO-30 © DLR/ESA',
+    // Compact DESCRIPTION only — deliberately no shorthand copyright line:
+    // a compressed "© DLR/ESA" would misattribute the copyright and omit
+    // Airbus. The complete required notice is `modifiedNotice` below and is
+    // ALWAYS rendered alongside this label (SourceSummary, CreditsSheet).
+    label: 'Terrain derived from Copernicus DEM GLO-30',
     attribution:
-      'Hillshade and 20 m contour lines derived from the Copernicus DEM GLO-30 global elevation model, processed into two bounded PMTiles archives (terrain-RGB raster + contour vectors) for the Kungsleden area.',
+      'Hillshade and 20 m contour lines derived from the Copernicus DEM GLO-30 Public global elevation model (AWS Open Data mirror, 2021 release), processed into two bounded PMTiles archives (terrain-RGB raster + contour vectors) for the Kungsleden area.',
     mapAttributionHtml:
-      'Terrain: <a href="https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM" target="_blank" rel="noopener">Copernicus DEM</a> © DLR/ESA',
+      'Terrain derived from <a href="https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM" target="_blank" rel="noopener">Copernicus DEM GLO-30</a>',
     provider: 'European Space Agency (Copernicus programme) · DLR · Airbus',
     sourceUrl:
       'https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM',

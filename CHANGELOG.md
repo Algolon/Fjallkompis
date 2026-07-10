@@ -17,8 +17,9 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 - **Terrain relief: hillshade and contour lines.** The Terrain map now
   shows the shape of the landscape: soft multidirectional-feeling hillshade
   (MapLibre's native `hillshade` layer on a terrain-RGB elevation source)
-  and contour lines at the Swedish fjällkartan convention — 20 m interval
-  with a heavier line every 100 m. Index contours appear from z11, the full
+  and contour lines at a 20 m interval with a heavier line every 100 m —
+  chosen from the 30 m DEM resolution, visual comparison, contour noise and
+  storage measurements. Index contours appear from z11, the full
   set from z13; lakes stay unshaded and every route, water, road and hut
   element keeps its contrast above the relief. The data ships as two
   bounded PMTiles archives (~15 MB together) derived from the open

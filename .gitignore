@@ -25,3 +25,6 @@ public/maps/kungsleden-satellite.pmtiles
 # Build locally with scripts/build-terrain-map.sh.
 public/maps/kungsleden-terrain.pmtiles
 public/maps/kungsleden-contours.pmtiles
+# Written by every build (and attached to the release); describes local
+# binaries that are themselves not committed.
+public/maps/kungsleden-terrain-provenance.json
