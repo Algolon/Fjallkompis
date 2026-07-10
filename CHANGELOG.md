@@ -10,6 +10,37 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-07-10
+
+### Changed
+
+- **Square desktop map beside a wider route panel — the whole card fits
+  one screen.** On desktop and tablet-landscape layouts (≥ 900×700) the
+  map viewport is a 1:1 square, and the map card — including the Prev /
+  Fit route / Next and Locate / Live tracking / Follow rows — is exactly
+  as wide as the map itself: the empty canvas that v0.15.0 left to the
+  right of its 4:5 map inside an oversized panel is gone, and all of the
+  reclaimed width goes to the route information column (composition
+  capped at 1400 px on ultrawide screens). The square consumes only the
+  height left over after reserving measured space for the header, both
+  action rows and any status banners (banners and, on narrow cards, the
+  action rows render more compactly on desktop), so the complete card —
+  map, banners and both button rows — is visible without any vertical
+  scrolling (square edge 300–600 px).
+  Landscape viewports shorter than 700 px keep the compact stacked
+  composition instead of a partially hidden desktop layout.
+- **Recalculated east/west coverage for the square full-route view.**
+  Fitting the complete north–south route into the padded square needs an
+  east/west view of ~186–220 km — wider than the ~150.6 km interaction
+  bounds — so the square card uses the bounded map's existing overview
+  expansion at Fit-route zooms: the exact fit sits inside the ~309 km
+  physical z7 terrain envelope at every supported square size (pinned by
+  tests, including the tightest 300 px case), showing comfortable
+  real-relief context east and west of the route and never a data edge.
+  Zooming in still returns the camera to the strict interaction bounds;
+  no archive rebuild was needed. Mobile portrait and fullscreen behaviour
+  are unchanged.
+
 ## [0.15.0] - 2026-07-10
 
 ### Changed

@@ -73,11 +73,17 @@ contract, defined in `scripts/route-configs.mjs` and materialised by
 - **userBounds** = route + `userBufferKm` (12 km) — the **interaction
   bounds**: the area of regular panning/zooming (`maxBounds` in MapView).
   Selected so the full-route "Fit route" view stays inside the bounds on
-  every supported portrait/4:5 viewport. Wide viewports additionally get
-  temporary, deterministic **overview bounds** (an east/west widening
-  active only below that viewport's overview zoom threshold, clamped
-  per-edge to the physical z7 terrain envelope — see
-  src/map/cameraBounds.mjs for the full three-level model);
+  every supported portrait viewport. Viewports wider than the bounds'
+  aspect — the square 1:1 desktop/tablet map card and fullscreen landscape
+  monitors — additionally get temporary, deterministic **overview bounds**
+  (an east/west widening active only below that viewport's overview zoom
+  threshold, clamped per-edge to the physical z7 terrain envelope — see
+  src/map/cameraBounds.mjs for the full three-level model). Recalculated
+  for the square card (2026-07-10): across its supported 300–600px edges
+  the full-route fit spans ~186–220 km east/west against ~150.6 km of
+  user bounds, an exact fit that always sits inside the ~309 km envelope
+  with headroom (pinned by tests/camera-bounds.test.mjs — the smallest
+  300px square is the tightest case);
 - **mapCutoutBounds** = user bounds + `dataMarginKm` (3 km hidden margin) —
   what every archive build (vector, terrain, contours, satellite)
   generates data for, before per-zoom outward tile alignment.
@@ -99,8 +105,24 @@ viewport already spans the full bounds width; the expanded area renders
 real z7–9 relief because the terrain source download covers the
 tile-aligned footprint of the lowest generated zoom.
 
-Viewport proportions (global.css): desktop/tablet `.map-layout` maps are
-4:5 (route ≈ 85% of map height in one Fit-route view); mobile portrait
+Viewport proportions (global.css): desktop/tablet-landscape (≥ 900×700)
+`.map-layout` maps are square 1:1 — the map card is exactly the grid
+column (`min(--map-edge, 56%)`), so the card and its action rows are
+precisely as wide as the map and the route-information column takes all
+remaining width (screen capped at 1400px for readable line lengths). The
+governing contract is the VERTICAL FIT: `--map-edge = clamp(300px,
+app-height − 148px − controls − banner/note allowances, 600px)` — the
+square gets the height left over after reserving measured space for the
+header chrome, both action rows (worst-case wrapped tracking row below
+890px-tall viewports, single-line above), any status banners
+(`:has()`-gated allowances; banners render compact on desktop) and the
+tracking hint, so the complete card (map + banners + both button rows)
+always fits one viewport without page scrolling. Landscape viewports
+shorter than 700px fall back to the compact stacked composition instead
+of a partially hidden desktop layout.
+The full-route Fit-route view fills the padded square height with the
+route at ≈ 45% of the width (comfortable east/west terrain context via
+the overview bounds above). Mobile portrait
 height follows `h ≈ 1.073 × width + 80px` (the exact no-expansion fit
 relation, shipped as `clamp(460px, calc(108vw + 80px), min(62vh, 560px))`);
 `.mapview:fullscreen` uses the whole screen and relies on the camera

@@ -98,12 +98,24 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
-- **Bounded Kungsleden map (v0.15.0, in review)**: coverage contract (route
+- **Square desktop map layout (v0.16.0)**: corrected the v0.15.0
+  desktop/landscape composition — the map viewport is a 1:1 square whose
+  card (with its navigation and tracking rows) is exactly as wide as the
+  map and fits COMPLETELY inside one viewport (the square consumes only
+  the height left after reserving measured space for header, action rows
+  and status banners; landscape screens under 700px tall fall back to the
+  compact stacked layout), and the route-information column takes all
+  remaining width; the east/west coverage for the square full-route view
+  was recalculated (~186–220 km fit via the existing overview expansion,
+  inside the ~309 km physical z7 envelope — no archive rebuild).
+
+- **Bounded Kungsleden map (v0.15.0)**: coverage contract (route
   + 12 km user bounds as camera maxBounds, + 3 km hidden data margin, all
   archives generated from one source of truth in
   scripts/route-configs.mjs); terrain pipeline rebuilt on real DEM
   coverage (no extrapolation → no edge streaks/rectangle);
-  terrain-data-v2 + satellite-data-v3 releases; 4:5 desktop map,
+  terrain-data-v2 + satellite-data-v3 releases; 4:5 desktop map (superseded
+  by the v0.16.0 square layout),
   width-relative mobile map height, full-screen with per-shape camera
   constraints; north-up policy (rotation/pitch disabled); compact mobile
   style selector.
