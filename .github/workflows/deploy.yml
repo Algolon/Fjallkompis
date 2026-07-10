@@ -33,21 +33,17 @@ jobs:
       # pinned terrain-data release into the Pages build and served
       # same-origin. New data ⇒ new release tag ⇒ update TAG/SHA-256 pins.
       #
-      # PENDING (0.17.0 earlier contours): the retiled contours archive
-      # needs a terrain-data-v3 release (assets already built locally by
-      # scripts/build-terrain-map.sh — see CHANGELOG 0.17.0). Once it is
-      # published, change the tag below to terrain-data-v3 and the contours
-      # SHA to 3e8fbcfa6ee1ea8df9abaec641d836e11602867c09c83f77173e522826b7d573
-      # (the terrain archive is bit-identical to v2, its SHA stays). Until
-      # then the deployed map keeps the previous z11/z13 contour behaviour
-      # — the 0.17.0 style degrades gracefully on the v2 archive.
+      # terrain-data-v3 (0.17.0 earlier contours, issue #33): contours
+      # retiled so 100 m index lines exist from z9 tiles and the 20 m set
+      # from z12 — required by the z9.5/z11.5 contour fade-ins. The terrain
+      # archive is bit-identical to terrain-data-v2 (same SHA pin).
       - name: Fetch terrain relief archives from the pinned data release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p public/maps
-          gh release download terrain-data-v2 \
+          gh release download terrain-data-v3 \
             --repo Algolon/Fjallkompis \
             --pattern 'kungsleden-terrain.pmtiles' \
             --pattern 'kungsleden-contours.pmtiles' \
@@ -63,7 +59,7 @@ jobs:
             [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: $f SHA-256 mismatch"; exit 1; }
           }
           verify public/maps/kungsleden-terrain.pmtiles "89eef71787ceb1f4b827b9eee1906fd799d89c4d4d587be31a4d944efb399aa5"
-          verify public/maps/kungsleden-contours.pmtiles "3e794bffcd0306cd48f24bb8d04bde61cf2445d7b87b58d0dbac3b1fb0471ec5"
+          verify public/maps/kungsleden-contours.pmtiles "3e8fbcfa6ee1ea8df9abaec641d836e11602867c09c83f77173e522826b7d573"
 
       # ---- Satellite archive: canonical GitHub Release asset ----------------
       # The ~42 MB PMTiles binary is NOT committed. The canonical copy lives on
