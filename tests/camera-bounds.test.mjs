@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 import {
   cameraConstraintsFor,
   activeBoundsForZoom,
+  overviewEnvelope,
   mercX,
   MIN_ZOOM_BACKSTOP,
 } from '../src/map/cameraBounds.mjs';
@@ -29,6 +30,7 @@ const constraintsFor = (w, h) =>
   cameraConstraintsFor({
     userBounds: route.userBounds,
     routeBounds: route.bounds,
+    dataBounds: route.mapCutoutBounds,
     viewportWidth: w,
     viewportHeight: h,
     padding: PADDING,
@@ -46,13 +48,14 @@ test('portrait and 4:5 viewports fit the route inside the strict user bounds', (
       null,
       `${w}x${h}: route overview must fit without expansion`,
     );
-    assert.deepEqual(c.bounds, route.userBounds);
+    assert.deepEqual(c.interactionBounds, route.userBounds);
   }
 });
 
 test('wide viewports get an east/west overview expansion, north/south unchanged', () => {
-  // phone landscape fullscreen, tablet landscape fullscreen, desktop fullscreen
-  for (const [w, h] of [[812, 375], [1024, 768], [1512, 945]]) {
+  // Tablet landscape fullscreen and desktop fullscreen — both fit inside
+  // the physical envelope, so their expansion is sized exactly to the fit.
+  for (const [w, h] of [[1024, 768], [1512, 945]]) {
     const c = constraintsFor(w, h);
     assert.ok(c.overviewBounds, `${w}x${h}: needs the overview expansion`);
     const [[ow, os], [oe, on]] = c.overviewBounds;
@@ -60,17 +63,35 @@ test('wide viewports get an east/west overview expansion, north/south unchanged'
     assert.ok(ow < uw && oe > ue, `${w}x${h}: widened east/west`);
     assert.equal(os, us, 'south edge unchanged');
     assert.equal(on, un, 'north edge unchanged');
-    // Wide enough for the fitted overview, with the 5% slack — no more.
+    // Sized to the fit (with the 5% slack), each edge independently clamped
+    // to the physical envelope — the z7 grid is asymmetric around the
+    // route, so the east edge clamps first.
     const padV = PADDING.top + PADDING.bottom;
     const routeMercH =
       mercY(route.bounds[1][1]) - mercY(route.bounds[0][1]);
-    const fitW = (routeMercH / (h - padV)) * w * 1.05;
-    const overviewW = mercX(oe) - mercX(ow);
-    assert.ok(Math.abs(overviewW - fitW) < 1, `${w}x${h}: expansion sized to the fit`);
+    const half = ((routeMercH / (h - padV)) * w * 1.05 - (mercX(ue) - mercX(uw))) / 2;
+    const [[ew2], [ee2]] = overviewEnvelope(route.mapCutoutBounds);
+    const expWest = Math.max(mercX(uw) - half, mercX(ew2));
+    const expEast = Math.min(mercX(ue) + half, mercX(ee2));
+    assert.ok(Math.abs(mercX(ow) - expWest) < 1, `${w}x${h}: west edge as constructed`);
+    assert.ok(Math.abs(mercX(oe) - expEast) < 1, `${w}x${h}: east edge as constructed`);
+    // Level 2 must stay inside level 3: overview bounds within the physical
+    // overview envelope (real z7 terrain footprint − margin).
+    assert.ok(ow >= ew2 && oe <= ee2, `${w}x${h}: overview inside physical envelope`);
     // Threshold is a real overview zoom (below it the viewport spans the
     // full user-bounds width) and sits above the backstop.
     assert.ok(c.zoomThreshold > MIN_ZOOM_BACKSTOP && c.zoomThreshold < 12);
   }
+  // Phone landscape (product-blocked by the RotateGuard; reachable only in
+  // exotic embeds): its exact fit would out-span the envelope, so it gets
+  // the capped safe expansion instead of the exact fit.
+  const pl = constraintsFor(812, 375);
+  const [[ew], [ee]] = overviewEnvelope(route.mapCutoutBounds);
+  assert.ok(pl.overviewBounds, 'phone landscape still expands');
+  assert.ok(
+    pl.overviewBounds[0][0] >= ew && pl.overviewBounds[1][0] <= ee,
+    'phone landscape expansion capped inside the physical envelope',
+  );
 });
 
 // mercY is not exported for the fit math above — import it lazily to keep
@@ -92,4 +113,27 @@ test('activeBoundsForZoom applies hysteresis and cannot oscillate', () => {
   // Portrait viewports never expand regardless of zoom.
   const p = constraintsFor(375, 540);
   assert.equal(activeBoundsForZoom(p, 5, true).expanded, false);
+});
+
+test('extreme ultrawide viewports cap the expansion at the physical envelope', () => {
+  // 21:9 fullscreen would need a wider fit than real z7 terrain provides;
+  // the cap trades a slightly over-filled route height for never showing
+  // unshaded flanks. Regular 16:9/16:10 desktops stay uncapped.
+  const c = constraintsFor(3440, 1440);
+  assert.ok(c.overviewBounds, 'still expands');
+  const [[ow], [oe]] = c.overviewBounds;
+  const [[ew], [ee]] = overviewEnvelope(route.mapCutoutBounds);
+  assert.ok(ow >= ew && oe <= ee, 'capped inside the physical envelope');
+  const uncapped = cameraConstraintsFor({
+    userBounds: route.userBounds,
+    routeBounds: route.bounds,
+    viewportWidth: 3440,
+    viewportHeight: 1440,
+    padding: PADDING,
+  });
+  assert.ok(
+    mercX(uncapped.overviewBounds[1][0]) - mercX(uncapped.overviewBounds[0][0]) >
+      mercX(oe) - mercX(ow),
+    'the cap actually reduced the requested expansion',
+  );
 });

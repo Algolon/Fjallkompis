@@ -92,13 +92,20 @@ jobs:
       - name: Save full gdalinfo report
         run: gdalinfo data/source-imagery/sentinel2-kungsleden.tif | tee satellite-build-report/gdalinfo.txt
 
+      # Expected extent comes from the COVERAGE CONTRACT (mapCutoutBounds in
+      # the committed route JSON) and the expected size from that extent at
+      # the download script's ~26.27 Mercator-m/px — never hard-coded. The
+      # previous revision froze the pre-0.15.0 corridor as literals and
+      # rejected correct contract-driven sources.
       - name: Validate the source GeoTIFF
         run: |
           set -euo pipefail
           gdalinfo -json data/source-imagery/sentinel2-kungsleden.tif > /tmp/src.json
           python3 - <<'PY'
-          import json, sys
+          import json, math, sys
           d = json.load(open('/tmp/src.json'))
+          route = json.load(open('src/generated/kungsleden-route.json'))
+          (cw, cs), (ce, cn) = route['mapCutoutBounds']
           errs = []
           wkt = json.dumps(d.get('coordinateSystem', {}))
           epsg = str(d.get('stac', {}).get('proj:epsg', ''))
@@ -111,15 +118,21 @@ jobs:
               if b.get('type') != 'Byte':
                   errs.append(f"band {b.get('band')} type {b.get('type')} != Byte (8-bit)")
           w, h = d.get('size', [0, 0])
+          R = 6378137.0
+          def mx(lon): return math.radians(lon) * R
+          def my(lat): return R * math.log(math.tan(math.pi / 4 + math.radians(lat) / 2))
+          RES_M = 26.2734  # keep in sync with download-kungsleden-satellite.sh
+          exp_w = (mx(ce) - mx(cw)) / RES_M
+          exp_h = (my(cn) - my(cs)) / RES_M
           def near(v, t, tol=0.05): return abs(v - t) <= t * tol
-          if not (near(w, 5120) and near(h, 7680)):
-              errs.append(f"size {w}x{h} not ~5120x7680")
+          if not (near(w, exp_w) and near(h, exp_h)):
+              errs.append(f"size {w}x{h} not ~{exp_w:.0f}x{exp_h:.0f} (contract extent @ {RES_M} m/px)")
           ext = d.get('wgs84Extent', {}).get('coordinates', [[]])[0]
           xs = [p[0] for p in ext]; ys = [p[1] for p in ext]
-          want = (18.0244, 67.762, 19.2328, 68.4392)
+          want = (cw, cs, ce, cn)
           got = (min(xs), min(ys), max(xs), max(ys))
           if any(abs(g - v) > 0.02 for g, v in zip(got, want)):
-              errs.append(f"extent {tuple(round(x,4) for x in got)} != corridor {want}")
+              errs.append(f"extent {tuple(round(x,4) for x in got)} != contract cutout {want}")
           print(f"size={w}x{h} bands={len(bands)} epsg~3857 extent={tuple(round(x,4) for x in got)}")
           if errs:
               print("VALIDATION FAILED:", *("\n  - " + e for e in errs))

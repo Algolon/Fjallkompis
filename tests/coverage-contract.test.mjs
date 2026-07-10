@@ -16,7 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { open } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -74,13 +74,16 @@ class FileSource {
 }
 
 const ARCHIVES = [
-  { file: 'public/maps/kungsleden.pmtiles', name: 'vector basemap', alwaysPresent: true },
-  { file: 'public/maps/kungsleden-terrain.pmtiles', name: 'terrain' },
-  { file: 'public/maps/kungsleden-contours.pmtiles', name: 'contours' },
-  { file: 'public/maps/kungsleden-satellite.pmtiles', name: 'satellite' },
+  { file: 'public/maps/kungsleden.pmtiles', name: 'vector basemap', alwaysPresent: true, zooms: [0, 14] },
+  // Expected zoom ranges double as a STALE-VERSION GUARD: a v1 relief file
+  // (terrain minzoom 6) or v1 satellite (old 9 km bounds) mixed into a v2
+  // runtime fails here or in the bounds assertions above.
+  { file: 'public/maps/kungsleden-terrain.pmtiles', name: 'terrain', zooms: [7, 12] },
+  { file: 'public/maps/kungsleden-contours.pmtiles', name: 'contours', zooms: [11, 13] },
+  { file: 'public/maps/kungsleden-satellite.pmtiles', name: 'satellite', zooms: [7, 13] },
 ];
 
-for (const { file, name, alwaysPresent } of ARCHIVES) {
+for (const { file, name, alwaysPresent, zooms } of ARCHIVES) {
   test(`${name} archive fully covers the camera's user bounds`, async (t) => {
     const path = join(root, file);
     if (!existsSync(path)) {
@@ -105,5 +108,19 @@ for (const { file, name, alwaysPresent } of ARCHIVES) {
       worstKm >= KUNGSLEDEN_CONFIG.dataMarginKm - 0.25,
       `${name}: physical margin ${worstKm.toFixed(2)} km ≥ nominal ${KUNGSLEDEN_CONFIG.dataMarginKm} km`,
     );
+    assert.equal(header.minZoom, zooms[0], `${name}: minzoom matches the runtime contract`);
+    assert.equal(header.maxZoom, zooms[1], `${name}: maxzoom matches the runtime contract`);
   });
 }
+
+test('runtime terrain/contour zoom configuration matches the archive contract', () => {
+  // The style layer thresholds are TS/mjs constants; assert their literals
+  // so a config drift cannot pass unnoticed even without archives present.
+  const mapStyle = readFileSync(join(root, 'src/map/mapStyle.ts'), 'utf8');
+  assert.match(mapStyle, /TERRAIN_MAX_ZOOM = 12/, 'raster-dem maxzoom 12');
+  const layers = readFileSync(join(root, 'src/map/libertyTopoLayers.mjs'), 'utf8');
+  assert.match(layers, /lt_contour_index'[\s\S]{0,200}minzoom: 11/, 'index contours from z11');
+  assert.match(layers, /'lt_contour'[\s\S]{0,200}minzoom: 13/, 'full contour set from z13');
+  const camera = readFileSync(join(root, 'src/map/cameraBounds.mjs'), 'utf8');
+  assert.match(camera, /TERRAIN_MIN_ZOOM = 7/, 'overview envelope derives from terrain z7');
+});

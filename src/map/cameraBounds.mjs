@@ -1,10 +1,28 @@
 /**
  * Bounded-map camera constraints (0.15.0 bounded-map iteration).
  *
+ * THREE-LEVEL BOUNDS MODEL — the vocabulary used across code, tests and
+ * docs (docs/DEVELOPMENT.md "Map coverage contract"):
+ *
+ *  1. INTERACTION BOUNDS — the normal panning/zooming area of regular map
+ *     use: the coverage contract's `userBounds` field (route +
+ *     userBufferKm; the JSON field keeps that name because the published
+ *     provenance manifests record it), applied as MapLibre maxBounds
+ *     whenever the camera is zoomed in past the overview threshold.
+ *  2. OVERVIEW BOUNDS — a temporary, deterministic east/west widening of
+ *     the interaction bounds, derived per viewport shape, used ONLY while
+ *     a wide viewport is below its zoom threshold and needs the complete
+ *     north–south route in one overview. Zooming in always returns the
+ *     camera to the interaction bounds.
+ *  3. PHYSICAL DATA BOUNDS — the larger hidden extent every archive
+ *     actually covers: the contract's mapCutoutBounds (+ per-zoom outward
+ *     tile alignment). Levels 1 and 2 must stay inside this at the zooms
+ *     where they apply — fenced by tests/coverage-contract.test.mjs and
+ *     tests/camera-bounds.test.mjs.
+ *
  * Fjällkompis is a route companion, not a map browser: the camera is fenced
- * to the USER BOUNDS of the coverage contract (route + userBufferKm, see
- * scripts/route-configs.mjs), for which every archive guarantees complete
- * data plus a hidden margin. MapLibre's maxBounds enforces this against the
+ * to the interaction bounds of the coverage contract, for which every
+ * archive guarantees complete data plus a hidden margin. MapLibre's maxBounds enforces this against the
  * whole visible viewport (its transform constrains the viewport edges, not
  * merely the camera centre) — for UNROTATED, UNPITCHED views. Pitch is
  * disabled outright (maxPitch 0) and rotation gestures are turned off
@@ -54,8 +72,8 @@ export function mercPerPixel(zoom) {
 /**
  * Camera constraints for a viewport, from the coverage contract:
  *
- *  - `bounds`: what maxBounds should be while zoomed IN (always the user
- *    bounds — the strict contract);
+ *  - `interactionBounds`: what maxBounds should be while zoomed IN
+ *    (always the contract's strict rectangle);
  *  - `overviewBounds`: what maxBounds should be while zoomed OUT below
  *    `zoomThreshold` — user bounds, widened east/west just enough that the
  *    route overview fits this viewport (null when no widening is needed,
@@ -67,9 +85,32 @@ export function mercPerPixel(zoom) {
  * Pure function of (contract, viewport, padding) so node tests can pin the
  * behaviour for every supported viewport class.
  */
+/** Lowest generated terrain zoom (kept in sync with build-terrain-map.sh). */
+export const TERRAIN_MIN_ZOOM = 7;
+
+/**
+ * The PHYSICAL overview envelope: the east/west extent guaranteed to carry
+ * real terrain at overview zooms — the z7 tile-aligned footprint of the
+ * data bounds (build-terrain-map.sh generates real DEM for exactly this),
+ * pulled in by a 2 km margin. Overview bounds are capped to it so no
+ * viewport, however wide, can ever pan onto unshaded map.
+ */
+export function overviewEnvelope(dataBounds) {
+  const [[dw, ds], [de, dn]] = dataBounds;
+  const tile = (2 * MERC_MAX) / Math.pow(2, TERRAIN_MIN_ZOOM);
+  const marginM = 2000;
+  const x0 = Math.floor((mercX(dw) + MERC_MAX) / tile) * tile - MERC_MAX;
+  const x1 = Math.ceil((mercX(de) + MERC_MAX) / tile) * tile - MERC_MAX;
+  return [
+    [invMercX(x0 + marginM), ds],
+    [invMercX(x1 - marginM), dn],
+  ];
+}
+
 export function cameraConstraintsFor({
   userBounds,
   routeBounds,
+  dataBounds,
   viewportWidth,
   viewportHeight,
   padding,
@@ -93,16 +134,27 @@ export function cameraConstraintsFor({
 
   // 5% slack so the fitted view never lands exactly on the constraint.
   const halfExpand = Math.max(0, (fitViewMercW * 1.05 - userMercW) / 2);
+
+  // Each expanded edge is clamped INDEPENDENTLY to the physical overview
+  // envelope (the z7 tile grid is not centred on the route, so the slack is
+  // asymmetric — a symmetric cap would waste it). Within the envelope the
+  // clamped bounds still host the fitted view for every regular viewport;
+  // only extreme ultrawide shapes (≳2:1 usable aspect, e.g. 21:9
+  // fullscreen) exhaust it, and then MapLibre fits the widest COVERED view
+  // instead — the route slightly over-fills the height rather than the map
+  // ever showing unshaded flanks.
+  let west = mercX(uw) - halfExpand;
+  let east = mercX(ue) + halfExpand;
+  if (dataBounds && halfExpand > 0) {
+    const [[ew], [ee]] = overviewEnvelope(dataBounds);
+    west = Math.max(west, mercX(ew));
+    east = Math.min(east, mercX(ee));
+  }
   const overviewBounds =
-    halfExpand > 0
-      ? [
-          [invMercX(mercX(uw) - halfExpand), us],
-          [invMercX(mercX(ue) + halfExpand), un],
-        ]
-      : null;
+    halfExpand > 0 ? [[invMercX(west), us], [invMercX(east), un]] : null;
 
   return {
-    bounds: userBounds,
+    interactionBounds: userBounds,
     overviewBounds,
     zoomThreshold,
   };
@@ -113,14 +165,18 @@ export function cameraConstraintsFor({
  * oscillate while MapLibre settles an animation near the threshold.
  */
 export function activeBoundsForZoom(constraints, zoom, currentlyExpanded) {
-  const { bounds, overviewBounds, zoomThreshold } = constraints;
-  if (!overviewBounds) return { bounds, expanded: false };
+  const { interactionBounds, overviewBounds, zoomThreshold } = constraints;
+  if (!overviewBounds) return { bounds: interactionBounds, expanded: false };
   const enter = zoomThreshold - 0.05; // expand below this
   const leave = zoomThreshold + 0.05; // tighten above this
   if (currentlyExpanded) {
-    return zoom > leave ? { bounds, expanded: false } : { bounds: overviewBounds, expanded: true };
+    return zoom > leave
+      ? { bounds: interactionBounds, expanded: false }
+      : { bounds: overviewBounds, expanded: true };
   }
-  return zoom < enter ? { bounds: overviewBounds, expanded: true } : { bounds, expanded: false };
+  return zoom < enter
+    ? { bounds: overviewBounds, expanded: true }
+    : { bounds: interactionBounds, expanded: false };
 }
 
 /**

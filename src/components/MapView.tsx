@@ -360,6 +360,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         cameraConstraintsFor({
           userBounds: mountedRoute.userBounds,
           routeBounds: mountedRoute.bounds,
+          dataBounds: mountedRoute.mapCutoutBounds,
           viewportWidth: containerRef.current?.clientWidth ?? 1,
           viewportHeight: containerRef.current?.clientHeight ?? 1,
           padding: FIT_PADDING,
@@ -385,7 +386,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         minZoom: MIN_ZOOM_BACKSTOP,
         maxBounds: (boundsExpandedRef.current
           ? constraintsRef.current.overviewBounds!
-          : constraintsRef.current.bounds) as maplibregl.LngLatBoundsLike,
+          : constraintsRef.current.interactionBounds) as maplibregl.LngLatBoundsLike,
         // North-up product policy: rotation gestures are disabled (the map
         // is a route companion; a rotated frame costs orientation and would
         // let viewport corners peek past the bounds contract), and pitch is
