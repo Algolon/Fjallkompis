@@ -113,12 +113,17 @@ remaining width (screen capped at 1400px for readable line lengths). The
 governing contract is the VERTICAL FIT: `--map-edge = max(300px,
 app-height − 132px − controls − banner/note allowances)` — the square
 consumes ALL the height left over after reserving measured space for the
-header chrome, both action rows (worst-case wrapped tracking row below
-890px-tall viewports, single-line above), any status banners
-(`:has()`-gated allowances; banners render compact on desktop), the
-tracking hint, and a deliberate ~20px remainder below the card (= the
-Map screen's bottom padding), so the complete card always fits one
-viewport without page scrolling and without a dead band beneath it.
+header chrome, both action rows, any status banners (`:has()`-gated
+allowances; banners render compact on desktop), the tracking hint, and a
+deliberate ~20px remainder below the card (= the Map screen's bottom
+padding), so the complete card always fits one viewport without page
+scrolling and without a dead band beneath it. The row/banner reserves
+are STATE-AWARE LEAN TIERS: for each combination of banner/hint present
+in the card there is a viewport height (gates at 700/750/770/820/890px)
+above which the lean reserve (single-line rows, two-line banner) still
+yields a ≥ ~440px square — wide enough that nothing can wrap — so the
+reserve is exact and the card really ends ~20px above the viewport;
+below its gate a state keeps the wrapped worst-case reserve.
 Width is the only ceiling: the grid track is `min(--map-edge, 62%,
 100% − 314px)`, so the information column keeps ≥ 38% of the layout
 (~500px at the 1400px screen cap) and never drops under 300px. Landscape

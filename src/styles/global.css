@@ -2550,10 +2550,17 @@ button.map-status-pill {
      plus the Locate/tracking/Follow row wrapped onto two lines (104px),
      because that row wraps once the card is narrower than ~430px and a
      reserve that ignored the wrap would overflow exactly on the small
-     screens that need the guarantee most. Viewports ≥ 890px tall override
-     it to the single-line 117px (63 + 54): there the square is ≥ ~515px
-     even with a banner and the hint present, so the row provably cannot
-     wrap and the height goes back to the map.
+     screens that need the guarantee most. The worst case only exists on
+     SMALL squares, so the LEAN TIERS below hand the reserve back per
+     card state: for each combination of {status banner, tracking hint}
+     there is a viewport height above which even the lean reserve yields
+     a ≥ ~440px square — wide enough that the tracking row provably
+     stays on one line (single-line 117px = 63 + 54) and a banner stays
+     at two compact lines (70px incl. margins) — so above that height
+     the lean reserve is self-consistent and exact, and the card ends
+     ~20px above the viewport instead of hoarding worst-case slack. Each
+     tier gate carries ~10px of margin over its break-even height to
+     absorb --app-height vs media-height measurement differences.
 
      Width is the only ceiling, via the grid track's min():
       - 62% of the layout keeps the composition two intentional columns
@@ -2599,6 +2606,15 @@ button.map-status-pill {
      current stage is selected). */
   .map-layout:has(.map-card > .card-sub) {
     --map-note-v: 48px;
+  }
+  /* LEAN TIER — clean card (no banner, no hint): the whole block's 700px
+     gate already guarantees a ≥ 451px square with the single-line
+     reserve (700 − 132 − 117), so the exact reserve applies from the
+     start. Break-even 689px + 11px margin. */
+  .map-layout:not(:has(.map-card .banner-warn)):not(
+      :has(.map-card > .card-sub)
+    ) {
+    --map-controls-v: 117px;
   }
   /* Compact banner presentation on desktop: same information, less of the
      vertical budget (the 10px outer margin is inline in MapScreen.tsx). */
@@ -2687,14 +2703,46 @@ button.map-status-pill {
   }
 }
 
-/* Tall landscape viewports: the tracking row provably cannot wrap (see
-   --map-controls-v above), so release its wrap reserve back to the map.
-   The same argument tightens the banner allowance: at these heights the
-   square is ≥ ~515px even with a banner and the hint present, so the
-   compact desktop banner is at most two lines (~48px + 20px margins) —
-   the 88px three-line worst case only exists on the small cards of
-   short viewports. Keeping the reserves truthful here is what lands the
-   below-card remainder at the intended ~20px instead of ~40px. */
+/* LEAN TIERS by card state (rationale at --map-controls-v): each gate is
+   the height where the lean reserve (single-line rows 117px; two-line
+   banner 70px) still yields a ≥ ~440px square FOR THAT STATE, plus ~10px
+   of margin — so the row provably cannot wrap, a banner provably stays
+   at two compact lines, and the card ends ~20px above the viewport.
+   Below its gate a state keeps the worst-case reserve from the main
+   block, exactly as before. */
+
+/* Tracking hint, no banner: 132 + 117 + 48 + 440 = 737 → gate 750. */
+@media (min-width: 900px) and (min-height: 750px) {
+  .map-layout:not(:has(.map-card .banner-warn)) {
+    --map-controls-v: 117px;
+  }
+}
+
+/* One banner, no hint: break-even 132 + 117 + 70 + 434 = 753 → gate 764
+   (11px margin — kept tighter than the other tiers deliberately, so the
+   very common 768px-tall laptop class gets the lean reserve). */
+@media (min-width: 900px) and (min-height: 764px) {
+  .map-layout:has(.map-card .banner-warn):not(
+      :has(.map-card .banner-warn + .banner-warn)
+    ):not(:has(.map-card > .card-sub)) {
+    --map-controls-v: 117px;
+    --map-banner-v: 70px;
+  }
+}
+
+/* One banner + hint: 132 + 117 + 70 + 48 + 440 = 807 → gate 820. */
+@media (min-width: 900px) and (min-height: 820px) {
+  .map-layout:has(.map-card .banner-warn):not(
+      :has(.map-card .banner-warn + .banner-warn)
+    ) {
+    --map-controls-v: 117px;
+    --map-banner-v: 70px;
+  }
+}
+
+/* Tallest tier — every state, including the degenerate two-banner card
+   (132 + 117 + 140 + 48 + 440 = 877 → gate 890): the square is large
+   enough that all lean reserves hold simultaneously. */
 @media (min-width: 900px) and (min-height: 890px) {
   .map-layout {
     --map-controls-v: 117px;
