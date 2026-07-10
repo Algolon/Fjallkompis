@@ -7,7 +7,7 @@
 # (VITE_SATELLITE_URL).
 #
 # It commits nothing — neither the source GeoTIFF nor the PMTiles archive ever
-# enters git. Use it to cut a NEW imagery version (e.g. satellite-data-v2). The
+# enters git. Use it to cut a NEW imagery version (e.g. satellite-data-v4). The
 # v1 asset was published from the originally verified build artifact.
 name: Satellite map data (maintenance)
 
@@ -15,8 +15,8 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag for the archive (e.g. satellite-data-v2)'
-        default: 'satellite-data-v2'
+        description: 'Release tag for the archive (e.g. satellite-data-v4)'
+        default: 'satellite-data-v4'
         required: true
       maxzoom:
         description: 'Max zoom stored in the archive'

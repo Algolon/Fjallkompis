@@ -103,7 +103,7 @@ cross-device synchronization is deliberately far down this roadmap.
   archives generated from one source of truth in
   scripts/route-configs.mjs); terrain pipeline rebuilt on real DEM
   coverage (no extrapolation → no edge streaks/rectangle);
-  terrain-data-v2 + satellite-data-v2 releases; 4:5 desktop map,
+  terrain-data-v2 + satellite-data-v3 releases; 4:5 desktop map,
   width-relative mobile map height, full-screen with per-shape camera
   constraints; north-up policy (rotation/pitch disabled); compact mobile
   style selector.

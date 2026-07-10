@@ -217,14 +217,14 @@ Attribution shown on the map (keep it):
 New imagery ⇒ **new versioned release** (never mutate an existing tag):
 
 1. Build a new archive (workflow or scripts below) → publish it as release
-   `satellite-data-v2` with asset name `kungsleden-satellite.pmtiles`.
+   `satellite-data-v4` with asset name `kungsleden-satellite.pmtiles`.
 2. Update the pinned **tag, SHA‑256 and byte size** in
    `.github/workflows/deploy.yml` (they gate the deployment — a mismatch fails
    the deploy rather than shipping unverified bytes).
 3. Merge; the next Pages deploy serves the new file. Users who downloaded the
    old archive re‑download from Settings when they choose to.
 
-### Regenerating the archive (new imagery → satellite-data-v2, …)
+### Regenerating the archive (new imagery → satellite-data-v4, …)
 
 Imagery is built on a GitHub runner, not committed. Two reproducible scripts
 under `scripts/` do the work:
@@ -244,7 +244,7 @@ The easiest path is the **manual maintenance workflow**
 data (maintenance)* → *Run workflow*, available once the workflow is on the
 default branch). It runs both scripts on a runner, verifies the archive, uploads
 it as a downloadable artifact, and — with `publish_release: true` and a
-`release_tag` like `satellite-data-v2` — publishes the versioned Release that
+`release_tag` like `satellite-data-v4` — publishes the versioned Release that
 `deploy.yml` consumes. Then update the pinned tag + SHA‑256 + size in
 `deploy.yml` (see *Updating the satellite data* above).
 
