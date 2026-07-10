@@ -30,7 +30,7 @@
  *
  * One wrinkle remains: viewports WIDER than the user bounds' aspect — the
  * square 1:1 desktop/tablet map card (whose full-route fit needs an
- * east/west view of ~186–220 km across its supported 300–600px edges,
+ * east/west view of ~179–220 km across its supported 300–838px edges,
  * against ~150.6 km of user bounds — recalculated 2026-07-10 for the
  * square layout) and, more extremely,
  * fullscreen on a landscape monitor. Fitting the full route

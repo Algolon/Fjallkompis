@@ -2544,20 +2544,24 @@ button.map-status-pill {
    banners, the Prev/Fit/Next row and the Locate/tracking/Follow row — must
    fit inside one viewport with zero page scrolling. That takes a taller
    height gate than the general roomy block: the card's reserved chrome is
-   ~315px (breakdown at --map-edge, including the tracking row's wrapped
+   ~299px (breakdown at --map-edge, including the tracking row's wrapped
    worst case) plus up to ~88px of status banner, and a square under
-   ~300px stops being a useful full-route map — 300 + 315 + 88 = 703, so
-   the gate is 700px (at exactly 700 the 3px shortfall comes out of the
-   12px safety margin). Landscape viewports shorter than that (e.g.
-   ~900×500 tablets) keep the compact stacked composition, which scrolls
-   honestly instead of hiding the map actions below the fold. */
+   ~300px stops being a useful full-route map — 300 + 299 + 88 = 687, so
+   the 700px gate holds with ~13px to spare. Landscape viewports shorter
+   than that (e.g. ~900×500 tablets) keep the compact stacked composition,
+   which scrolls honestly instead of hiding the map actions below the
+   fold. */
 
 @media (min-width: 900px) and (min-height: 700px) {
   .screen--map {
-    /* The route-information column consumes the width the compact square
-       map releases; 1400px caps the composition on ultrawide screens so
-       the information cards keep readable line lengths. */
+    /* The route-information column consumes the width the square map
+       releases; 1400px caps the composition on ultrawide screens so the
+       information cards keep readable line lengths. Bottom padding is the
+       deliberate ~20px remainder under the map card (see --map-edge) —
+       equal values mean the fitted card ends with exactly that much
+       breathing room and the page still cannot scroll. */
     max-width: 1400px;
+    padding-bottom: 20px;
   }
 
   /* Two intentional columns: a SQUARE 1:1 map card left, sized by the map
@@ -2566,48 +2570,59 @@ button.map-status-pill {
      the map, no controls spanning a wider panel. The information column
      right takes ALL remaining width.
 
-     THE FIT IS THE CONTRACT: the square consumes the height that remains
-     AFTER reserving space for everything else in the left column — never
-     size the square first and hope the rest fits underneath. The reserve
-     is measured from the rendered card (2026-07-10):
+     THE FIT IS THE CONTRACT: the square consumes ALL the height that
+     remains after reserving space for everything else in the left column
+     — never size the square first and hope the rest fits underneath, and
+     never waste the viewport either: the map is the screen's primary
+     surface, so it grows until only the ~20px remainder is left under
+     the card (a hard ceiling was tried in 0.16.0/0.16.1 and left a large
+     dead band under both columns on tall desktops). The reserve is
+     measured from the rendered card (2026-07-10):
 
        110px  chrome above the card (screen padding-top 20 + header 72 +
               header margin 18)
      +   2px  card borders
-     +  24px  screen bottom padding
-     +  12px  safety margin
-     = 148px fixed, plus --map-controls-v for the two action rows, plus
+     +  20px  remainder below the card (= the screen's bottom padding)
+     = 132px fixed, plus --map-controls-v for the two action rows, plus
        the :has()-gated allowances below when a status banner or the
-       live-tracking hint is actually present in the card.
+       live-tracking hint is actually present in the card. The row/banner
+       reserves are slightly generous by construction, so the real
+       remainder lands at ~20px or a few px more, never less.
 
      --map-controls-v defaults to the WORST CASE: Prev/Fit/Next (63px)
      plus the Locate/tracking/Follow row wrapped onto two lines (104px),
      because that row wraps once the card is narrower than ~430px and a
      reserve that ignored the wrap would overflow exactly on the small
      screens that need the guarantee most. Viewports ≥ 890px tall override
-     it to the single-line 117px (63 + 54): there the square is ≥ ~499px
+     it to the single-line 117px (63 + 54): there the square is ≥ ~515px
      even with a banner and the hint present, so the row provably cannot
      wrap and the height goes back to the map.
 
-     The 56% width cap keeps the information column usable on unusually
-     narrow-but-tall landscape viewports (the map simply renders as a
-     smaller square — still exactly 1:1, never wider than tall). The 600px
-     ceiling keeps the square compact on tall screens so the released
-     width stays with the information column. */
+     Width is the only ceiling, via the grid track's min():
+      - 62% of the layout keeps the composition two intentional columns
+        (the information column always gets ≥ 38% − gap, ~500px at the
+        1400px screen cap);
+      - 100% − 314px guarantees an absolute ≥ 300px information column on
+        the narrowest roomy widths, where 62% would squeeze it too far.
+     When a width cap binds (tall windows), the square simply stops
+     growing — still exactly 1:1, never wider than tall — and the blank
+     space moves below the card, which is the honest trade-off on a
+     screen taller than the composition can use. */
   .map-layout {
     --map-controls-v: 167px;
     --map-banner-v: 0px;
     --map-note-v: 0px;
-    --map-edge: clamp(
+    --map-edge: max(
       300px,
       calc(
-        var(--app-height, 100vh) - 148px - var(--map-controls-v) -
+        var(--app-height, 100vh) - 132px - var(--map-controls-v) -
           var(--map-banner-v) - var(--map-note-v)
-      ),
-      600px
+      )
     );
     display: grid;
-    grid-template-columns: min(var(--map-edge), 56%) minmax(0, 1fr);
+    grid-template-columns:
+      min(var(--map-edge), 62%, calc(100% - 314px))
+      minmax(0, 1fr);
     gap: 14px;
     align-items: start;
   }
@@ -2677,7 +2692,7 @@ button.map-status-pill {
      bounded-map decision (recalculated 2026-07-10, superseding the 4:5
      frame that under-used the panel). Fitting the complete north–south
      route (153.9 km tall in Mercator) into a padded square needs an
-     east/west view of ~186–220 km across the supported 300–600px edges —
+     east/west view of ~179–220 km across the supported 300–838px edges —
      wider than the 150.6 km interaction bounds, so square viewports use
      the standard overview expansion (cameraBounds.mjs), whose exact fit
      sits well inside the ~309 km physical z7 terrain envelope:
@@ -2716,10 +2731,22 @@ button.map-status-pill {
 }
 
 /* Tall landscape viewports: the tracking row provably cannot wrap (see
-   --map-controls-v above), so release its wrap reserve back to the map. */
+   --map-controls-v above), so release its wrap reserve back to the map.
+   The same argument tightens the banner allowance: at these heights the
+   square is ≥ ~515px even with a banner and the hint present, so the
+   compact desktop banner is at most two lines (~48px + 20px margins) —
+   the 88px three-line worst case only exists on the small cards of
+   short viewports. Keeping the reserves truthful here is what lands the
+   below-card remainder at the intended ~20px instead of ~40px. */
 @media (min-width: 900px) and (min-height: 890px) {
   .map-layout {
     --map-controls-v: 117px;
+  }
+  .map-layout:has(.map-card .banner-warn) {
+    --map-banner-v: 70px;
+  }
+  .map-layout:has(.map-card .banner-warn + .banner-warn) {
+    --map-banner-v: 140px;
   }
 }
 
