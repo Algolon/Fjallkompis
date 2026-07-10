@@ -19,16 +19,29 @@
  * omitted) lives in docs/map-style-comparison.md.
  *
  * The builder is palette-driven: LIBERTY_TOPO_PALETTE keeps Liberty Topo's
- * original colours verbatim, NORDIC_TOPO_PALETTE restyles the identical
- * layer structure with the Fjällkompis Nordic Trail design language. Layer
- * order, filters, zoom thresholds and widths are shared between the two so
- * the comparison isolates colour/tone decisions, not data or hierarchy.
+ * original colours and thresholds verbatim (the stable reference),
+ * NORDIC_TOPO_PALETTE restyles the shared layer structure with the
+ * Fjällkompis Nordic Trail design language. Since the Nordic terrain
+ * hierarchy restyle (benchmark Phase 1, docs/maps/
+ * thunderforest-outdoors-benchmark.md §7), Nordic deliberately diverges from
+ * Liberty in a small, documented set of ways — palette-gated extra layers
+ * (rock, cliff, glacier outline, river polygons) and one structural value
+ * (trails start at z12 instead of z13). Every divergence is fenced by an
+ * explicit exception in tests/map-styles.test.mjs; everything else (layer
+ * order, filters, zoom thresholds) stays shared so the styles remain
+ * comparable.
  */
 
 /**
- * Colour/opacity tokens consumed by libertyTopoLayers(). A slot set to null
- * skips its layer entirely (used where Liberty has no equivalent styling and
- * faking one would break fidelity).
+ * Paint tokens consumed by libertyTopoLayers(). A slot set to null skips its
+ * layer entirely (used where Liberty has no equivalent styling and faking one
+ * would break fidelity). Most slots are colours; a few are complete MapLibre
+ * paint expressions (opacity/width ramps) or structural values (zoom
+ * thresholds), so the Nordic terrain hierarchy — benchmark Phase 1,
+ * docs/maps/thunderforest-outdoors-benchmark.md §7 — stays palette-driven
+ * while the Liberty reference keeps its verbatim behaviour. Every structural
+ * divergence (extra layers, differing zoom thresholds) is mirrored by a
+ * documented exception in tests/map-styles.test.mjs.
  */
 
 /** Liberty Topo's own colours, copied verbatim from liberty-topo.json. */
@@ -44,16 +57,29 @@ export const LIBERTY_TOPO_PALETTE = {
   // SUBSTITUTION: Liberty wetland is a sprite pattern (wetland_bg_11); no
   // sprites offline, so a flat tint approximating the pattern's tone is used.
   wetland: 'rgba(213, 229, 224, 0.8)',
+  wetlandOpacity: 1, // Liberty: constant tint (alpha lives in the colour)
   ice: 'rgba(224, 236, 236, 0.8)', // `landcover_ice`
+  iceOutline: null, // Liberty draws no glacier outline — keep that.
   sand: 'rgba(247, 239, 195, 1)', // `landcover_sand`
+  // Low-zoom `landcover` barren tone; Liberty has no barren class, the
+  // adaptation reuses its sand colour (pre-restyle behaviour, kept verbatim).
+  barren: 'rgba(247, 239, 195, 1)',
   rock: null, // Liberty leaves bare rock unstyled — keep that.
+  rockOpacity: 1,
   cliff: null, // OpenMapTiles has no cliff lines; Liberty styles none.
   residentialLowZoom: 'hsla(0, 3%, 85%, 0.84)', // `landuse_residential` z9
   residentialHighZoom: 'hsla(35, 57%, 88%, 0.49)', // `landuse_residential` z12
   water: 'rgb(158, 189, 255)', // `water`
+  waterRiver: null, // Liberty: one colour for all water polygons — keep that.
   waterway: '#a0c8f0', // `waterway_river` / `waterway_other`
+  // Waterway line ramps, verbatim from the pre-restyle adaptation.
+  riverLineWidth: ['interpolate', ['exponential', 1.2], ['zoom'], 11, 0.5, 20, 6],
+  riverLineOpacity: 1,
+  streamLineWidth: ['interpolate', ['exponential', 1.3], ['zoom'], 13, 0.5, 20, 6],
+  streamLineOpacity: 1,
   trailCasing: 'hsl(40, 70%, 60%)', // `road_path_pedestrian_trail_casing`
   trail: 'hsl(0, 0%, 100%)', // `road_path_pedestrian_trail` (dashed)
+  trailMinzoom: 13, // Liberty `road_path_pedestrian_trail` minzoom
   trackCasing: '#cfcdca', // `road_service_track_casing`
   track: '#fff', // `road_service_track`
   minorCasing: '#cfcdca', // `road_minor_casing`
@@ -73,32 +99,54 @@ export const LIBERTY_TOPO_PALETTE = {
  * glacier, cloudberry, stone), tuned for outdoor daylight readability. The
  * route overlay (saturated Okabe–Ito lines) must stay the strongest
  * foreground element, so every base tone here is kept muted.
+ *
+ * Terrain hierarchy (benchmark §6.1, strongest → calmest base fill):
+ * glacier (bright, outlined — safety-relevant) · exposed rock · forest ·
+ * scrub/fjällbjörk (the treeline signal) · grassland · open alpine
+ * background (deliberately the calmest — the stage, not an actor). Wetland
+ * is NOT a base fill: it renders as a semi-transparent cool wash ABOVE
+ * wood/grass/scrub, fading in z10→z12, so a wet birch forest reads as both.
  */
 export const NORDIC_TOPO_PALETTE = {
   id: 'liberty-nordic',
-  background: '#e9ede5', // stone/paper family
+  background: '#eef0e9', // open fjäll: lightest, slightly cool stone/paper
   park: 'rgba(122, 151, 118, 0.10)', // barely-there protected-area tint
   parkOutline: 'rgba(95, 130, 98, 0.35)',
-  wood: 'rgba(139, 168, 130, 0.40)', // muted spruce green
-  grass: 'rgba(171, 192, 152, 0.32)',
-  scrub: 'rgba(157, 182, 138, 0.30)', // fjällbjörk scrub, distinct from grass
-  wetland: 'rgba(148, 180, 173, 0.34)', // cool bog tint
-  ice: 'rgba(238, 244, 246, 0.92)',
+  wood: 'rgba(118, 152, 106, 0.52)', // birch/spruce forest — the strongest green
+  grass: 'rgba(180, 198, 155, 0.32)', // meadow: lighter and quieter than scrub
+  scrub: 'rgba(150, 175, 120, 0.45)', // fjällbjörk treeline belt: between forest and grass
+  wetland: 'rgb(114, 156, 138)', // cool wet-ground wash — green enough to never read as water
+  // Overlay behaviour: invisible until z10, full wash strength by z12 —
+  // wetland must read at hut-decision zooms without muddying the overview.
+  wetlandOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.08, 12, 0.4],
+  ice: 'rgba(240, 246, 249, 0.94)', // glacier fill: bright, cold
+  iceOutline: 'rgba(122, 158, 175, 0.85)', // thin cool rim so tongues read on rock
   sand: 'rgba(228, 221, 198, 1)',
-  rock: 'rgba(163, 167, 160, 0.28)', // bare rock readable but calm
+  barren: 'rgba(186, 188, 181, 0.55)', // low-zoom massifs match the rock family
+  rock: 'rgb(158, 160, 155)', // exposed rock: muted cool grey, hostile
+  rockOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.3, 12, 0.48],
   cliff: 'rgba(122, 130, 124, 0.7)',
   residentialLowZoom: 'rgba(205, 207, 199, 0.55)',
   residentialHighZoom: 'rgba(205, 207, 199, 0.45)',
-  water: '#a3c3cc', // glacial teal — clear contrast, restrained saturation
+  water: '#a3c3cc', // lakes: glacial teal — the primary orientation anchors
+  waterRiver: '#93b9c6', // flowing water: same family, one clear step deeper
   waterway: '#7fa9b4',
+  // Valley rivers are the spine of Kungsleden navigation: visible from z9
+  // with a gentle ramp instead of popping in at z11.
+  riverLineWidth: ['interpolate', ['exponential', 1.2], ['zoom'], 9, 0.6, 12, 1.4, 20, 6],
+  riverLineOpacity: ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9.5, 1],
+  // Stream crossings are safety-relevant: reliable from z12, restrained before.
+  streamLineWidth: ['interpolate', ['exponential', 1.3], ['zoom'], 12, 0.5, 14, 1, 20, 5],
+  streamLineOpacity: ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.5, 0.9],
   trailCasing: '#a5794b', // cloudberry-deep so paths read in daylight
   trail: '#f5f1e8',
-  trackCasing: '#b3a98f',
+  trailMinzoom: 12, // trails one zoom earlier: hut-approach legibility
+  trackCasing: '#a19478', // clearly warmer/darker than minor roads at z13
   track: '#f5f1e8',
-  minorCasing: '#b6bbae',
+  minorCasing: '#bcc0b4', // wilderness context: gravel roads matter less than trails
   minor: '#f7f5ef',
-  majorCasing: '#a98d5f',
-  major: '#efe3c6',
+  majorCasing: '#a6906a', // E10 stays an orientation line, not a highlight
+  major: '#ebe2cd',
   rail: '#9aa39c',
   building: '#cfd2c6',
   buildingOutline: '#b6baab',
@@ -163,7 +211,7 @@ export function libertyTopoLayers(sourceId, palette) {
         'forest', p.wood,
         'scrub', p.scrub,
         'grassland', p.grass,
-        'barren', p.sand,
+        'barren', p.barren,
         p.background,
       ],
     },
@@ -240,17 +288,33 @@ export function libertyTopoLayers(sourceId, palette) {
       id: 'lt_rock',
       type: 'fill',
       'source-layer': 'landuse',
+      // NOTE: the corridor archive contains zero `scree` features (measured,
+      // benchmark §3.2) — the value is kept only as harmless future-proofing;
+      // all rock rendering comes from `bare_rock`.
       filter: ['in', 'kind', 'bare_rock', 'scree'],
-      paint: { 'fill-color': p.rock, 'fill-antialias': false },
+      paint: {
+        'fill-color': p.rock,
+        'fill-opacity': p.rockOpacity,
+        'fill-antialias': false,
+      },
     });
   }
   // Liberty `landcover_wetland` — pattern fill substituted by a flat tint.
+  // Nordic treats this as a semi-transparent OVERLAY WASH above the
+  // wood/grass/scrub base fills (layer order already provides that): wet
+  // forest reads as both, an open bog reads against the background
+  // (benchmark §6.1). The `bog/marsh/swamp` values never occur in the
+  // archive (only `wetland`) — kept as future-proofing for a richer build.
   add({
     id: 'lt_wetland',
     type: 'fill',
     'source-layer': 'landuse',
     filter: ['in', 'kind', 'wetland', 'bog', 'marsh', 'swamp'],
-    paint: { 'fill-color': p.wetland, 'fill-antialias': false },
+    paint: {
+      'fill-color': p.wetland,
+      'fill-opacity': p.wetlandOpacity,
+      'fill-antialias': false,
+    },
   });
   // Liberty `landcover_ice` (glaciers — Kebnekaise massif).
   add({
@@ -260,6 +324,21 @@ export function libertyTopoLayers(sourceId, palette) {
     filter: ['in', 'kind', 'glacier'],
     paint: { 'fill-color': p.ice, 'fill-antialias': false },
   });
+  // Fjällkompis extra (palette-gated): thin cool glacier rim so ice tongues
+  // read against rock at z11–14 (Liberty draws none → null skips it).
+  if (p.iceOutline) {
+    add({
+      id: 'lt_ice_outline',
+      type: 'line',
+      'source-layer': 'landuse',
+      minzoom: 10,
+      filter: ['in', 'kind', 'glacier'],
+      paint: {
+        'line-color': p.iceOutline,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 1.2],
+      },
+    });
+  }
   // Fjällkompis extra (palette-gated): cliff lines from the Protomaps earth
   // layer. No OpenMapTiles equivalent → null (skipped) in the Liberty palette.
   if (p.cliff) {
@@ -284,7 +363,8 @@ export function libertyTopoLayers(sourceId, palette) {
     layout: { 'line-cap': 'round' },
     paint: {
       'line-color': p.waterway,
-      'line-width': ['interpolate', ['exponential', 1.3], ['zoom'], 13, 0.5, 20, 6],
+      'line-width': p.streamLineWidth,
+      'line-opacity': p.streamLineOpacity,
     },
   });
   add({
@@ -295,7 +375,8 @@ export function libertyTopoLayers(sourceId, palette) {
     layout: { 'line-cap': 'round' },
     paint: {
       'line-color': p.waterway,
-      'line-width': ['interpolate', ['exponential', 1.2], ['zoom'], 11, 0.5, 20, 6],
+      'line-width': p.riverLineWidth,
+      'line-opacity': p.riverLineOpacity,
     },
   });
   // Liberty `water`.
@@ -306,6 +387,22 @@ export function libertyTopoLayers(sourceId, palette) {
     filter: ['==', '$type', 'Polygon'],
     paint: { 'fill-color': p.water },
   });
+  // Fjällkompis extra (palette-gated): river/stream POLYGONS one step deeper
+  // than lakes so braided deltas (Abisko) read as flowing water. Painted
+  // over lt_water — the base water layer keeps covering every polygon.
+  if (p.waterRiver) {
+    add({
+      id: 'lt_water_river',
+      type: 'fill',
+      'source-layer': 'water',
+      filter: [
+        'all',
+        ['==', '$type', 'Polygon'],
+        ['in', 'kind_detail', 'river', 'stream'],
+      ],
+      paint: { 'fill-color': p.waterRiver },
+    });
+  }
 
   // -- Roads (Liberty widths; tunnel/bridge variants intentionally folded
   //    into the surface layers — see module docs) ---------------------------
@@ -363,27 +460,33 @@ export function libertyTopoLayers(sourceId, palette) {
   // Liberty `road_path_pedestrian_trail_casing` + `_trail`: unpaved paths.
   // Protomaps has no surface attribute, so ALL paths (except track/pier)
   // take the trail treatment — correct for this fjäll corridor.
+  // Structural palette value (Liberty 13, Nordic 12): the Nordic restyle
+  // starts trails one zoom earlier — documented exception in
+  // tests/map-styles.test.mjs. Width ramps share the same start zoom.
   const trailFilter = ['all', ['==', 'kind', 'path'], ['!in', 'kind_detail', 'track', 'pier']];
   add({
     id: 'lt_trail_casing',
     type: 'line',
     'source-layer': 'roads',
-    minzoom: 13,
+    minzoom: p.trailMinzoom,
     filter: trailFilter,
     layout: { 'line-join': 'round' },
-    paint: { 'line-color': p.trailCasing, 'line-width': roadWidth([13, 1.6, 15, 4]) },
+    paint: {
+      'line-color': p.trailCasing,
+      'line-width': roadWidth([p.trailMinzoom, 1.6, p.trailMinzoom + 2, 4]),
+    },
   });
   add({
     id: 'lt_trail',
     type: 'line',
     'source-layer': 'roads',
-    minzoom: 13,
+    minzoom: p.trailMinzoom,
     filter: trailFilter,
     layout: { 'line-join': 'round' },
     paint: {
       'line-color': p.trail,
       'line-dasharray': [2.5, 1],
-      'line-width': roadWidth([13, 0.8, 15, 2]),
+      'line-width': roadWidth([p.trailMinzoom, 0.8, p.trailMinzoom + 2, 2]),
     },
   });
 
