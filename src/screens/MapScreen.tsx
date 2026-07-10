@@ -28,15 +28,6 @@ import {
 import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import { INITIAL_MAP_VIEW_STAGE_ID } from '../map/mapDefaults.mjs';
 import { STAGE_COLORS } from '../map/mapStyle';
-import {
-  MAP_STYLE_OPTIONS,
-  DEFAULT_MAP_STYLE_ID,
-  isMapStyleId,
-} from '../map/mapStyles.mjs';
-import type { MapStyleId } from '../map/mapStyles.mjs';
-import { THUNDERFOREST_STYLE_ID } from '../map/thunderforestLayer.mjs';
-import { thunderforestAvailable } from '../map/thunderforest';
-import { benchmarkEnabled } from '../map/benchmarkFlag';
 import type { BasemapMode } from '../map/pmtilesProtocol';
 import { projectOntoRoute } from '../utils/routeProgress.mjs';
 import type { RouteProjection } from '../utils/routeProgress.mjs';
@@ -286,10 +277,6 @@ export function MapScreen({
   const [viewStageId, setViewStageId] = useState<string | null>(INITIAL_MAP_VIEW_STAGE_ID);
   const [basemapMode, setBasemapMode] = useState<BasemapMode | null>(null);
   const [imagery, setImagery] = useState<ImageryMode>('terrain');
-  // Comparison-benchmark style selection (docs/maps/thunderforest-outdoors-
-  // benchmark.md). Deliberately NOT persisted: every session starts on the
-  // production style, so the online preview can never become a silent default.
-  const [mapStyleId, setMapStyleId] = useState<MapStyleId>(DEFAULT_MAP_STYLE_ID);
   const [satelliteAvailable, setSatelliteAvailable] = useState(false);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
@@ -454,7 +441,6 @@ export function MapScreen({
               onBasemapMode={setBasemapMode}
               onSatelliteAvailable={setSatelliteAvailable}
               imagery={imagery}
-              mapStyleId={mapStyleId}
               gps={marker}
               follow={follow}
               onUserInteract={() => setFollow(false)}
@@ -495,71 +481,7 @@ export function MapScreen({
                 Satellite
               </button>
             </div>
-            {/* TEMPORARY map-comparison selector for the Thunderforest
-                Outdoors benchmark (docs/maps/thunderforest-outdoors-
-                benchmark.md). Three offline vector styles plus ONE
-                online-only raster reference, clearly marked and unavailable
-                without a build-time API key. Gated by benchmarkEnabled
-                (VITE_ENABLE_MAP_BENCHMARK; dev defaults on) — normal
-                production users see only the production map, with no
-                comparison options at all. Styled inline on purpose (same
-                convention as the 0.8.0 prototype): removed again once the
-                Nordic restyle work concludes. Hidden while the satellite
-                raster covers the vector basemap. */}
-            {benchmarkEnabled && imagery === 'terrain' ? (
-              /* Compact styling lives in global.css (.map-style-picker): on
-                 phone widths the long caption collapses to "Style" and the
-                 select gets the freed space, so the selected option no
-                 longer truncates. The select's aria-label keeps the full
-                 wording on every viewport. */
-              <label className="map-style-picker">
-                <span className="map-style-picker__caption" aria-hidden="true">
-                  <span className="map-style-picker__caption-full">
-                    Map comparison — temporary
-                  </span>
-                  <span className="map-style-picker__caption-short">Style</span>
-                </span>
-                <select
-                  className="select"
-                  value={mapStyleId}
-                  aria-label="Map style (temporary comparison benchmark)"
-                  onChange={(e) => {
-                    if (isMapStyleId(e.target.value)) setMapStyleId(e.target.value);
-                  }}
-                >
-                  {MAP_STYLE_OPTIONS.map((o) => {
-                    const unavailable = o.requiresApiKey && !thunderforestAvailable;
-                    // Visible option text is the short label so the CLOSED
-                    // select never clips it on phones; the supporting label
-                    // ("Online preview") stays in the title tooltip, the
-                    // description, and the online-preview banner shown when
-                    // the option is active.
-                    return (
-                      <option
-                        key={o.id}
-                        value={o.id}
-                        disabled={unavailable}
-                        title={[o.supportingLabel, o.description].filter(Boolean).join(' — ')}
-                      >
-                        {o.label}
-                        {unavailable ? ' (needs API key)' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </label>
-            ) : null}
           </div>
-          {mapStyleId === THUNDERFOREST_STYLE_ID ? (
-            <div className="banner-warn" style={{ margin: 10 }}>
-              <span>🌐</span>
-              <span>
-                Online preview — Thunderforest Outdoors streams tiles over the network as a
-                temporary cartographic reference. It is not downloadable, is never included in
-                offline maps, and needs a connection to render.
-              </span>
-            </div>
-          ) : null}
           {!satelliteAvailable ? (
             <div className="banner-warn" style={{ margin: 10 }}>
               <span>🛰️</span>

@@ -10,7 +10,7 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
-## [0.16.3] - 2026-07-10
+## [0.17.1] - 2026-07-10
 
 ### Fixed
 
@@ -28,6 +28,47 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   information column narrows correspondingly, and the card ends ~20 px
   above the viewport. Visual design (radii, backgrounds, borders,
   spacing) is untouched; mobile portrait and fullscreen are unchanged.
+## [0.17.0] - 2026-07-10
+
+### Changed
+
+- **Legible Nordic terrain colours.** The terrain palette was rebuilt on a
+  measured audit of the offline archive (which showed the generalised
+  low-zoom landcover covering ~100% of the corridor at z7 and vanishing at
+  z8, leaving ~85–90% of the map with no terrain polygon at all): the open
+  fjäll base — the map's dominant surface — is now a light muted
+  sage/lichen green (`#dde3cf`), a deliberate cartographic generalisation
+  of open alpine ground rather than a claim of mapped grassland, so the
+  landscape finally reads as vegetated fjäll instead of beige paper. The
+  explicit, data-driven vegetation fills are solid muted tones on one
+  clear ladder above that base (light yellow-green meadow → medium-olive
+  fjällbjörk scrub → distinctly darker forest green) instead of
+  translucent pastels, wetland is a peat-brown overlay wash clearly
+  separate from both water and vegetation, exposed rock is a firmer cool
+  grey, and the low-zoom generalised grassland hands over to the sage
+  background without the previous green-to-white jump at z7→z8. Glaciers
+  keep their bright cool fill and restrained outline; the protected-area
+  tint stays barely visible; route, GPS and hut overlays remain the
+  strongest elements everywhere.
+- **Terrain structure appears earlier.** 100 m index contours now fade in
+  from z9.5 and are clearly legible by z11 (previously invisible before
+  z11); the 20 m contours fade in from z11.5 and are fully useful by z13
+  (previously z13+). Both tiers start at opacity 0 — no pop-in at a zoom
+  threshold — and index lines stay heavier than intermediates at every
+  zoom. This required retiling the contour archive (index lines into z9+
+  tiles, the 20 m set into z12+; `scripts/build-terrain-map.sh`), so the
+  earlier contours need the **terrain-data-v3** release; with the old
+  archive the map simply keeps the previous z11/z13 behaviour.
+- **Map comparison phase retired.** The temporary "Map comparison —
+  temporary" dropdown, the legacy *Current* and *Liberty Topo* runtime
+  styles, the online-only Thunderforest Outdoors preview (code, API-key
+  plumbing, `VITE_ENABLE_MAP_BENCHMARK` flag and `@protomaps/basemaps`
+  dependency) were all removed — Liberty Topo — Nordic is the one
+  production terrain basemap. The Terrain/Satellite toggle and the
+  satellite download/availability behaviour are unchanged. Contour
+  elevation labels were assessed and deliberately deferred: they require
+  the offline-glyphs roadmap item first (no glyph infrastructure ships in
+  the app).
 
 ## [0.16.2] - 2026-07-10
 
