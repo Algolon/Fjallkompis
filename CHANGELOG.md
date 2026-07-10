@@ -10,6 +10,31 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-10
+
+### Added
+
+- **Terrain relief: hillshade and contour lines.** The Terrain map now
+  shows the shape of the landscape: soft multidirectional-feeling hillshade
+  (MapLibre's native `hillshade` layer on a terrain-RGB elevation source)
+  and contour lines at a 20 m interval with a heavier line every 100 m —
+  chosen from the 30 m DEM resolution, visual comparison, contour noise and
+  storage measurements. Index contours appear from z11, the full
+  set from z13; lakes stay unshaded and every route, water, road and hut
+  element keeps its contrast above the relief. The data ships as two
+  bounded PMTiles archives (~15 MB together) derived from the open
+  Copernicus DEM GLO-30 elevation model by the new
+  `scripts/build-terrain-map.sh` pipeline — repeatable from the recorded
+  provenance manifest (not guaranteed bit-for-bit reproducible; the AWS
+  mirror is unversioned) — hosted as a versioned GitHub Release and
+  injected into deploys exactly like the satellite archive.
+- **Settings → Terrain relief**: downloads both relief files as one action
+  for fully offline hillshade and contours (independent of the basemap and
+  satellite downloads), with the same status/progress/remove interface as
+  the other archives, plus the Copernicus source and licence disclosure.
+  Without the download (or the hosted files), the map renders exactly as
+  before — relief is always optional.
+
 ## [0.13.0] - 2026-07-10
 
 ### Changed

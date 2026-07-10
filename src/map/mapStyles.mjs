@@ -80,16 +80,22 @@ export function isBenchmarkEnabled(isDev, flagValue) {
  * Basemap layers for a style id, all bound to the given vector source.
  * 'current' reproduces the production style byte-for-byte (same
  * @protomaps/basemaps call as before the prototype existed).
+ *
+ * `relief` ({ terrainSourceId?, contoursSourceId? }) is passed when the
+ * optional terrain/contour archives resolved: the Liberty-derived styles
+ * then include their hillshade and contour layers (Liberty Topo's defining
+ * relief treatment, offline at last). 'current' deliberately ignores it —
+ * it is the untouched control style.
  */
-export function basemapLayersForStyle(styleId, sourceId) {
+export function basemapLayersForStyle(styleId, sourceId, relief = {}) {
   switch (styleId) {
     case 'current':
       // No `lang` option → zero symbol layers → no glyph/sprite dependencies.
       return protomapsLayers(sourceId, namedFlavor('light'), {});
     case 'liberty':
-      return libertyTopoLayers(sourceId, LIBERTY_TOPO_PALETTE);
+      return libertyTopoLayers(sourceId, LIBERTY_TOPO_PALETTE, relief);
     case 'liberty-nordic':
-      return libertyTopoLayers(sourceId, NORDIC_TOPO_PALETTE);
+      return libertyTopoLayers(sourceId, NORDIC_TOPO_PALETTE, relief);
     default:
       throw new Error(`Unknown map style id: ${styleId}`);
   }

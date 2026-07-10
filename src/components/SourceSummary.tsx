@@ -12,13 +12,17 @@ import type { DataSourceAttribution } from '../data/attribution';
 export function SourceSummary({
   heading,
   source,
-  assetUrl,
+  assetUrls,
 }: {
   /** Card-specific heading, e.g. "Map data" or "Imagery". */
   heading: string;
   source: DataSourceAttribution;
-  /** Optional raw archive URL, shown only inside the disclosure. */
-  assetUrl?: string;
+  /**
+   * Raw archive URLs, shown only inside the disclosure — ALL files a card
+   * manages (the Terrain relief card manages two archives; both must be
+   * disclosed, not just the first).
+   */
+  assetUrls?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
@@ -64,7 +68,11 @@ export function SourceSummary({
               </a>
             ) : null}
           </p>
-          {assetUrl ? <p className="source-url">Archive: {assetUrl}</p> : null}
+          {assetUrls?.map((url) => (
+            <p key={url} className="source-url">
+              Archive: {url}
+            </p>
+          ))}
         </div>
       ) : null}
     </div>

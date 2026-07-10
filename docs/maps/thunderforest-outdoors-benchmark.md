@@ -1,6 +1,13 @@
 # Thunderforest Outdoors — cartographic benchmark & Nordic translation plan
 
-**Status: research complete (v0.12.0).** This document is the deliverable of
+**Status: research complete (v0.12.0); Phases 1–2 executed.** The Nordic
+terrain hierarchy restyle (v0.13.0) delivered Phase 1, and the terrain
+relief iteration (v0.14.0) delivered the §8.1 contours + hillshade data and
+the Phase 2 relief layers (`scripts/build-terrain-map.sh`, Copernicus DEM
+GLO-30). Remaining: Phase 3 (paths polish + the glyph-gated label system)
+and the optional §8.2 custom tile profile — tracked in ROADMAP.md.
+
+This document is the deliverable of
 the temporary **Thunderforest Outdoors — Online preview** comparison layer on
 the Map screen: an audit of what the shipped Fjällkompis map data can express,
 an analysis of *why* Thunderforest Outdoors works so well for hiking, and a
@@ -402,7 +409,7 @@ Phase-numbered PRs.
 | Offline / PMTiles | Fully compatible — same blob-download + range-request model as the satellite archive; reuse `ArchiveSpec` |
 | Coverage | Corridor bbox ≈ 120 × 75 km; z9–13 terrain-RGB or contour vectors |
 | Storage | Rough order: terrain-RGB z≤12 ≈ 5–15 MB; contours ≈ 2–8 MB. Measure before committing (ROADMAP already conditions this item on size) |
-| Pipeline | One reproducible script like `build-satellite-map.sh`; GDAL already a documented project tool |
+| Pipeline | One repeatable, provenance-recorded script like `build-satellite-map.sh` (the unversioned AWS mirror rules out bit-for-bit reproducibility); GDAL already a documented project tool |
 | Maintenance | Near-zero (terrain doesn't change) |
 | Verdict | **Necessary** for the relief half of the benchmark — not merely decorative |
 

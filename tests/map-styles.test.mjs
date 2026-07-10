@@ -177,6 +177,79 @@ test('Liberty and Liberty—Nordic share structure; only documented divergences 
   );
 });
 
+// ---- Terrain relief (hillshade + contours, 0.14.0) -------------------------
+// The relief layers are emitted ONLY when the optional archive sources are
+// passed, so builds/users without the archives get exactly the pre-relief
+// style. Ids and stack positions are part of the contract: hillshade and
+// contours must sit above the landcover fills and the wetland wash but
+// below cliffs and every water/road line, and must never outrank the
+// route overlays (which MapView adds above the whole basemap).
+const RELIEF = { terrainSourceId: 'terrain-dem', contoursSourceId: 'contours' };
+
+test('without relief sources the builders emit no relief layers', () => {
+  for (const id of ['current', 'liberty', 'liberty-nordic']) {
+    const ids = basemapLayersForStyle(id, SOURCE).map((l) => l.id);
+    for (const rid of ['lt_hillshade', 'lt_contour', 'lt_contour_index']) {
+      assert.ok(!ids.includes(rid), `${id} without relief must not contain ${rid}`);
+    }
+  }
+});
+
+test('relief layers: correct sources, types and stack position', () => {
+  for (const styleId of ['liberty', 'liberty-nordic']) {
+    const layers = basemapLayersForStyle(styleId, SOURCE, RELIEF);
+    const ids = layers.map((l) => l.id);
+    const at = (id) => ids.indexOf(id);
+
+    const hillshade = layers.find((l) => l.id === 'lt_hillshade');
+    assert.ok(hillshade, `${styleId}: hillshade layer present`);
+    assert.equal(hillshade.type, 'hillshade');
+    assert.equal(hillshade.source, RELIEF.terrainSourceId);
+
+    for (const cid of ['lt_contour', 'lt_contour_index']) {
+      const contour = layers.find((l) => l.id === cid);
+      assert.ok(contour, `${styleId}: ${cid} present`);
+      assert.equal(contour.type, 'line');
+      assert.equal(contour.source, RELIEF.contoursSourceId);
+      assert.equal(contour['source-layer'], 'contours');
+      const serialized = JSON.stringify(contour);
+      assert.ok(!/https?:/.test(serialized), `${cid} must not embed remote URLs`);
+    }
+    // Index contours from z11 (fade-in), intermediates from z13.
+    assert.equal(layers.find((l) => l.id === 'lt_contour_index').minzoom, 11);
+    assert.equal(layers.find((l) => l.id === 'lt_contour').minzoom, 13);
+
+    // Stratum order (benchmark §6.1): fills → wetland wash → relief →
+    // water polygons/lines and roads.
+    assert.ok(at('lt_hillshade') > at('lt_wetland'), 'hillshade above the wetland wash');
+    assert.ok(at('lt_hillshade') > at('lt_ice'), 'hillshade above glacier fills');
+    assert.ok(at('lt_contour') > at('lt_hillshade'), 'contours above hillshade');
+    assert.ok(at('lt_water') > at('lt_contour'), 'water polygons above contours (lakes unshaded)');
+    assert.ok(at('lt_waterway_stream') > at('lt_contour'), 'water lines above contours');
+    assert.ok(at('lt_trail') > at('lt_contour'), 'trails above contours');
+  }
+});
+
+test('partial relief availability degrades layer-by-layer', () => {
+  const onlyTerrain = basemapLayersForStyle('liberty-nordic', SOURCE, {
+    terrainSourceId: 'terrain-dem',
+  });
+  assert.ok(onlyTerrain.some((l) => l.id === 'lt_hillshade'));
+  assert.ok(!onlyTerrain.some((l) => l.id === 'lt_contour'));
+  const onlyContours = basemapLayersForStyle('liberty-nordic', SOURCE, {
+    contoursSourceId: 'contours',
+  });
+  assert.ok(!onlyContours.some((l) => l.id === 'lt_hillshade'));
+  assert.ok(onlyContours.some((l) => l.id === 'lt_contour'));
+});
+
+test("the 'current' control style ignores relief sources entirely", () => {
+  assert.deepEqual(
+    basemapLayersForStyle('current', SOURCE, RELIEF),
+    protomapsLayers(SOURCE, namedFlavor('light'), {}),
+  );
+});
+
 test('no gpx.studio tile endpoints, MapTiler or Liberty Satellite in the source tree', () => {
   const forbidden = [
     /tiles\.gpx\.studio/i,

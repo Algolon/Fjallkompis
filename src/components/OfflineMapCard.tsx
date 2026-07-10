@@ -11,30 +11,44 @@ import {
   formatBytes,
   getArchiveStatus,
   removeArchive,
+  CONTOURS_ARCHIVE,
   SATELLITE_ARCHIVE,
+  TERRAIN_ARCHIVE,
   VECTOR_ARCHIVE,
   type ArchiveSpec,
-  type OfflineMapStatus,
 } from '../map/offlineMap';
 import {
   BASEMAP_SOURCE_INFO,
   SATELLITE_SOURCE_INFO,
+  TERRAIN_SOURCE_INFO,
   type DataSourceAttribution,
 } from '../data/attribution';
 import { SourceSummary } from './SourceSummary';
 
+/** Combined download state of a card's archives (usually one; relief: two). */
+interface CombinedStatus {
+  supported: boolean;
+  downloaded: boolean;
+  sizeBytes: number | null;
+}
+
 type Phase =
   | { kind: 'checking' }
-  | { kind: 'idle'; status: OfflineMapStatus }
+  | { kind: 'idle'; status: CombinedStatus }
   | { kind: 'downloading'; loaded: number; total: number | null }
   | { kind: 'done'; sizeBytes: number }
   | { kind: 'error'; message: string };
 
 interface ArchiveCardProps {
-  spec: ArchiveSpec;
+  /**
+   * The archives this card manages as ONE user-facing download. Usually a
+   * single file; the Terrain relief card bundles the terrain-RGB and
+   * contour archives because neither is useful without the other.
+   */
+  specs: ArchiveSpec[];
   title: string;
   description: string;
-  /** Confirmation text shown before removing the archive. */
+  /** Confirmation text shown before removing the archive(s). */
   removeConfirm: string;
   /** Heading of the source/attribution block, e.g. "Map data" or "Imagery". */
   sourceHeading: string;
@@ -43,7 +57,7 @@ interface ArchiveCardProps {
 }
 
 function ArchiveCard({
-  spec,
+  specs,
   title,
   description,
   removeConfirm,
@@ -53,20 +67,46 @@ function ArchiveCard({
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
 
   const refresh = async () => {
-    setPhase({ kind: 'idle', status: await getArchiveStatus(spec) });
+    const statuses = await Promise.all(specs.map((s) => getArchiveStatus(s)));
+    setPhase({
+      kind: 'idle',
+      status: {
+        supported: statuses.every((s) => s.supported),
+        // Partial downloads (e.g. an aborted two-file fetch) count as not
+        // downloaded, so the primary button offers to complete the set.
+        downloaded: statuses.every((s) => s.downloaded),
+        sizeBytes: statuses.every((s) => s.sizeBytes != null)
+          ? statuses.reduce((sum, s) => sum + (s.sizeBytes ?? 0), 0)
+          : null,
+      },
+    });
   };
 
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spec.cacheName]);
+  }, [specs.map((s) => s.cacheName).join('|')]);
 
   const download = async () => {
     setPhase({ kind: 'downloading', loaded: 0, total: null });
     try {
-      const size = await downloadArchive(spec, (loaded, total) =>
-        setPhase({ kind: 'downloading', loaded, total }),
-      );
+      // Sequential download with combined progress. The total is only shown
+      // once every file has reported a Content-Length.
+      let doneBytes = 0;
+      let totalKnown: number[] = [];
+      let size = 0;
+      for (const [i, spec] of specs.entries()) {
+        const fileSize = await downloadArchive(spec, (loaded, total) => {
+          if (total != null) totalKnown[i] = total;
+          const combinedTotal =
+            totalKnown.filter((t) => t != null).length === specs.length
+              ? totalKnown.reduce((a, b) => a + b, 0)
+              : null;
+          setPhase({ kind: 'downloading', loaded: doneBytes + loaded, total: combinedTotal });
+        });
+        doneBytes += fileSize;
+        size += fileSize;
+      }
       setPhase({ kind: 'done', sizeBytes: size });
     } catch (e) {
       setPhase({
@@ -81,7 +121,7 @@ function ArchiveCard({
 
   const remove = async () => {
     if (confirm(removeConfirm)) {
-      await removeArchive(spec);
+      for (const spec of specs) await removeArchive(spec);
       await refresh();
     }
   };
@@ -180,7 +220,7 @@ function ArchiveCard({
         </button>
       )}
 
-      <SourceSummary heading={sourceHeading} source={source} assetUrl={archiveUrl(spec)} />
+      <SourceSummary heading={sourceHeading} source={source} assetUrls={specs.map(archiveUrl)} />
     </div>
   );
 }
@@ -188,7 +228,7 @@ function ArchiveCard({
 export function OfflineMapCard() {
   return (
     <ArchiveCard
-      spec={VECTOR_ARCHIVE}
+      specs={[VECTOR_ARCHIVE]}
       title="Offline map"
       description="A bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~9 km). Download it while online; the route itself always works offline."
       removeConfirm="Remove the offline map? The map screen will need a connection again."
@@ -198,10 +238,23 @@ export function OfflineMapCard() {
   );
 }
 
+export function TerrainReliefCard() {
+  return (
+    <ArchiveCard
+      specs={[TERRAIN_ARCHIVE, CONTOURS_ARCHIVE]}
+      title="Terrain relief"
+      description="Hillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~15 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap."
+      removeConfirm="Remove the terrain relief? The map will render without hillshade and contour lines."
+      sourceHeading="Elevation data"
+      source={TERRAIN_SOURCE_INFO}
+    />
+  );
+}
+
 export function SatelliteMapCard() {
   return (
     <ArchiveCard
-      spec={SATELLITE_ARCHIVE}
+      specs={[SATELLITE_ARCHIVE]}
       title="Satellite imagery"
       description="Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~42 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap."
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."

@@ -44,6 +44,24 @@ export const VECTOR_ARCHIVE: ArchiveSpec = {
   path: 'maps/kungsleden.pmtiles',
 };
 
+/**
+ * Terrain relief: two archives managed as ONE user-facing download (the
+ * Settings "Terrain relief" card) because neither is useful alone —
+ * hillshade needs the terrain-RGB raster, contours need the vector lines.
+ * Built by scripts/build-terrain-map.sh from the Copernicus GLO-30 DEM;
+ * like the satellite archive, the binaries are never committed — deploy.yml
+ * injects the verified terrain-data release assets into the Pages build.
+ */
+export const TERRAIN_ARCHIVE: ArchiveSpec = {
+  cacheName: 'fjallkompis-offline-terrain-v1',
+  path: 'maps/kungsleden-terrain.pmtiles',
+};
+
+export const CONTOURS_ARCHIVE: ArchiveSpec = {
+  cacheName: 'fjallkompis-offline-contours-v1',
+  path: 'maps/kungsleden-contours.pmtiles',
+};
+
 export const SATELLITE_ARCHIVE: ArchiveSpec = {
   cacheName: 'fjallkompis-offline-satellite-v1',
   path: 'maps/kungsleden-satellite.pmtiles',

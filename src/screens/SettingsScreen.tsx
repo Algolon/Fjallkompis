@@ -4,7 +4,11 @@ import { ScreenHeader } from '../components/ui';
 import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
-import { OfflineMapCard, SatelliteMapCard } from '../components/OfflineMapCard';
+import {
+  OfflineMapCard,
+  SatelliteMapCard,
+  TerrainReliefCard,
+} from '../components/OfflineMapCard';
 import { REPOSITORY_URL } from '../data/attribution';
 import { CreditsSheet } from '../components/CreditsSheet';
 import { InstallCard } from '../components/InstallCard';
@@ -123,6 +127,8 @@ export function SettingsScreen() {
       </div>
 
       <OfflineMapCard />
+
+      <TerrainReliefCard />
 
       <SatelliteMapCard />
 

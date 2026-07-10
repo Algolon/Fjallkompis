@@ -95,6 +95,30 @@ export default defineConfig({
               cacheableResponse: { statuses: [200] },
             },
           },
+          {
+            // Terrain relief, same mechanism as the vector basemap: byte
+            // ranges served from the user-downloaded FULL response. Cache
+            // names must match TERRAIN_ARCHIVE / CONTOURS_ARCHIVE in
+            // src/map/offlineMap.ts.
+            urlPattern: ({ sameOrigin, request }) =>
+              sameOrigin && request.url.endsWith('/maps/kungsleden-terrain.pmtiles'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'fjallkompis-offline-terrain-v1',
+              rangeRequests: true,
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            urlPattern: ({ sameOrigin, request }) =>
+              sameOrigin && request.url.endsWith('/maps/kungsleden-contours.pmtiles'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'fjallkompis-offline-contours-v1',
+              rangeRequests: true,
+              cacheableResponse: { statuses: [200] },
+            },
+          },
         ],
       },
       devOptions: {
