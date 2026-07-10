@@ -23,9 +23,11 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   set from z13; lakes stay unshaded and every route, water, road and hut
   element keeps its contrast above the relief. The data ships as two
   bounded PMTiles archives (~15 MB together) derived from the open
-  Copernicus DEM GLO-30 elevation model by the new reproducible
-  `scripts/build-terrain-map.sh` pipeline, hosted as a versioned GitHub
-  Release and injected into deploys exactly like the satellite archive.
+  Copernicus DEM GLO-30 elevation model by the new
+  `scripts/build-terrain-map.sh` pipeline — repeatable from the recorded
+  provenance manifest (not guaranteed bit-for-bit reproducible; the AWS
+  mirror is unversioned) — hosted as a versioned GitHub Release and
+  injected into deploys exactly like the satellite archive.
 - **Settings → Terrain relief**: downloads both relief files as one action
   for fully offline hillshade and contours (independent of the basemap and
   satellite downloads), with the same status/progress/remove interface as

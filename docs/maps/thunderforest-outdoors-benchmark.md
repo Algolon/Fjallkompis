@@ -409,7 +409,7 @@ Phase-numbered PRs.
 | Offline / PMTiles | Fully compatible — same blob-download + range-request model as the satellite archive; reuse `ArchiveSpec` |
 | Coverage | Corridor bbox ≈ 120 × 75 km; z9–13 terrain-RGB or contour vectors |
 | Storage | Rough order: terrain-RGB z≤12 ≈ 5–15 MB; contours ≈ 2–8 MB. Measure before committing (ROADMAP already conditions this item on size) |
-| Pipeline | One reproducible script like `build-satellite-map.sh`; GDAL already a documented project tool |
+| Pipeline | One repeatable, provenance-recorded script like `build-satellite-map.sh` (the unversioned AWS mirror rules out bit-for-bit reproducibility); GDAL already a documented project tool |
 | Maintenance | Near-zero (terrain doesn't change) |
 | Verdict | **Necessary** for the relief half of the benchmark — not merely decorative |
 
