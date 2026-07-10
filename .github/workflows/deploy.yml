@@ -58,7 +58,7 @@ jobs:
 
       # ---- Satellite archive: canonical GitHub Release asset ----------------
       # The ~42 MB PMTiles binary is NOT committed. The canonical copy lives on
-      # the satellite-data-v2 Release; deployment downloads it into the Pages
+      # the satellite-data-v3 Release; deployment downloads it into the Pages
       # build so browsers fetch it SAME-ORIGIN (GitHub Release assets send no
       # CORS headers, so the app cannot fetch them cross-origin directly).
       # New imagery ⇒ new release tag ⇒ update TAG/SHA-256/size pins here.
@@ -68,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p public/maps
-          gh release download satellite-data-v2 \
+          gh release download satellite-data-v3 \
             --repo Algolon/Fjallkompis \
             --pattern kungsleden-satellite.pmtiles \
             --dir public/maps
@@ -76,8 +76,8 @@ jobs:
         run: |
           set -euo pipefail
           f=public/maps/kungsleden-satellite.pmtiles
-          expected_sha="aed1d49072b21c1ada190c3dac19e9cafcd953718c496875192cb1c5078953eb"
-          expected_size=11294208
+          expected_sha="b94714526b48bc07220a851e4cc05684800e5d2967804b6907f72a922258c694"
+          expected_size=61704169
           actual_sha="$(sha256sum "$f" | awk '{print $1}')"
           actual_size="$(stat -c '%s' "$f")"
           echo "sha256: $actual_sha (expected $expected_sha)"
@@ -115,7 +115,7 @@ jobs:
           set -euo pipefail
           f=dist/maps/kungsleden-satellite.pmtiles
           test -f "$f" || { echo "FATAL: $f missing from build output"; exit 1; }
-          expected_sha="aed1d49072b21c1ada190c3dac19e9cafcd953718c496875192cb1c5078953eb"
+          expected_sha="b94714526b48bc07220a851e4cc05684800e5d2967804b6907f72a922258c694"
           actual_sha="$(sha256sum "$f" | awk '{print $1}')"
           [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: built archive SHA-256 mismatch"; exit 1; }
           echo "✓ dist/maps/kungsleden-satellite.pmtiles present, sha256 verified"

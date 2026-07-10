@@ -30,7 +30,9 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   the abrupt relief disappearance seen in v0.14.0 on real devices are
   gone. Relief data ships as `terrain-data-v2` (terrain z7–12, ~18 MB;
   contours unchanged in style, ~6 MB); satellite imagery was regenerated
-  to the same coverage as `satellite-data-v2` (~11 MB, down from 42 MB).
+  to the same coverage as `satellite-data-v3` (~59 MB — rebuilt on the
+  same runner toolchain as v1 after an exact-tile comparison showed the
+  locally-encoded v2 candidate was visibly softer at identical settings).
 - **Map viewport proportions.** Desktop and tablet-landscape use a compact
   4:5 map beside the route panel (the full route fills ~85% of the map
   height in one "Fit route" view) instead of stretching across the layout;

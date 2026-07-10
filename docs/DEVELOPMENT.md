@@ -70,9 +70,14 @@ contract, defined in `scripts/route-configs.mjs` and materialised by
 `npm run generate:route` into the route JSON, governs everything:
 
 - **routeBounds** — the GPX bounding box;
-- **userBounds** = route + `userBufferKm` (12 km) — the area the camera can
-  reach (`maxBounds` in MapView). Selected so the full-route "Fit route"
-  view stays inside the bounds on every supported viewport;
+- **userBounds** = route + `userBufferKm` (12 km) — the **interaction
+  bounds**: the area of regular panning/zooming (`maxBounds` in MapView).
+  Selected so the full-route "Fit route" view stays inside the bounds on
+  every supported portrait/4:5 viewport. Wide viewports additionally get
+  temporary, deterministic **overview bounds** (an east/west widening
+  active only below that viewport's overview zoom threshold, clamped
+  per-edge to the physical z7 terrain envelope — see
+  src/map/cameraBounds.mjs for the full three-level model);
 - **mapCutoutBounds** = user bounds + `dataMarginKm` (3 km hidden margin) —
   what every archive build (vector, terrain, contours, satellite)
   generates data for, before per-zoom outward tile alignment.
@@ -174,7 +179,7 @@ resolution, visual comparison, contour noise and storage measurements.
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**
 map. Tiles come from a raster PMTiles archive of **EOX Sentinel‑2 cloudless
-2024** imagery, bounded to the route corridor. The archive is **~11 MB and is
+2024** imagery, bounded to the route corridor. The archive is **~59 MB and is
 NOT committed to the repo** — the canonical binary lives on a **versioned
 GitHub Release** and is injected into the Pages build at deploy time:
 

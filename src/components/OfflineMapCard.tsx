@@ -256,7 +256,7 @@ export function SatelliteMapCard() {
     <ArchiveCard
       specs={[SATELLITE_ARCHIVE]}
       title="Satellite imagery"
-      description="Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~11 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap."
+      description="Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap."
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
       sourceHeading="Imagery"
       source={SATELLITE_SOURCE_INFO}
