@@ -567,49 +567,6 @@ h3 {
   max-width: none;
 }
 
-/* Temporary map-comparison selector (docs/maps/thunderforest-outdoors-
-   benchmark.md) — removed with the benchmark when the restyle concludes.
-   Compact by design: phone widths swap the long caption for "Style" so the
-   select keeps enough room to show the selected option untruncated, and the
-   whole pill stays clear of the MapLibre controls in the top-right. */
-.map-style-picker {
-  position: absolute;
-  top: 54px;
-  left: 10px;
-  max-width: calc(100% - 76px);
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-  background: color-mix(in srgb, var(--paper-2) 88%, transparent);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.25);
-}
-.map-style-picker__caption {
-  font-weight: 700;
-  white-space: nowrap;
-}
-.map-style-picker select {
-  font-size: 12px;
-  padding: 2px 6px;
-  min-width: 0;
-  flex: 0 1 auto;
-}
-.map-style-picker__caption-short {
-  display: none;
-}
-@media (max-width: 559px) {
-  .map-style-picker__caption-full {
-    display: none;
-  }
-  .map-style-picker__caption-short {
-    display: inline;
-  }
-}
-
 /* Hut/station markers: local HTML buttons, no glyph/sprite dependencies.
    The 44×44 button is the touch target; the visible ~30px badge is centred
    inside it, so the map anchor (element center) is exactly the badge
@@ -2626,8 +2583,8 @@ button.map-status-pill {
     gap: 14px;
     align-items: start;
   }
-  /* Persistent status banners (satellite-not-downloaded, basemap missing,
-     Thunderforest online preview) are part of the left card, so they are
+  /* Persistent status banners (satellite-not-downloaded, basemap missing)
+     are part of the left card, so they are
      part of the fit — one allowance per banner, sized for the compact
      desktop banner styling below wrapping to three lines at the smallest
      supported square (never a layout that only fits when no banner

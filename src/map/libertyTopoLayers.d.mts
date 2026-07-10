@@ -16,6 +16,7 @@ type PaintNumber = DataDrivenPropertyValueSpecification<number>;
 export interface LibertyTopoPalette {
   id: string;
   background: string;
+  landcoverGrassland: string;
   park: string;
   parkOutline: string;
   wood: string;
@@ -66,7 +67,6 @@ export interface ReliefSources {
   contoursSourceId?: string;
 }
 
-export declare const LIBERTY_TOPO_PALETTE: LibertyTopoPalette;
 export declare const NORDIC_TOPO_PALETTE: LibertyTopoPalette;
 export declare const PROTOMAPS_SOURCE_LAYERS: string[];
 export declare function libertyTopoLayers(

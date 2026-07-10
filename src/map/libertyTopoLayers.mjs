@@ -1,139 +1,95 @@
 /**
- * Liberty Topo — adapted to the Fjällkompis offline Protomaps basemap.
+ * Liberty Topo — Nordic: the PRODUCTION Fjällkompis basemap style, built on
+ * the offline Protomaps archive.
  *
- * PROTOTYPE for the three-way map-style comparison (see
- * docs/map-style-comparison.md). Reference style: "Liberty Topo" from the
- * official gpx.studio styles repository
- * (https://github.com/gpxstudio/styles, liberty-topo.json), which is itself
- * derived from OpenFreeMap's Liberty style (MIT, © 2023 Zsolt Ero) and
- * osm-liberty / OSM Bright (code BSD-3-Clause, design CC BY 4.0). Only the
- * style is reused — never gpx.studio's hosted tiles, fonts or sprites.
+ * Origin: the style structure is adapted from "Liberty Topo" in the official
+ * gpx.studio styles repository (https://github.com/gpxstudio/styles,
+ * liberty-topo.json), itself derived from OpenFreeMap's Liberty style (MIT,
+ * © 2023 Zsolt Ero) and osm-liberty / OSM Bright (code BSD-3-Clause, design
+ * CC BY 4.0). Only the style design is reused — never gpx.studio's hosted
+ * tiles, fonts or sprites (licence lineage: src/data/attribution.ts). The
+ * three-way comparison prototype and the temporary Thunderforest benchmark
+ * that produced this style are CONCLUDED (docs/map-style-comparison.md,
+ * docs/maps/thunderforest-outdoors-benchmark.md); the Liberty reference
+ * palette and the comparison selector were removed with that decision.
  *
  * Liberty Topo targets the OpenMapTiles schema plus gpx.studio-hosted
  * hillshading/contour sources. Fjällkompis ships a single bounded Protomaps
  * (tileset v4) PMTiles archive and deliberately has no glyphs or sprites, so
  * this module TRANSLATES the Liberty layers onto the Protomaps source-layers
  * (earth / landcover / landuse / water / roads / buildings / boundaries) and
- * omits what has no offline data. Every layer below is commented with its
- * Liberty origin; the full mapping table (direct / adapted / substituted /
- * omitted) lives in docs/map-style-comparison.md.
+ * omits what has no offline data (all symbol layers, pattern fills, 3-D
+ * buildings). Relief (hillshade + contours) renders from the two optional
+ * offline terrain archives when they are available.
  *
- * The builder is palette-driven: LIBERTY_TOPO_PALETTE keeps Liberty Topo's
- * original colours and thresholds verbatim (the stable reference),
- * NORDIC_TOPO_PALETTE restyles the shared layer structure with the
- * Fjällkompis Nordic Trail design language. Since the Nordic terrain
- * hierarchy restyle (benchmark Phase 1, docs/maps/
- * thunderforest-outdoors-benchmark.md §7), Nordic deliberately diverges from
- * Liberty in a small, documented set of ways — palette-gated extra layers
- * (rock, cliff, glacier outline, river polygons) and one structural value
- * (trails start at z12 instead of z13). Every divergence is fenced by an
- * explicit exception in tests/map-styles.test.mjs; everything else (layer
- * order, filters, zoom thresholds) stays shared so the styles remain
- * comparable.
+ * The builder stays palette-driven so the look remains centrally adjustable:
+ * every colour, opacity ramp and structural threshold the design owns lives
+ * in NORDIC_TOPO_PALETTE below, and tests/map-styles.test.mjs fences the
+ * terrain-hierarchy relationships between the slots.
  */
 
 /**
- * Paint tokens consumed by libertyTopoLayers(). A slot set to null skips its
- * layer entirely (used where Liberty has no equivalent styling and faking one
- * would break fidelity). Most slots are colours; a few are complete MapLibre
- * paint expressions (opacity/width ramps) or structural values (zoom
- * thresholds), so the Nordic terrain hierarchy — benchmark Phase 1,
- * docs/maps/thunderforest-outdoors-benchmark.md §7 — stays palette-driven
- * while the Liberty reference keeps its verbatim behaviour. Every structural
- * divergence (extra layers, differing zoom thresholds) is mirrored by a
- * documented exception in tests/map-styles.test.mjs.
- */
-
-/** Liberty Topo's own colours, copied verbatim from liberty-topo.json. */
-export const LIBERTY_TOPO_PALETTE = {
-  id: 'liberty',
-  background: '#f8f4f0', // Liberty `background`
-  park: 'rgba(216, 232, 200, 0.7)', // `park` #d8e8c8 @ 0.7
-  parkOutline: 'rgba(228, 241, 215, 1)', // `park_outline`
-  wood: 'rgba(172, 224, 139, 0.28)', // `landcover_wood` hsla(98,61%,72%,0.7) × 0.4
-  grass: 'rgba(176, 213, 154, 0.3)', // `landcover_grass` @ 0.3
-  // Liberty renders OMT scrub via the grass class; same colour keeps parity.
-  scrub: 'rgba(176, 213, 154, 0.3)',
-  // SUBSTITUTION: Liberty wetland is a sprite pattern (wetland_bg_11); no
-  // sprites offline, so a flat tint approximating the pattern's tone is used.
-  wetland: 'rgba(213, 229, 224, 0.8)',
-  wetlandOpacity: 1, // Liberty: constant tint (alpha lives in the colour)
-  ice: 'rgba(224, 236, 236, 0.8)', // `landcover_ice`
-  iceOutline: null, // Liberty draws no glacier outline — keep that.
-  sand: 'rgba(247, 239, 195, 1)', // `landcover_sand`
-  // Low-zoom `landcover` barren tone; Liberty has no barren class, the
-  // adaptation reuses its sand colour (pre-restyle behaviour, kept verbatim).
-  barren: 'rgba(247, 239, 195, 1)',
-  rock: null, // Liberty leaves bare rock unstyled — keep that.
-  rockOpacity: 1,
-  cliff: null, // OpenMapTiles has no cliff lines; Liberty styles none.
-  // Liberty Topo's defining relief layers (hillshading + contours) target
-  // gpx.studio-hosted sources; these slots are the offline SUBSTITUTION on
-  // the Fjällkompis terrain archives — tones chosen to sit quietly under
-  // Liberty's brighter palette, not copies of gpx.studio values.
-  hillshadeShadow: 'rgba(92, 82, 70, 0.22)',
-  hillshadeHighlight: 'rgba(255, 255, 255, 0.20)',
-  hillshadeExaggeration: 0.35,
-  contour: 'rgba(160, 140, 110, 0.4)',
-  contourIndex: 'rgba(160, 140, 110, 0.6)',
-  residentialLowZoom: 'hsla(0, 3%, 85%, 0.84)', // `landuse_residential` z9
-  residentialHighZoom: 'hsla(35, 57%, 88%, 0.49)', // `landuse_residential` z12
-  water: 'rgb(158, 189, 255)', // `water`
-  waterRiver: null, // Liberty: one colour for all water polygons — keep that.
-  waterway: '#a0c8f0', // `waterway_river` / `waterway_other`
-  // Waterway line ramps, verbatim from the pre-restyle adaptation.
-  riverLineWidth: ['interpolate', ['exponential', 1.2], ['zoom'], 11, 0.5, 20, 6],
-  riverLineOpacity: 1,
-  streamLineWidth: ['interpolate', ['exponential', 1.3], ['zoom'], 13, 0.5, 20, 6],
-  streamLineOpacity: 1,
-  trailCasing: 'hsl(40, 70%, 60%)', // `road_path_pedestrian_trail_casing`
-  trail: 'hsl(0, 0%, 100%)', // `road_path_pedestrian_trail` (dashed)
-  trailMinzoom: 13, // Liberty `road_path_pedestrian_trail` minzoom
-  trackCasing: '#cfcdca', // `road_service_track_casing`
-  track: '#fff', // `road_service_track`
-  minorCasing: '#cfcdca', // `road_minor_casing`
-  minor: '#fff', // `road_minor`
-  majorCasing: '#e9ac77', // `road_secondary_tertiary/trunk_primary_casing`
-  major: '#fea', // `road_secondary_tertiary` / `road_trunk_primary`
-  rail: '#bbb', // `road_major_rail`
-  building: 'hsl(35, 8%, 85%)', // `building`
-  buildingOutline: 'hsl(35, 6%, 79%)', // `building` fill-outline-color z14
-  boundaryCountry: 'hsl(248, 1%, 41%)', // `boundary_2`
-  boundaryMinor: 'hsl(0, 0%, 70%)', // `boundary_3` (dashed)
-};
-
-/**
- * Nordic Trail restyle of the same Liberty structure: calm desaturated
- * Scandinavian tones from the app palette (src/styles/global.css — spruce,
- * glacier, cloudberry, stone), tuned for outdoor daylight readability. The
- * route overlay (saturated Okabe–Ito lines) must stay the strongest
- * foreground element, so every base tone here is kept muted.
+ * Nordic Trail palette: calm desaturated Scandinavian tones from the app
+ * palette (src/styles/global.css — spruce, glacier, cloudberry, stone),
+ * tuned for outdoor daylight readability. The route overlay (saturated
+ * Okabe–Ito lines) must stay the strongest foreground element, so every
+ * base tone here is kept muted. A slot set to null skips its layer.
  *
- * Terrain hierarchy (benchmark §6.1, strongest → calmest base fill):
- * glacier (bright, outlined — safety-relevant) · exposed rock · forest ·
- * scrub/fjällbjörk (the treeline signal) · grassland · open alpine
- * background (deliberately the calmest — the stage, not an actor). Wetland
- * is NOT a base fill: it renders as a semi-transparent cool wash ABOVE
- * wood/grass/scrub, fading in z10→z12, so a wet birch forest reads as both.
+ * Terrain hierarchy (0.17.0 legibility iteration — measured against the
+ * archive audit in docs/maps/thunderforest-outdoors-benchmark.md §3):
+ * the base landcover fills are SOLID colours on a single muted ladder,
+ * because the earlier semi-transparent fills mixed with the background into
+ * near-indistinguishable pastels. The dominant surface is the BACKGROUND:
+ * ~85–90% of the corridor has no landuse terrain polygon at z8+, so the
+ * background is rendered as a light muted sage/lichen green — a deliberate
+ * CARTOGRAPHIC GENERALISATION of the open-fjäll ground surface (low alpine
+ * vegetation, heath-like ground, tundra) that the archive cannot classify.
+ * It is NOT data-driven grassland and must never be documented as such;
+ * the explicit grass/scrub/forest/wetland/rock/glacier fills ARE
+ * data-driven. Strongest → calmest: glacier (bright, outlined —
+ * safety-relevant) · forest (distinctly darkest green) · scrub/fjällbjörk
+ * (medium olive treeline belt) · grassland/meadow (clear light
+ * yellow-green) · exposed rock (cool medium grey) · open-fjäll background
+ * (the calmest, lightest green). Wetland is NOT a base fill: it renders as
+ * a translucent peat-brown wash ABOVE wood/grass/scrub, fading in z10→z12,
+ * so a wet birch forest reads as both. The protected-area tint stays
+ * barely visible.
  */
+
 export const NORDIC_TOPO_PALETTE = {
   id: 'liberty-nordic',
-  background: '#eef0e9', // open fjäll: lightest, slightly cool stone/paper
-  park: 'rgba(122, 151, 118, 0.10)', // barely-there protected-area tint
+  // Open fjäll: light muted sage/lichen green — the map's dominant surface
+  // (~85–90% of the corridor has no terrain polygon at z8+). This is a
+  // deliberate cartographic generalisation of open alpine ground (low
+  // vegetation, heath-like ground, tundra — classes the archive cannot
+  // distinguish), NOT data-driven grassland. Perceptibly green so the
+  // landscape reads as vegetated fjäll instead of beige paper, but calmer
+  // and lighter than every explicit vegetation fill.
+  background: '#dde3cf',
+  // Low-zoom (z≤7) landcover 'grassland': the generalised polygon covers
+  // essentially the whole corridor at z7 and vanishes at z8, so it must
+  // sit CLOSE to the open-fjäll background (one hint greener, never the
+  // explicit meadow green) — that is what keeps the z7→z8 handover smooth.
+  landcoverGrassland: '#d9e1c9',
+  park: 'rgba(122, 151, 118, 0.08)', // barely-there protected-area tint
   parkOutline: 'rgba(95, 130, 98, 0.35)',
-  wood: 'rgba(118, 152, 106, 0.52)', // birch/spruce forest — the strongest green
-  grass: 'rgba(180, 198, 155, 0.32)', // meadow: lighter and quieter than scrub
-  scrub: 'rgba(150, 175, 120, 0.45)', // fjällbjörk treeline belt: between forest and grass
-  wetland: 'rgb(114, 156, 138)', // cool wet-ground wash — green enough to never read as water
+  // Vegetation ladder — solid muted tones, one hue family, three clear
+  // steps above the sage background (data-driven, unlike the background):
+  wood: 'rgb(115, 143, 98)', // birch/spruce forest — distinctly darkest green
+  grass: 'rgb(198, 211, 159)', // meadow/grassland: clear light yellow-green
+  scrub: 'rgb(163, 184, 117)', // fjällbjörk treeline belt: medium olive
+  // Wetland wash: muted peat/moss olive-brown — hue-separated from every
+  // vegetation green AND from the water teals (never "shallow water").
+  wetland: 'rgb(154, 143, 94)',
   // Overlay behaviour: invisible until z10, full wash strength by z12 —
   // wetland must read at hut-decision zooms without muddying the overview.
-  wetlandOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.08, 12, 0.4],
-  ice: 'rgba(240, 246, 249, 0.94)', // glacier fill: bright, cold
-  iceOutline: 'rgba(122, 158, 175, 0.85)', // thin cool rim so tongues read on rock
+  wetlandOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.12, 12, 0.5],
+  ice: 'rgba(243, 248, 251, 0.97)', // glacier fill: very light cool blue-white
+  iceOutline: 'rgba(116, 154, 173, 0.9)', // thin cool rim so tongues read on rock
   sand: 'rgba(228, 221, 198, 1)',
-  barren: 'rgba(186, 188, 181, 0.55)', // low-zoom massifs match the rock family
-  rock: 'rgb(158, 160, 155)', // exposed rock: muted cool grey, hostile
-  rockOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.3, 12, 0.48],
+  barren: 'rgb(196, 198, 190)', // low-zoom massifs match the rock family
+  rock: 'rgb(168, 170, 162)', // exposed rock: cool medium grey, hostile
+  rockOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.55, 12, 0.8],
   cliff: 'rgba(122, 130, 124, 0.7)',
   // Relief (rendered only when the terrain/contour archives are available):
   // muted so valleys and ridges read instantly without stealing contrast
@@ -141,8 +97,8 @@ export const NORDIC_TOPO_PALETTE = {
   hillshadeShadow: 'rgba(74, 69, 60, 0.2)',
   hillshadeHighlight: 'rgba(255, 255, 250, 0.16)',
   hillshadeExaggeration: 0.32,
-  contour: 'rgba(148, 125, 95, 0.38)', // thin warm grey-brown, z13+
-  contourIndex: 'rgba(148, 125, 95, 0.6)', // heavier every 100 m, z11+
+  contour: 'rgba(148, 125, 95, 0.4)', // thin warm grey-brown, fading in z11.5→13
+  contourIndex: 'rgba(148, 125, 95, 0.62)', // heavier every 100 m, fading in z9.5→11
   residentialLowZoom: 'rgba(205, 207, 199, 0.55)',
   residentialHighZoom: 'rgba(205, 207, 199, 0.45)',
   water: '#a3c3cc', // lakes: glacial teal — the primary orientation anchors
@@ -183,10 +139,10 @@ export const PROTOMAPS_SOURCE_LAYERS = [
 ];
 
 /**
- * Build the adapted Liberty Topo basemap layers against the Fjällkompis
- * Protomaps vector source. Returns MapLibre layer specs, bottom-to-top,
- * every id prefixed `lt_` so they can never collide with the production
- * (`@protomaps/basemaps`) layer ids.
+ * Build the production basemap layers against the Fjällkompis Protomaps
+ * vector source. Returns MapLibre layer specs, bottom-to-top, every id
+ * prefixed `lt_` so they can never collide with the runtime layer ids
+ * (route, GPS, satellite — see tests/map-styles.test.mjs).
  *
  * Omitted from Liberty Topo (no glyphs / no sprites — recorded in
  * docs/map-style-comparison.md): every symbol layer (place/POI/peak/road
@@ -204,7 +160,8 @@ export const PROTOMAPS_SOURCE_LAYERS = [
  * the output is exactly the pre-relief style.
  *
  * @param {string} sourceId Vector basemap source id.
- * @param {object} palette LIBERTY_TOPO_PALETTE or NORDIC_TOPO_PALETTE.
+ * @param {object} palette NORDIC_TOPO_PALETTE (the builder stays
+ *   palette-driven so the design remains centrally adjustable).
  * @param {{ terrainSourceId?: string, contoursSourceId?: string }} [relief]
  *   Optional relief sources; omit any that has no archive available.
  */
@@ -227,9 +184,15 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
     paint: { 'fill-color': p.background },
   });
 
-  // Low-zoom landcover (Protomaps-only layer, z≲7): keeps the zoomed-out
-  // route overview from rendering as blank paper. Colours reuse the palette
-  // slots of the corresponding high-zoom landuse layers.
+  // Low-zoom landcover (Protomaps-only layer, exists ONLY in z0–7 tiles):
+  // keeps the zoomed-out route overview from rendering as blank paper.
+  // Measured behaviour (archive audit, 0.17.0): at z7 the generalised
+  // 'grassland' polygon covers ~100% of the corridor and the whole layer
+  // disappears at z8, where sparse OSM landuse takes over on the bare
+  // background. 'grassland' therefore gets its own near-background tone
+  // (landcoverGrassland) so the z7→z8 handover doesn't jump from green to
+  // stone; forest/glacier/barren reuse the landuse slots and hand over to
+  // the corresponding OSM polygons.
   add({
     id: 'lt_landcover',
     type: 'fill',
@@ -241,7 +204,7 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
         'glacier', p.ice,
         'forest', p.wood,
         'scrub', p.scrub,
-        'grassland', p.grass,
+        'grassland', p.landcoverGrassland,
         'barren', p.barren,
         p.background,
       ],
@@ -313,7 +276,7 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
     paint: { 'fill-color': p.sand, 'fill-antialias': false },
   });
   // Fjällkompis extra (palette-gated): bare rock — Liberty leaves it
-  // unstyled, so LIBERTY_TOPO_PALETTE sets it to null and skips the layer.
+  // unstyled; a palette with rock:null would skip the layer.
   if (p.rock) {
     add({
       id: 'lt_rock',
@@ -356,7 +319,7 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
     paint: { 'fill-color': p.ice, 'fill-antialias': false },
   });
   // Fjällkompis extra (palette-gated): thin cool glacier rim so ice tongues
-  // read against rock at z11–14 (Liberty draws none → null skips it).
+  // read against rock at z11–14 (Liberty draws none; null would skip it).
   if (p.iceOutline) {
     add({
       id: 'lt_ice_outline',
@@ -391,21 +354,27 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
   }
   // Contours: 20 m interval with every 100 m as the heavier index line —
   // selected from the 30 m DEM resolution, visual comparison, contour noise
-  // and storage measurements. Index lines appear from z11 with a fade-in; the full
-  // 20 m set joins at z13. Elevation labels are deliberately absent until
-  // the offline-glyphs roadmap item ships.
+  // and storage measurements. Earlier-contours iteration (0.17.0): index
+  // lines fade in from z9.5 and are clearly legible by z11; the 20 m set
+  // fades in from z11.5 and is fully useful by z13. Both ramps start at
+  // opacity 0 so neither tier pops at a threshold. The archive tags index
+  // lines into z9+ tiles and the full set into z12+ tiles
+  // (scripts/build-terrain-map.sh — keep in sync); with an older archive
+  // (terrain-data-v2, tiles z11–13) the same style degrades gracefully:
+  // nothing renders below the archive's own tile minzooms. Elevation labels
+  // are deliberately absent until the offline-glyphs roadmap item ships.
   if (relief.contoursSourceId) {
     layers.push({
       id: 'lt_contour',
       type: 'line',
       source: relief.contoursSourceId,
       'source-layer': 'contours',
-      minzoom: 13,
+      minzoom: 11.5,
       filter: ['!=', ['%', ['get', 'elev'], 100], 0],
       paint: {
         'line-color': p.contour,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.5, 16, 0.9],
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0, 13.5, 1],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 11.5, 0.35, 13, 0.55, 16, 0.9],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 13, 0.85],
       },
     });
     layers.push({
@@ -413,18 +382,18 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
       type: 'line',
       source: relief.contoursSourceId,
       'source-layer': 'contours',
-      minzoom: 11,
+      minzoom: 9.5,
       filter: ['==', ['%', ['get', 'elev'], 100], 0],
       paint: {
         'line-color': p.contourIndex,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.6, 16, 1.4],
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0, 12, 1],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9.5, 0.55, 13, 1, 16, 1.5],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 9.5, 0, 11, 0.9],
       },
     });
   }
 
   // Fjällkompis extra (palette-gated): cliff lines from the Protomaps earth
-  // layer. No OpenMapTiles equivalent → null (skipped) in the Liberty palette.
+  // layer. No OpenMapTiles equivalent exists; Liberty styles no cliffs.
   if (p.cliff) {
     add({
       id: 'lt_cliff',
@@ -544,9 +513,9 @@ export function libertyTopoLayers(sourceId, palette, relief = {}) {
   // Liberty `road_path_pedestrian_trail_casing` + `_trail`: unpaved paths.
   // Protomaps has no surface attribute, so ALL paths (except track/pier)
   // take the trail treatment — correct for this fjäll corridor.
-  // Structural palette value (Liberty 13, Nordic 12): the Nordic restyle
-  // starts trails one zoom earlier — documented exception in
-  // tests/map-styles.test.mjs. Width ramps share the same start zoom.
+  // Structural palette value: Nordic starts trails at z12, one zoom earlier
+  // than Liberty's verbatim 13 (hut-approach legibility). Width ramps share
+  // the same start zoom.
   const trailFilter = ['all', ['==', 'kind', 'path'], ['!in', 'kind_detail', 'track', 'pier']];
   add({
     id: 'lt_trail_casing',

@@ -79,7 +79,9 @@ const ARCHIVES = [
   // (terrain minzoom 6) or v1 satellite (old 9 km bounds) mixed into a v2
   // runtime fails here or in the bounds assertions above.
   { file: 'public/maps/kungsleden-terrain.pmtiles', name: 'terrain', zooms: [7, 12] },
-  { file: 'public/maps/kungsleden-contours.pmtiles', name: 'contours', zooms: [11, 13] },
+  // Contours v3 (0.17.0): index lines tiled from z9 (earlier-contours
+  // iteration), full 20 m set joins at z12, tiles stop at z13.
+  { file: 'public/maps/kungsleden-contours.pmtiles', name: 'contours', zooms: [9, 13] },
   { file: 'public/maps/kungsleden-satellite.pmtiles', name: 'satellite', zooms: [7, 13] },
 ];
 
@@ -119,8 +121,8 @@ test('runtime terrain/contour zoom configuration matches the archive contract', 
   const mapStyle = readFileSync(join(root, 'src/map/mapStyle.ts'), 'utf8');
   assert.match(mapStyle, /TERRAIN_MAX_ZOOM = 12/, 'raster-dem maxzoom 12');
   const layers = readFileSync(join(root, 'src/map/libertyTopoLayers.mjs'), 'utf8');
-  assert.match(layers, /lt_contour_index'[\s\S]{0,200}minzoom: 11/, 'index contours from z11');
-  assert.match(layers, /'lt_contour'[\s\S]{0,200}minzoom: 13/, 'full contour set from z13');
+  assert.match(layers, /lt_contour_index'[\s\S]{0,200}minzoom: 9\.5/, 'index contours fade in from z9.5');
+  assert.match(layers, /'lt_contour'[\s\S]{0,200}minzoom: 11\.5/, 'full contour set fades in from z11.5');
   const camera = readFileSync(join(root, 'src/map/cameraBounds.mjs'), 'utf8');
   assert.match(camera, /TERRAIN_MIN_ZOOM = 7/, 'overview envelope derives from terrain z7');
 });

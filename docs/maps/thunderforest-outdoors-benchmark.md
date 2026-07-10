@@ -1,11 +1,17 @@
 # Thunderforest Outdoors — cartographic benchmark & Nordic translation plan
 
-**Status: research complete (v0.12.0); Phases 1–2 executed.** The Nordic
-terrain hierarchy restyle (v0.13.0) delivered Phase 1, and the terrain
-relief iteration (v0.14.0) delivered the §8.1 contours + hillshade data and
-the Phase 2 relief layers (`scripts/build-terrain-map.sh`, Copernicus DEM
-GLO-30). Remaining: Phase 3 (paths polish + the glyph-gated label system)
-and the optional §8.2 custom tile profile — tracked in ROADMAP.md.
+**Status: research complete (v0.12.0); Phases 1–2 executed; the comparison
+layer itself is RETIRED (v0.17.0).** The Nordic terrain hierarchy restyle
+(v0.13.0) delivered Phase 1, the terrain relief iteration (v0.14.0)
+delivered the §8.1 contours + hillshade data and the Phase 2 relief layers
+(`scripts/build-terrain-map.sh`, Copernicus DEM GLO-30), and the terrain
+legibility iteration (v0.17.0) hardened the Phase 1 hierarchy (solid
+palette ladder, z7→z8 handover fix, earlier contour fade-ins) and removed
+the temporary comparison selector, the Thunderforest online preview and
+their flags/keys — the §2 comparison setup below no longer exists in the
+app and is kept as the record of the method. Remaining: Phase 3 (paths
+polish + the glyph-gated label system) and the optional §8.2 custom tile
+profile — tracked in ROADMAP.md.
 
 This document is the deliverable of
 the temporary **Thunderforest Outdoors — Online preview** comparison layer on

@@ -34,26 +34,9 @@ import type { ParsedRoute } from '../route/types';
 import {
   buildMapStyle,
   routeLayers,
-  reliefSourcesFor,
-  BASEMAP_SOURCE,
   SATELLITE_LAYER,
   type ReliefUrls,
 } from '../map/mapStyle';
-import {
-  basemapLayersForStyle,
-  isVectorStyleId,
-  DEFAULT_MAP_STYLE_ID,
-} from '../map/mapStyles.mjs';
-import type { MapStyleId, VectorMapStyleId } from '../map/mapStyles.mjs';
-import {
-  THUNDERFOREST_SOURCE,
-  THUNDERFOREST_LAYER,
-  THUNDERFOREST_STYLE_ID,
-  thunderforestSource,
-  thunderforestRasterLayer,
-} from '../map/thunderforestLayer.mjs';
-import { THUNDERFOREST_API_KEY } from '../map/thunderforest';
-import { THUNDERFOREST_SOURCE_INFO } from '../data/attribution';
 import {
   resolveArchiveBasemap,
   resolveSatellite,
@@ -126,12 +109,6 @@ interface MapViewProps {
   onSatelliteAvailable?: (available: boolean) => void;
   /** 'terrain' (offline vector) or 'satellite' (offline raster PMTiles). */
   imagery: ImageryMode;
-  /**
-   * Comparison-prototype basemap style (docs/map-style-comparison.md).
-   * Switching restyles the SAME vector source in place — camera, overlays,
-   * markers and event handlers are untouched. Defaults to production.
-   */
-  mapStyleId?: MapStyleId;
   gps: LatLng | null;
   /** Breadcrumb trail as [lon, lat] positions (live-tracking pilot). */
   trail?: [number, number][];
@@ -200,7 +177,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     onBasemapMode,
     onSatelliteAvailable,
     imagery,
-    mapStyleId = DEFAULT_MAP_STYLE_ID,
     gps,
     trail,
     follow = false,
@@ -213,17 +189,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // Which VECTOR comparison style the map currently shows, and the exact
-  // basemap layer ids it consists of — needed to remove them cleanly on a
-  // switch. The online raster benchmark is tracked separately: it overlays
-  // the vector basemap and never replaces it.
-  const appliedStyleRef = useRef<{ id: VectorMapStyleId; layerIds: string[] } | null>(null);
-  // Relief availability resolved at mount; the style-swap effect needs it to
-  // rebuild the SAME layer set (incl. hillshade/contours) for the next style.
+  // Relief availability resolved at mount (recorded for parity with the
+  // other archive resolutions; the style is built once with it).
   const reliefRef = useRef<ReliefUrls | null>(null);
-  // Latest prop value, readable from the one-time map-creation closure.
-  const mapStyleIdRef = useRef(mapStyleId);
-  mapStyleIdRef.current = mapStyleId;
 
   // Camera-bounds state (coverage contract): the constraint set for the
   // current viewport shape, and whether the overview expansion is active.
@@ -332,24 +300,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         contoursSourceUrl: contours.sourceUrl,
       };
 
-      // The map is always CREATED on an offline vector style; if the caller
-      // mounted directly on the online raster benchmark, the style effect
-      // below overlays it after load (tiles are only requested when the
-      // user actually selected the option — never speculatively here).
-      const initialStyleId = mapStyleIdRef.current;
-      const initialVectorId = isVectorStyleId(initialStyleId)
-        ? initialStyleId
-        : DEFAULT_MAP_STYLE_ID;
-      appliedStyleRef.current = {
-        id: initialVectorId,
-        layerIds: basemap.sourceUrl
-          ? basemapLayersForStyle(
-              initialVectorId,
-              BASEMAP_SOURCE,
-              reliefSourcesFor(reliefRef.current),
-            ).map((l) => l.id)
-          : [],
-      };
       // Bounded route product (0.15.0): the camera is fenced to the coverage
       // contract's user bounds; wide viewports get the overview expansion so
       // "Fit route" always works (src/map/cameraBounds.mjs has the design).
@@ -369,12 +319,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildMapStyle(
-          basemap.sourceUrl,
-          satellite.sourceUrl,
-          initialVectorId,
-          reliefRef.current,
-        ),
+        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, reliefRef.current),
         bounds: mountedRoute.bounds,
         fitBoundsOptions: { padding: FIT_PADDING },
         attributionControl: { compact: true },
@@ -401,9 +346,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       map.keyboard.disableRotation();
       mapRef.current = map;
       if (import.meta.env.DEV) {
-        // Dev-only handle for the style-comparison evaluation checklist
-        // (docs/map-style-comparison.md): lets reviewers jump the camera to
-        // the listed test locations from the console. Stripped from builds.
+        // Dev-only handle for map-style validation (the benchmark cameras in
+        // docs/maps/thunderforest-outdoors-benchmark.md §2): lets reviewers
+        // jump the camera to the test locations from the console. Stripped
+        // from builds.
         (window as unknown as Record<string, unknown>).__fjallkompisMap = map;
       }
 
@@ -652,68 +598,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
     fitBounds(stage ? stage.bounds : routeRef.current.bounds);
   }, [selectedStageId, loaded]);
-
-  // ---- Comparison-prototype basemap style switch ---------------------------
-  // Swaps ONLY the basemap paint layers, in place, on the shared vector
-  // source: the camera is never touched (position/zoom/bearing/pitch are
-  // preserved by construction), sources stay registered, and the
-  // route/GPS/scrub overlays and hut markers above are left alone. Removing
-  // the previous style's layers before adding the next set means repeated
-  // switching cannot accumulate layers, sources or handlers.
-  useEffect(() => {
-    const map = mapRef.current;
-    const applied = appliedStyleRef.current;
-    if (!map || !loaded || !applied) return;
-
-    // ---- Online raster benchmark (Thunderforest Outdoors) ----------------
-    // Lazily added on the FIRST explicit selection — no tile is requested
-    // before that, and never without an API key. Afterwards only layer
-    // visibility toggles, so repeated switching cannot duplicate sources,
-    // layers or listeners. The raster sits above the vector basemap and the
-    // satellite layer but below every route/GPS/scrub overlay; the vector
-    // style underneath is left untouched (offline PMTiles, zero quota cost).
-    const wantsThunderforest = mapStyleId === THUNDERFOREST_STYLE_ID;
-    if (wantsThunderforest && !map.getSource(THUNDERFOREST_SOURCE)) {
-      const source = thunderforestSource(
-        THUNDERFOREST_API_KEY,
-        THUNDERFOREST_SOURCE_INFO.mapAttributionHtml!,
-      );
-      // No key → the UI disables the option; never add a keyless source.
-      if (source) {
-        map.addSource(THUNDERFOREST_SOURCE, source);
-        const anchor = map.getLayer('route-overview') ? 'route-overview' : undefined;
-        map.addLayer(thunderforestRasterLayer(), anchor);
-      }
-    }
-    if (map.getLayer(THUNDERFOREST_LAYER)) {
-      map.setLayoutProperty(
-        THUNDERFOREST_LAYER,
-        'visibility',
-        wantsThunderforest ? 'visible' : 'none',
-      );
-    }
-    if (wantsThunderforest) return;
-
-    // ---- Offline vector styles (in-place layer swap) ----------------------
-    if (applied.id === mapStyleId) return;
-    // No basemap resolved → nothing to restyle (placeholder background only).
-    if (!map.getSource(BASEMAP_SOURCE)) return;
-
-    const nextLayers = basemapLayersForStyle(
-      mapStyleId,
-      BASEMAP_SOURCE,
-      reliefSourcesFor(reliefRef.current),
-    );
-    // Keep the stack order stable: basemap layers always sit between the
-    // placeholder background and the satellite/route layers.
-    const anchorId = map.getLayer(SATELLITE_LAYER) ? SATELLITE_LAYER : 'route-overview';
-    const beforeId = map.getLayer(anchorId) ? anchorId : undefined;
-    for (const id of applied.layerIds) {
-      if (map.getLayer(id)) map.removeLayer(id);
-    }
-    for (const layer of nextLayers) map.addLayer(layer, beforeId);
-    appliedStyleRef.current = { id: mapStyleId, layerIds: nextLayers.map((l) => l.id) };
-  }, [mapStyleId, loaded]);
 
   // ---- Basemap imagery toggle (terrain vs satellite) ----------------------
   useEffect(() => {

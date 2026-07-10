@@ -19,6 +19,7 @@
  *     --bounds <w,s,e,n>
  *     --terrain-zooms <min,max>
  *     --contour-intervals <interval,index>
+ *     --contour-zooms <indexMinzoom,fullMinzoom>  # tile minzooms (default 9,12)
  *     --out <output.json>
  *     [--acquired <ISO date>] # defaults to now (pass the real download time
  *                             # when describing archives built earlier)
@@ -64,6 +65,9 @@ const parseBounds = (csv) => {
 const userBounds = args['user-bounds'] ? parseBounds(args['user-bounds']) : undefined;
 const [terrainMinzoom, terrainMaxzoom] = args['terrain-zooms'].split(',').map(Number);
 const [contourInterval, contourIndex] = args['contour-intervals'].split(',').map(Number);
+const [contourMinzoomIndex, contourMinzoomFull] = (args['contour-zooms'] ?? '9,12')
+  .split(',')
+  .map(Number);
 
 const sourceTiles = readFileSync(args['source-tiles'], 'utf8')
   .trim()
@@ -94,7 +98,14 @@ const manifest = {
   ...(userBounds ? { userBounds } : {}),
   sourceTiles,
   terrain: { encoding: 'terrarium', tileSize: 256, minzoom: terrainMinzoom, maxzoom: terrainMaxzoom },
-  contours: { intervalMetres: contourInterval, indexMetres: contourIndex, minzoom: 11, maxzoom: 13, layer: 'contours' },
+  contours: {
+    intervalMetres: contourInterval,
+    indexMetres: contourIndex,
+    minzoom: contourMinzoomIndex,
+    fullSetMinzoom: contourMinzoomFull,
+    maxzoom: 13,
+    layer: 'contours',
+  },
   tools: {
     gdal: toolVersion('gdalinfo --version'),
     tippecanoe: toolVersion('tippecanoe --version'),

@@ -1,10 +1,12 @@
 /**
  * Fully offline MapLibre style.
  *
- * Basemap layers come from @protomaps/basemaps WITHOUT the `lang` option,
- * which emits zero symbol layers — so the style needs no glyphs, no sprites,
- * no remote fonts and no remote URLs of any kind. Hut labels are rendered as
- * local HTML markers in React instead (see MapView).
+ * Basemap layers are the production **Liberty Topo — Nordic** style
+ * (libertyTopoLayers.mjs + NORDIC_TOPO_PALETTE — the outcome of the
+ * concluded map-style comparison, docs/map-style-comparison.md). The style
+ * emits zero symbol layers, so it needs no glyphs, no sprites, no remote
+ * fonts and no remote URLs of any kind. Hut labels are rendered as local
+ * HTML markers in React instead (see MapView).
  *
  * Route layers use the Okabe–Ito colour-blind-safe palette for the seven
  * stages; stage identity is never communicated by colour alone (day numbers
@@ -16,8 +18,7 @@ import {
   SATELLITE_SOURCE_INFO,
   TERRAIN_SOURCE_INFO,
 } from '../data/attribution';
-import { basemapLayersForStyle, DEFAULT_MAP_STYLE_ID } from './mapStyles.mjs';
-import type { VectorMapStyleId } from './mapStyles.mjs';
+import { libertyTopoLayers, NORDIC_TOPO_PALETTE } from './libertyTopoLayers.mjs';
 
 export const BASEMAP_SOURCE = 'protomaps';
 /**
@@ -103,11 +104,6 @@ export function reliefSourcesFor(relief: ReliefUrls | null | undefined) {
 export function buildMapStyle(
   basemapSourceUrl: string | null,
   satelliteSourceUrl: string | null = null,
-  // Comparison-prototype hook (docs/map-style-comparison.md). The default is
-  // the production style, so existing callers are byte-for-byte unchanged.
-  // VECTOR styles only: the online raster benchmark is overlaid separately
-  // by MapView (thunderforestLayer.mjs) and never part of the base style.
-  mapStyleId: VectorMapStyleId = DEFAULT_MAP_STYLE_ID,
   relief: ReliefUrls | null = null,
 ): StyleSpecification {
   const style: StyleSpecification = {
@@ -152,12 +148,11 @@ export function buildMapStyle(
         attribution: TERRAIN_SOURCE_INFO.mapAttributionHtml!,
       };
     }
-    // All styles cover land, landcover/landuse, water, waterways, roads,
+    // The style covers land, landcover/landuse, water, waterways, roads,
     // paths/trails, railways, buildings and boundaries where present, and
-    // none emits symbol layers → no glyph/sprite dependencies. 'current' is
-    // the calm @protomaps/basemaps "light" flavour (production style).
+    // emits no symbol layers → no glyph/sprite dependencies.
     style.layers.push(
-      ...basemapLayersForStyle(mapStyleId, BASEMAP_SOURCE, reliefSourcesFor(relief)),
+      ...libertyTopoLayers(BASEMAP_SOURCE, NORDIC_TOPO_PALETTE, reliefSourcesFor(relief)),
     );
   }
 

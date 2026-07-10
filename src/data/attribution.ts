@@ -12,7 +12,6 @@
  * corresponding archive actually exists in the app.
  */
 import { FACTS_VERIFIED_ON } from './stops';
-import { thunderforestAvailable } from '../map/thunderforest';
 
 export interface DataSourceAttribution {
   id: string;
@@ -109,23 +108,6 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
     modifiedNotice:
       'Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved',
   },
-  {
-    id: 'thunderforest-outdoors',
-    // Present only in builds configured with an API key: the tiles are an
-    // online-only comparison preview (never downloaded, never offline) — see
-    // src/map/thunderforestLayer.mjs and the benchmark doc.
-    present: thunderforestAvailable,
-    name: 'Thunderforest Outdoors (online preview)',
-    label: 'Maps © Thunderforest · Data © OpenStreetMap contributors',
-    attribution:
-      'Thunderforest Outdoors raster tiles, streamed online as a temporary cartographic comparison layer for the Nordic basemap work. Never included in offline downloads. Maps © Thunderforest, Data © OpenStreetMap contributors.',
-    mapAttributionHtml:
-      'Maps © <a href="https://www.thunderforest.com" target="_blank" rel="noopener">Thunderforest</a>, Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
-    provider: 'Thunderforest (Gravitystorm Limited)',
-    sourceUrl: 'https://www.thunderforest.com/maps/outdoors/',
-    licenseName: 'Thunderforest terms · data ODbL 1.0',
-    licenseUrl: 'https://www.thunderforest.com/terms/',
-  },
   // ---- Not yet shipped — flip `present` when the archive actually exists ----
   {
     id: 'lantmateriet-ortofoto',
@@ -150,7 +132,6 @@ export const PRESENT_DATA_SOURCES = DATA_SOURCES.filter((s) => s.present);
 export const BASEMAP_SOURCE_INFO = DATA_SOURCE_BY_ID['osm-protomaps-basemap'];
 export const SATELLITE_SOURCE_INFO = DATA_SOURCE_BY_ID['sentinel2-eox'];
 export const TERRAIN_SOURCE_INFO = DATA_SOURCE_BY_ID['copernicus-dem'];
-export const THUNDERFOREST_SOURCE_INFO = DATA_SOURCE_BY_ID['thunderforest-outdoors'];
 
 export interface SoftwareCredit {
   name: string;
@@ -174,24 +155,18 @@ export const SOFTWARE_CREDITS: SoftwareCredit[] = [
     url: 'https://github.com/protomaps/PMTiles',
   },
   {
-    name: 'Protomaps Basemaps',
-    role: 'Basemap style layers',
-    licenseName: 'BSD-3-Clause',
-    url: 'https://github.com/protomaps/basemaps',
-  },
-  {
     name: 'React',
     role: 'User interface',
     licenseName: 'MIT',
     url: 'https://react.dev',
   },
-  // Style reference for the map-style comparison prototype
-  // (docs/map-style-comparison.md). Only the style design is reused —
-  // adapted in src/map/libertyTopoLayers.mjs to the offline Protomaps
-  // source; no gpx.studio tiles, fonts or sprites are ever requested.
+  // Style lineage of the production basemap (Liberty Topo — Nordic,
+  // src/map/libertyTopoLayers.mjs). Only the style design is reused —
+  // adapted to the offline Protomaps source; no gpx.studio tiles, fonts
+  // or sprites are ever requested.
   {
     name: 'Liberty Topo style (gpx.studio styles)',
-    role: 'Basemap style reference (comparison prototype)',
+    role: 'Basemap style lineage (production Nordic style)',
     licenseName: 'MIT (OpenFreeMap Styles, © 2023 Zsolt Ero)',
     url: 'https://github.com/gpxstudio/styles',
   },

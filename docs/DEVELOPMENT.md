@@ -141,9 +141,16 @@ comparison, contour noise and storage measurements; a 10 m variant was
 built and rejected as noise) when the two relief archives are available:
 
 - `public/maps/kungsleden-terrain.pmtiles` — terrarium‑encoded PNG tiles,
-  z6–12, ~10 MB;
+  z7–12, ~18 MB;
 - `public/maps/kungsleden-contours.pmtiles` — contour vectors (layer
-  `contours`, property `elev`), z11–13, ~4 MB.
+  `contours`, property `elev`), z9–13, ~9 MB. Since the 0.17.0
+  earlier‑contours iteration (terrain-data-v3), 100 m index lines are tiled
+  from z9 and the full 20 m set from z12, so the style can fade the index
+  tier in from z9.5 and the 20 m tier from z11.5 (MapLibre never underzooms
+  vector tiles — the tagging in `scripts/build-terrain-map.sh` and the
+  `lt_contour*` ramps in `libertyTopoLayers.mjs` must stay in sync). An
+  older v2 archive (tiles z11–13) still renders with the same style; the
+  contours then simply appear from z11/z13 as before.
 
 Both are built by `npm run generate:map:terrain`
 (`scripts/build-terrain-map.sh`) from **Copernicus DEM GLO‑30 Public —
@@ -305,103 +312,30 @@ like the Pages deployment. Open the Map screen and switch to **Satellite**;
 `VITE_SATELLITE_URL` instead only works if that host sends CORS headers and
 supports Range requests — plain GitHub Release asset URLs do neither.)
 
-## Map-style comparison
+## Map style (production)
 
-The 0.8.0 three-way comparison concluded with **Liberty Topo — Nordic as the
-production Terrain style** (v0.10.0, recorded in
-[map-style-comparison.md](map-style-comparison.md)). The registry
-(`src/map/mapStyles.mjs`), the Liberty builder and both palettes were
-retained, and the Map screen's **Map comparison — temporary** selector has
-been reintroduced for the Nordic-restyle benchmark work. Its *visibility* is
-gated by `VITE_ENABLE_MAP_BENCHMARK` (see below): dev builds show it by
-default, production only when the flag is exactly `true` — otherwise normal
-users get the plain production map with no comparison options at all. The
-default style is always Liberty Topo — Nordic; nothing is persisted. It
-offers the three offline vector styles rendered from the **same** PMTiles
-source — **Current**
-(the pre-decision production style), **Liberty Topo** (the
-[gpx.studio styles](https://github.com/gpxstudio/styles) design adapted to
-the Protomaps schema — style only, never gpx.studio tiles/fonts/sprites) and
-**Liberty Topo — Nordic** (the production default) — plus one deliberately
-different fourth option, described next. Switching swaps basemap paint layers
-in place, so camera, route, markers and GPS are preserved. Guarded by
-`tests/map-styles.test.mjs`.
-
-## Thunderforest Outdoors comparison layer (online-only, temporary)
-
-The fourth selector option, **Thunderforest Outdoors — Online preview**, is a
-*temporary external cartographic benchmark* for improving the Nordic style —
-terrain readability, landcover hierarchy, relief, path hierarchy and label
-prioritisation. The analysis and the resulting translation plan live in
+The 0.8.0 three-way comparison and the 0.12.0 Thunderforest Outdoors
+benchmark are **concluded and retired (v0.17.0)**: the app ships exactly one
+terrain basemap style, **Liberty Topo — Nordic**, built by
+`libertyTopoLayers()` + `NORDIC_TOPO_PALETTE` in
+`src/map/libertyTopoLayers.mjs` (palette-driven, so the look stays centrally
+adjustable) and assembled into the offline MapLibre style by
+`src/map/mapStyle.ts`. The comparison selector, the style registry, the
+*Current*/*Liberty Topo* runtime styles, the Thunderforest online preview
+and the `VITE_ENABLE_MAP_BENCHMARK`/`VITE_THUNDERFOREST_API_KEY` build
+inputs were all removed; the repository variable can be deleted and the
+Thunderforest key rotated/removed in its dashboard. The evaluation record
+lives in [map-style-comparison.md](map-style-comparison.md); the measured
+source-layer audit and translation plan (still the design input for terrain
+work) live in
 [maps/thunderforest-outdoors-benchmark.md](maps/thunderforest-outdoors-benchmark.md).
-It is **not** a migration: never the default, never in offline downloads,
-never converted to PMTiles, never bulk-cached or proxied, and not a
-dependency of anything else. It is selectable only when **both** the
-benchmark flag (`VITE_ENABLE_MAP_BENCHMARK`) and the API key are present —
-without the flag the whole selector is hidden; with the flag but without a
-key the option shows as unavailable and no Thunderforest request is made.
+Guarded by `tests/map-styles.test.mjs` (offline invariants, the Nordic
+terrain-hierarchy relationships, contour ramps, retirement scan, licence
+attribution).
 
-Mechanics (`src/map/thunderforestLayer.mjs`, applied by `MapView.tsx`): a
-MapLibre **raster source** on the official Thunderforest Map Tiles API
-(`https://api.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=…`, 256 px,
-source maxzoom 17), added lazily on the
-**first explicit selection** — no tile is requested before that — and then
-only toggled by layer visibility, so repeated switching never duplicates
-sources, layers or listeners. The raster sits above the vector basemap and
-the satellite layer but **below every route/GPS/hut overlay**; the vector
-style underneath stays untouched (it reads the local/streamed PMTiles at
-zero quota cost). Attribution (required): *Maps © Thunderforest, Data ©
-OpenStreetMap contributors* — registered in `src/data/attribution.ts`,
-rendered by the map control and, in key-configured builds, the credits
-sheet. Guarded by `tests/thunderforest-layer.test.mjs` (key-gating, URL
-template, no offline wiring, repository-wide literal-key scan).
-
-### Configuration — local development
-
-1. Copy `.env.example` to `.env.local` (git-ignored via `*.local` and the
-   `.env*` rules; never commit a real env file) and set
-   `VITE_THUNDERFOREST_API_KEY=<your key>` — a free key comes from the
-   [Thunderforest dashboard](https://manage.thunderforest.com). The
-   benchmark selector itself needs no flag in dev (`VITE_ENABLE_MAP_BENCHMARK`
-   defaults to on for dev builds only).
-2. `npm run dev` (Vite reads `.env.local` at startup; restart after edits).
-3. Confirm it loaded: the Map screen's **Map comparison — temporary**
-   dropdown shows **Thunderforest Outdoors — Online preview** as selectable.
-   Without a key the option reads “(unavailable — no API key)”, a concise
-   `console.info` note appears in dev builds only, and **no Thunderforest
-   request is ever made** — everything else works normally.
-
-### Configuration — GitHub Actions / Pages
-
-1. Benchmark visibility (not sensitive): GitHub → repository **Settings →
-   Secrets and variables → Actions → Variables → New repository variable**,
-   name exactly `VITE_ENABLE_MAP_BENCHMARK`, value `true`. Without it,
-   production builds show the normal map with no comparison selector.
-2. API key (sensitive): same page → **Secrets → New repository secret**,
-   name exactly `VITE_THUNDERFOREST_API_KEY`.
-3. `deploy.yml` passes both as env vars to the `npm run build` step only.
-   Both are optional — the build never fails over them.
-4. A new deployment is required after changing either (push to `main` or
-   run the *Deploy to GitHub Pages* workflow manually). To retire the
-   benchmark: remove the variable (selector disappears), then rotate or
-   delete the key in the Thunderforest dashboard.
-
-### Security reality check
-
-Environment-variable and GitHub-Secret injection keep the key **out of
-tracked files, commit history, docs and prompts — nothing more**. Vite
-inlines `VITE_*` values into the built JavaScript, so the deployed browser
-app **exposes the key in its bundle and in every tile-request URL**; that is
-unavoidable for a client-only static app, and Referer information may be
-visible to Thunderforest. Treat the key as publicly visible once deployed.
-Relevant controls, in order: use a free-tier key; monitor usage/quota in the
-Thunderforest dashboard; keep the deployment temporary (the flag makes
-turning it off a one-variable change); rotate or remove the key when the
-benchmark work concludes. Thunderforest's public documentation describes
-API keys plus IP/Referer/User-Agent association but does **not** clearly
-document a user-configurable allowed-origin restriction — use an origin
-allowlist only if the dashboard actually offers one. Do not paste the key
-into issues, docs, screenshots or committed files.
+In dev builds `window.__fjallkompisMap` exposes the MapLibre map so the
+benchmark cameras (benchmark doc §2) can be set exactly from the console,
+e.g. `__fjallkompisMap.jumpTo({ center: [18.2823, 67.9462], zoom: 13.4 })`.
 
 ## Adaptive shell & navigation (multi-device access)
 

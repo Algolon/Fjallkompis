@@ -1,22 +1,23 @@
-# Map-style comparison prototype
+# Map-style comparison prototype (HISTORICAL — phase completed)
 
-**Status: DECIDED (v0.10.0) — "Liberty Topo — Nordic" is the production
-Terrain style.** The in-app comparison selector was removed with the
-decision; `DEFAULT_MAP_STYLE_ID` in `src/map/mapStyles.mjs` is
-`'liberty-nordic'`. The registry, the Liberty builder and both palettes are
-retained, so the look remains centrally adjustable (`NORDIC_TOPO_PALETTE` in
-`src/map/libertyTopoLayers.mjs`). The rest of this document is kept as the
-record of the evaluation setup.
+**Status: COMPLETED (v0.17.0).** The comparison phase is over: "Liberty
+Topo — Nordic" (decided in v0.10.0) is the single production Terrain style,
+built by `libertyTopoLayers()` + `NORDIC_TOPO_PALETTE` in
+`src/map/libertyTopoLayers.mjs` (still palette-driven, so the look remains
+centrally adjustable). Everything comparison-specific was **removed** in
+v0.17.0: the temporary in-app selector, the style registry
+(`src/map/mapStyles.mjs`), the *Current* (`@protomaps/basemaps` light) and
+*Liberty Topo* runtime styles with the Liberty reference palette, the
+Thunderforest Outdoors online preview and the `VITE_ENABLE_MAP_BENCHMARK`
+flag. This document is retained purely as the historical record of how the
+production style was evaluated and chosen.
 
-> **Update (v0.12.0):** the selector has been REINTRODUCED as
-> **Map comparison — temporary** for the Nordic-restyle benchmark — gated by
-> the `VITE_ENABLE_MAP_BENCHMARK` flag (dev: on by default; production:
-> opt-in only) — now with a fourth, clearly separated ONLINE-ONLY reference
-> option — **Thunderforest Outdoors — Online preview** (raster,
-> API-key-gated, never offline, never the default).
-> See [maps/thunderforest-outdoors-benchmark.md](maps/thunderforest-outdoors-benchmark.md)
-> for the benchmark method, source-layer audit and translation plan. The
-> three-way evaluation below and its decision are unchanged.
+> **v0.12.0 (historical):** the selector was reintroduced as
+> **Map comparison — temporary** for the Nordic-restyle benchmark, with a
+> fourth ONLINE-ONLY reference option (Thunderforest Outdoors). See
+> [maps/thunderforest-outdoors-benchmark.md](maps/thunderforest-outdoors-benchmark.md)
+> for the benchmark method, the measured source-layer audit and the
+> translation plan — that audit remains the design input for terrain work.
 
 ## Purpose
 
