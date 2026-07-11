@@ -4,11 +4,13 @@
  * Captures the (non-standard, Chromium-only) `beforeinstallprompt` event so
  * Settings can offer a native "Install" action when the browser supports it,
  * and degrades to plain "Add to Home Screen" guidance elsewhere (Safari/iOS,
- * Firefox). Also tracks standalone/installed mode reactively so the UI updates
- * itself after an install without a manual refresh. All listeners are cleaned
- * up on unmount.
+ * Firefox). The captured browser prompt is shared across every app surface
+ * (Settings, readiness and the global beta install nudge), so one component
+ * cannot accidentally consume the only prompt event before another sees it.
+ * Standalone/installed mode is tracked reactively so the UI updates itself
+ * after an install without a manual refresh.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 /** Minimal shape of the beforeinstallprompt event (not in the DOM lib). */
 interface BeforeInstallPromptEvent extends Event {
@@ -35,49 +37,81 @@ export interface InstallState {
   promptInstall: () => Promise<InstallOutcome>;
 }
 
+type Snapshot = Pick<InstallState, 'installed' | 'canPrompt'>;
+
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
+let installedSnapshot = detectStandalone();
+let canPromptSnapshot = false;
+let listenersInstalled = false;
+const subscribers = new Set<() => void>();
+
+function emitInstallState() {
+  for (const subscriber of subscribers) subscriber();
+}
+
+function snapshot(): Snapshot {
+  return {
+    installed: installedSnapshot,
+    canPrompt: canPromptSnapshot,
+  };
+}
+
+function ensureInstallListeners() {
+  if (listenersInstalled) return;
+  listenersInstalled = true;
+
+  const onBeforeInstallPrompt = (e: Event) => {
+    // Stop Chromium's default mini-infobar; the app surfaces deliberate
+    // install actions in Settings and in the beta readiness toast.
+    e.preventDefault();
+    deferredPrompt = e as BeforeInstallPromptEvent;
+    canPromptSnapshot = true;
+    emitInstallState();
+  };
+
+  const onAppInstalled = () => {
+    deferredPrompt = null;
+    canPromptSnapshot = false;
+    installedSnapshot = true;
+    emitInstallState();
+  };
+
+  const mql = window.matchMedia?.('(display-mode: standalone)');
+  const onDisplayModeChange = () => {
+    installedSnapshot = detectStandalone();
+    emitInstallState();
+  };
+
+  window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+  window.addEventListener('appinstalled', onAppInstalled);
+  mql?.addEventListener?.('change', onDisplayModeChange);
+}
+
 export function useInstallPrompt(): InstallState {
-  const deferredRef = useRef<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState<boolean>(() => detectStandalone());
-  const [canPrompt, setCanPrompt] = useState(false);
+  const [state, setState] = useState<Snapshot>(() => snapshot());
 
   useEffect(() => {
-    const onBeforeInstallPrompt = (e: Event) => {
-      // Stop Chromium's default mini-infobar; we surface our own button.
-      e.preventDefault();
-      deferredRef.current = e as BeforeInstallPromptEvent;
-      setCanPrompt(true);
-    };
-
-    const onAppInstalled = () => {
-      deferredRef.current = null;
-      setCanPrompt(false);
-      setInstalled(true);
-    };
-
-    const mql = window.matchMedia?.('(display-mode: standalone)');
-    const onDisplayModeChange = () => setInstalled(detectStandalone());
-
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    window.addEventListener('appinstalled', onAppInstalled);
-    mql?.addEventListener?.('change', onDisplayModeChange);
+    ensureInstallListeners();
+    const subscriber = () => setState(snapshot());
+    subscribers.add(subscriber);
+    subscriber();
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', onAppInstalled);
-      mql?.removeEventListener?.('change', onDisplayModeChange);
+      subscribers.delete(subscriber);
     };
   }, []);
 
   const promptInstall = useCallback(async (): Promise<InstallOutcome> => {
-    const evt = deferredRef.current;
+    const evt = deferredPrompt;
     if (!evt) return 'unavailable';
     await evt.prompt();
     const { outcome } = await evt.userChoice;
     // A deferred prompt can only be used once.
-    deferredRef.current = null;
-    setCanPrompt(false);
+    deferredPrompt = null;
+    canPromptSnapshot = false;
+    emitInstallState();
     return outcome;
   }, []);
 
-  return { installed, canPrompt, promptInstall };
+  return { ...state, promptInstall };
 }

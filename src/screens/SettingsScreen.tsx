@@ -86,6 +86,7 @@ function TrailReadinessCard({
   const satellite = useCombinedArchiveStatus([SATELLITE_ARCHIVE]);
 
   const requiredChecks = [
+    installed,
     storageOk,
     swControlled,
     basemap.downloaded,
@@ -110,6 +111,11 @@ function TrailReadinessCard({
       </div>
 
       <div className="readiness-list">
+        <ReadinessRow
+          label="App installed"
+          value={installed ? 'Yes' : 'No'}
+          done={installed}
+        />
         <ReadinessRow
           label="App shell"
           value={installStatusText(installed, swControlled)}
@@ -256,7 +262,7 @@ export function SettingsScreen() {
   const { state, storageOk, currentStage, replaceState, resetAll } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
+  const [openSection, setOpenSection] = useState<SettingsSection | null>('install');
   const fileRef = useRef<HTMLInputElement>(null);
   const online = useOnlineStatus();
   const swControlled = useServiceWorkerControlled();

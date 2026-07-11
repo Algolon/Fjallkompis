@@ -2411,6 +2411,12 @@ button.map-status-pill {
   font-weight: 600;
   line-height: 1.4;
 }
+.pwa-toast__sub {
+  margin: -2px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
 .pwa-toast__actions {
   display: flex;
   gap: 8px;
