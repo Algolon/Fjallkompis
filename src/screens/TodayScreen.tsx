@@ -17,6 +17,7 @@ import type { ListsMode } from './ListsScreen';
 export interface NavPayload {
   stopId?: string;
   listsMode?: ListsMode;
+  mapStageId?: string | null;
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;
@@ -126,7 +127,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
                 <span className="hero-day">Day {currentStage.day} of {STAGES.length}</span>
                 <button
                   className="hero-cta"
-                  onClick={() => onNavigate('map')}
+                  onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
                   aria-label="View today’s route on the map"
                 >
                   <Route size={14} strokeWidth={2} aria-hidden /> View route

@@ -76,10 +76,8 @@ function ReadinessRow({
 
 function TrailReadinessCard({
   storageOk,
-  currentStageLabel,
 }: {
   storageOk: boolean;
-  currentStageLabel: string | null;
 }) {
   const { installed } = useInstallPrompt();
   const swControlled = useServiceWorkerControlled();
@@ -89,7 +87,6 @@ function TrailReadinessCard({
 
   const requiredChecks = [
     storageOk,
-    !!currentStageLabel,
     swControlled,
     basemap.downloaded,
   ];
@@ -107,8 +104,8 @@ function TrailReadinessCard({
           </p>
         </div>
         <div className="readiness-score">
-          <strong>{passed} / {requiredChecks.length}</strong>
-          <span>{pending ? 'Checking' : ready ? 'Ready' : 'Setup needed'}</span>
+          <strong>{passed}/{requiredChecks.length}</strong>
+          <span>{pending ? 'Checking' : ready ? 'Ready' : 'Setup'}</span>
         </div>
       </div>
 
@@ -122,11 +119,6 @@ function TrailReadinessCard({
           label="Local storage"
           value={storageOk ? 'Available' : 'Unavailable'}
           done={storageOk}
-        />
-        <ReadinessRow
-          label="Current stage"
-          value={currentStageLabel ?? 'Not selected'}
-          done={!!currentStageLabel}
         />
         <ReadinessRow
           label="Offline basemap"
@@ -216,9 +208,9 @@ function BetaFeedbackCard({
     <div className="card beta-card">
       <span className="card-title">Beta testing</span>
       <p className="card-sub" style={{ marginTop: 4 }}>
-        Send confusing moments, wrong facts, GPS oddities and trail-readiness
-        gaps. Diagnostics are local and exclude coordinates, notes, journal
-        entries and checklist contents.
+        Send confusing moments, wrong facts, GPS oddities and readiness gaps.
+        Safe diagnostics add device/app status only; they exclude coordinates,
+        notes, journal entries and checklist contents.
       </p>
 
       {BETA_FORM_URL ? (
@@ -239,7 +231,7 @@ function BetaFeedbackCard({
       )}
 
       <button className="btn btn-block" style={{ marginTop: 10 }} onClick={onCopyDiagnostics}>
-        <Clipboard size={16} aria-hidden /> Copy diagnostics
+        <Clipboard size={16} aria-hidden /> Copy safe diagnostics
       </button>
 
       <a
@@ -253,7 +245,7 @@ function BetaFeedbackCard({
       </a>
 
       <details className="diagnostics-preview">
-        <summary>Preview diagnostics</summary>
+        <summary>Show safe diagnostics preview</summary>
         <pre>{diagnostics}</pre>
       </details>
     </div>
@@ -377,7 +369,7 @@ export function SettingsScreen() {
         </div>
       ) : null}
 
-      <TrailReadinessCard storageOk={storageOk} currentStageLabel={currentStageLabel} />
+      <TrailReadinessCard storageOk={storageOk} />
 
       <BetaFeedbackCard
         diagnostics={diagnostics}
