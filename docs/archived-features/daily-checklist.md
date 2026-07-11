@@ -38,7 +38,8 @@ which is where the "what does today look like" value now lives.
 
 ## When and how it was archived
 
-- **Release:** 0.18.0 (2026-07-11), branch `claude/fjallkompis-stage-guides-n9x2wo`.
+- **Release:** 0.18.0 (2026-07-11), archived in
+  [PR #44](https://github.com/Algolon/Fjallkompis/pull/44).
 - **Last commit with the feature intact:** `d1278e8` (main, 2026-07-11) —
   recover the implementation from there.
 - **Key historical files:** `src/data/checklist.ts` (seed data),
