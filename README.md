@@ -1,4 +1,4 @@
-# Fjällkompis 🧭🏔️
+# Fjällkompis 🏔️
 
 **Your offline trail companion for the Kungsleden (Abisko → Nikkaluokta).**
 
