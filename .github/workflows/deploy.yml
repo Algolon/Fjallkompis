@@ -62,7 +62,7 @@ jobs:
           verify public/maps/kungsleden-contours.pmtiles "3e8fbcfa6ee1ea8df9abaec641d836e11602867c09c83f77173e522826b7d573"
 
       # ---- Satellite archive: canonical GitHub Release asset ----------------
-      # The ~42 MB PMTiles binary is NOT committed. The canonical copy lives on
+      # The ~59 MB PMTiles binary is NOT committed. The canonical copy lives on
       # the satellite-data-v3 Release; deployment downloads it into the Pages
       # build so browsers fetch it SAME-ORIGIN (GitHub Release assets send no
       # CORS headers, so the app cannot fetch them cross-origin directly).

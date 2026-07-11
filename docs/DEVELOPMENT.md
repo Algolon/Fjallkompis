@@ -11,7 +11,7 @@ live in [ROADMAP.md](../ROADMAP.md) and delivered changes in
 - **Route data:** verified GPX (`public/gpx/…`) preprocessed at build time into
   `src/generated/kungsleden-route.json` — no hand-entered geometry anywhere
 - **Map:** MapLibre GL JS + a bounded OSM-derived PMTiles vector basemap
-  (`public/maps/kungsleden.pmtiles`, ~3.5 MB, zoom ≤ 14), styled fully offline
+  (`public/maps/kungsleden.pmtiles`, ~5.3 MB, zoom ≤ 14), styled fully offline
   via `@protomaps/basemaps` with **no** remote glyphs/sprites/fonts/tiles
 - **PWA:** `vite-plugin-pwa` (Workbox) app-shell precache + a separate,
   user-controlled offline-map cache with byte-range support
@@ -470,6 +470,7 @@ the **packing list** live in one versioned `localStorage` blob
 npm install
 npm run dev        # http://localhost:5173/Fjallkompis/
 npm test           # GPX pipeline validation
+npm run typecheck  # TypeScript project references
 npm run build && npm run preview   # production PWA (SW active only in build)
 ```
 
@@ -484,6 +485,9 @@ npm run build && npm run preview   # production PWA (SW active only in build)
 - **GitHub Pages (automatic):** push to `main` runs
   `.github/workflows/deploy.yml` → https://algolon.github.io/Fjallkompis/
   (Settings → Pages → Source: GitHub Actions, one-time).
+- **Pull requests:** `.github/workflows/pr-ci.yml` runs `npm ci`,
+  `npm test`, `npm run typecheck` and `npm run build` without fetching
+  release-hosted map archives or deploying Pages.
 - **Netlify:** `npm run build`, publish `dist` — change `base` in
   `vite.config.ts` from `/Fjallkompis/` to `/` first.
 
@@ -504,7 +508,7 @@ fjallkompis/
 ├─ public/
 │  ├─ gpx/…                     # source GPX (verified route)
 │  ├─ images/stops/             # optional licensed stop photos (see README there)
-│  └─ maps/kungsleden.pmtiles   # bounded offline basemap (~3.5 MB)
+│  └─ maps/kungsleden.pmtiles   # bounded offline basemap (~5.3 MB)
 └─ src/
    ├─ generated/                # build-time route JSON (committed)
    ├─ route/                    # typed ParsedRoute model + hut↔waypoint map

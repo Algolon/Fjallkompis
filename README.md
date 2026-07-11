@@ -57,8 +57,8 @@ tracking — the app doesn't even have a backend.
    full-screen like a normal app. The app works fine in a plain browser
    tab too.
 3. **Download the offline map**: Settings → *Offline map* → Download
-   (~4 MB). Optionally add the satellite imagery (~42 MB) for a second map
-   layer.
+   (~5.3 MB). Optionally add Terrain relief (~25 MB) for hillshade and
+   contours, and Satellite imagery (~59 MB) for a second map layer.
 4. **Set your stage**: on the Stages tab, mark the day you're walking with
    *Set as current*.
 5. **Check it works offline**: enable airplane mode and reopen the app — the
