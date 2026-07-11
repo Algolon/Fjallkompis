@@ -7,9 +7,10 @@
 Fjällkompis ("mountain buddy") is a free offline hiking companion for the
 classic hut-to-hut week on Sweden's Kungsleden. It complements your maps and
 navigation tools by bringing the trail information hikers use most into one
-place: the route on an offline map, day stages with elevation profiles, a guide
-to every hut and stop, and daily and packing checklists. It keeps working when
-the signal disappears, which on the Kungsleden is most of the time.
+place: the route on an offline map, day stages with elevation profiles and a
+compact guide to each day, a guide to every hut and stop, and a packing list.
+It keeps working when the signal disappears, which on the Kungsleden is most
+of the time.
 
 The same link works in the browser on your **phone, tablet and computer**:
 plan at a desk with a big map and roomy lists, then carry the same companion on
@@ -35,14 +36,16 @@ starts empty; use Settings → Export/Import to move your data across (see below
   "you may be off route" warning if you drift away from the trail. Explicit
   start/stop, foreground-only, and nothing is recorded or uploaded.
 - **Today** — one screen for the day: current stage, distance, elevation,
-  progress and your daily routine checklist.
-- **Stages** — the seven days at a glance, with distances, ascent/descent
-  and notes; set which day you're on and everything else follows.
+  journey progress and tonight's stop.
+- **Stages** — the seven days at a glance, with GPX-derived distances and
+  ascent/descent plus an expandable day guide per stage (what to expect,
+  trail character, highlights, things to plan for — researched against
+  official sources, with hedged wording because conditions vary); set which
+  day you're on and everything else follows.
 - **Stops** — a curated guide to all eight huts and stations (shops, saunas,
   opening periods, beds), verified against the official STF/Nikkaluokta
   information, plus space for your own notes.
-- **Lists** — a hiking-specific packing list and daily checklist you can
-  adapt to your own gear.
+- **Lists** — a hiking-specific packing list you can adapt to your own gear.
 - **Settings** — trail-readiness checks, offline map downloads, feedback,
   backup/restore of your data, sources and credits.
 

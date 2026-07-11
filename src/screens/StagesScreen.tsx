@@ -1,19 +1,85 @@
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
-import { IconCheck } from '../components/Icons';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
-import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
+import { STAGE_GUIDES } from '../data/stageGuides.mjs';
+import type { StageGuide } from '../data/stageGuides.mjs';
+import {
+  formatDistanceKm,
+  formatHoursEstimate,
+  formatVerifiedDate,
+} from '../utils/format';
 import { ROUTE } from '../route/routeData';
+
+/**
+ * The expanded day guide: editorial, hedged route guidance from
+ * src/data/stageGuides.mjs — deliberately calm prose, not another stats
+ * dashboard, and NOT live conditions. Sources/verification stay auditable in
+ * the data module; the panel shows only the verification date.
+ */
+function StageGuidePanel({ guide }: { guide: StageGuide }) {
+  return (
+    <>
+      <p className="stage-guide__overview">{guide.overview}</p>
+
+      <div className="stage-guide__section">
+        <span className="stage-guide__label">Trail character</span>
+        <p>{guide.terrain}</p>
+      </div>
+
+      <div className="stage-guide__section">
+        <span className="stage-guide__label">Highlights</span>
+        <ul className="stage-guide__list">
+          {guide.highlights.map((h) => (
+            <li key={h}>{h}</li>
+          ))}
+        </ul>
+      </div>
+
+      {guide.watchFor && guide.watchFor.length > 0 ? (
+        <div className="stage-guide__section">
+          <span className="stage-guide__label">Plan for</span>
+          <ul className="stage-guide__list">
+            {guide.watchFor.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <p className="stage-guide__verified">
+        Route guidance verified {formatVerifiedDate(guide.lastVerified)} —
+        trail, water and weather conditions vary; check locally.
+      </p>
+    </>
+  );
+}
 
 export function StagesScreen() {
   const { state, currentStage, setCurrentStage } = useStore();
+  // Independent disclosure per card, all collapsed on entry (matches the
+  // Stops accordion pattern: local state only, nothing persisted).
+  const [openGuides, setOpenGuides] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+
+  const toggleGuide = (stageId: string) => {
+    setOpenGuides((prev) => {
+      const next = new Set(prev);
+      if (next.has(stageId)) next.delete(stageId);
+      else next.add(stageId);
+      return next;
+    });
+  };
 
   return (
     <div className="screen screen--stages">
       <ScreenHeader eyebrow="7 days · 8 stops" title="Stages">
-        The route as an ordered sequence. Tap a day to make it your current
-        stage. Distances and climbing come from the GPX; ± times are personal
-        estimates.
+        The week from Abisko to Nikkaluokta as seven day stages. Distances and
+        climbing come from the GPX; ± times are personal estimates. Open a
+        day’s guide for what to expect, and use the pill in its corner to set
+        the stage you’re walking.
       </ScreenHeader>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -34,17 +100,15 @@ export function StagesScreen() {
           const from = STOPS_BY_ID[stage.fromHutId];
           const to = STOPS_BY_ID[stage.toHutId];
           const isCurrent = state.currentStageId === stage.id;
+          const guide = STAGE_GUIDES[stage.id];
+          const guideOpen = openGuides.has(stage.id);
+          const guidePanelId = `stage-guide-${stage.id}`;
           return (
-            <div
-              className="card"
+            <article
+              className={`card stage-card ${isCurrent ? 'is-current' : ''}`}
               key={stage.id}
-              style={
-                isCurrent
-                  ? { borderColor: 'var(--cloudberry)', boxShadow: '0 0 0 1px var(--cloudberry)' }
-                  : undefined
-              }
             >
-              <div className="row-between">
+              <div className="stage-card__top">
                 <div className="row" style={{ gap: 10 }}>
                   <span className={`pill ${isCurrent ? 'pill-current' : ''}`}>
                     Day {stage.day}
@@ -54,13 +118,23 @@ export function StagesScreen() {
                   </span>
                 </div>
                 {isCurrent ? (
+                  // Status, not an action: the current stage needs no button.
                   <span className="pill pill-current">
                     <span className="dot" /> Current
                   </span>
-                ) : null}
+                ) : (
+                  <button
+                    type="button"
+                    className="stage-set-pill"
+                    onClick={() => setCurrentStage(stage.id)}
+                    aria-label={`Set day ${stage.day} as current stage`}
+                  >
+                    Set as current
+                  </button>
+                )}
               </div>
 
-              <h2 className="card-title" style={{ marginTop: 10, fontSize: 18 }}>
+              <h2 className="card-title stage-card__route">
                 {stopShortName(from)} → {stopShortName(to)}
               </h2>
 
@@ -81,21 +155,36 @@ export function StagesScreen() {
                 {stage.notes}
               </p>
 
-              <button
-                className={`btn btn-block ${isCurrent ? 'btn-ghost' : 'btn-primary'}`}
-                style={{ marginTop: 12 }}
-                onClick={() => setCurrentStage(stage.id)}
-                disabled={isCurrent}
-              >
-                {isCurrent ? (
-                  <>
-                    <IconCheck /> This is your current stage
-                  </>
-                ) : (
-                  'Set as current stage'
-                )}
-              </button>
-            </div>
+              {guide ? (
+                <>
+                  <button
+                    type="button"
+                    className="stage-guide__toggle"
+                    aria-expanded={guideOpen}
+                    aria-controls={guidePanelId}
+                    onClick={() => toggleGuide(stage.id)}
+                  >
+                    <span>Day guide</span>
+                    <ChevronDown
+                      className="stage-guide__chevron"
+                      size={18}
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                  </button>
+                  {guideOpen ? (
+                    <div
+                      id={guidePanelId}
+                      className="stage-guide"
+                      role="region"
+                      aria-label={`Day ${stage.day} guide`}
+                    >
+                      <StageGuidePanel guide={guide} />
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </article>
           );
         })}
       </div>

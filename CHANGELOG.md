@@ -10,6 +10,45 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-07-11
+
+### Added
+
+- **Every stage now carries a compact day guide.** Each card on Stages
+  expands (new "Day guide" disclosure at the bottom of the card, chevron,
+  independent per-card accordion, keyboard/`aria-expanded` accessible) into
+  a short editorial guide: what to expect, trail character, two to four
+  highlights and stage-specific "plan for" notes — treeline transitions,
+  the Tjäktjapasset crossing and its day shelter, which cabins have no
+  shop, the seasonal Láddjujávri boat (run by Enoks; never guaranteed) and
+  the seasonal Nikkaluokta–Kiruna bus. Content was researched against
+  official STF, Länsstyrelsen Norrbotten (Naturkartan) and operator pages;
+  every guide records its sources and a last-verified date
+  (`src/data/stageGuides.mjs`, pinned by `tests/stage-guides.test.mjs`).
+  Guides are static, deliberately hedged route guidance — not live
+  conditions — and all distances/elevation figures remain GPX-derived.
+
+### Changed
+
+- **Stage-card actions were redesigned.** Setting the current stage moved
+  from the full-width bottom button to a compact "Set as current" pill in
+  the card's top-right (the current stage shows the familiar
+  non-interactive "Current" status pill instead); the bottom of the card
+  now belongs to the day-guide disclosure. The two controls are separate
+  buttons — expanding a guide can never change the current stage. The
+  Stages introduction was rewritten to match.
+
+### Removed
+
+- **The Daily checklist was archived.** The fixed daily routine list is
+  gone from Today (its navigation card), Lists (the Daily/Packing switch —
+  Lists is now the packing list), the app store and the persisted schema
+  (v3 drops the `checklist` map during normalisation). Existing saved data
+  and old export files still load, import and migrate safely; only the
+  checklist ticks are discarded — everything else (current stage, packing,
+  stop notes, journal) is preserved. Rationale and recovery pointers:
+  [docs/archived-features/daily-checklist.md](docs/archived-features/daily-checklist.md).
+
 ## [0.17.1] - 2026-07-10
 
 ### Fixed

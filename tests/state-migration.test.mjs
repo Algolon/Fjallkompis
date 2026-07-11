@@ -1,6 +1,9 @@
 /**
- * Deterministic validation of the localStorage schema v1 → v2 migration
- * (src/utils/stateMigration.mjs — the exact module the app runs).
+ * Deterministic validation of the localStorage schema migrations
+ * (v1 → v2 → v3, src/utils/stateMigration.mjs — the exact module the app
+ * runs). v3 dropped the archived Daily checklist's `checklist` map; legacy
+ * payloads that still carry it must keep loading with everything else intact
+ * (docs/archived-features/daily-checklist.md).
  *
  *   npm test   →  node --test tests/
  */
@@ -40,20 +43,37 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 2', () => {
-  assert.equal(SCHEMA_VERSION, 2);
+test('schema version is 3', () => {
+  assert.equal(SCHEMA_VERSION, 3);
 });
 
-test('v1 → v2: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v3: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 2);
+  assert.equal(s.schemaVersion, 3);
   assert.equal(s.currentStageId, 'd3');
-  assert.deepEqual(s.checklist, V1_STATE.checklist);
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
 });
 
-test('v1 → v2: hut notes are preserved verbatim, shopOverride is dropped', () => {
+test('legacy checklist data is dropped without breaking the rest', () => {
+  // v1 and v2 payloads both persisted the Daily checklist's tick map. The
+  // feature is archived; the key is stripped during normalisation while all
+  // unrelated personal data survives untouched.
+  const s = normalizeState(V1_STATE);
+  assert.ok(!('checklist' in s), 'checklist key must not survive migration');
+  assert.equal(s.currentStageId, 'd3');
+  assert.equal(s.hutData.abisko.notes, 'Bunk 4, kiosk closes 18:00');
+  assert.equal(s.journal.length, 1);
+
+  // Malformed checklist payloads must never break loading either.
+  for (const bad of [{ 'morning.1': 'yes' }, 'garbage', 42, ['a'], null]) {
+    const out = normalizeState({ ...V1_STATE, checklist: bad });
+    assert.ok(!('checklist' in out));
+    assert.equal(out.currentStageId, 'd3');
+  }
+});
+
+test('v1 → v3: hut notes are preserved verbatim, shopOverride is dropped', () => {
   const s = normalizeState(V1_STATE);
   assert.equal(s.hutData.abisko.notes, 'Bunk 4, kiosk closes 18:00');
   assert.equal(s.hutData.tjaktja.notes, '');
@@ -63,7 +83,7 @@ test('v1 → v2: hut notes are preserved verbatim, shopOverride is dropped', () 
   }
 });
 
-test('v1 → v2: packing is seeded with all seed items in "needed" state', () => {
+test('v1 → v3: packing is seeded with all seed items in "needed" state', () => {
   const s = normalizeState(V1_STATE);
   assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
   for (const item of s.packing) {
@@ -79,7 +99,7 @@ test('migration is deterministic and idempotent', () => {
   assert.deepEqual(normalizeState(V1_STATE), once);
 });
 
-test('v2 roundtrip: packing statuses, quantities and weights persist', () => {
+test('v3 roundtrip: packing statuses, quantities and weights persist', () => {
   const s = defaultState('d1');
   s.packing[0].status = 'packed';
   s.packing[1].status = 'ready';
@@ -92,7 +112,7 @@ test('v2 roundtrip: packing statuses, quantities and weights persist', () => {
   assert.equal(out.packing[3].weightGrams, 1250);
 });
 
-test('v2 roundtrip: custom packing items are preserved', () => {
+test('v3 roundtrip: custom packing items are preserved', () => {
   const s = defaultState('d1');
   s.packing.push({
     id: 'custom_x1',
@@ -162,9 +182,9 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 2);
+    assert.equal(s.schemaVersion, 3);
     assert.equal(s.currentStageId, 'd1');
-    assert.deepEqual(s.checklist, {});
+    assert.ok(!('checklist' in s));
     assert.deepEqual(s.journal, []);
     assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
   }

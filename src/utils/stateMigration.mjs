@@ -12,12 +12,20 @@
  *     merged from any persisted data, plus the user's custom items.
  *   - Everything else (currentStageId, checklist, journal) passes through.
  *
+ * v2 → v3:
+ *   - `checklist` (the archived Daily checklist feature's itemId → checked
+ *     map) is dropped during normalisation. Old payloads that still carry it
+ *     load fine — the key is simply not copied into the new state. See
+ *     docs/archived-features/daily-checklist.md.
+ *   - Everything else (currentStageId, hutData, journal, packing) passes
+ *     through unchanged.
+ *
  * Normalisation is idempotent and never throws: malformed fields fall back to
  * defaults instead of wiping the app.
  */
 import { PACKING_CATEGORIES, SEED_PACKING_ITEMS } from '../data/packingSeed.mjs';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const PACKING_STATUSES = new Set(['needed', 'ready', 'packed']);
 const CATEGORY_IDS = new Set(PACKING_CATEGORIES.map((c) => c.id));
@@ -31,7 +39,6 @@ export function defaultState(defaultStageId) {
   return {
     schemaVersion: SCHEMA_VERSION,
     currentStageId: defaultStageId ?? null,
-    checklist: {},
     hutData: {},
     journal: [],
     packing: seedPackingItems(),
@@ -40,11 +47,6 @@ export function defaultState(defaultStageId) {
 
 function isObject(v) {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function isStringBoolMap(v) {
-  if (!isObject(v)) return false;
-  return Object.values(v).every((x) => typeof x === 'boolean');
 }
 
 function isJournalish(v) {
@@ -126,10 +128,11 @@ function normalizePacking(raw) {
 }
 
 /**
- * Validate + normalise an unknown blob into the current schema. Accepts v1
- * and v2 payloads (and anything malformed in between). Unknown/missing
+ * Validate + normalise an unknown blob into the current schema. Accepts v1,
+ * v2 and v3 payloads (and anything malformed in between). Unknown/missing
  * fields fall back to defaults rather than throwing, so a partially-corrupt
- * or older payload still loads instead of wiping the app.
+ * or older payload still loads instead of wiping the app. Retired fields
+ * (v1 shopOverride, v2 checklist) are ignored, never a parse failure.
  */
 export function normalizeState(raw, defaultStageId) {
   const base = defaultState(defaultStageId);
@@ -141,7 +144,6 @@ export function normalizeState(raw, defaultStageId) {
       typeof raw.currentStageId === 'string' || raw.currentStageId === null
         ? raw.currentStageId
         : base.currentStageId,
-    checklist: isStringBoolMap(raw.checklist) ? raw.checklist : {},
     hutData: normalizeHutData(raw.hutData),
     journal: Array.isArray(raw.journal) ? raw.journal.filter(isJournalish) : [],
     packing: normalizePacking(raw.packing),

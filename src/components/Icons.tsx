@@ -43,7 +43,7 @@ export const IconHuts = (p: P) => (
   </svg>
 );
 
-export const IconChecklist = (p: P) => (
+export const IconLists = (p: P) => (
   <svg {...base} className={p.className} aria-hidden>
     <path d="m4 7 2 2 3-3" />
     <path d="m4 16 2 2 3-3" />

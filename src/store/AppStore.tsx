@@ -22,7 +22,6 @@ import {
 } from '../utils/storage';
 import { seedPackingItems } from '../utils/stateMigration.mjs';
 import { STAGES, STAGES_BY_ID } from '../data/stages';
-import { ALL_CHECKLIST_ITEMS, TOTAL_CHECKLIST_ITEMS } from '../data/checklist';
 
 interface AppStore {
   state: PersistentState;
@@ -32,13 +31,6 @@ interface AppStore {
   currentStage: Stage | null;
   nextHutId: string | null;
   setCurrentStage: (stageId: string) => void;
-
-  // Daily checklist
-  toggleChecklistItem: (itemId: string) => void;
-  resetDailyChecklist: () => void;
-  checklistCheckedCount: number;
-  checklistTotal: number;
-  checklistPercent: number;
 
   // Stop trip notes (persisted under the legacy hutData key)
   getStopNote: (stopId: string) => string;
@@ -77,17 +69,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const setCurrentStage = useCallback((stageId: string) => {
     setState((s) => ({ ...s, currentStageId: stageId }));
-  }, []);
-
-  const toggleChecklistItem = useCallback((itemId: string) => {
-    setState((s) => ({
-      ...s,
-      checklist: { ...s.checklist, [itemId]: !s.checklist[itemId] },
-    }));
-  }, []);
-
-  const resetDailyChecklist = useCallback(() => {
-    setState((s) => ({ ...s, checklist: {} }));
   }, []);
 
   const setStopNote = useCallback((stopId: string, notes: string) => {
@@ -181,16 +162,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const nextHutId = currentStage ? currentStage.toHutId : null;
 
-  const checklistCheckedCount = useMemo(
-    () => ALL_CHECKLIST_ITEMS.filter((i) => state.checklist[i.id]).length,
-    [state.checklist],
-  );
-
-  const checklistPercent =
-    TOTAL_CHECKLIST_ITEMS === 0
-      ? 0
-      : Math.round((checklistCheckedCount / TOTAL_CHECKLIST_ITEMS) * 100);
-
   const getStopNote = useCallback(
     (stopId: string): string => state.hutData[stopId]?.notes ?? '',
     [state.hutData],
@@ -207,11 +178,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     currentStage,
     nextHutId,
     setCurrentStage,
-    toggleChecklistItem,
-    resetDailyChecklist,
-    checklistCheckedCount,
-    checklistTotal: TOTAL_CHECKLIST_ITEMS,
-    checklistPercent,
     getStopNote,
     setStopNote,
     setPackingStatus,
