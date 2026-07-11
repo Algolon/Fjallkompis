@@ -16,6 +16,7 @@ import { StopsScreen } from './screens/StopsScreen';
 import { ListsScreen } from './screens/ListsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PwaLifecycle } from './components/PwaLifecycle';
+import { INITIAL_MAP_VIEW_STAGE_ID } from './map/mapDefaults.mjs';
 
 interface Nav {
   tab: TabId;
@@ -26,9 +27,13 @@ interface Nav {
 function Screens({
   nav,
   navigate,
+  mapViewStageId,
+  setMapViewStageId,
 }: {
   nav: Nav;
   navigate: (t: TabId, payload?: NavPayload) => void;
+  mapViewStageId: string | null;
+  setMapViewStageId: (stageId: string | null) => void;
 }) {
   switch (nav.tab) {
     case 'today':
@@ -37,7 +42,13 @@ function Screens({
       // Focused callback (not the whole router): the map's anchored stop
       // preview opens the stop's full detail in Huts & Stations via the
       // existing destination + one-shot payload pattern.
-      return <MapScreen onOpenStop={(stopId) => navigate('huts', { stopId })} />;
+      return (
+        <MapScreen
+          viewStageId={mapViewStageId}
+          onViewStageChange={setMapViewStageId}
+          onOpenStop={(stopId) => navigate('huts', { stopId })}
+        />
+      );
     case 'stages':
       return <StagesScreen />;
     case 'huts':
@@ -58,6 +69,12 @@ export default function App() {
   const [nav, setNav] = useState<Nav>(() => ({
     tab: tabForHash(window.location.hash) ?? DEFAULT_TAB,
   }));
+  // In-memory only: direct/fresh Map opens show the full route, while a
+  // stage chosen via Today or the Map selector survives tab switches until
+  // the app is refreshed.
+  const [mapViewStageId, setMapViewStageId] = useState<string | null>(
+    INITIAL_MAP_VIEW_STAGE_ID,
+  );
   // Read by the hashchange handler without re-subscribing per navigation.
   const navRef = useRef(nav);
   navRef.current = nav;
@@ -115,6 +132,9 @@ export default function App() {
     // the swap; destinations that deep-link (Stops expanding a stop)
     // re-scroll themselves on mount afterwards.
     window.scrollTo(0, 0);
+    if (tab === 'map' && 'mapStageId' in (payload ?? {})) {
+      setMapViewStageId(payload?.mapStageId ?? null);
+    }
     setNav({ tab, payload });
     // Push the destination onto history AFTER state is queued: the
     // resulting hashchange sees the same tab and leaves the payload alone.
@@ -137,7 +157,12 @@ export default function App() {
         <TabBar active={nav.tab} onChange={navigate} variant="rail" />
         {/* key forces the fade-in animation per tab change */}
         <main key={nav.tab}>
-          <Screens nav={nav} navigate={navigate} />
+          <Screens
+            nav={nav}
+            navigate={navigate}
+            mapViewStageId={mapViewStageId}
+            setMapViewStageId={setMapViewStageId}
+          />
         </main>
         <TabBar active={nav.tab} onChange={navigate} variant="bar" />
         <PwaLifecycle />
