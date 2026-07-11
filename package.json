@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.17.1",
   "type": "module",
-  "description": "Fjällkompis — offline-first hut-to-hut trail companion PWA for the Kungsleden (prototype).",
+  "description": "Fjällkompis — an offline hiking companion for the Kungsleden, designed to complement hikers' navigation tools.",
   "scripts": {
     "dev": "npm run generate:route && vite",
     "build": "npm run check:version && npm run generate:route && tsc -b && vite build",

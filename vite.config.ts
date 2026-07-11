@@ -27,10 +27,10 @@ export default defineConfig({
       injectRegister: null,
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.png'],
       manifest: {
-        name: 'Fjällkompis — Kungsleden trail companion',
+        name: 'Fjällkompis — Kungsleden hiking companion',
         short_name: 'Fjällkompis',
         description:
-          'Offline-first hut-to-hut trail companion for the Kungsleden. Prototype — not for primary navigation.',
+          'An offline hiking companion for the Kungsleden, bringing route, stage, hut and checklist information together alongside your navigation tools.',
         lang: 'en',
         theme_color: '#2f4a3d',
         background_color: '#dce4d8',

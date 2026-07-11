@@ -5,26 +5,39 @@ or commit messages — is the single source of truth for priority and progress.
 Delivered iterations are summarised in [CHANGELOG.md](CHANGELOG.md); versioning
 rules live in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 
+## Product identity
+
+Fjällkompis is an **offline hiking companion for the Kungsleden between Abisko
+and Nikkaluokta**. It complements appropriate maps, navigation tools and sound
+outdoor judgement by bringing the trail information hikers use most into one
+bounded, offline-first experience. It is deliberately not positioned as a
+general map browser, a turn-by-turn navigator or a replacement for navigation
+skills and safety equipment.
+
+This identity should guide product decisions and public language: prioritise
+route-specific usefulness, offline trust, low cognitive load and reliable
+access to stage, stop, checklist and map context over expanding into a generic
+outdoor platform.
+
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.17.1). The core
-trip loop works end to end and offline: verified route with stage statistics
-and elevation profiles, along-route GPS progress on the current stage, an
-offline vector basemap with hillshade and contour relief, plus an optional
-Sentinel-2 satellite layer (all independently downloadable), a curated
-stops guide, daily/packing lists,
-install/update UX, opt-in foreground live tracking (beta) on the Map
-screen, and local backup/restore. The app is one adaptive application:
-the same URL works on phones (the protected baseline experience,
+Offline-first Kungsleden hiking companion PWA (beta, v0.17.1). The core trip
+loop works end to end and offline: verified route with stage statistics and
+elevation profiles, along-route GPS progress on the current stage, an offline
+vector basemap with hillshade and contour relief, plus an optional Sentinel-2
+satellite layer (all independently downloadable), a curated stops guide,
+daily/packing lists, install/update UX, opt-in foreground live tracking (beta)
+on the Map screen, and local backup/restore. Fjällkompis is one adaptive
+experience: the same URL works on phones (the protected baseline experience,
 portrait-only by design — landscape shows a rotate-to-portrait prompt),
 tablets (navigation rail, portrait and landscape) and desktop browsers
 (persistent sidebar), with hash-based URLs (`#/today` … `#/settings`) and
-working browser Back/Forward. The Map-tab GPS mechanics
-(one-shot fix, foreground live tracking, projection, off-route states,
-offline basemap handling) were validated in a real-device Delft pilot walk
-(docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has
-not been field-tested — still labelled *prototype, not for primary
-navigation*.
+working browser Back/Forward. The Map-tab GPS mechanics (one-shot fix,
+foreground live tracking, projection, off-route states, offline basemap
+handling) were validated in a real-device Delft pilot walk
+(docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has not
+been field-tested. Fjällkompis therefore remains a beta companion and must be
+used alongside appropriate navigation tools.
 
 All personal data remains local to the browser/device in use; moving it
 between devices is a manual export → import (device transfer). Automatic
