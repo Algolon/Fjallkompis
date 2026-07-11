@@ -639,7 +639,7 @@ h3 {
   color: #fff;
 }
 
-/* --- Checklist ----------------------------------------------------------- */
+/* --- Check rows (packing "Essential item" toggle) ------------------------- */
 
 .check {
   display: flex;
@@ -1200,6 +1200,179 @@ button.map-status-pill {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+/* Stage cards (Stages screen) -------------------------------------------------
+   Two distinct interactions per card, deliberately separated so neither can
+   be hit by accident: setting the current stage is a compact pill in the
+   top-right; the card's bottom edge is the disclosure for the expandable
+   day guide (same semantics as the Settings accordions: real <button>,
+   aria-expanded/aria-controls, conditional panel — no brittle max-height
+   animation, and the global prefers-reduced-motion rule kills the
+   transitions). The card itself is never clickable. */
+
+.stage-card.is-current {
+  border-color: var(--cloudberry);
+  box-shadow: 0 0 0 1px var(--cloudberry), var(--shadow);
+}
+.stage-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* Narrow screens: the action pill wraps under the day/distance group
+     instead of crowding or shrinking below accessible sizing. */
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.stage-card__route {
+  display: block;
+  margin-top: 10px;
+  font-size: 18px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+/* "Set as current": the one primary action on a non-current card. Outlined
+   spruce pill so seven of them don't shout; the visible pill is 34px and a
+   ::after halo extends the hit area to ~46px without moving layout. */
+.stage-set-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--spruce);
+  background: transparent;
+  color: var(--spruce);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 12px;
+  min-height: 34px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+}
+.stage-set-pill::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+}
+@media (hover: hover) {
+  .stage-set-pill:hover {
+    background: var(--spruce);
+    color: #f4f8f5;
+  }
+}
+.stage-set-pill:active {
+  transform: scale(0.96);
+  background: var(--spruce);
+  color: #f4f8f5;
+}
+.stage-set-pill:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+/* Day-guide disclosure: full-bleed bottom row of the card. Quieter than the
+   set-current pill on purpose — it reads as the card's own footer. */
+.stage-guide__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: calc(100% + 32px);
+  margin: 14px -16px -16px;
+  padding: 12px 16px;
+  min-height: 46px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+@media (hover: hover) {
+  .stage-guide__toggle:hover {
+    background: var(--paper-2);
+  }
+}
+.stage-guide__toggle:active {
+  background: var(--paper-2);
+}
+.stage-guide__toggle:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: -2px;
+}
+.stage-guide__toggle[aria-expanded='true'] {
+  margin-bottom: 0;
+  border-radius: 0;
+}
+.stage-guide__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+.stage-guide__toggle[aria-expanded='true'] .stage-guide__chevron {
+  transform: rotate(180deg);
+}
+
+/* Expanded guide: calm editorial prose, not another stats grid. */
+.stage-guide {
+  margin: 0 -16px -16px;
+  padding: 2px 16px 16px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  animation: stage-guide-in 0.18s ease;
+}
+@keyframes stage-guide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.stage-guide__overview {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.stage-guide__section {
+  margin-top: 12px;
+}
+.stage-guide__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.stage-guide__section p {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.stage-guide__list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.stage-guide__verified {
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
 
 /* Map screen stage selector: a block grid with every option visible at
    once — no horizontal scrolling. "Full route" spans the row; the seven
@@ -2021,8 +2194,8 @@ button.map-status-pill {
   background: rgba(85, 103, 91, 0.5);
 }
 
-/* Compact navigation cards (Tonight / Daily list / Latest journal): whole
-   card is one button — large touch target, chevron affordance. */
+/* Compact navigation cards (Tonight's stop): whole card is one button —
+   large touch target, chevron affordance. */
 .today-action-card {
   display: flex;
   align-items: center;
@@ -2065,12 +2238,6 @@ button.map-status-pill {
   display: flex;
   flex-direction: column;
   gap: 3px;
-}
-.today-action-card__row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
 }
 .today-action-card__label {
   font-size: 11px;
@@ -2133,21 +2300,6 @@ button.map-status-pill {
 .today-action-card__chevron {
   flex: 0 0 auto;
   color: var(--ink-soft);
-}
-.today-action-card__progress {
-  display: block;
-  height: 5px;
-  margin-top: 4px;
-  border-radius: 999px;
-  background: rgba(34, 49, 40, 0.16);
-  overflow: hidden;
-}
-.today-action-card__progress-fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--good);
-  transition: width 0.3s ease;
 }
 /* --- Packing list ------------------------------------------------------------------ */
 

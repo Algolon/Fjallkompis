@@ -216,7 +216,7 @@ function BetaFeedbackCard({
       <p className="card-sub" style={{ marginTop: 4 }}>
         Send confusing moments, wrong facts, GPS oddities and readiness gaps.
         Safe diagnostics add device/app status only; they exclude coordinates,
-        notes, journal entries and checklist contents.
+        notes, journal entries and packing-list contents.
       </p>
 
       {BETA_FORM_URL ? (
@@ -329,7 +329,7 @@ export function SettingsScreen() {
   const doReset = () => {
     if (
       confirm(
-        'Reset all local data? This clears your daily list, packing list, stop notes and current stage. Export a backup first if unsure.',
+        'Reset all local data? This clears your packing list, stop notes, journal and current stage. Export a backup first if unsure.',
       )
     ) {
       resetAll();

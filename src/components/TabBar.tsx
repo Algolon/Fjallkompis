@@ -3,7 +3,7 @@ import {
   IconMap,
   IconStages,
   IconHuts,
-  IconChecklist,
+  IconLists,
   IconSettings,
 } from './Icons';
 import { TAB_ROUTES } from '../navigation/routes.mjs';
@@ -20,14 +20,15 @@ export type TabId =
 // (src/navigation/routes.mjs) so the bottom tab bar, the tablet rail and the
 // desktop sidebar can never drift apart — they are all this one component,
 // restyled by CSS at wider breakpoints (see "Adaptive navigation" in
-// global.css). Internal ids 'huts' / 'checklist' are kept: persisted state
-// and screen wiring reference them, only the user-facing labels changed.
+// global.css). Internal ids 'huts' / 'checklist' are historical and kept:
+// screen wiring references them, only the user-facing labels changed
+// ('checklist' is the Lists destination — the packing list).
 const TAB_ICONS: Record<TabId, (p: { className?: string }) => JSX.Element> = {
   today: IconToday,
   map: IconMap,
   stages: IconStages,
   huts: IconHuts,
-  checklist: IconChecklist,
+  checklist: IconLists,
   settings: IconSettings,
 };
 

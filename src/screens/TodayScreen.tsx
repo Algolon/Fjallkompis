@@ -12,11 +12,9 @@ import {
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
 import type { TabId } from '../components/TabBar';
-import type { ListsMode } from './ListsScreen';
 
 export interface NavPayload {
   stopId?: string;
-  listsMode?: ListsMode;
   mapStageId?: string | null;
 }
 
@@ -69,7 +67,7 @@ function HeroSilhouette({ stageId }: { stageId: string }) {
 }
 
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
-  const { currentStage, checklistCheckedCount, checklistTotal } = useStore();
+  const { currentStage } = useStore();
 
   const from = currentStage ? STOPS_BY_ID[currentStage.fromHutId] : null;
   const to = currentStage ? STOPS_BY_ID[currentStage.toHutId] : null;
@@ -94,9 +92,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
             : facilityLabels[0]
         }.`
       : '';
-
-  const checklistPct =
-    checklistTotal === 0 ? 0 : (checklistCheckedCount / checklistTotal) * 100;
 
   return (
     <div className="screen today-screen">
@@ -236,34 +231,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
               />
             </button>
           ) : null}
-
-          {/* D. Daily list — compact navigation card */}
-          <button
-            className="today-action-card today-glass today-glass--light"
-            onClick={() => onNavigate('checklist', { listsMode: 'daily' })}
-            aria-label={`Daily list: ${checklistCheckedCount} of ${checklistTotal} done. Opens the daily list in Lists.`}
-          >
-            <span className="today-action-card__body">
-              <span className="today-action-card__row">
-                <span className="today-action-card__title">Daily list</span>
-                <span className="today-action-card__value tnum">
-                  {checklistCheckedCount}/{checklistTotal} done
-                </span>
-              </span>
-              <span className="today-action-card__progress" aria-hidden>
-                <span
-                  className="today-action-card__progress-fill"
-                  style={{ width: `${checklistPct}%` }}
-                />
-              </span>
-            </span>
-            <ChevronRight
-              className="today-action-card__chevron"
-              size={18}
-              strokeWidth={2}
-              aria-hidden
-            />
-          </button>
 
         </>
       ) : (

@@ -459,10 +459,34 @@ facts were checked. Update `src/data/stops.ts` after re-verifying. Optional
 licensed photos go in `public/images/stops/` (see the README there) — without
 one, cards render a generated route-silhouette fallback.
 
-Personal data stays separate: per-stop **trip notes**, the **daily list** and
-the **packing list** live in one versioned `localStorage` blob
-(`src/utils/stateMigration.mjs`, schema v2, defensive v1 migration covered by
-`tests/state-migration.test.mjs`).
+Personal data stays separate: per-stop **trip notes** and the **packing
+list** live in one versioned `localStorage` blob
+(`src/utils/stateMigration.mjs`, schema v3; defensive v1/v2 migration covered
+by `tests/state-migration.test.mjs` — v3 drops the archived Daily checklist's
+data while preserving everything else, see
+[archived-features/daily-checklist.md](archived-features/daily-checklist.md)).
+
+## Stage day-guide data
+
+The Stages screen expands each day into a **curated editorial guide**
+(`src/data/stageGuides.mjs`): overview, trail character, highlights and
+stage-specific planning notes. Like the stops snapshot it is deliberately
+static and hedged — "typically", "can be", "verify locally" — because it
+describes the route, **not live conditions**. Three layers must never blur:
+
+- **GPX-derived statistics** (distance, ascent/descent, elevation range)
+  come from `src/route/routeData` and are never restated or overridden by
+  guide text;
+- **personal time estimates** (`estimatedHours` in `src/data/stages.ts`)
+  are labelled as estimates in the UI;
+- **editorial guidance** carries `sourceIds` into the `GUIDE_SOURCES`
+  registry (official STF, Länsstyrelsen Norrbotten/Naturkartan and operator
+  pages) plus a `lastVerified` ISO date per stage.
+
+`tests/stage-guides.test.mjs` pins all of this: every stage has a guide,
+every guide resolves its sources and verification date, and stage statistics
+keep coming from the generated route data. Update the module after
+re-verifying against the linked sources and bump `lastVerified`.
 
 ## Run it locally
 
@@ -503,7 +527,9 @@ fjallkompis/
 │  └─ check-version-consistency.mjs  # version-drift guard (npm run check:version)
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
-│  ├─ state-migration.test.mjs  # localStorage schema v1 → v2 migration
+│  ├─ state-migration.test.mjs  # localStorage schema migrations (v1 → v3)
+│  ├─ stage-guides.test.mjs     # day-guide content/sources integrity
+│  ├─ checklist-removal.test.mjs # archived Daily checklist stays absent
 │  └─ version-consistency.test.mjs   # the guard passes AND fails correctly
 ├─ public/
 │  ├─ gpx/…                     # source GPX (verified route)
@@ -514,7 +540,7 @@ fjallkompis/
    ├─ route/                    # typed ParsedRoute model + hut↔waypoint map
    ├─ map/                      # offline-map cache, pmtiles protocol, style
    ├─ components/               # MapView, ElevationProfile, OfflineMapCard, …
-   ├─ data/                     # stages + curated stops snapshot + packing seed
+   ├─ data/                     # stages + day guides + curated stops snapshot + packing seed
    ├─ store/ hooks/ utils/ screens/ styles/
    └─ …
 ```

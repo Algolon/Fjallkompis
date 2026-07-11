@@ -54,7 +54,10 @@ function Screens({
     case 'huts':
       return <StopsScreen initialStopId={nav.payload?.stopId ?? null} />;
     case 'checklist':
-      return <ListsScreen initialMode={nav.payload?.listsMode} />;
+      // Historical internal tab id — the user-facing destination is 'Lists'
+      // (#/lists), which is the packing list since the Daily checklist was
+      // archived (docs/archived-features/daily-checklist.md).
+      return <ListsScreen />;
     case 'settings':
       return <SettingsScreen />;
   }

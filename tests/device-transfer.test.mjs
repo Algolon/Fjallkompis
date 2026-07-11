@@ -1,8 +1,10 @@
 /**
  * Device-transfer round trip: the full-state JSON export must carry ALL
- * personal data (current stage, daily-list ticks, packing statuses and
- * custom items, stop notes, journal) so a manual export → import moves a
- * user's data intact between devices.
+ * personal data (current stage, packing statuses and custom items, stop
+ * notes, journal) so a manual export → import moves a user's data intact
+ * between devices. Exports made before the Daily checklist was archived may
+ * still carry a `checklist` map — importing them must keep working, with
+ * only that retired key ignored.
  *
  * The export envelope is { app, schemaVersion, exportedAt, state } (see
  * src/utils/exportImport.ts) and import runs the same normalizeState the
@@ -19,7 +21,6 @@ import {
 /** A populated state, as a real trip-in-progress would persist it. */
 function populatedState() {
   const s = defaultState('d3');
-  s.checklist = { 'morning.1': true, 'safety.2': true };
   s.hutData = { salka: { notes: 'Sauna coins!' }, abisko: { notes: 'Bunk 4' } };
   s.journal = [
     {
@@ -76,9 +77,20 @@ test('full-state transfer preserves the current stage', () => {
   assert.equal(restored.currentStageId, 'd3');
 });
 
-test('full-state transfer preserves daily-list ticks', () => {
-  const restored = exportImportRoundTrip(populatedState());
-  assert.deepEqual(restored.checklist, { 'morning.1': true, 'safety.2': true });
+test('a pre-archive export with checklist data still imports cleanly', () => {
+  // Simulates an export file written while the Daily checklist existed
+  // (schema v2): the retired key is ignored, nothing else is lost.
+  const legacy = {
+    ...populatedState(),
+    schemaVersion: 2,
+    checklist: { 'morning.1': true, 'safety.2': true },
+  };
+  const restored = exportImportRoundTrip(legacy);
+  assert.ok(!('checklist' in restored), 'retired checklist key is dropped');
+  assert.equal(restored.currentStageId, 'd3');
+  assert.equal(restored.hutData.salka.notes, 'Sauna coins!');
+  assert.equal(restored.journal.length, 1);
+  assert.ok(restored.packing.some((i) => i.id === 'custom_abc'));
 });
 
 test('full-state transfer preserves packing statuses, quantities and custom items', () => {

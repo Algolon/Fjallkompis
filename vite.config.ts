@@ -30,7 +30,7 @@ export default defineConfig({
         name: 'Fjällkompis — Kungsleden hiking companion',
         short_name: 'Fjällkompis',
         description:
-          'An offline hiking companion for the Kungsleden, bringing route, stage, hut and checklist information together alongside your navigation tools.',
+          'An offline hiking companion for the Kungsleden, bringing route, stage, hut and packing information together alongside your navigation tools.',
         lang: 'en',
         theme_color: '#2f4a3d',
         background_color: '#dce4d8',

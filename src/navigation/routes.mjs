@@ -7,9 +7,11 @@
  * it needs no server rewrites, so direct links work unchanged on the GitHub
  * Pages project subpath (/Fjallkompis/#/map).
  *
- * Internal tab ids ('huts', 'checklist') are historical — persisted state and
- * screen wiring reference them — while the public hash segments use the
- * user-facing names ('stops', 'lists'). This module owns that mapping.
+ * Internal tab ids ('huts', 'checklist') are historical — screen wiring
+ * references them — while the public hash segments use the user-facing names
+ * ('stops', 'lists'). This module owns that mapping. ('checklist' now names
+ * the Lists destination, i.e. the packing list; the Daily checklist feature
+ * itself is archived — docs/archived-features/daily-checklist.md.)
  *
  * Plain .mjs so node --test can validate the table and the parse/format
  * round-trip without a TypeScript toolchain (same pattern as

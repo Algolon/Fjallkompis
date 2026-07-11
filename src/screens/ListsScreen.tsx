@@ -3,95 +3,8 @@ import { Pencil, Plus, RotateCcw, Scale, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
-import { CHECKLIST } from '../data/checklist';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
 import type { PackingItem, PackingStatus } from '../types';
-
-export type ListsMode = 'daily' | 'packing';
-
-// ---------------------------------------------------------------- Daily view
-
-function DailyView() {
-  const {
-    state,
-    toggleChecklistItem,
-    resetDailyChecklist,
-    checklistPercent,
-    checklistCheckedCount,
-    checklistTotal,
-  } = useStore();
-
-  const doReset = () => {
-    if (confirm('Reset the daily list? All ticks will be cleared for a fresh day.')) {
-      resetDailyChecklist();
-    }
-  };
-
-  return (
-    <>
-      <div className="card">
-        <div className="row-between">
-          <span className="card-title">Today’s progress</span>
-          <span className="tnum" style={{ fontWeight: 700 }}>
-            {checklistCheckedCount}/{checklistTotal}
-          </span>
-        </div>
-        <div className="meter" style={{ marginTop: 10 }}>
-          <div className="meter-fill" style={{ width: `${checklistPercent}%` }} />
-        </div>
-        <button
-          className="btn btn-ghost btn-block"
-          style={{ marginTop: 12 }}
-          onClick={doReset}
-          disabled={checklistCheckedCount === 0}
-        >
-          <RotateCcw size={15} strokeWidth={1.8} aria-hidden /> Reset daily list
-        </button>
-      </div>
-
-      {/* .lists-cats is layout-neutral on compact (plain block); at ≥900px
-          it lays the category blocks out in two columns (global.css). */}
-      <div className="lists-cats">
-      {CHECKLIST.map((cat) => {
-        const done = cat.items.filter((i) => state.checklist[i.id]).length;
-        return (
-          <div key={cat.id}>
-            <div className="section-label row-between">
-              <span>{cat.title}</span>
-              <span className="tnum">
-                {done}/{cat.items.length}
-              </span>
-            </div>
-            <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
-              {cat.items.map((item) => {
-                const checked = !!state.checklist[item.id];
-                return (
-                  <button
-                    key={item.id}
-                    className="check"
-                    aria-pressed={checked}
-                    onClick={() => toggleChecklistItem(item.id)}
-                  >
-                    <span className="box">
-                      <IconCheck />
-                    </span>
-                    <span className="label">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-      </div>
-
-      <p className="card-sub" style={{ marginTop: 18, textAlign: 'center' }}>
-        There’s no auto-reset — that’s deliberate, so nothing clears while you
-        sleep. Start each morning with the reset button above.
-      </p>
-    </>
-  );
-}
 
 // --------------------------------------------------------------- Packing view
 
@@ -396,7 +309,7 @@ function PackingView() {
         ))}
       </div>
 
-      {/* Categories — same two-column treatment as the daily view ≥900px. */}
+      {/* Categories — two-column layout ≥900px (.lists-cats, global.css). */}
       <div className="lists-cats">
       {PACKING_CATEGORIES.map((cat) => {
         const catItems = items.filter((i) => i.categoryId === cat.id);
@@ -482,36 +395,15 @@ function PackingView() {
 
 // ------------------------------------------------------------------- Screen
 
-export function ListsScreen({ initialMode }: { initialMode?: ListsMode }) {
-  const [mode, setMode] = useState<ListsMode>(initialMode ?? 'daily');
-
+export function ListsScreen() {
   return (
     <div className="screen screen--lists">
       <ScreenHeader eyebrow="Stay on top of it" title="Lists">
-        Reset the daily list each morning — packing is one big job before you
-        go.
+        Your packing list — one big job before you go. Adapt it to your own
+        gear and tick things off as they land in the pack.
       </ScreenHeader>
 
-      <div className="seg" role="tablist" aria-label="Daily or packing list">
-        <button
-          role="tab"
-          aria-selected={mode === 'daily'}
-          className="seg-btn"
-          onClick={() => setMode('daily')}
-        >
-          Daily
-        </button>
-        <button
-          role="tab"
-          aria-selected={mode === 'packing'}
-          className="seg-btn"
-          onClick={() => setMode('packing')}
-        >
-          Packing
-        </button>
-      </div>
-
-      {mode === 'daily' ? <DailyView /> : <PackingView />}
+      <PackingView />
     </div>
   );
 }

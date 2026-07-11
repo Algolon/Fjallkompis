@@ -16,18 +16,20 @@ skills and safety equipment.
 
 This identity should guide product decisions and public language: prioritise
 route-specific usefulness, offline trust, low cognitive load and reliable
-access to stage, stop, checklist and map context over expanding into a generic
+access to stage, stop, list and map context over expanding into a generic
 outdoor platform.
 
 ## Current state
 
-Offline-first Kungsleden hiking companion PWA (beta, v0.17.1). The core trip
+Offline-first Kungsleden hiking companion PWA (beta, v0.18.0). The core trip
 loop works end to end and offline: verified route with stage statistics and
-elevation profiles, along-route GPS progress on the current stage, an offline
-vector basemap with hillshade and contour relief, plus an optional Sentinel-2
-satellite layer (all independently downloadable), a curated stops guide,
-daily/packing lists, install/update UX, opt-in foreground live tracking (beta)
-on the Map screen, and local backup/restore. Fjällkompis is one adaptive
+elevation profiles, researched per-stage day guides (sources and verification
+dates auditable in the repo), along-route GPS progress on the current stage,
+an offline vector basemap with hillshade and contour relief, plus an optional
+Sentinel-2 satellite layer (all independently downloadable), a curated stops
+guide, a packing list (the Daily checklist is archived —
+docs/archived-features/daily-checklist.md), install/update UX, opt-in
+foreground live tracking (beta) on the Map screen, and local backup/restore. Fjällkompis is one adaptive
 experience: the same URL works on phones (the protected baseline experience,
 portrait-only by design — landscape shows a rotate-to-portrait prompt),
 tablets (navigation rail, portrait and landscape) and desktop browsers
@@ -45,7 +47,9 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Now
 
-1. **Beta trust and trail readiness (v0.18.0)** — active release scope,
+1. **Beta trust and trail readiness** — active release scope (originally
+   pencilled in as v0.18.0; that number shipped the stage day guides /
+   checklist-archive iteration instead),
    tracked in [issue #36](https://github.com/Algolon/Fjallkompis/issues/36).
    Make the beta safer and easier to run before adding larger features:
    documentation and PR-CI hygiene; a consolidated Trail readiness panel at
@@ -76,12 +80,13 @@ cross-device synchronization is deliberately far down this roadmap.
 
 4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
-   capabilities: import a standalone packing list; import or create a custom
-   daily list; export an individual list; preview an import before applying
-   it; map categories; validate invalid rows; detect duplicates; choose
-   between adding, replacing or merging; and keep the current full-state
-   backup as a separate function. Scope is list files only — no accounts,
-   no sync.
+   capabilities: import a standalone packing list; import or create custom
+   recurring lists (any successor to the archived Daily checklist would be
+   decided here, as a new product decision); export an individual list;
+   preview an import before applying it; map categories; validate invalid
+   rows; detect duplicates; choose between adding, replacing or merging; and
+   keep the current full-state backup as a separate function. Scope is list
+   files only — no accounts, no sync.
 5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
 
@@ -114,6 +119,16 @@ cross-device synchronization is deliberately far down this roadmap.
   until its imagery actually ships.
 
 ## Completed
+
+- **Stage day guides & Daily checklist archive (v0.18.0)**: every stage card
+  on Stages expands into a researched, hedged day guide (overview, trail
+  character, highlights, plan-for notes) with sources and last-verified
+  dates auditable in `src/data/stageGuides.mjs`; stage-card actions
+  redesigned (top-right "Set as current" pill, non-interactive "Current"
+  status pill, bottom-of-card guide disclosure); the Daily checklist was
+  removed from the active product and archived with a recovery record
+  (docs/archived-features/daily-checklist.md), persisted schema v3 dropping
+  its data safely while preserving everything else.
 
 - **Nordic terrain legibility & comparison retirement (v0.17.0)**: measured
   archive audit (the generalised z≤7 landcover covers ~100% of the corridor

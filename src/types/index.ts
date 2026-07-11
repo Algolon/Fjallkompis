@@ -87,28 +87,6 @@ export interface Stage {
   maximumElevationM: number | null;
 }
 
-// ---- Daily checklist ----------------------------------------------------------
-
-export interface ChecklistItem {
-  id: string;
-  label: string;
-}
-
-export type ChecklistCategoryId =
-  | 'morning'
-  | 'on-trail'
-  | 'evening'
-  | 'safety'
-  | 'food-water';
-
-export interface ChecklistCategory {
-  id: ChecklistCategoryId;
-  title: string;
-  /** Short instruction / vibe for the empty-ish state. */
-  hint: string;
-  items: ChecklistItem[];
-}
-
 // ---- Packing list -------------------------------------------------------------
 
 export type PackingStatus = 'needed' | 'ready' | 'packed';
@@ -158,12 +136,15 @@ export interface HutUserData {
   notes: string;
 }
 
-/** The single persisted blob. Bump SCHEMA_VERSION on breaking changes. */
+/**
+ * The single persisted blob. Bump SCHEMA_VERSION on breaking changes.
+ * Schema v3 dropped the `checklist` map of the archived Daily checklist
+ * feature; old payloads carrying it still load (the key is ignored during
+ * normalisation — see src/utils/stateMigration.mjs).
+ */
 export interface PersistentState {
   schemaVersion: number;
   currentStageId: string | null;
-  /** checklistItemId -> checked (daily list). */
-  checklist: Record<string, boolean>;
   /** stopId -> personal trip notes (legacy key name kept from v1). */
   hutData: Record<string, HutUserData>;
   journal: JournalEntry[];
