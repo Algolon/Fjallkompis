@@ -7,7 +7,7 @@ rules live in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 
 ## Current state
 
-Offline-first Kungsleden trail companion PWA (prototype, v0.9.x). The core
+Offline-first Kungsleden trail companion PWA (prototype, v0.17.1). The core
 trip loop works end to end and offline: verified route with stage statistics
 and elevation profiles, along-route GPS progress on the current stage, an
 offline vector basemap with hillshade and contour relief, plus an optional
@@ -32,14 +32,16 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Now
 
-1. **Community beta testing** — share the app with real hikers (Kungsleden
-   and elsewhere), collect structured feedback through the in-app Feedback
-   card and the GitHub beta-feedback issue template, and fold findings back
-   into the Map/tracking experience. Kick-off requires nothing more than
-   sharing the app link. **Multi-device access (delivered, v0.9.0) is the
-   enabling step**: testers can now open the same link on phone, tablet or
-   desktop instead of being limited to a phone-width column, which widens
-   the tester pool and the range of feedback.
+1. **Beta trust and trail readiness (v0.18.0)** — active release scope,
+   tracked in [issue #36](https://github.com/Algolon/Fjallkompis/issues/36).
+   Make the beta safer and easier to run before adding larger features:
+   documentation and PR-CI hygiene; a consolidated Trail readiness panel at
+   the top of Settings; beta feedback with diagnostics; Map navigation that
+   opens today's stage when explicitly requested while remembering the viewed
+   Map stage only for the current app session; field-legibility/accessibility
+   fixes; and the first visual-regression coverage. Manual dependencies:
+   published Google Form URL plus real-device sunlight, glove and offline
+   validation.
 2. **Offline map labels** — self-hosted/local PBF glyphs so the basemap can
    render general text labels without any remote font dependency (hut names
    are already local HTML markers). Now also the gate for the benchmark
@@ -67,19 +69,19 @@ cross-device synchronization is deliberately far down this roadmap.
    between adding, replacing or merging; and keep the current full-state
    backup as a separate function. Scope is list files only — no accounts,
    no sync.
-6. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
+5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
 
 ## Later
 
-7. **Real-device field testing on the trail** — battery, GPS accuracy,
+6. **Real-device field testing on the trail** — battery, GPS accuracy,
    glove/sunlight usability and offline behaviour on the Kungsleden itself;
    a prerequisite for calling any release trip-ready (1.0.0). The Delft
    pilot de-risked the Map-tab portion.
 
 ## Much later (optional)
 
-8. **Cross-device synchronization** — automatic sync of personal data
+7. **Cross-device synchronization** — automatic sync of personal data
    between a user's devices. Explicitly out of scope for the foreseeable
    future: it implies accounts/cloud or pairing infrastructure that
    contradicts the current local-only, no-backend architecture. Manual
