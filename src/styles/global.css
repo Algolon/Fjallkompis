@@ -360,6 +360,194 @@ h3 {
   gap: 8px;
 }
 
+/* --- Settings readiness / foldouts --------------------------------------- */
+
+.readiness-card {
+  border-color: #d5c4a9;
+  background: linear-gradient(180deg, #e9eee4 0%, var(--paper) 100%);
+}
+.readiness-card.is-ready {
+  border-color: #b8c9b0;
+}
+.readiness-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.readiness-score {
+  flex: 0 0 auto;
+  min-width: 88px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--paper-bright);
+  text-align: right;
+}
+.readiness-score strong,
+.readiness-score span {
+  display: block;
+}
+.readiness-score strong {
+  font-size: 16px;
+}
+.readiness-score span {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.readiness-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.readiness-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: rgba(238, 243, 236, 0.55);
+}
+.readiness-row svg {
+  color: var(--good);
+}
+.readiness-row:has(.readiness-row__main small:not(:empty)) svg {
+  align-self: center;
+}
+.readiness-row__main {
+  min-width: 0;
+}
+.readiness-row__main span {
+  display: block;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.readiness-row__main small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+.readiness-row__value {
+  max-width: 145px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: right;
+}
+.readiness-note,
+.settings-foldout-note {
+  margin: 12px 2px 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.beta-card {
+  margin-top: 14px;
+}
+.beta-card__pending {
+  margin-top: 12px;
+  background: #e5ece4;
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+.diagnostics-preview {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.diagnostics-preview summary {
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.diagnostics-preview pre {
+  margin: 10px 0 0;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper-bright);
+  padding: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.settings-foldout-note {
+  margin-top: 16px;
+}
+.settings-grid--accordions {
+  margin-top: 10px;
+}
+.settings-accordion {
+  padding: 0;
+  overflow: hidden;
+}
+.settings-accordion__heading {
+  margin: 0;
+  font-size: inherit;
+}
+.settings-accordion__button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  background: transparent;
+  padding: 14px 16px;
+  text-align: left;
+}
+.settings-accordion__button:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: -2px;
+  border-radius: var(--r-md);
+}
+.settings-accordion__title,
+.settings-accordion__summary {
+  display: block;
+}
+.settings-accordion__title {
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+.settings-accordion__summary {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+.settings-accordion__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+.settings-accordion.is-open .settings-accordion__chevron {
+  transform: rotate(180deg);
+}
+.settings-accordion__panel {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--line);
+}
+.settings-panel-stack > * + * {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
 /* --- Stat grid ----------------------------------------------------------- */
 
 .stat-grid {

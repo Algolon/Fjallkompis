@@ -32,6 +32,8 @@ interface CombinedStatus {
   sizeBytes: number | null;
 }
 
+export type ArchiveCombinedStatus = CombinedStatus & { checking: boolean };
+
 type Phase =
   | { kind: 'checking' }
   | { kind: 'idle'; status: CombinedStatus }
@@ -54,6 +56,38 @@ interface ArchiveCardProps {
   sourceHeading: string;
   /** Attribution entry from the central registry (src/data/attribution.ts). */
   source: DataSourceAttribution;
+  /** Render only the card contents when nested inside another framed control. */
+  embedded?: boolean;
+}
+
+export function useCombinedArchiveStatus(specs: ArchiveSpec[]): ArchiveCombinedStatus {
+  const [status, setStatus] = useState<ArchiveCombinedStatus>({
+    checking: true,
+    supported: false,
+    downloaded: false,
+    sizeBytes: null,
+  });
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all(specs.map((s) => getArchiveStatus(s))).then((statuses) => {
+      if (!alive) return;
+      setStatus({
+        checking: false,
+        supported: statuses.every((s) => s.supported),
+        downloaded: statuses.every((s) => s.downloaded),
+        sizeBytes: statuses.every((s) => s.sizeBytes != null)
+          ? statuses.reduce((sum, s) => sum + (s.sizeBytes ?? 0), 0)
+          : null,
+      });
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specs.map((s) => s.cacheName).join('|')]);
+
+  return status;
 }
 
 function ArchiveCard({
@@ -63,6 +97,7 @@ function ArchiveCard({
   removeConfirm,
   sourceHeading,
   source,
+  embedded = false,
 }: ArchiveCardProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
 
@@ -135,8 +170,8 @@ function ArchiveCard({
         ? phase.status.sizeBytes
         : null;
 
-  return (
-    <div className="card">
+  const content = (
+    <>
       <span className="card-title">{title}</span>
       <p className="card-sub" style={{ marginTop: 4 }}>
         {description}
@@ -221,11 +256,13 @@ function ArchiveCard({
       )}
 
       <SourceSummary heading={sourceHeading} source={source} assetUrls={specs.map(archiveUrl)} />
-    </div>
+    </>
   );
+
+  return embedded ? content : <div className="card">{content}</div>;
 }
 
-export function OfflineMapCard() {
+export function OfflineMapCard({ embedded = false }: { embedded?: boolean }) {
   return (
     <ArchiveCard
       specs={[VECTOR_ARCHIVE]}
@@ -234,11 +271,12 @@ export function OfflineMapCard() {
       removeConfirm="Remove the offline map? The map screen will need a connection again."
       sourceHeading="Map data"
       source={BASEMAP_SOURCE_INFO}
+      embedded={embedded}
     />
   );
 }
 
-export function TerrainReliefCard() {
+export function TerrainReliefCard({ embedded = false }: { embedded?: boolean }) {
   return (
     <ArchiveCard
       specs={[TERRAIN_ARCHIVE, CONTOURS_ARCHIVE]}
@@ -247,11 +285,12 @@ export function TerrainReliefCard() {
       removeConfirm="Remove the terrain relief? The map will render without hillshade and contour lines."
       sourceHeading="Elevation data"
       source={TERRAIN_SOURCE_INFO}
+      embedded={embedded}
     />
   );
 }
 
-export function SatelliteMapCard() {
+export function SatelliteMapCard({ embedded = false }: { embedded?: boolean }) {
   return (
     <ArchiveCard
       specs={[SATELLITE_ARCHIVE]}
@@ -260,7 +299,15 @@ export function SatelliteMapCard() {
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
       sourceHeading="Imagery"
       source={SATELLITE_SOURCE_INFO}
+      embedded={embedded}
     />
   );
 }
 
+export {
+  CONTOURS_ARCHIVE,
+  SATELLITE_ARCHIVE,
+  TERRAIN_ARCHIVE,
+  VECTOR_ARCHIVE,
+  formatBytes,
+};
