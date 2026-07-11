@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
-function useServiceWorkerControlled(): boolean {
+export function useServiceWorkerControlled(): boolean {
   const [controlled, setControlled] = useState(
     () => 'serviceWorker' in navigator && !!navigator.serviceWorker.controller,
   );
@@ -29,14 +29,14 @@ function useServiceWorkerControlled(): boolean {
   return controlled;
 }
 
-function statusText(installed: boolean, swControlled: boolean): string {
+export function installStatusText(installed: boolean, swControlled: boolean): string {
   if (installed && swControlled) return 'Installed · offline-ready';
   if (installed) return 'Installed (service worker starting…)';
   if (swControlled) return 'Offline-ready (in browser tab)';
   return 'Browser tab';
 }
 
-export function InstallCard() {
+export function InstallCard({ embedded = false }: { embedded?: boolean }) {
   const { installed, canPrompt, promptInstall } = useInstallPrompt();
   const swControlled = useServiceWorkerControlled();
   const [note, setNote] = useState<string | null>(null);
@@ -47,14 +47,14 @@ export function InstallCard() {
     else if (outcome === 'dismissed') setNote('Install dismissed. You can try again any time.');
   };
 
-  return (
-    <div className="card">
+  const content = (
+    <>
       <span className="card-title">Install app</span>
 
       <div className="row-between" style={{ marginTop: 10 }}>
         <span className="muted">Status</span>
         <span style={{ textAlign: 'right', maxWidth: '60%' }}>
-          {statusText(installed, swControlled)}
+          {installStatusText(installed, swControlled)}
         </span>
       </div>
 
@@ -85,6 +85,8 @@ export function InstallCard() {
           {note}
         </p>
       ) : null}
-    </div>
+    </>
   );
+
+  return embedded ? content : <div className="card">{content}</div>;
 }
