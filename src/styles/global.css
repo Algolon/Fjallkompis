@@ -217,10 +217,25 @@ h3 {
   text-transform: uppercase;
   color: var(--glacier-700);
 }
+.screen-head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.screen-head-row h1 {
+  min-width: 0;
+}
+/* The header help action stays quiet and secondary to the title; it never
+   pushes the title out of alignment (sits directly after it, not floated). */
+.screen-head-action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
 .screen-head h1 {
   font-size: 26px;
   font-weight: 700;
-  margin-top: 2px;
 }
 .screen-head p {
   margin: 6px 0 0;
@@ -1839,6 +1854,86 @@ button.map-status-pill {
   border-color: #dcc4b8;
   color: var(--danger);
 }
+/* Interactive facility chip (deep-links into Lists). Keeps the chip look;
+   adds a chevron affordance and focus/press feedback. Lives in the expanded
+   panel — never the collapsed accordion header — so it never nests inside the
+   header button. */
+button.stop-fac {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.stop-fac--link {
+  color: var(--ink);
+}
+.stop-fac--link > span {
+  flex: 1;
+  min-width: 0;
+}
+.stop-fac-go {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+.stop-fac--link:active {
+  transform: scale(0.99);
+}
+.stop-fac--link:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .stop-fac--link:hover {
+    border-color: var(--line-strong);
+    background: var(--paper-bright);
+  }
+  .stop-fac--link:hover .stop-fac-go {
+    color: var(--spruce);
+    transform: translateX(2px);
+  }
+}
+/* Derived transport quick-link chip (boat timetable), full width under the grid. */
+.stop-action-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  min-height: 44px;
+  cursor: pointer;
+}
+.stop-action-chip > span {
+  flex: 1;
+  min-width: 0;
+}
+.stop-action-chip svg:first-child {
+  color: var(--glacier-700);
+}
+.stop-action-chip:active {
+  transform: scale(0.99);
+}
+.stop-action-chip:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .stop-action-chip:hover {
+    background: var(--paper-bright);
+    border-color: var(--line-strong);
+  }
+  .stop-action-chip:hover .stop-fac-go {
+    color: var(--spruce);
+    transform: translateX(2px);
+  }
+}
 .stop-fac.is-absent svg {
   color: var(--danger);
 }
@@ -2549,6 +2644,102 @@ button.map-status-pill {
   align-items: center;
 }
 
+/* --- Context help (info trigger → accessible sheet/dialog) ---------------- */
+/* Quiet, secondary to the heading, but a full 44×44 touch target. */
+.ctx-help {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-faint);
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.ctx-help--inline {
+  min-width: 34px;
+  min-height: 34px;
+}
+/* Labelled inline trigger (icon + text) — a discoverable, compact affordance. */
+.ctx-help--labelled {
+  gap: 5px;
+  padding: 6px 10px 6px 8px;
+  width: auto;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+@media (hover: hover) {
+  .ctx-help--labelled:hover {
+    background: var(--paper-bright);
+    color: var(--glacier-700);
+  }
+}
+/* Section label with a trailing help action on the same baseline row. */
+.section-label--action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.section-label--action .ctx-help {
+  margin: -8px 0;
+}
+@media (hover: hover) {
+  .ctx-help:hover {
+    color: var(--glacier-700);
+    background: var(--paper-2);
+  }
+}
+.ctx-help:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+/* Close (X) button in the sheet header — matches the .link-btn hit area. */
+.ctx-help-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px -8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  border-radius: var(--r-sm);
+}
+.ctx-help-close:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+.ctx-help-content {
+  margin-top: 4px;
+}
+.ctx-help-content p {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.ctx-help-content p:first-child {
+  margin-top: 8px;
+}
+.ctx-help-content h3 {
+  margin: 16px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 /* Shop class badge — text is the meaning; fill/shape is supplementary. */
 .shop-badge {
   display: inline-flex;
@@ -2597,6 +2788,18 @@ button.map-status-pill {
   font-size: 12.5px;
   color: var(--ink-soft);
   line-height: 1.45;
+}
+/* Compact meta row under a shop's description: the "Stock notes" help trigger
+   plus a short "full assortment below" cue. */
+.shop-detail-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 10px;
+}
+.shop-detail-meta .card-sub {
+  margin: 0;
 }
 .shop-stock-note svg {
   flex: 0 0 auto;

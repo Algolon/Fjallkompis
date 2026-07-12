@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bus,
   CalendarRange,
@@ -12,7 +12,9 @@ import {
   Wallet,
 } from 'lucide-react';
 import { ListDisclosure } from './ListDisclosure';
+import { ContextHelp } from './ContextHelp';
 import {
+  TRANSPORT_ENTRIES,
   TRANSPORT_SECTIONS,
   entriesForContext,
   timetableStatus,
@@ -20,6 +22,7 @@ import {
 import { formatVerifiedDate, todayIso } from '../utils/format';
 import type {
   TimetableStatus,
+  TransportContext,
   TransportEntry,
   TransportMode,
   TransportSchedule,
@@ -277,9 +280,37 @@ function TransportCard({
   );
 }
 
-export function TransportView() {
+/**
+ * Page-level "About transport information" help — the former static-timetable
+ * banner. Rendered in the Lists header's action slot when Transport is active.
+ */
+export function TransportHelp() {
+  return (
+    <ContextHelp label="About transport information" title="About transport information">
+      <p>Timetables here are static planning snapshots for the 2026 season.</p>
+      <p>They are not live status.</p>
+      <p>
+        Always confirm times, prices and disruptions through the official sources before you
+        travel.
+      </p>
+    </ContextHelp>
+  );
+}
+
+export function TransportView({
+  initialEntryId,
+  initialContext,
+}: {
+  initialEntryId?: string;
+  initialContext?: TransportContext;
+} = {}) {
   const today = useMemo(() => todayIso(), []);
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const validEntry = initialEntryId && TRANSPORT_ENTRIES.some((e) => e.id === initialEntryId)
+    ? initialEntryId
+    : undefined;
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set(validEntry ? [validEntry] : []),
+  );
 
   const toggle = (id: string) => {
     setOpen((cur) => {
@@ -290,23 +321,32 @@ export function TransportView() {
     });
   };
 
+  // One-shot deep link: scroll to and focus either a specific entry's header
+  // or (Abisko → "Getting to the trail") a whole section's heading.
+  useEffect(() => {
+    const targetId = validEntry
+      ? `disc-h-tp-${validEntry}`
+      : initialContext
+        ? `tp-section-${initialContext}`
+        : null;
+    if (!targetId) return;
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    el.scrollIntoView({ block: 'start', behavior: 'auto' });
+    el.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
-      <div className="banner-info" role="note">
-        <Info size={16} strokeWidth={1.8} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>
-          Timetables here are static {`–`} planning snapshots for the 2026 season, not live
-          status. Always confirm times, prices and disruptions with the official source before you
-          travel.
-        </span>
-      </div>
-
       {TRANSPORT_SECTIONS.map((section) => {
         const entries = entriesForContext(section.id);
         if (entries.length === 0) return null;
         return (
           <section key={section.id} aria-label={section.title}>
-            <div className="section-label">{section.title}</div>
+            <div id={`tp-section-${section.id}`} className="section-label" tabIndex={-1}>
+              {section.title}
+            </div>
             <p className="card-sub" style={{ margin: '-4px 2px 10px' }}>
               {section.blurb}
             </p>

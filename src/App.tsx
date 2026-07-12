@@ -54,12 +54,15 @@ function Screens({
       // day guide (same one-shot payload pattern as Stops' initialStopId).
       return <StagesScreen initialGuideStageId={nav.payload?.guideStageId ?? null} />;
     case 'huts':
-      return <StopsScreen initialStopId={nav.payload?.stopId ?? null} />;
+      return (
+        <StopsScreen initialStopId={nav.payload?.stopId ?? null} onNavigate={navigate} />
+      );
     case 'checklist':
       // Historical internal tab id — the user-facing destination is 'Lists'
-      // (#/lists), which is the packing list since the Daily checklist was
-      // archived (docs/archived-features/daily-checklist.md).
-      return <ListsScreen />;
+      // (#/lists). Packing by default (the Daily checklist was archived —
+      // docs/archived-features/daily-checklist.md); a one-shot payload deep
+      // links into Shops/Transport from a Stop's chips.
+      return <ListsScreen deepLink={nav.payload?.lists} />;
     case 'settings':
       return <SettingsScreen />;
   }

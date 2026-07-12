@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
-import { ExternalLink, Info, Search, ShoppingBag, TriangleAlert } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ExternalLink, Info, Search, TriangleAlert } from 'lucide-react';
 import { ListDisclosure } from './ListDisclosure';
+import { ContextHelp } from './ContextHelp';
 import {
   SHOP_LOCATIONS,
   SHOP_TYPE_INFO,
@@ -78,12 +79,54 @@ function ProductRow({ product, size }: { product: AssortmentProduct; size: ShopS
   );
 }
 
-export function ShopInfoView() {
+/**
+ * Page-level "About shop information" help — consolidates the former top
+ * planning-reference banner and the "Small vs Large" explanatory card. Rendered
+ * in the Lists header's action slot when the Shops section is active.
+ */
+export function ShopInfoHelp() {
+  return (
+    <ContextHelp label="About shop information" title="About shop information">
+      <p>Assortment and prices are planning references. Stock and prices may change.</p>
+      <p>
+        Mountain-station and local shops (Abisko, Kebnekaise, Nikkaluokta) carry a
+        different range from the STF cabin shops.
+      </p>
+      <h3>STF Small shop</h3>
+      <p>
+        A limited range, but meant to hold enough to prepare a complete meal.
+      </p>
+      <h3>STF Large shop</h3>
+      <p>A wider, broader assortment.</p>
+      <p>Products can still be out of stock in either.</p>
+    </ContextHelp>
+  );
+}
+
+export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {}) {
+  // A deep link opens on 'all' so the destination is always visible, and
+  // pre-expands the target location.
+  const validInitial = initialShopId && SHOP_LOCATIONS.some((s) => s.id === initialShopId)
+    ? initialShopId
+    : undefined;
   const [filter, setFilter] = useState<ShopFilter>('all');
   const [size, setSize] = useState<ShopSize>('large');
   const [query, setQuery] = useState('');
-  const [openLoc, setOpenLoc] = useState<Set<string>>(new Set());
+  const [openLoc, setOpenLoc] = useState<Set<string>>(
+    () => new Set(validInitial ? [validInitial] : []),
+  );
   const [openCat, setOpenCat] = useState<Set<string>>(new Set());
+
+  // One-shot: scroll the deep-linked shop into view and move focus to its
+  // header so it is announced and keyboard navigation continues from there.
+  useEffect(() => {
+    if (!validInitial) return;
+    const el = document.getElementById(`disc-h-shop-${validInitial}`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'start', behavior: 'auto' });
+    el.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const counts = useMemo(
     () => ({
@@ -118,28 +161,10 @@ export function ShopInfoView() {
 
   return (
     <>
-      <div className="banner-info" role="note">
-        <Info size={16} strokeWidth={1.8} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>
-          Assortment and prices are planning references. Stock and prices may change.
-          Mountain-station and local shops (Abisko, Kebnekaise, Nikkaluokta) carry a
-          different range from the STF cabin lists.
-        </span>
-      </div>
-
-      {/* Small vs Large explanation */}
-      <div className="card" style={{ marginTop: 14 }}>
-        <span className="card-title">Small vs Large shops</span>
-        <p className="card-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
-          STF classes its cabin shops in two sizes. A <strong>Small</strong> shop has a
-          limited range, but is meant to hold enough to prepare a complete meal. A{' '}
-          <strong>Large</strong> shop offers a wider, broader assortment. Products can still
-          be out of stock in either.
-        </p>
-      </div>
-
       {/* Route shop overview */}
-      <div className="section-label">Route shop overview</div>
+      <div className="section-label" style={{ marginTop: 4 }}>
+        Route shop overview
+      </div>
 
       <div
         className="stage-chips"
@@ -177,16 +202,29 @@ export function ShopInfoView() {
             <p className="stop-desc" style={{ marginTop: 14 }}>
               {loc.description}
             </p>
-            <p className="shop-stock-note">
-              <Info size={14} strokeWidth={2} aria-hidden /> {loc.stockWarning}
-            </p>
-            {loc.type === 'large' || loc.type === 'small' ? (
-              <p className="card-sub" style={{ marginTop: 8 }}>
-                See the full{' '}
-                <strong>{loc.type === 'large' ? 'Large' : 'Small'}</strong> assortment under{' '}
-                <em>Assortment &amp; prices</em> below.
+            {loc.type === 'none' ? (
+              // Decision-critical: a "No shop" stop keeps its note visible.
+              <p className="shop-stock-note">
+                <Info size={14} strokeWidth={2} aria-hidden /> {loc.stockWarning}
               </p>
-            ) : null}
+            ) : (
+              <div className="shop-detail-meta">
+                <ContextHelp
+                  variant="inline"
+                  triggerText="Stock notes"
+                  label={`Stock notes for ${loc.name}`}
+                  title="Stock notes"
+                >
+                  <p>{loc.stockWarning}</p>
+                </ContextHelp>
+                {loc.type === 'large' || loc.type === 'small' ? (
+                  <span className="card-sub">
+                    Full <strong>{loc.type === 'large' ? 'Large' : 'Small'}</strong> assortment
+                    under <em>Assortment &amp; prices</em> below.
+                  </span>
+                ) : null}
+              </div>
+            )}
             <div className="stop-source">
               <p>
                 Source: {loc.source.title} · Checked {formatVerifiedDate(loc.source.lastVerified)}
@@ -206,14 +244,18 @@ export function ShopInfoView() {
       </div>
 
       {/* Assortment & prices */}
-      <div className="section-label">Assortment &amp; prices</div>
-
-      <div className="banner-info" role="note">
-        <ShoppingBag size={16} strokeWidth={1.8} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>
-          Prices are <strong>{SHOP_PRICE_REFERENCE_YEAR} reference prices</strong> (SEK), not
-          guaranteed {SHOP_PRICE_REFERENCE_YEAR + 1} prices.
-        </span>
+      <div className="section-label section-label--action">
+        <span>Assortment &amp; prices</span>
+        <ContextHelp
+          variant="inline"
+          label="About assortment prices"
+          title={`${SHOP_PRICE_REFERENCE_YEAR} reference prices`}
+        >
+          <p>
+            Prices are <strong>{SHOP_PRICE_REFERENCE_YEAR} reference prices</strong> (SEK), not
+            guaranteed {SHOP_PRICE_REFERENCE_YEAR + 1} prices.
+          </p>
+        </ContextHelp>
       </div>
 
       {/* Size selector */}

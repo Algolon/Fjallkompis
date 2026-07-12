@@ -39,3 +39,4 @@ export declare function assortmentCounts(size: ShopSize): {
   total: number;
 };
 export declare function shopsByType(type: ShopType): ShopLocation[];
+export declare function shopLocationForStop(stopId: string): ShopLocation | undefined;

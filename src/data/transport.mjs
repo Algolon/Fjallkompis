@@ -390,3 +390,26 @@ export function scheduleRunsOn(schedule, iso) {
 export function entriesForContext(context) {
   return TRANSPORT_ENTRIES.filter((e) => e.context === context);
 }
+
+/**
+ * Explicit, small stop → transport mapping for the Stops → Transport deep link.
+ * Kept next to the data so IDs are not scattered across components. Only stops
+ * with a directly relevant Transport entry appear here.
+ *  - `via: 'facility'` reuses the stop's existing Public transport facility chip
+ *    (Abisko, Nikkaluokta);
+ *  - `via: 'derived'` is a quick-link action rendered from this mapping, not
+ *    from curated `stop.facilities` (the two optional boats).
+ * A `context` opens/focuses a whole section (Abisko → both line 91 and the
+ * train are relevant); an `entryId` opens/focuses one entry.
+ */
+export const STOP_TRANSPORT_LINKS = {
+  abisko: { via: 'facility', context: 'to-trail', label: 'Getting to the trail' },
+  nikkaluokta: { via: 'facility', entryId: 'nikkaluoktaexpressen', label: 'Bus timetable' },
+  alesjaure: { via: 'derived', entryId: 'alesjaure-boat', label: 'Boat timetable' },
+  kebnekaise: { via: 'derived', entryId: 'laddjujavri-boat', label: 'Boat timetable' },
+};
+
+/** The transport deep-link mapping for a stop, or undefined when none applies. */
+export function transportLinkForStop(stopId) {
+  return STOP_TRANSPORT_LINKS[stopId];
+}

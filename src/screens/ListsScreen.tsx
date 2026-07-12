@@ -3,14 +3,25 @@ import { Pencil, Plus, RotateCcw, Scale, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
-import { ShopInfoView } from '../components/ShopInfoView';
-import { TransportView } from '../components/TransportView';
+import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
+import { TransportView, TransportHelp } from '../components/TransportView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
-import type { PackingItem, PackingStatus } from '../types';
+import type { PackingItem, PackingStatus, TransportContext } from '../types';
 
 /** Lists sub-sections: the packing list plus the two offline reference
  *  sections (Shop info, Transport). */
-type ListsSection = 'packing' | 'shops' | 'transport';
+export type ListsSection = 'packing' | 'shops' | 'transport';
+
+/**
+ * One-shot deep-link into a Lists sub-section (from a Stop's Shop / transport
+ * chips). In-memory only — a fresh visit or refresh opens the default section.
+ */
+export interface ListsDeepLink {
+  section?: ListsSection;
+  shopId?: string;
+  transportId?: string;
+  transportContext?: TransportContext;
+}
 
 // --------------------------------------------------------------- Packing view
 
@@ -416,12 +427,25 @@ const LISTS_HEADER: Record<ListsSection, string> = {
     'Buses, boats and the train for this route — static 2026 planning snapshots, always confirmed against the official source.',
 };
 
-export function ListsScreen() {
-  const [mode, setMode] = useState<ListsSection>('packing');
+/** Which section a one-shot deep link opens (defaults to Packing). */
+function initialSectionFor(link?: ListsDeepLink): ListsSection {
+  if (!link) return 'packing';
+  if (link.shopId) return 'shops';
+  if (link.transportId || link.transportContext) return 'transport';
+  return link.section ?? 'packing';
+}
+
+export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
+  // One-shot: the initial section is decided at mount; switching tabs
+  // afterwards is ordinary local state, and a refresh (no payload) is Packing.
+  const [mode, setMode] = useState<ListsSection>(() => initialSectionFor(deepLink));
+
+  const headerAction =
+    mode === 'shops' ? <ShopInfoHelp /> : mode === 'transport' ? <TransportHelp /> : undefined;
 
   return (
     <div className="screen screen--lists">
-      <ScreenHeader eyebrow="Stay on top of it" title="Lists">
+      <ScreenHeader eyebrow="Stay on top of it" title="Lists" action={headerAction}>
         {LISTS_HEADER[mode]}
       </ScreenHeader>
 
@@ -440,8 +464,13 @@ export function ListsScreen() {
       </div>
 
       {mode === 'packing' ? <PackingView /> : null}
-      {mode === 'shops' ? <ShopInfoView /> : null}
-      {mode === 'transport' ? <TransportView /> : null}
+      {mode === 'shops' ? <ShopInfoView initialShopId={mode === 'shops' ? deepLink?.shopId : undefined} /> : null}
+      {mode === 'transport' ? (
+        <TransportView
+          initialEntryId={deepLink?.transportId}
+          initialContext={deepLink?.transportContext}
+        />
+      ) : null}
     </div>
   );
 }

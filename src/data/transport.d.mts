@@ -27,3 +27,14 @@ export declare function scheduleRunsOn(
 export declare function entriesForContext(
   context: TransportContext,
 ): TransportEntry[];
+
+export interface StopTransportLink {
+  via: 'facility' | 'derived';
+  label: string;
+  context?: TransportContext;
+  entryId?: string;
+}
+export declare const STOP_TRANSPORT_LINKS: Record<string, StopTransportLink>;
+export declare function transportLinkForStop(
+  stopId: string,
+): StopTransportLink | undefined;

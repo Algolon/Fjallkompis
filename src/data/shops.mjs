@@ -404,3 +404,14 @@ export function assortmentCounts(size) {
 export function shopsByType(type) {
   return SHOP_LOCATIONS.filter((s) => s.type === type);
 }
+
+/**
+ * The shop location a route stop maps to, for the Stops → Shops deep link —
+ * or undefined when the stop has no shop (Tjäktja, Singi) or is not a mapped
+ * stop. "No shop" stops deliberately return nothing so their chip stays
+ * non-navigational.
+ */
+export function shopLocationForStop(stopId) {
+  const loc = SHOP_LOCATIONS.find((s) => s.routeStopId === stopId);
+  return loc && loc.type !== 'none' ? loc : undefined;
+}

@@ -84,6 +84,7 @@ test('no user-facing copy in src/ presents the Daily checklist as active', () =>
     'src/App.tsx', // routes the legacy tab id, comment points to the archive
     'src/components/TabBar.tsx', // legacy internal tab id ('checklist' → Lists)
     'src/navigation/routes.mjs', // legacy internal tab id mapping
+    'src/screens/StopsScreen.tsx', // navigates to the Lists tab via its 'checklist' id
     'src/types/index.ts', // schema-v3 migration comment
     'src/utils/stateMigration.mjs', // migration doc for the dropped key
   ]);

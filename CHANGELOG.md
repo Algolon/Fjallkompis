@@ -12,6 +12,23 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Added
 
+- **Context help + Stops → Lists deep links.** The large explanatory blocks on
+  Stops, Shops and Transport were replaced by one reusable `ContextHelp`
+  pattern: a quiet info trigger (≥44px, accessible name, no hover/tooltip
+  dependency) beside the title that opens the full explanation in an accessible
+  bottom sheet / dialog (native `<dialog>` — focus trap, Escape, backdrop and
+  explicit Close, with focus returning to the trigger). Decision-critical
+  warnings (expired timetables, "No shop", stop/connection warnings, status
+  badges, booking deadlines) stay rendered inline. A present **Shop** chip in an
+  expanded stop now deep-links to Lists → Shops with that shop opened and
+  focused; **Public transport** chips (Abisko → "Getting to the trail"
+  section, Nikkaluokta → Nikkaluoktaexpressen) and derived **Boat timetable**
+  quick-links (Alesjaure, Kebnekaise) deep-link to the matching Transport
+  entry — all via the existing one-shot in-memory navigation payload (no
+  persistence, no schema change; a refresh opens the default Packing section,
+  and browser Back returns to Stops). Explicit stop→shop/transport mappings live
+  next to the data (`shopLocationForStop`, `STOP_TRANSPORT_LINKS`); pinned by
+  `tests/context-help-deeplinks.test.mjs`.
 - **Shop info in Lists (offline).** A new *Shops* section (peer of Packing)
   answers the resupply questions before you go: a route shop overview classing
   every stop as a mountain-station shop, an STF **Large** or **Small** cabin
