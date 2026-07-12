@@ -72,6 +72,23 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* App-like interaction: a long-press must never start native text selection
+   or the platform lookup/share sheet — Fjällkompis behaves like an app, not
+   a document. Editable fields keep full selection below (typing, copying a
+   trip note or journal entry must still work). */
+html {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -1962,8 +1979,11 @@ button.map-status-pill {
 }
 
 /* The two follow-up actions. Stage Guide (primary, cloudberry fill) is the
-   information-depth action; View Route (glass) the complementary spatial
-   one. Equal widths, capped so wide layouts don't stretch them into bars. */
+   information-depth action; View Route (glacier fill, the design system's
+   secondary button colour — see .btn-glacier) the complementary spatial one.
+   Both are SOLID fills on purpose: the quiet glass surface belongs to the
+   chips alone, so metadata and controls can't be mistaken for each other.
+   Equal widths, capped so wide layouts don't stretch them into bars. */
 .hero-actions {
   display: flex;
   gap: 8px;
@@ -1977,9 +1997,9 @@ button.map-status-pill {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.12);
-  color: #f4f8f5;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--glacier);
+  color: #fff;
   font-size: 13px;
   font-weight: 700;
   padding: 8px 12px;
