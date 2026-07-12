@@ -106,6 +106,14 @@ export type ShopType = 'station' | 'large' | 'small' | 'none' | 'local';
 /** The two STF cabin-shop sizes an assortment product can be listed in. */
 export type ShopSize = 'large' | 'small';
 
+/**
+ * The three shop-type categories the Shops screen is organised around:
+ * the two STF cabin sizes plus `full-service` — a pragmatic combined category
+ * (Abisko/Kebnekaise stations + the independent Nikkaluokta shop) for the
+ * current Abisko–Nikkaluokta scope, with no STF standard assortment list.
+ */
+export type ShopCategory = 'large' | 'small' | 'full-service';
+
 export type ProductCategoryId =
   | 'meals-pantry'
   | 'bread-spreads'

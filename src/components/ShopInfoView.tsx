@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, Info, Search, TriangleAlert } from 'lucide-react';
+import { ExternalLink, Info, Search } from 'lucide-react';
 import { ListDisclosure } from './ListDisclosure';
 import { ContextHelp } from './ContextHelp';
 import {
-  SHOP_LOCATIONS,
-  SHOP_TYPE_INFO,
+  SHOP_CATEGORIES,
   SHOP_PRICE_REFERENCE_YEAR,
   SHOP_FACTS_VERIFIED_ON,
+  FULL_SERVICE_SHOPS,
   assortmentByCategory,
   assortmentCounts,
   productsForSize,
@@ -15,42 +15,43 @@ import {
   STF_SHOP_OVERVIEW_SOURCE,
 } from '../data/shops.mjs';
 import { formatVerifiedDate } from '../utils/format';
-import type { AssortmentProduct, ProductListing, ShopSize, ShopType } from '../types';
+import type { AssortmentProduct, ProductListing, ShopCategory, ShopSize } from '../types';
 
-type ShopFilter = 'all' | 'large' | 'small' | 'none';
+/** Short explanation of each STF cabin-shop size. */
+const SIZE_EXPLANATION: Record<ShopSize, string> = {
+  large:
+    'The Large classification is an STF cabin shop with a wider, broader product range.',
+  small:
+    'A Small shop is an STF cabin shop with a limited range — intended to hold enough to prepare a complete meal.',
+};
 
-const FILTERS: { id: ShopFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'large', label: 'Large' },
-  { id: 'small', label: 'Small' },
-  { id: 'none', label: 'No shop' },
-];
-
-/** Class badge — shape + text + (for "No shop") an icon, never colour alone. */
-function ShopBadge({ type }: { type: ShopType }) {
-  const info = SHOP_TYPE_INFO[type];
+/**
+ * Page-level "About shop information" help — explains the three shop-type
+ * categories. Rendered in the Lists header's action slot when Shops is active.
+ * Shops is about shop TYPES; Stops owns which route location has a shop.
+ */
+export function ShopInfoHelp() {
   return (
-    <span className={`shop-badge shop-badge--${type}`}>
-      {type === 'none' ? <TriangleAlert size={12} strokeWidth={2.4} aria-hidden /> : null}
-      {info.short}
-    </span>
+    <ContextHelp label="About shop information" title="About shop information">
+      <p>
+        Compare the shop types relevant to this route. Which route locations have a shop is
+        shown on the Stops screen.
+      </p>
+      <h3>Large shop</h3>
+      <p>An STF cabin shop with a wider, broader assortment.</p>
+      <h3>Small shop</h3>
+      <p>
+        An STF cabin shop with a limited range, intended to hold enough to prepare a complete
+        meal.
+      </p>
+      <h3>Full-service shops</h3>
+      <p>
+        Larger, broader shops (Abisko, Kebnekaise, Nikkaluokta) that do not use the STF cabin
+        Small/Large assortment lists — check range and prices with each facility.
+      </p>
+      <p>Products can be out of stock in any shop. Assortments and prices are planning references.</p>
+    </ContextHelp>
   );
-}
-
-/** Resupply reliability line for the collapsed overview row. */
-function resupplyHint(type: ShopType): string {
-  switch (type) {
-    case 'station':
-      return 'Full station shop · reliable resupply';
-    case 'large':
-      return 'Large cabin shop · reliable resupply';
-    case 'small':
-      return 'Small cabin shop · limited resupply';
-    case 'local':
-      return 'Local shop · resupply differs from STF cabins';
-    case 'none':
-      return 'No shop · carry what you need';
-  }
 }
 
 function AvailabilityTag({ listing }: { listing: ProductListing }) {
@@ -79,171 +80,35 @@ function ProductRow({ product, size }: { product: AssortmentProduct; size: ShopS
   );
 }
 
-/**
- * Page-level "About shop information" help — consolidates the former top
- * planning-reference banner and the "Small vs Large" explanatory card. Rendered
- * in the Lists header's action slot when the Shops section is active.
- */
-export function ShopInfoHelp() {
-  return (
-    <ContextHelp label="About shop information" title="About shop information">
-      <p>Assortment and prices are planning references. Stock and prices may change.</p>
-      <p>
-        Mountain-station and local shops (Abisko, Kebnekaise, Nikkaluokta) carry a
-        different range from the STF cabin shops.
-      </p>
-      <h3>STF Small shop</h3>
-      <p>
-        A limited range, but meant to hold enough to prepare a complete meal.
-      </p>
-      <h3>STF Large shop</h3>
-      <p>A wider, broader assortment.</p>
-      <p>Products can still be out of stock in either.</p>
-    </ContextHelp>
-  );
-}
-
-export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {}) {
-  // A deep link opens on 'all' so the destination is always visible, and
-  // pre-expands the target location.
-  const validInitial = initialShopId && SHOP_LOCATIONS.some((s) => s.id === initialShopId)
-    ? initialShopId
-    : undefined;
-  const [filter, setFilter] = useState<ShopFilter>('all');
-  const [size, setSize] = useState<ShopSize>('large');
+/** The STF cabin-shop assortment (Large or Small): catalogue, search, prices. */
+function AssortmentPanel({ size }: { size: ShopSize }) {
   const [query, setQuery] = useState('');
-  const [openLoc, setOpenLoc] = useState<Set<string>>(
-    () => new Set(validInitial ? [validInitial] : []),
-  );
   const [openCat, setOpenCat] = useState<Set<string>>(new Set());
 
-  // One-shot: scroll the deep-linked shop into view and move focus to its
-  // header so it is announced and keyboard navigation continues from there.
-  useEffect(() => {
-    if (!validInitial) return;
-    const el = document.getElementById(`disc-h-shop-${validInitial}`);
-    if (!el) return;
-    el.scrollIntoView({ block: 'start', behavior: 'auto' });
-    el.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const counts = useMemo(
-    () => ({
-      all: SHOP_LOCATIONS.length,
-      large: SHOP_LOCATIONS.filter((s) => s.type === 'large').length,
-      small: SHOP_LOCATIONS.filter((s) => s.type === 'small').length,
-      none: SHOP_LOCATIONS.filter((s) => s.type === 'none').length,
-    }),
-    [],
-  );
-
-  const visibleLocations = useMemo(
-    () => (filter === 'all' ? SHOP_LOCATIONS : SHOP_LOCATIONS.filter((s) => s.type === filter)),
-    [filter],
-  );
-
+  const sizeLabel = size === 'large' ? 'Large' : 'Small';
   const sizeCounts = assortmentCounts(size);
   const groups = assortmentByCategory(size);
-
   const q = query.trim().toLowerCase();
   const searchResults = useMemo(
     () => (q ? productsForSize(size).filter((p) => p.label.toLowerCase().includes(q)) : []),
     [q, size],
   );
 
-  const toggle = (set: Set<string>, setter: (s: Set<string>) => void, id: string) => {
-    const next = new Set(set);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setter(next);
+  const toggleCat = (id: string) => {
+    setOpenCat((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   return (
     <>
-      {/* Route shop overview */}
-      <div className="section-label" style={{ marginTop: 4 }}>
-        Route shop overview
-      </div>
+      <p className="card-sub" style={{ margin: '0 2px 14px', lineHeight: 1.5 }}>
+        {SIZE_EXPLANATION[size]}
+      </p>
 
-      <div
-        className="stage-chips"
-        role="group"
-        aria-label="Filter shops by class"
-        style={{ marginBottom: 12 }}
-      >
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            className="chip"
-            aria-pressed={filter === f.id}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-            <span className="tnum" style={{ fontWeight: 500 }}>
-              {counts[f.id]}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="stack">
-        {visibleLocations.map((loc, i) => (
-          <ListDisclosure
-            key={loc.id}
-            id={`shop-${loc.id}`}
-            title={loc.name}
-            subtitle={<span>{resupplyHint(loc.type)}</span>}
-            headerRight={<ShopBadge type={loc.type} />}
-            open={openLoc.has(loc.id)}
-            onToggle={() => toggle(openLoc, setOpenLoc, loc.id)}
-            headingLevel={i === 0 ? 'h2' : 'h3'}
-          >
-            <p className="stop-desc" style={{ marginTop: 14 }}>
-              {loc.description}
-            </p>
-            {loc.type === 'none' ? (
-              // Decision-critical: a "No shop" stop keeps its note visible.
-              <p className="shop-stock-note">
-                <Info size={14} strokeWidth={2} aria-hidden /> {loc.stockWarning}
-              </p>
-            ) : (
-              <div className="shop-detail-meta">
-                <ContextHelp
-                  variant="inline"
-                  triggerText="Stock notes"
-                  label={`Stock notes for ${loc.name}`}
-                  title="Stock notes"
-                >
-                  <p>{loc.stockWarning}</p>
-                </ContextHelp>
-                {loc.type === 'large' || loc.type === 'small' ? (
-                  <span className="card-sub">
-                    Full <strong>{loc.type === 'large' ? 'Large' : 'Small'}</strong> assortment
-                    under <em>Assortment &amp; prices</em> below.
-                  </span>
-                ) : null}
-              </div>
-            )}
-            <div className="stop-source">
-              <p>
-                Source: {loc.source.title} · Checked {formatVerifiedDate(loc.source.lastVerified)}
-              </p>
-              <a
-                className="btn btn-ghost btn-block"
-                href={loc.source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
-                Official information for {loc.name}
-              </a>
-            </div>
-          </ListDisclosure>
-        ))}
-      </div>
-
-      {/* Assortment & prices */}
       <div className="section-label section-label--action">
         <span>Assortment &amp; prices</span>
         <ContextHelp
@@ -258,25 +123,8 @@ export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {})
         </ContextHelp>
       </div>
 
-      {/* Size selector */}
-      <div
-        className="stage-chips"
-        role="group"
-        aria-label="Choose Large or Small assortment"
-        style={{ marginTop: 12, marginBottom: 10 }}
-      >
-        {(['large', 'small'] as ShopSize[]).map((s) => (
-          <button key={s} className="chip" aria-pressed={size === s} onClick={() => setSize(s)}>
-            {s === 'large' ? 'Large assortment' : 'Small assortment'}
-            <span className="tnum" style={{ fontWeight: 500 }}>
-              {assortmentCounts(s).total}
-            </span>
-          </button>
-        ))}
-      </div>
-
       {/* Legend — Standard vs Extra (text + shape, not colour alone) */}
-      <div className="avail-legend" aria-hidden={false}>
+      <div className="avail-legend">
         <span className="avail-legend-item">
           <span className="avail-tag avail-standard">Standard</span> in stock all season
         </span>
@@ -285,8 +133,7 @@ export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {})
         </span>
       </div>
       <p className="card-sub" style={{ margin: '6px 2px 0' }}>
-        {sizeCounts.standard} standard · {sizeCounts.extra} extra items in the{' '}
-        {size === 'large' ? 'Large' : 'Small'} list.
+        {sizeCounts.standard} standard · {sizeCounts.extra} extra items in the {sizeLabel} list.
       </p>
 
       {/* Product search */}
@@ -298,10 +145,10 @@ export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {})
             className="input"
             type="search"
             inputMode="search"
-            placeholder={`Search the ${size === 'large' ? 'Large' : 'Small'} assortment…`}
+            placeholder={`Search the ${sizeLabel} shop…`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label={`Search the ${size === 'large' ? 'Large' : 'Small'} assortment`}
+            aria-label={`Search the ${sizeLabel} shop`}
           />
         </span>
       </label>
@@ -310,7 +157,7 @@ export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {})
         <div className="card" style={{ marginTop: 12, paddingTop: 8, paddingBottom: 8 }}>
           {searchResults.length === 0 ? (
             <p className="empty" style={{ padding: '16px 8px' }}>
-              No {size === 'large' ? 'Large' : 'Small'}-shop product matches “{query}”.
+              No {sizeLabel} shop product matches “{query}”.
             </p>
           ) : (
             searchResults.map((p) => <ProductRow key={p.id} product={p} size={size} />)
@@ -329,7 +176,7 @@ export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {})
                 </span>
               }
               open={openCat.has(`${size}-${group.category.id}`)}
-              onToggle={() => toggle(openCat, setOpenCat, `${size}-${group.category.id}`)}
+              onToggle={() => toggleCat(`${size}-${group.category.id}`)}
             >
               <div className="prod-list">
                 {group.products.map((p) => (
@@ -345,9 +192,9 @@ export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {})
       <div className="section-label">Source &amp; validity</div>
       <div className="card">
         <p className="card-sub" style={{ lineHeight: 1.55 }}>
-          Assortments and prices are transcribed from STF's official{' '}
-          {SHOP_PRICE_REFERENCE_YEAR} shop price lists and are used as planning references
-          only. Classification checked {formatVerifiedDate(SHOP_FACTS_VERIFIED_ON)}.
+          The {sizeLabel} assortment and prices are transcribed from STF's official{' '}
+          {SHOP_PRICE_REFERENCE_YEAR} shop price list and are planning references only. Checked{' '}
+          {formatVerifiedDate(SHOP_FACTS_VERIFIED_ON)}.
         </p>
         <a
           className="btn btn-ghost btn-block"
@@ -362,24 +209,111 @@ export function ShopInfoView({ initialShopId }: { initialShopId?: string } = {})
         <a
           className="btn btn-ghost btn-block"
           style={{ marginTop: 8 }}
-          href={STF_LARGE_PRICELIST_URL}
+          href={size === 'large' ? STF_LARGE_PRICELIST_URL : STF_SMALL_PRICELIST_URL}
           target="_blank"
           rel="noopener noreferrer"
         >
           <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
-          Large shop price list ({SHOP_PRICE_REFERENCE_YEAR}, PDF)
-        </a>
-        <a
-          className="btn btn-ghost btn-block"
-          style={{ marginTop: 8 }}
-          href={STF_SMALL_PRICELIST_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
-          Small shop price list ({SHOP_PRICE_REFERENCE_YEAR}, PDF)
+          {sizeLabel} shop price list ({SHOP_PRICE_REFERENCE_YEAR}, PDF)
         </a>
       </div>
+    </>
+  );
+}
+
+/**
+ * Full-service shops: supporting information about the shop TYPE — not a second
+ * Stops overview. No product catalogue, Standard/Extra counts or price controls,
+ * because Fjällkompis has no reliable item-by-item list for these shops.
+ */
+function FullServicePanel() {
+  return (
+    <>
+      <div className="banner-info" role="note">
+        <Info size={16} strokeWidth={1.8} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
+        <span>
+          These locations provide broader services and shops than the standard STF cabin-shop
+          model. Their shops do not use the STF Small/Large assortment lists and likely carry a
+          broader, more locally determined range. Fjällkompis has no reliable inventory or price
+          list for them — check range, availability and prices with each facility. Do not assume
+          every product in a Large cabin shop is stocked here.
+        </span>
+      </div>
+
+      <div className="stack" style={{ marginTop: 14 }}>
+        {FULL_SERVICE_SHOPS.map((shop) => (
+          <div key={shop.id} className="card full-service-card">
+            <span className="card-title">{shop.name}</span>
+            <p className="card-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>
+              {shop.note}
+            </p>
+            <a
+              className="btn btn-ghost btn-block"
+              style={{ marginTop: 12 }}
+              href={shop.source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
+              Official information for {shop.name}
+            </a>
+          </div>
+        ))}
+      </div>
+
+      <p className="card-sub" style={{ margin: '14px 2px 0', lineHeight: 1.5 }}>
+        This is a combined category for the current Abisko–Nikkaluokta scope; it does not claim
+        these facilities share one formal STF classification.
+      </p>
+    </>
+  );
+}
+
+export function ShopInfoView({ initialShopType }: { initialShopType?: ShopCategory } = {}) {
+  const validInitial =
+    initialShopType && SHOP_CATEGORIES.some((c) => c.id === initialShopType)
+      ? initialShopType
+      : undefined;
+  const [category, setCategory] = useState<ShopCategory>(validInitial ?? 'large');
+
+  // One-shot deep link: move focus to the selected shop-type control so the
+  // destination is announced and keyboard navigation continues from there.
+  useEffect(() => {
+    if (!validInitial) return;
+    const el = document.getElementById(`shop-type-${validInitial}`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'start', behavior: 'auto' });
+    el.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      {/* Shop-type selector — the main navigation within Shops. */}
+      <div
+        className="stage-chips"
+        role="group"
+        aria-label="Choose a shop type"
+        style={{ marginBottom: 14 }}
+      >
+        {SHOP_CATEGORIES.map((c) => (
+          <button
+            key={c.id}
+            id={`shop-type-${c.id}`}
+            className="chip"
+            aria-pressed={category === c.id}
+            onClick={() => setCategory(c.id)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      {category === 'full-service' ? (
+        <FullServicePanel />
+      ) : (
+        <AssortmentPanel size={category} />
+      )}
     </>
   );
 }

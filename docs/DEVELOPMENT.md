@@ -497,15 +497,29 @@ user-editable, and it all works offline once installed. There is **no**
 persisted-state or routing change; the schema v3 blob and existing user data
 are untouched.
 
+**Authority split (important):** *Stops* owns location-specific shop
+availability — whether a given route stop has a shop, and its "No shop"
+warning. *Shops* owns shop-TYPE and assortment information and never re-lists
+the route locations. A Stop's Shop chip deep-links to the matching shop *type*
+(`shopTypeForStop`), not a location card.
+
 - **Data lives in plain `.mjs` (typed by a sibling `.d.mts`)** so `node --test`
   imports it directly and the app imports it through Vite the same way (the
   `packingSeed.mjs` / `stageGuides.mjs` pattern):
-  - `src/data/shops.mjs` — the 10 route shop locations with their STF
-    classification (`station | large | small | none | local`) and a unified
-    product catalogue transcribed from STF's official **2025** Small and Large
-    price lists. Each product carries a per-size listing (`standard` vs `extra`
-    — the source's **bold** vs *italic* distinction) because availability and
-    price can differ between the two lists (e.g. 500 g pasta).
+  - `src/data/shops.mjs` — the underlying route shop locations with their STF
+    classification (`station | large | small | none | local`), the unified
+    **2025** Small/Large product catalogue (each product a per-size listing —
+    the source's **bold**=`standard` vs *italic*=`extra`, since availability
+    and price can differ between the two lists, e.g. 500 g pasta), and the
+    Shops-screen structure: the three shop-type categories (`SHOP_CATEGORIES`
+    — Large / Small / **Full-service**), `shopTypeForStop()` and
+    `FULL_SERVICE_SHOPS`. **Full-service** is a deliberate combined category
+    for the current Abisko–Nikkaluokta scope (the Abisko/Kebnekaise STF station
+    shops + the independent Nikkaluokta shop): it has *no* standard assortment
+    or reference-price list and does not claim one formal STF classification.
+    Future route expansion may justify splitting it into precise
+    tourist-station / mountain-station / independent-local types — a scope
+    limitation, not a defect.
   - `src/data/transport.mjs` — the route-relevant services grouped by journey
     context, plus `timetableStatus()` / `scheduleRunsOn()` — the pure validity
     logic (upcoming / valid / **expired** / live / undated).
@@ -580,6 +594,7 @@ fjallkompis/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
 │  ├─ state-migration.test.mjs  # localStorage schema migrations (v1 → v3)
 │  ├─ shop-info.test.mjs        # shop classifications + assortment semantics
+│  ├─ shops-by-type.test.mjs    # 3 shop-type categories + stop→type deep links
 │  ├─ transport.test.mjs        # timetable validity / expired-state logic
 │  ├─ stage-guides.test.mjs     # day-guide content/sources integrity
 │  ├─ checklist-removal.test.mjs # archived Daily checklist stays absent

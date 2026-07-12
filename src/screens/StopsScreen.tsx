@@ -21,12 +21,12 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
-import { shopLocationForStop } from '../data/shops.mjs';
+import { shopTypeForStop } from '../data/shops.mjs';
 import { transportLinkForStop } from '../data/transport.mjs';
 import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID, WAYPOINT_ROUTE_KM } from '../route/routeData';
 import type { StopTransportLink } from '../data/transport.mjs';
-import type { TrailStop } from '../types';
+import type { ShopCategory, TrailStop } from '../types';
 import type { TabId } from '../components/TabBar';
 import type { NavPayload } from './TodayScreen';
 
@@ -107,7 +107,7 @@ function StopCard({
   onToggle: () => void;
   headerRef: (el: HTMLButtonElement | null) => void;
   onHeaderKeyDown: (e: React.KeyboardEvent) => void;
-  onOpenShop: (shopId: string) => void;
+  onOpenShop: (shopType: ShopCategory) => void;
   onOpenTransport: (link: StopTransportLink) => void;
 }) {
   const waypoint = WAYPOINT_BY_ID[HUT_TO_WAYPOINT[stop.id]];
@@ -119,7 +119,8 @@ function StopCard({
   const headerId = `stop-h-${stop.id}`;
   const panelId = `stop-p-${stop.id}`;
   // Deep links out of the expanded panel (never the collapsed header icons).
-  const shopLink = shopLocationForStop(stop.id);
+  // The Shop chip opens the matching shop-TYPE category, not a location card.
+  const shopType = shopTypeForStop(stop.id);
   const tpLink = transportLinkForStop(stop.id);
   const shortName = stopShortName(stop);
 
@@ -199,7 +200,7 @@ function StopCard({
           {stop.facilities.map((f) => {
             // A present Shop chip, or Abisko/Nikkaluokta's Public transport
             // chip, deep-links into Lists. "No shop" / absences never do.
-            const linksToShop = f.id === 'shop' && !f.importantAbsence && shopLink;
+            const linksToShop = f.id === 'shop' && !f.importantAbsence && shopType != null;
             const linksToTransport =
               f.id === 'public-transport' &&
               !f.importantAbsence &&
@@ -210,7 +211,7 @@ function StopCard({
                 ? `Open shop information for ${shortName}`
                 : `Open transport information for ${shortName}`;
               const onClick = linksToShop
-                ? () => onOpenShop(shopLink.id)
+                ? () => onOpenShop(shopType!)
                 : () => onOpenTransport(tpLink!);
               return (
                 <button
@@ -311,7 +312,7 @@ export function StopsScreen({
 }) {
   // Deep link out to the matching Lists section (one-shot in-memory payload,
   // the same pattern as Today → Stages / Map → Stops).
-  const openShop = (shopId: string) => onNavigate('checklist', { lists: { shopId } });
+  const openShop = (shopType: ShopCategory) => onNavigate('checklist', { lists: { shopType } });
   const openTransport = (link: StopTransportLink) =>
     onNavigate('checklist', {
       lists: link.entryId ? { transportId: link.entryId } : { transportContext: link.context },

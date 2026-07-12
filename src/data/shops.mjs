@@ -28,38 +28,6 @@
 export const SHOP_PRICE_REFERENCE_YEAR = 2025;
 export const SHOP_FACTS_VERIFIED_ON = '2026-07-12';
 
-/** STF's official assortment definitions (quoted from the shops overview). */
-export const SHOP_TYPE_INFO = {
-  station: {
-    label: 'Mountain-station shop',
-    short: 'Station',
-    blurb:
-      'A mountain-station shop, far larger and broader than the STF cabin shops. Its actual range is not the STF cabin assortment lists below.',
-  },
-  large: {
-    label: 'Large cabin shop',
-    short: 'Large',
-    blurb:
-      'STF “Large” selection: a wider and broader range of products.',
-  },
-  small: {
-    label: 'Small cabin shop',
-    short: 'Small',
-    blurb:
-      'STF “Small” selection: a limited range, but intended to hold enough to prepare a complete meal.',
-  },
-  none: {
-    label: 'No shop',
-    short: 'No shop',
-    blurb: 'No shop at this stop — carry what you need through it.',
-  },
-  local: {
-    label: 'Local shop',
-    short: 'Local',
-    blurb:
-      'A separate local facility/shop, outside the STF cabin classification — its range differs from the cabin assortment lists.',
-  },
-};
 
 export const PRODUCT_CATEGORIES = [
   { id: 'meals-pantry', title: 'Meals and pantry' },
@@ -406,12 +374,47 @@ export function shopsByType(type) {
 }
 
 /**
- * The shop location a route stop maps to, for the Stops → Shops deep link —
- * or undefined when the stop has no shop (Tjäktja, Singi) or is not a mapped
- * stop. "No shop" stops deliberately return nothing so their chip stays
- * non-navigational.
+ * The THREE shop-type categories the Shops screen is organised around.
+ * `full-service` is a pragmatic combined category for the current
+ * Abisko–Nikkaluokta scope (the STF station shops at Abisko/Kebnekaise plus the
+ * independent Nikkaluokta shop) — it does NOT claim they share one formal STF
+ * classification, and it carries no STF standard assortment/price list. Future
+ * route expansion may justify splitting it into precise types.
  */
-export function shopLocationForStop(stopId) {
+export const SHOP_CATEGORIES = [
+  { id: 'large', label: 'Large shop' },
+  { id: 'small', label: 'Small shop' },
+  { id: 'full-service', label: 'Full-service shops' },
+];
+
+/**
+ * The shop-type category a route stop maps to, for the Stops → Shops deep link.
+ * Null when the stop has no shop (Tjäktja, Singi) or is unmapped, so a "No shop"
+ * chip stays non-navigational. Cabin shops map to their STF size; the station
+ * (Abisko, Kebnekaise) and local (Nikkaluokta) shops map to `full-service`.
+ */
+export function shopTypeForStop(stopId) {
   const loc = SHOP_LOCATIONS.find((s) => s.routeStopId === stopId);
-  return loc && loc.type !== 'none' ? loc : undefined;
+  if (!loc) return null;
+  if (loc.type === 'large' || loc.type === 'small') return loc.type;
+  if (loc.type === 'station' || loc.type === 'local') return 'full-service';
+  return null; // 'none'
 }
+
+/**
+ * Short, shop-specific notes for the Full-service category. These do NOT claim
+ * an identical formal STF classification — the wording states each facility's
+ * actual role. No inventory or prices: Fjällkompis has no reliable item-by-item
+ * list for these shops.
+ */
+const FULL_SERVICE_NOTES = {
+  abisko: 'Full-service STF tourist-station / trailhead shop at the northern trailhead.',
+  kebnekaise: 'Full-service STF mountain-station shop.',
+  nikkaluokta: 'Independently operated endpoint / local shop and service facility.',
+};
+
+/** The three full-service locations (name + short note + official source). */
+export const FULL_SERVICE_SHOPS = ['abisko', 'kebnekaise', 'nikkaluokta'].map((id) => {
+  const loc = SHOP_LOCATIONS.find((s) => s.id === id);
+  return { id, name: loc.name, note: FULL_SERVICE_NOTES[id], source: loc.source };
+});
