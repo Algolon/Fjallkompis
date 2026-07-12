@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
@@ -56,13 +56,33 @@ function StageGuidePanel({ guide }: { guide: StageGuide }) {
   );
 }
 
-export function StagesScreen() {
+export function StagesScreen({
+  initialGuideStageId,
+}: {
+  /** Today's "Stage Guide" deep link: open this stage's guide on arrival. */
+  initialGuideStageId?: string | null;
+}) {
   const { state, currentStage, setCurrentStage } = useStore();
-  // Independent disclosure per card, all collapsed on entry (matches the
-  // Stops accordion pattern: local state only, nothing persisted).
+  // Independent disclosure per card; collapsed on entry unless deep-linked
+  // from Today's Stage Guide action (matches the Stops accordion pattern:
+  // local state only, nothing persisted).
   const [openGuides, setOpenGuides] = useState<ReadonlySet<string>>(
-    () => new Set<string>(),
+    () => new Set<string>(initialGuideStageId ? [initialGuideStageId] : []),
   );
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+  const scrollTargetId = useRef(initialGuideStageId ?? null);
+
+  // When arriving via Stage Guide, bring the (already expanded) current
+  // stage card into view once mounted — the user must never have to find
+  // it in the list manually. Same pattern as StopsScreen's initialStopId.
+  useEffect(() => {
+    if (!scrollTargetId.current) return;
+    cardRefs.current[scrollTargetId.current]?.scrollIntoView({
+      block: 'start',
+      behavior: 'auto',
+    });
+    scrollTargetId.current = null;
+  }, []);
 
   const toggleGuide = (stageId: string) => {
     setOpenGuides((prev) => {
@@ -107,6 +127,9 @@ export function StagesScreen() {
             <article
               className={`card stage-card ${isCurrent ? 'is-current' : ''}`}
               key={stage.id}
+              ref={(el) => {
+                cardRefs.current[stage.id] = el;
+              }}
             >
               <div className="stage-card__top">
                 <div className="row" style={{ gap: 10 }}>

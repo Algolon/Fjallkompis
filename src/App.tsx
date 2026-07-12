@@ -50,7 +50,9 @@ function Screens({
         />
       );
     case 'stages':
-      return <StagesScreen />;
+      // Today's "Stage Guide" action deep-links to the current stage's open
+      // day guide (same one-shot payload pattern as Stops' initialStopId).
+      return <StagesScreen initialGuideStageId={nav.payload?.guideStageId ?? null} />;
     case 'huts':
       return <StopsScreen initialStopId={nav.payload?.stopId ?? null} />;
     case 'checklist':

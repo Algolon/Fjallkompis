@@ -1,5 +1,23 @@
 import { useMemo, type CSSProperties } from 'react';
-import { ChevronRight, Mountain, Route, TriangleAlert } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronRight,
+  Droplets,
+  Mountain,
+  MountainSnow,
+  Route,
+  Sailboat,
+  Signpost,
+  Snowflake,
+  TreePine,
+  Trees,
+  TrendingDown,
+  TrendingUp,
+  TriangleAlert,
+  Users,
+  Waves,
+  Wind,
+} from 'lucide-react';
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader, OnlineBadge } from '../components/ui';
 import { FacilityIcon } from '../components/FacilityIcon';
@@ -9,6 +27,8 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
+import { stageHighlights } from '../data/stageHighlights.mjs';
+import type { StageHighlightIcon } from '../data/stageHighlights.mjs';
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
 import type { TabId } from '../components/TabBar';
@@ -16,6 +36,8 @@ import type { TabId } from '../components/TabBar';
 export interface NavPayload {
   stopId?: string;
   mapStageId?: string | null;
+  /** Stages: open (and scroll to) this stage's day guide on arrival. */
+  guideStageId?: string;
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;
@@ -26,6 +48,27 @@ type Navigate = (t: TabId, payload?: NavPayload) => void;
  * public/images/today/README.md for how it was produced.
  */
 const TODAY_BG_SRC = `${import.meta.env.BASE_URL}images/today/contours.svg`;
+
+/**
+ * Highlight icon key → lucide component (same offline, tree-shaken icon
+ * system as FacilityIcon). Every StageHighlightIcon key must appear here —
+ * fenced by tests/stage-highlights.test.mjs.
+ */
+const HIGHLIGHT_ICONS: Record<StageHighlightIcon, typeof Wind> = {
+  wind: Wind,
+  snowflake: Snowflake,
+  'mountain-snow': MountainSnow,
+  'trending-down': TrendingDown,
+  'trending-up': TrendingUp,
+  mountain: Mountain,
+  trees: Trees,
+  signpost: Signpost,
+  waves: Waves,
+  droplets: Droplets,
+  sailboat: Sailboat,
+  users: Users,
+  'tree-pine': TreePine,
+};
 
 /** Subtle elevation silhouette drawn behind the hero card content. */
 function HeroSilhouette({ stageId }: { stageId: string }) {
@@ -69,6 +112,9 @@ function HeroSilhouette({ stageId }: { stageId: string }) {
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   const { currentStage } = useStore();
 
+  // Static, priority-capped stage metadata (max four) — deterministic and
+  // offline; no GPS, network or time-of-day input.
+  const highlights = currentStage ? stageHighlights(currentStage.id) : [];
   const from = currentStage ? STOPS_BY_ID[currentStage.fromHutId] : null;
   const to = currentStage ? STOPS_BY_ID[currentStage.toHutId] : null;
   const nextStop = to;
@@ -114,20 +160,14 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
 
       {currentStage && from && to ? (
         <>
-          {/* A. Hero: current stage (unchanged spruce anchor) */}
+          {/* A. Hero: the stage block (spruce anchor). Fixed responsibility
+              (docs/design-reviews/2026-07-v0.18-today-stage-block-direction.md):
+              today's stage, its essential characteristics, and the two
+              follow-up actions — nothing else grows in here. */}
           <section className="hero" aria-label={`Current stage, day ${currentStage.day}`}>
             <HeroSilhouette stageId={currentStage.id} />
             <div className="hero-content">
-              <div className="row-between">
-                <span className="hero-day">Day {currentStage.day} of {STAGES.length}</span>
-                <button
-                  className="hero-cta"
-                  onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
-                  aria-label="View today’s route on the map"
-                >
-                  <Route size={14} strokeWidth={2} aria-hidden /> View route
-                </button>
-              </div>
+              <span className="hero-day">Day {currentStage.day} of {STAGES.length}</span>
               <h2 className="hero-title">
                 {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
               </h2>
@@ -139,6 +179,44 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
                 </span>
                 <span aria-hidden>·</span>
                 <span>{formatHoursEstimate(currentStage.estimatedHours)}</span>
+              </div>
+              {highlights.length > 0 ? (
+                // Static stage metadata, not controls (pill = metadata is the
+                // established convention, see the Stages stat pills). No
+                // heading on purpose — deliberate vertical-space decision in
+                // the review direction. Nothing renders when a stage has no
+                // highlights: no empty placeholder row.
+                <ul className="hero-chips" aria-label="Stage characteristics">
+                  {highlights.map((h) => {
+                    const HighlightIcon = HIGHLIGHT_ICONS[h.icon];
+                    return (
+                      <li key={h.id} className="hero-chip">
+                        <HighlightIcon size={13} strokeWidth={2.2} aria-hidden />
+                        {h.label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+              <div className="hero-actions">
+                {/* Stage Guide = primary information depth; View Route = the
+                    complementary spatial action. The mapStageId payload is the
+                    ONLY thing that overwrites the remembered in-session Map
+                    browse state (see App.tsx). */}
+                <button
+                  className="hero-action hero-action--primary"
+                  onClick={() => onNavigate('stages', { guideStageId: currentStage.id })}
+                  aria-label="Stage Guide — open today’s full day guide in Stages"
+                >
+                  <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
+                </button>
+                <button
+                  className="hero-action"
+                  onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
+                  aria-label="View Route — show today’s stage on the map"
+                >
+                  <Route size={15} strokeWidth={2} aria-hidden /> View Route
+                </button>
               </div>
             </div>
           </section>
