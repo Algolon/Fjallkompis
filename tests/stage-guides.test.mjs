@@ -103,8 +103,12 @@ test('the day guide is a semantic disclosure with wired ARIA state', () => {
   assert.match(screen, /aria-controls=\{guidePanelId\}/);
   // Stable unique panel id per stage.
   assert.match(screen, /`stage-guide-\$\{stage\.id\}`/);
-  // Guides render collapsed by default: open-state starts as an empty set.
-  assert.match(screen, /useState<ReadonlySet<string>>\(\s*\(\) => new Set<string>\(\)/);
+  // Guides render collapsed by default; the ONLY exception is Today's
+  // Stage Guide deep link, which seeds exactly that stage as open.
+  assert.match(
+    screen,
+    /useState<ReadonlySet<string>>\(\s*\(\) => new Set<string>\(initialGuideStageId \? \[initialGuideStageId\] : \[\]\)/,
+  );
 });
 
 test('set-current is a top-right pill; the current stage shows a status pill', () => {

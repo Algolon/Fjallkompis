@@ -1889,9 +1889,10 @@ button.map-status-pill {
 }
 .hero-content {
   position: relative;
-  /* Extra bottom padding replaces the removed helper note line, keeping the
-     hero's height so the elevation silhouette stays fully visible. */
-  padding: 18px 16px 56px;
+  /* The action row now occupies the hero's bottom band (which the old 56px
+     padding reserved for the elevation silhouette), so normal padding is
+     enough to keep the block vertically bounded. */
+  padding: 18px 16px 16px;
 }
 .hero-day {
   display: inline-block;
@@ -1919,22 +1920,80 @@ button.map-status-pill {
   font-weight: 600;
   color: #d8e4dc;
 }
-.hero-cta {
+/* Stage-highlight chips: static metadata, NOT controls. Pill shape follows
+   the app's metadata-pill convention (Stages stat pills); the quiet glass
+   surface, small type and missing press affordances keep them visually
+   subordinate to the title and clearly distinct from the action buttons. */
+.hero-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.hero-chip {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e9f1ea;
+  white-space: nowrap;
+}
+.hero-chip svg {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+/* Smallest phones: tighter chip chrome (never smaller text) so two short
+   labels still pair on one row inside the ~256px hero content width. */
+@media (max-width: 360px) {
+  .hero-chips {
+    gap: 5px;
+  }
+  .hero-chip {
+    padding: 4px 8px;
+  }
+}
+
+/* The two follow-up actions. Stage Guide (primary, cloudberry fill) is the
+   information-depth action; View Route (glass) the complementary spatial
+   one. Equal widths, capped so wide layouts don't stretch them into bars. */
+.hero-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.hero-action {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 240px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: var(--cloudberry);
-  color: #fff;
-  font-size: 12.5px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #f4f8f5;
+  font-size: 13px;
   font-weight: 700;
-  padding: 7px 12px;
-  min-height: 34px;
+  padding: 8px 12px;
+  min-height: 40px;
   border-radius: 999px;
   white-space: nowrap;
   transition: transform 0.08s ease;
 }
-.hero-cta:active {
+.hero-action--primary {
+  background: var(--cloudberry);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+.hero-action:active {
   transform: scale(0.96);
 }
 .hero + .card {
@@ -2221,7 +2280,7 @@ button.map-status-pill {
 }
 .today-action-card:focus-visible,
 .today-screen .journey-step:focus-visible,
-.today-screen .hero-cta:focus-visible {
+.today-screen .hero-action:focus-visible {
   outline: 2px solid var(--glacier-700);
   outline-offset: 2px;
 }

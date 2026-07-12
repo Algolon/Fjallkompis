@@ -10,6 +10,23 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Changed
+
+- **Today's stage block became a compact operational summary.** The
+  `Day X of 7` hero keeps its day, route endpoints and GPX statistics, and
+  now adds up to four static stage-highlight chips (icon + short label:
+  exposure, snow patches, the route high point, terrain, treeline, bridged
+  crossings, boat option and more) drawn from structured, offline stage
+  metadata (`src/data/stageHighlights.mjs`) — deterministic and
+  priority-capped, never GPS-, network- or time-dependent, pinned by
+  `tests/stage-highlights.test.mjs`. The single top-right "View route"
+  button was replaced by two clear follow-up actions: **Stage Guide**
+  (primary) opens Stages with today's day guide already expanded and
+  scrolled into view, and **View Route** focuses the Map on today's stage
+  exactly as before — normal navigation away and back still preserves the
+  remembered in-session Map view. Owner-approved direction:
+  `docs/design-reviews/2026-07-v0.18-today-stage-block-direction.md`.
+
 ## [0.18.0] - 2026-07-11
 
 ### Added
