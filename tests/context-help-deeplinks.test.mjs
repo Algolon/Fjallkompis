@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { SHOP_LOCATIONS, shopLocationForStop } from '../src/data/shops.mjs';
+import { shopTypeForStop } from '../src/data/shops.mjs';
 import {
   TRANSPORT_ENTRIES,
   TRANSPORT_SECTIONS,
@@ -24,19 +24,19 @@ import {
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(join(root, rel), 'utf8');
 
-// ---- Stop → shop mapping ----------------------------------------------------
+// ---- Stop → shop-TYPE mapping -----------------------------------------------
 
-test('shopLocationForStop resolves only stops that actually have a shop', () => {
-  for (const id of ['abisko', 'abiskojaure', 'alesjaure', 'salka', 'kebnekaise', 'nikkaluokta']) {
-    const loc = shopLocationForStop(id);
-    assert.ok(loc, `${id} should map to a shop location`);
-    assert.equal(loc.routeStopId, id);
-    assert.notEqual(loc.type, 'none');
-  }
+test('shopTypeForStop maps stops to a shop-type category (or null for no shop)', () => {
+  assert.equal(shopTypeForStop('abisko'), 'full-service');
+  assert.equal(shopTypeForStop('abiskojaure'), 'large');
+  assert.equal(shopTypeForStop('alesjaure'), 'large');
+  assert.equal(shopTypeForStop('salka'), 'large');
+  assert.equal(shopTypeForStop('kebnekaise'), 'full-service');
+  assert.equal(shopTypeForStop('nikkaluokta'), 'full-service');
   // "No shop" stops and unknowns are NOT navigational.
-  assert.equal(shopLocationForStop('tjaktja'), undefined);
-  assert.equal(shopLocationForStop('singi'), undefined);
-  assert.equal(shopLocationForStop('nope'), undefined);
+  assert.equal(shopTypeForStop('tjaktja'), null);
+  assert.equal(shopTypeForStop('singi'), null);
+  assert.equal(shopTypeForStop('nope'), null);
 });
 
 // ---- Stop → transport mapping ----------------------------------------------
@@ -121,19 +121,17 @@ test('ScreenHeader exposes an action slot for the help trigger', () => {
 
 // ---- Explanatory banners moved into ContextHelp -----------------------------
 
-test('Shops: planning-reference + Small/Large banners are now context help', () => {
+test('Shops: explanatory copy is in context help, not an inline route overview', () => {
   const src = read('src/components/ShopInfoView.tsx');
-  // The old always-on banner-info blocks are gone from the body...
-  assert.ok(!/className="banner-info"/.test(src), 'no banner-info in Shops body');
   assert.match(src, /<ContextHelp/);
-  // ...but the exact explanatory content survives inside help surfaces.
-  assert.match(src, /Assortment and prices are planning references/);
-  assert.match(src, /Stock and prices may change/);
-  assert.match(src, /different range from the STF cabin shops/);
+  // The page-level help explains all three shop types.
+  assert.match(src, /About shop information/);
   assert.match(src, /prepare a complete meal/); // Small definition
   assert.match(src, /wider, broader assortment/); // Large definition
-  assert.match(src, /out of stock in either/);
-  assert.match(src, /reference prices/); // 2025 price help beside "Assortment & prices"
+  assert.match(src, /reference prices/); // 2025 price help retained
+  // The route-location overview framing is gone.
+  assert.ok(!/Route shop overview/.test(src), 'no route shop overview heading');
+  assert.ok(!/resupply along the route/.test(src), 'no route-location framing');
 });
 
 test('Transport: static-timetable banner is now context help', () => {
@@ -165,11 +163,8 @@ test('critical warnings remain rendered without an extra tap', () => {
 
   const stops = read('src/screens/StopsScreen.tsx');
   assert.match(stops, /banner-warn/, 'stop warnings stay inline');
-  assert.match(stops, /No shop/, '"No shop" stays visible');
-
-  const shops = read('src/components/ShopInfoView.tsx');
-  // A "No shop" location keeps its stock note visible (decision-critical).
-  assert.match(shops, /loc\.type === 'none'[\s\S]*shop-stock-note/, 'No-shop note stays inline');
+  // Stops is the authority for "No shop" — the decision-critical fact stays there.
+  assert.match(stops, /No shop/, '"No shop" stays visible in Stops');
 });
 
 // ---- Deep-link chips: interactive only where valid, never nested ------------
@@ -177,7 +172,7 @@ test('critical warnings remain rendered without an extra tap', () => {
 test('Stops shop/transport chips are buttons only when a mapping exists', () => {
   const src = read('src/screens/StopsScreen.tsx');
   // Guarded by the mappings; absences excluded.
-  assert.match(src, /f\.id === 'shop' && !f\.importantAbsence && shopLink/);
+  assert.match(src, /f\.id === 'shop' && !f\.importantAbsence && shopType != null/);
   assert.match(src, /f\.id === 'public-transport' &&[\s\S]*tpLink\?\.via === 'facility'/);
   assert.match(src, /className="stop-fac stop-fac--link"/, 'interactive chip keeps chip look');
   assert.match(src, /stop-fac-go/, 'chevron affordance');
@@ -202,7 +197,7 @@ test('Lists deep link is a one-shot in-memory payload, default Packing', () => {
   assert.match(lists, /deepLink\?: ListsDeepLink/);
   assert.match(lists, /initialSectionFor/);
   assert.match(lists, /return 'packing'/, 'defaults to Packing');
-  assert.match(lists, /initialShopId=/);
+  assert.match(lists, /initialShopType=/);
   assert.match(lists, /initialEntryId=/);
   assert.match(lists, /initialContext=/);
 

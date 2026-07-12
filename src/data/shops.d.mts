@@ -1,6 +1,7 @@
 import type {
   AssortmentProduct,
   ProductCategory,
+  ShopCategory,
   ShopLocation,
   ShopSize,
   ShopType,
@@ -9,13 +10,6 @@ import type {
 
 export declare const SHOP_PRICE_REFERENCE_YEAR: number;
 export declare const SHOP_FACTS_VERIFIED_ON: string;
-
-export interface ShopTypeInfo {
-  label: string;
-  short: string;
-  blurb: string;
-}
-export declare const SHOP_TYPE_INFO: Record<ShopType, ShopTypeInfo>;
 
 export declare const PRODUCT_CATEGORIES: ProductCategory[];
 export declare const STF_SHOP_OVERVIEW_SOURCE: SourceMeta;
@@ -39,4 +33,19 @@ export declare function assortmentCounts(size: ShopSize): {
   total: number;
 };
 export declare function shopsByType(type: ShopType): ShopLocation[];
-export declare function shopLocationForStop(stopId: string): ShopLocation | undefined;
+
+export interface ShopCategoryOption {
+  id: ShopCategory;
+  label: string;
+}
+export declare const SHOP_CATEGORIES: ShopCategoryOption[];
+
+export interface FullServiceShop {
+  id: string;
+  name: string;
+  note: string;
+  source: SourceMeta;
+}
+export declare const FULL_SERVICE_SHOPS: FullServiceShop[];
+
+export declare function shopTypeForStop(stopId: string): ShopCategory | null;

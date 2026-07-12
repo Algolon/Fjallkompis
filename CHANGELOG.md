@@ -10,6 +10,29 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-07-12
+
+### Changed
+
+- **Shops is organised by shop TYPE, not route location.** The "Route shop
+  overview" (its heading, the All/Large/Small/No-shop filters, the ten
+  per-location disclosures with class badges and stock-note triggers) is
+  removed — it duplicated information Stops already owns. Shops now has exactly
+  three shop-type categories: **Large shop**, **Small shop** and
+  **Full-service shops**. Large/Small keep the full STF cabin catalogue
+  (categories, product search, Standard/Extra, 2025 reference prices, source &
+  validity). **Full-service shops** is a pragmatic combined category for the
+  current Abisko–Nikkaluokta scope (Abisko, Kebnekaise, Nikkaluokta): it shows
+  a short, accurate per-facility description and an official-information link
+  only — no product list or reference prices, because Fjällkompis has no
+  reliable inventory for them, and it states this without claiming the three
+  share one formal STF classification. A Stop's **Shop** chip now deep-links to
+  the matching shop-**type** (Abiskojaure/Alesjaure/Sälka → Large;
+  Abisko/Kebnekaise/Nikkaluokta → Full-service) instead of a duplicated
+  location card; "No shop" chips stay non-interactive. Stops remains the single
+  authority for which route location has a shop. Pinned by
+  `tests/shops-by-type.test.mjs`.
+
 ### Added
 
 - **Context help + Stops → Lists deep links.** The large explanatory blocks on

@@ -6,7 +6,7 @@ import { IconCheck } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
 import { TransportView, TransportHelp } from '../components/TransportView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
-import type { PackingItem, PackingStatus, TransportContext } from '../types';
+import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
 
 /** Lists sub-sections: the packing list plus the two offline reference
  *  sections (Shop info, Transport). */
@@ -18,7 +18,8 @@ export type ListsSection = 'packing' | 'shops' | 'transport';
  */
 export interface ListsDeepLink {
   section?: ListsSection;
-  shopId?: string;
+  /** Shops opens this shop-TYPE category (from a Stop's Shop chip). */
+  shopType?: ShopCategory;
   transportId?: string;
   transportContext?: TransportContext;
 }
@@ -422,7 +423,7 @@ const LISTS_HEADER: Record<ListsSection, string> = {
   packing:
     'Your packing list — one big job before you go. Adapt it to your own gear and tick things off as they land in the pack.',
   shops:
-    'Where you can resupply along the route, and what the STF cabin shops normally carry — offline planning references, not live stock.',
+    'Compare the shop types relevant to this route and see what STF Large and Small cabin shops normally carry. Assortments and prices are planning references, not live stock.',
   transport:
     'Buses, boats and the train for this route — static 2026 planning snapshots, always confirmed against the official source.',
 };
@@ -430,7 +431,7 @@ const LISTS_HEADER: Record<ListsSection, string> = {
 /** Which section a one-shot deep link opens (defaults to Packing). */
 function initialSectionFor(link?: ListsDeepLink): ListsSection {
   if (!link) return 'packing';
-  if (link.shopId) return 'shops';
+  if (link.shopType) return 'shops';
   if (link.transportId || link.transportContext) return 'transport';
   return link.section ?? 'packing';
 }
@@ -464,7 +465,9 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
       </div>
 
       {mode === 'packing' ? <PackingView /> : null}
-      {mode === 'shops' ? <ShopInfoView initialShopId={mode === 'shops' ? deepLink?.shopId : undefined} /> : null}
+      {mode === 'shops' ? (
+        <ShopInfoView initialShopType={mode === 'shops' ? deepLink?.shopType : undefined} />
+      ) : null}
       {mode === 'transport' ? (
         <TransportView
           initialEntryId={deepLink?.transportId}
