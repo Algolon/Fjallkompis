@@ -12,6 +12,15 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Fixed
 
+- **Stages and Stops cards now share Today's vertical rhythm.** Stacked
+  cards on those screens sat 28px apart — the stack's 14px flex gap plus a
+  legacy 14px sibling-card margin that flex layout does not collapse —
+  while Today's reference layout uses a single 14px step. The stack now
+  neutralises the margin so the gap is the only inter-card spacing,
+  matching Today exactly and shortening long lists. Lists keeps its
+  deliberate labelled-section rhythm; Settings already matched. Fenced by
+  `tests/design-system.test.mjs`.
+
 - **External links are no longer default browser blue.** Text links across
   the app (stop sources, credits, official-information links) now use the
   design system's glacier link colour with an underline, hover/visited/

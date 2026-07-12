@@ -37,6 +37,19 @@ test('--good remains the generic success token for packing, checks and meters', 
   assert.equal(uses.length, journeyUses, '--journey-complete is used only by completed journey dots');
 });
 
+// ---- Vertical rhythm: stacks own inter-card spacing --------------------------
+
+test('stacked cards use the gap alone — no doubled margin (Today rhythm)', () => {
+  // .stack gap and the sibling-card margin are both 14px; if the margin ever
+  // applies inside a stack again, stacked screens drift back to 28px.
+  assert.match(css, /\.stack > \.card \+ \.card \{[^}]*margin-top: 0/, 'stack neutralises the sibling-card margin');
+  const stack = css.slice(css.indexOf('.stack {'), css.indexOf('}', css.indexOf('.stack {')));
+  const cardSibling = css.slice(css.indexOf('.card + .card {'), css.indexOf('}', css.indexOf('.card + .card {')));
+  const gap = stack.match(/gap: (\d+)px/)?.[1];
+  const margin = cardSibling.match(/margin-top: (\d+)px/)?.[1];
+  assert.equal(gap, margin, 'stack gap and card margin express the same 14px rhythm');
+});
+
 // ---- D2: links are on-palette and recognisable ------------------------------
 
 test('text links are styled on-palette with a non-colour affordance', () => {
