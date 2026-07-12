@@ -37,8 +37,11 @@ export declare function shopsByType(type: ShopType): ShopLocation[];
 export interface ShopCategoryOption {
   id: ShopCategory;
   label: string;
+  /** Kept in the data but not shown in the selector. */
+  hidden?: boolean;
 }
 export declare const SHOP_CATEGORIES: ShopCategoryOption[];
+export declare const VISIBLE_SHOP_CATEGORIES: ShopCategoryOption[];
 
 export interface FullServiceShop {
   id: string;

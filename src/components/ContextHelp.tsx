@@ -25,6 +25,8 @@ export function ContextHelp({
   children,
   variant = 'header',
   triggerText,
+  triggerClassName,
+  triggerContent,
 }: {
   /** Accessible name for the trigger, e.g. "About shop information". */
   label: string;
@@ -35,6 +37,10 @@ export function ContextHelp({
   variant?: 'header' | 'inline';
   /** Optional visible label on the trigger (icon + text) — for discoverability. */
   triggerText?: string;
+  /** Custom trigger className — makes the trigger look like an existing chip. */
+  triggerClassName?: string;
+  /** Custom trigger content — replaces the default info icon (e.g. a whole chip). */
+  triggerContent?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -60,13 +66,20 @@ export function ContextHelp({
       <button
         ref={triggerRef}
         type="button"
-        className={`ctx-help ctx-help--${variant}${triggerText ? ' ctx-help--labelled' : ''}`}
+        className={
+          triggerClassName ??
+          `ctx-help ctx-help--${variant}${triggerText ? ' ctx-help--labelled' : ''}`
+        }
         aria-label={label}
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
-        <Info size={variant === 'header' ? 19 : 16} strokeWidth={2} aria-hidden />
-        {triggerText ? <span>{triggerText}</span> : null}
+        {triggerContent ?? (
+          <>
+            <Info size={variant === 'header' ? 19 : 16} strokeWidth={2} aria-hidden />
+            {triggerText ? <span>{triggerText}</span> : null}
+          </>
+        )}
       </button>
 
       <dialog

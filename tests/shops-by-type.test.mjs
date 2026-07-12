@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   SHOP_CATEGORIES,
+  VISIBLE_SHOP_CATEGORIES,
   FULL_SERVICE_SHOPS,
   shopTypeForStop,
   assortmentCounts,
@@ -82,11 +83,20 @@ test('Shops renders Large and Small catalogues via one assortment panel', () => 
 // ---- Small kept despite no route-stop mapping -------------------------------
 
 test('Small shop stays available even though no route stop maps to it', () => {
-  assert.ok(SHOP_CATEGORIES.some((c) => c.id === 'small'), 'Small category present');
+  assert.ok(SHOP_CATEGORIES.some((c) => c.id === 'small'), 'Small category present in data');
   // No stop on the actual route deep-links to Small.
   for (const id of ROUTE_STOPS) {
     assert.notEqual(shopTypeForStop(id), 'small', `${id} must not map to Small`);
   }
+});
+
+test('Small shop is hidden from the selector but kept in the data', () => {
+  // Data keeps all three categories; the selector shows only the visible two.
+  assert.equal(SHOP_CATEGORIES.length, 3);
+  assert.equal(SHOP_CATEGORIES.find((c) => c.id === 'small').hidden, true);
+  assert.deepEqual(VISIBLE_SHOP_CATEGORIES.map((c) => c.id), ['large', 'full-service']);
+  // The selector renders the visible list only (no third chip to scroll to).
+  assert.match(shopView, /VISIBLE_SHOP_CATEGORIES\.map/);
 });
 
 // ---- Full-service: three locations, no fabricated inventory -----------------

@@ -1854,20 +1854,29 @@ button.map-status-pill {
   border-color: #dcc4b8;
   color: var(--danger);
 }
-/* Interactive facility chip (deep-links into Lists). Keeps the chip look;
-   adds a chevron affordance and focus/press feedback. Lives in the expanded
-   panel — never the collapsed accordion header — so it never nests inside the
-   header button. */
+/* Interactive facility chip (deep-links into Lists, or the "No shop" info
+   chip). Keeps the chip look and its 13px/600 type — the font/size/weight come
+   from `.stop-fac`; a bare `font: inherit` here would override them and is why
+   this button used to read at the wrong size. Lives in the expanded panel —
+   never the collapsed accordion header — so it never nests inside the header
+   button. */
 button.stop-fac {
   width: 100%;
   text-align: left;
-  font: inherit;
   cursor: pointer;
+}
+button.stop-fac:active {
+  transform: scale(0.99);
+}
+button.stop-fac:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
 }
 .stop-fac--link {
   color: var(--ink);
 }
-.stop-fac--link > span {
+.stop-fac--link > span,
+.stop-fac--info > span {
   flex: 1;
   min-width: 0;
 }
@@ -1875,13 +1884,6 @@ button.stop-fac {
   flex: 0 0 auto;
   color: var(--ink-faint);
   transition: transform 0.12s ease, color 0.12s ease;
-}
-.stop-fac--link:active {
-  transform: scale(0.99);
-}
-.stop-fac--link:focus-visible {
-  outline: 2px solid var(--glacier-700);
-  outline-offset: 2px;
 }
 @media (hover: hover) {
   .stop-fac--link:hover {
@@ -1891,6 +1893,9 @@ button.stop-fac {
   .stop-fac--link:hover .stop-fac-go {
     color: var(--spruce);
     transform: translateX(2px);
+  }
+  .stop-fac--info:hover {
+    border-color: #d3b3a6;
   }
 }
 /* Derived transport quick-link chip (boat timetable), full width under the grid. */
