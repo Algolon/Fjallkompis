@@ -28,7 +28,10 @@ dates auditable in the repo), along-route GPS progress on the current stage,
 an offline vector basemap with hillshade and contour relief, plus an optional
 Sentinel-2 satellite layer (all independently downloadable), a curated stops
 guide, a packing list (the Daily checklist is archived —
-docs/archived-features/daily-checklist.md), install/update UX, opt-in
+docs/archived-features/daily-checklist.md), offline shop-info and transport
+reference in Lists (STF cabin-shop assortments with 2025 reference prices;
+route buses, boats and the train as validity-bound 2026 planning snapshots —
+never live), install/update UX, opt-in
 foreground live tracking (beta) on the Map screen, and local backup/restore. Fjällkompis is one adaptive
 experience: the same URL works on phones (the protected baseline experience,
 portrait-only by design — landscape shows a rotate-to-portrait prompt),

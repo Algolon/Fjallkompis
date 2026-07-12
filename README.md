@@ -45,7 +45,11 @@ starts empty; use Settings → Export/Import to move your data across (see below
 - **Stops** — a curated guide to all eight huts and stations (shops, saunas,
   opening periods, beds), verified against the official STF/Nikkaluokta
   information, plus space for your own notes.
-- **Lists** — a hiking-specific packing list you can adapt to your own gear.
+- **Lists** — a hiking-specific packing list you can adapt to your own gear,
+  plus offline **Shop info** (where you can resupply, and the STF cabin-shop
+  assortments with 2025 reference prices) and **Transport** (the buses, boats
+  and train for this route as static 2026 planning snapshots, with
+  expired-timetable warnings — never live status).
 - **Settings** — trail-readiness checks, offline map downloads, feedback,
   backup/restore of your data, sources and credits.
 

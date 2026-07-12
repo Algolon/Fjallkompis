@@ -3,14 +3,16 @@ import {
   BedDouble,
   CalendarRange,
   ChevronDown,
+  ChevronRight,
   ExternalLink,
-  Info,
   Mountain,
   NotebookPen,
+  Ship,
   TriangleAlert,
 } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
+import { ContextHelp } from '../components/ContextHelp';
 import { FacilityIcon } from '../components/FacilityIcon';
 import { StopVisual } from '../components/StopVisual';
 import {
@@ -19,9 +21,14 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
+import { shopLocationForStop } from '../data/shops.mjs';
+import { transportLinkForStop } from '../data/transport.mjs';
 import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID, WAYPOINT_ROUTE_KM } from '../route/routeData';
+import type { StopTransportLink } from '../data/transport.mjs';
 import type { TrailStop } from '../types';
+import type { TabId } from '../components/TabBar';
+import type { NavPayload } from './TodayScreen';
 
 function TripNote({ stop }: { stop: TrailStop }) {
   const { getStopNote, setStopNote } = useStore();
@@ -92,12 +99,16 @@ function StopCard({
   onToggle,
   headerRef,
   onHeaderKeyDown,
+  onOpenShop,
+  onOpenTransport,
 }: {
   stop: TrailStop;
   open: boolean;
   onToggle: () => void;
   headerRef: (el: HTMLButtonElement | null) => void;
   onHeaderKeyDown: (e: React.KeyboardEvent) => void;
+  onOpenShop: (shopId: string) => void;
+  onOpenTransport: (link: StopTransportLink) => void;
 }) {
   const waypoint = WAYPOINT_BY_ID[HUT_TO_WAYPOINT[stop.id]];
   const routeKm = WAYPOINT_ROUTE_KM[HUT_TO_WAYPOINT[stop.id]] ?? 0;
@@ -107,6 +118,10 @@ function StopCard({
   const noShop = absences.some((f) => f.id === 'shop');
   const headerId = `stop-h-${stop.id}`;
   const panelId = `stop-p-${stop.id}`;
+  // Deep links out of the expanded panel (never the collapsed header icons).
+  const shopLink = shopLocationForStop(stop.id);
+  const tpLink = transportLinkForStop(stop.id);
+  const shortName = stopShortName(stop);
 
   return (
     <section className={`card stop-card ${open ? 'is-open' : ''}`}>
@@ -180,25 +195,71 @@ function StopCard({
           </div>
         ) : null}
 
-        <div className="stop-fac-grid" role="list" aria-label="Facilities">
-          {stop.facilities.map((f) => (
-            <span
-              key={f.id}
-              role="listitem"
-              className={`stop-fac ${f.importantAbsence ? 'is-absent' : ''}`}
-            >
-              {f.importantAbsence ? (
-                <TriangleAlert size={15} strokeWidth={2} aria-hidden />
-              ) : (
-                <FacilityIcon id={f.id} size={15} />
-              )}
-              <span>
-                {f.label}
-                {f.detail ? <small> · {f.detail}</small> : null}
+        <div className="stop-fac-grid" role="group" aria-label="Facilities">
+          {stop.facilities.map((f) => {
+            // A present Shop chip, or Abisko/Nikkaluokta's Public transport
+            // chip, deep-links into Lists. "No shop" / absences never do.
+            const linksToShop = f.id === 'shop' && !f.importantAbsence && shopLink;
+            const linksToTransport =
+              f.id === 'public-transport' &&
+              !f.importantAbsence &&
+              tpLink?.via === 'facility';
+
+            if (linksToShop || linksToTransport) {
+              const accessibleName = linksToShop
+                ? `Open shop information for ${shortName}`
+                : `Open transport information for ${shortName}`;
+              const onClick = linksToShop
+                ? () => onOpenShop(shopLink.id)
+                : () => onOpenTransport(tpLink!);
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  className="stop-fac stop-fac--link"
+                  onClick={onClick}
+                  aria-label={accessibleName}
+                >
+                  <FacilityIcon id={f.id} size={15} />
+                  <span>
+                    {f.label}
+                    {f.detail ? <small> · {f.detail}</small> : null}
+                  </span>
+                  <ChevronRight className="stop-fac-go" size={15} strokeWidth={2} aria-hidden />
+                </button>
+              );
+            }
+
+            return (
+              <span key={f.id} className={`stop-fac ${f.importantAbsence ? 'is-absent' : ''}`}>
+                {f.importantAbsence ? (
+                  <TriangleAlert size={15} strokeWidth={2} aria-hidden />
+                ) : (
+                  <FacilityIcon id={f.id} size={15} />
+                )}
+                <span>
+                  {f.label}
+                  {f.detail ? <small> · {f.detail}</small> : null}
+                </span>
               </span>
-            </span>
-          ))}
+            );
+          })}
         </div>
+
+        {/* Derived boat-timetable quick link (Alesjaure, Kebnekaise) — not a
+            curated facility, so it lives outside the facility grid. */}
+        {tpLink?.via === 'derived' ? (
+          <button
+            type="button"
+            className="stop-action-chip"
+            onClick={() => onOpenTransport(tpLink)}
+            aria-label={`Open transport information for ${shortName}`}
+          >
+            <Ship size={15} strokeWidth={1.9} aria-hidden />
+            <span>{tpLink.label}</span>
+            <ChevronRight className="stop-fac-go" size={15} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
 
         <div className="stop-facts">
           {stop.summerOpening2026 ? (
@@ -241,7 +302,21 @@ function StopCard({
   );
 }
 
-export function StopsScreen({ initialStopId }: { initialStopId?: string | null }) {
+export function StopsScreen({
+  initialStopId,
+  onNavigate,
+}: {
+  initialStopId?: string | null;
+  onNavigate: (tab: TabId, payload?: NavPayload) => void;
+}) {
+  // Deep link out to the matching Lists section (one-shot in-memory payload,
+  // the same pattern as Today → Stages / Map → Stops).
+  const openShop = (shopId: string) => onNavigate('checklist', { lists: { shopId } });
+  const openTransport = (link: StopTransportLink) =>
+    onNavigate('checklist', {
+      lists: link.entryId ? { transportId: link.entryId } : { transportContext: link.context },
+    });
+
   // Only one accordion open at a time (deliberate on mobile — keeps the
   // list scannable and the scroll position predictable).
   const [openId, setOpenId] = useState<string | null>(initialStopId ?? null);
@@ -271,19 +346,25 @@ export function StopsScreen({ initialStopId }: { initialStopId?: string | null }
 
   return (
     <div className="screen screen--stops">
-      <ScreenHeader eyebrow="Along the way" title="Huts & Stations">
+      <ScreenHeader
+        eyebrow="Along the way"
+        title="Huts & Stations"
+        action={
+          <ContextHelp label="About mountain cabins" title="About mountain cabins">
+            <p>
+              Mountain cabins are simple staffed wilderness accommodations. They
+              have no electricity or running water.
+            </p>
+            <p>
+              Guests fetch water, help with firewood and use shared self-catering
+              kitchens.
+            </p>
+          </ContextHelp>
+        }
+      >
         Eight stops, north to south. Facility details are a verified snapshot —
         tap a stop to see everything.
       </ScreenHeader>
-
-      <div className="banner-info">
-        <Info size={16} strokeWidth={1.8} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>
-          Mountain cabins are simple staffed wilderness accommodations. They have
-          no electricity or running water. Guests fetch water, help with firewood
-          and use shared self-catering kitchens.
-        </span>
-      </div>
 
       {/* stops-detail switches the roomy-landscape grid (≥ 900×500, see
           global.css) into a clustered master-detail: collapsed stops stack
@@ -306,6 +387,8 @@ export function StopsScreen({ initialStopId }: { initialStopId?: string | null }
               headerRefs.current[i] = el;
             }}
             onHeaderKeyDown={onHeaderKeyDown(i)}
+            onOpenShop={openShop}
+            onOpenTransport={openTransport}
           />
         ))}
       </div>

@@ -3,8 +3,25 @@ import { Pencil, Plus, RotateCcw, Scale, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
+import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
+import { TransportView, TransportHelp } from '../components/TransportView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
-import type { PackingItem, PackingStatus } from '../types';
+import type { PackingItem, PackingStatus, TransportContext } from '../types';
+
+/** Lists sub-sections: the packing list plus the two offline reference
+ *  sections (Shop info, Transport). */
+export type ListsSection = 'packing' | 'shops' | 'transport';
+
+/**
+ * One-shot deep-link into a Lists sub-section (from a Stop's Shop / transport
+ * chips). In-memory only — a fresh visit or refresh opens the default section.
+ */
+export interface ListsDeepLink {
+  section?: ListsSection;
+  shopId?: string;
+  transportId?: string;
+  transportContext?: TransportContext;
+}
 
 // --------------------------------------------------------------- Packing view
 
@@ -395,15 +412,65 @@ function PackingView() {
 
 // ------------------------------------------------------------------- Screen
 
-export function ListsScreen() {
+const LISTS_TABS: { id: ListsSection; label: string }[] = [
+  { id: 'packing', label: 'Packing' },
+  { id: 'shops', label: 'Shops' },
+  { id: 'transport', label: 'Transport' },
+];
+
+const LISTS_HEADER: Record<ListsSection, string> = {
+  packing:
+    'Your packing list — one big job before you go. Adapt it to your own gear and tick things off as they land in the pack.',
+  shops:
+    'Where you can resupply along the route, and what the STF cabin shops normally carry — offline planning references, not live stock.',
+  transport:
+    'Buses, boats and the train for this route — static 2026 planning snapshots, always confirmed against the official source.',
+};
+
+/** Which section a one-shot deep link opens (defaults to Packing). */
+function initialSectionFor(link?: ListsDeepLink): ListsSection {
+  if (!link) return 'packing';
+  if (link.shopId) return 'shops';
+  if (link.transportId || link.transportContext) return 'transport';
+  return link.section ?? 'packing';
+}
+
+export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
+  // One-shot: the initial section is decided at mount; switching tabs
+  // afterwards is ordinary local state, and a refresh (no payload) is Packing.
+  const [mode, setMode] = useState<ListsSection>(() => initialSectionFor(deepLink));
+
+  const headerAction =
+    mode === 'shops' ? <ShopInfoHelp /> : mode === 'transport' ? <TransportHelp /> : undefined;
+
   return (
     <div className="screen screen--lists">
-      <ScreenHeader eyebrow="Stay on top of it" title="Lists">
-        Your packing list — one big job before you go. Adapt it to your own
-        gear and tick things off as they land in the pack.
+      <ScreenHeader eyebrow="Stay on top of it" title="Lists" action={headerAction}>
+        {LISTS_HEADER[mode]}
       </ScreenHeader>
 
-      <PackingView />
+      <div className="seg seg--lists" role="tablist" aria-label="Lists section">
+        {LISTS_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={mode === t.id}
+            className="seg-btn"
+            onClick={() => setMode(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'packing' ? <PackingView /> : null}
+      {mode === 'shops' ? <ShopInfoView initialShopId={mode === 'shops' ? deepLink?.shopId : undefined} /> : null}
+      {mode === 'transport' ? (
+        <TransportView
+          initialEntryId={deepLink?.transportId}
+          initialContext={deepLink?.transportContext}
+        />
+      ) : null}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { useEffect, useRef } from 'react';
 import {
   PRESENT_DATA_SOURCES,
   SOFTWARE_CREDITS,
+  TRIP_INFO_SOURCES,
   REPOSITORY_URL,
 } from '../data/attribution';
 import { APP_VERSION } from '../constants';
@@ -72,6 +73,26 @@ export function CreditsSheet({ open, onClose }: { open: boolean; onClose: () => 
                 ) : (
                   s.provider
                 )}
+              </p>
+            </li>
+          ))}
+        </ul>
+
+        <span className="section-label">Trip information (shops &amp; transport)</span>
+        <ul className="credits-list">
+          {TRIP_INFO_SOURCES.map((s) => (
+            <li key={s.name}>
+              <span className="credits-name">
+                {s.name}{' '}
+                <span className={`pill ${s.kind === 'live' ? 'pill-glacier' : ''}`}>
+                  {s.kind === 'live' ? 'Live' : 'Static'}
+                </span>
+              </span>
+              <p className="credits-text">{s.detail}</p>
+              <p className="credits-links">
+                <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer">
+                  {s.provider}
+                </a>
               </p>
             </li>
           ))}

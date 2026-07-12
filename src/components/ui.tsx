@@ -5,16 +5,22 @@ import { IconWifi, IconWifiOff } from './Icons';
 export function ScreenHeader({
   eyebrow,
   title,
+  action,
   children,
 }: {
   eyebrow?: string;
   title: string;
+  /** Optional quiet action beside the title (e.g. a ContextHelp trigger). */
+  action?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <header className="screen-head">
       {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
-      <h1>{title}</h1>
+      <div className="screen-head-row">
+        <h1>{title}</h1>
+        {action ? <div className="screen-head-action">{action}</div> : null}
+      </div>
       {children ? <p>{children}</p> : null}
     </header>
   );

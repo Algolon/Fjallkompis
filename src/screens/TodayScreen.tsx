@@ -32,12 +32,15 @@ import type { StageHighlightIcon } from '../data/stageHighlights.mjs';
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
 import type { TabId } from '../components/TabBar';
+import type { ListsDeepLink } from './ListsScreen';
 
 export interface NavPayload {
   stopId?: string;
   mapStageId?: string | null;
   /** Stages: open (and scroll to) this stage's day guide on arrival. */
   guideStageId?: string;
+  /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
+  lists?: ListsDeepLink;
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;
