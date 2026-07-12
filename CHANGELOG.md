@@ -12,6 +12,17 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Changed
 
+- **View Route now looks like a button.** On Today's stage block, View
+  Route swapped its translucent glass surface for a solid glacier fill
+  (the design system's secondary button colour) so both actions read
+  unmistakably as buttons and the quiet glass look belongs to the
+  highlight chips alone — metadata and controls can no longer be
+  mistaken for each other.
+- **Long-press no longer starts native text selection.** Text across the
+  app is no longer selectable, so a long-press can't pop the platform's
+  select/lookup/share sheet — Fjällkompis behaves like an app, not a
+  document. Editable fields (trip notes, journal, packing inputs) keep
+  normal selection and copying.
 - **Today's stage block became a compact operational summary.** The
   `Day X of 7` hero keeps its day, route endpoints and GPX statistics, and
   now adds up to four static stage-highlight chips (icon + short label:
