@@ -256,6 +256,14 @@ h3 {
   flex-direction: column;
   gap: 14px;
 }
+/* A stack owns its rhythm: the 14px gap is the ONLY inter-card spacing.
+   Without this, the sibling-card margin below stacks on top of the flex gap
+   (margins don't collapse in flex), and Stages/Stops cards sat 28px apart —
+   double Today's 14px reference rhythm. The ≥900px grid media already
+   zeroed the same leak for grid layouts. */
+.stack > .card + .card {
+  margin-top: 0;
+}
 .row {
   display: flex;
   align-items: center;
