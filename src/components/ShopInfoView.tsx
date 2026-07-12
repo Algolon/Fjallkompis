@@ -3,7 +3,7 @@ import { ExternalLink, Info, Search } from 'lucide-react';
 import { ListDisclosure } from './ListDisclosure';
 import { ContextHelp } from './ContextHelp';
 import {
-  SHOP_CATEGORIES,
+  VISIBLE_SHOP_CATEGORIES,
   SHOP_PRICE_REFERENCE_YEAR,
   SHOP_FACTS_VERIFIED_ON,
   FULL_SERVICE_SHOPS,
@@ -270,8 +270,10 @@ function FullServicePanel() {
 }
 
 export function ShopInfoView({ initialShopType }: { initialShopType?: ShopCategory } = {}) {
+  // Only visible categories are selectable; a deep link to a hidden one falls
+  // back to the default (no current route stop maps to Small anyway).
   const validInitial =
-    initialShopType && SHOP_CATEGORIES.some((c) => c.id === initialShopType)
+    initialShopType && VISIBLE_SHOP_CATEGORIES.some((c) => c.id === initialShopType)
       ? initialShopType
       : undefined;
   const [category, setCategory] = useState<ShopCategory>(validInitial ?? 'large');
@@ -296,7 +298,7 @@ export function ShopInfoView({ initialShopType }: { initialShopType?: ShopCatego
         aria-label="Choose a shop type"
         style={{ marginBottom: 14 }}
       >
-        {SHOP_CATEGORIES.map((c) => (
+        {VISIBLE_SHOP_CATEGORIES.map((c) => (
           <button
             key={c.id}
             id={`shop-type-${c.id}`}

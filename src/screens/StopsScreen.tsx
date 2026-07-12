@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  Info,
   Mountain,
   NotebookPen,
   Ship,
@@ -222,12 +223,31 @@ function StopCard({
                   aria-label={accessibleName}
                 >
                   <FacilityIcon id={f.id} size={15} />
-                  <span>
-                    {f.label}
-                    {f.detail ? <small> · {f.detail}</small> : null}
-                  </span>
+                  <span>{f.label}</span>
                   <ChevronRight className="stop-fac-go" size={15} strokeWidth={2} aria-hidden />
                 </button>
+              );
+            }
+
+            // The "No shop" chip becomes a compact context-help chip: tap for
+            // the one food-planning note (replaces the old warning banner).
+            if (f.id === 'shop' && f.importantAbsence) {
+              return (
+                <ContextHelp
+                  key={f.id}
+                  label={`${f.label} at ${shortName} — food note`}
+                  title="No shop at this stop"
+                  triggerClassName="stop-fac is-absent stop-fac--info"
+                  triggerContent={
+                    <>
+                      <TriangleAlert size={15} strokeWidth={2} aria-hidden />
+                      <span>{f.label}</span>
+                      <Info className="stop-fac-go" size={15} strokeWidth={2} aria-hidden />
+                    </>
+                  }
+                >
+                  <p>Carry all required food from the previous stop.</p>
+                </ContextHelp>
               );
             }
 

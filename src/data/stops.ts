@@ -127,7 +127,7 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
       'STF’s largest mountain cabin, positioned above the Alesjaure landscape. It is an important resupply point and offers a guest kitchen, shop and wood-heated sauna.',
     facilities: [
       has('guest-kitchen'),
-      has('shop', 'Important resupply point'),
+      has('shop'),
       has('sauna', 'Wood-heated'),
       has('staffed'),
     ],
@@ -148,10 +148,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
     description:
       'A simple and comparatively small cabin close to the highest part of the route. It provides shared self-catering facilities but no shop, so food planning is important before leaving Alesjaure.',
     facilities: [has('guest-kitchen'), has('staffed'), lacks('shop'), lacks('sauna')],
-    warnings: [
-      'No shop: carry all required food from Alesjaure.',
-      'No sauna is listed by STF.',
-    ],
     summerOpening2026: '18 June – 13 September',
     bedCapacity: '11–25 beds',
     source: {
@@ -170,7 +166,7 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
       'A popular mountain cabin at the meeting point of two valleys. Sälka is a useful resupply stop and offers a shared guest kitchen, shop and sauna.',
     facilities: [
       has('guest-kitchen'),
-      has('shop', 'Useful resupply stop'),
+      has('shop'),
       has('sauna'),
       has('staffed'),
     ],
@@ -191,10 +187,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
     description:
       'Singi lies where several valleys and trails meet. It provides simple staffed accommodation and a shared kitchen, but no shop. From here, the Fjällkompis route leaves the official Kungsleden toward Kebnekaise.',
     facilities: [has('guest-kitchen'), has('staffed'), lacks('shop'), lacks('sauna')],
-    warnings: [
-      'No shop: carry food for the onward route.',
-      'No sauna is listed by STF.',
-    ],
     summerOpening2026: '18 June – 13 September',
     bedCapacity: '26–50 beds',
     source: {

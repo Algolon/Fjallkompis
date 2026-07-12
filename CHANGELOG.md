@@ -10,6 +10,24 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-07-12
+
+### Changed
+
+- **Stops & Shops polish.** The Stops facility grid's interactive **Shop** chip
+  now matches the other facility chips exactly (it had inherited the wrong,
+  larger font), and its "Important resupply point" / "Useful resupply stop"
+  subtitles are gone (the shop's role is already clear). For stops with no shop,
+  the redundant "No shop: carry…" and "No sauna is listed by STF" warning
+  banners are removed; instead the **No shop** chip is now tappable (whole chip,
+  with a circled-ⓘ affordance) and opens a short note — *"Carry all required
+  food from the previous stop."* The collapsed-header "No shop" pill stays
+  visible. In Lists → Shops, the **Small shop** type button is hidden for now
+  (no current route stop uses it and a third chip forced the shop-type row to
+  scroll) — the Small catalogue and data remain for future route expansion; the
+  selector shows **Large shop** and **Full-service shops**.
+
+
 ## [0.18.1] - 2026-07-12
 
 ### Changed

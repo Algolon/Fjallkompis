@@ -163,8 +163,34 @@ test('critical warnings remain rendered without an extra tap', () => {
 
   const stops = read('src/screens/StopsScreen.tsx');
   assert.match(stops, /banner-warn/, 'stop warnings stay inline');
-  // Stops is the authority for "No shop" — the decision-critical fact stays there.
+  // Stops is the authority for "No shop" — the collapsed pill stays visible.
   assert.match(stops, /No shop/, '"No shop" stays visible in Stops');
+});
+
+// ---- No-shop chip + redundant-notification cleanup --------------------------
+
+test('the "No shop" chip is a clickable food note; redundant warnings removed', () => {
+  const stops = read('src/screens/StopsScreen.tsx');
+  // The absent shop chip opens a context-help with the one food-planning note.
+  assert.match(stops, /f\.id === 'shop' && f\.importantAbsence/);
+  assert.match(stops, /Carry all required food from the previous stop/);
+  assert.match(stops, /stop-fac--info/, 'chip keeps the facility-chip look');
+
+  const data = read('src/data/stops.ts');
+  assert.ok(!/No sauna is listed by STF/.test(data), 'obvious "No sauna" warning removed');
+  assert.ok(!/No shop: carry/.test(data), '"No shop: carry…" warnings removed');
+  // The shop chip no longer carries a resupply subtitle.
+  assert.ok(!/Important resupply point/.test(data), 'resupply subtitle removed');
+  assert.ok(!/Useful resupply stop/.test(data), 'resupply subtitle removed');
+});
+
+test('the interactive facility chip does not override its 13px/600 type', () => {
+  const css = read('src/styles/global.css');
+  const block = css.slice(
+    css.indexOf('button.stop-fac {'),
+    css.indexOf('}', css.indexOf('button.stop-fac {')),
+  );
+  assert.ok(!/font:\s*inherit/.test(block), 'button.stop-fac must not reset the font');
 });
 
 // ---- Deep-link chips: interactive only where valid, never nested ------------

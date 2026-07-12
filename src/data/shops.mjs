@@ -383,9 +383,15 @@ export function shopsByType(type) {
  */
 export const SHOP_CATEGORIES = [
   { id: 'large', label: 'Large shop' },
-  { id: 'small', label: 'Small shop' },
+  // Small is kept as reference data (and for future route expansion) but hidden
+  // from the selector for now — no current route stop uses it, and a third chip
+  // forces the shop-type row to scroll.
+  { id: 'small', label: 'Small shop', hidden: true },
   { id: 'full-service', label: 'Full-service shops' },
 ];
+
+/** Shop-type categories shown in the selector (hidden ones stay in the data). */
+export const VISIBLE_SHOP_CATEGORIES = SHOP_CATEGORIES.filter((c) => !c.hidden);
 
 /**
  * The shop-type category a route stop maps to, for the Stops → Shops deep link.
