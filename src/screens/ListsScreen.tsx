@@ -3,8 +3,14 @@ import { Pencil, Plus, RotateCcw, Scale, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
+import { ShopInfoView } from '../components/ShopInfoView';
+import { TransportView } from '../components/TransportView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
 import type { PackingItem, PackingStatus } from '../types';
+
+/** Lists sub-sections: the packing list plus the two offline reference
+ *  sections (Shop info, Transport). */
+type ListsSection = 'packing' | 'shops' | 'transport';
 
 // --------------------------------------------------------------- Packing view
 
@@ -395,15 +401,47 @@ function PackingView() {
 
 // ------------------------------------------------------------------- Screen
 
+const LISTS_TABS: { id: ListsSection; label: string }[] = [
+  { id: 'packing', label: 'Packing' },
+  { id: 'shops', label: 'Shops' },
+  { id: 'transport', label: 'Transport' },
+];
+
+const LISTS_HEADER: Record<ListsSection, string> = {
+  packing:
+    'Your packing list — one big job before you go. Adapt it to your own gear and tick things off as they land in the pack.',
+  shops:
+    'Where you can resupply along the route, and what the STF cabin shops normally carry — offline planning references, not live stock.',
+  transport:
+    'Buses, boats and the train for this route — static 2026 planning snapshots, always confirmed against the official source.',
+};
+
 export function ListsScreen() {
+  const [mode, setMode] = useState<ListsSection>('packing');
+
   return (
     <div className="screen screen--lists">
       <ScreenHeader eyebrow="Stay on top of it" title="Lists">
-        Your packing list — one big job before you go. Adapt it to your own
-        gear and tick things off as they land in the pack.
+        {LISTS_HEADER[mode]}
       </ScreenHeader>
 
-      <PackingView />
+      <div className="seg seg--lists" role="tablist" aria-label="Lists section">
+        {LISTS_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={mode === t.id}
+            className="seg-btn"
+            onClick={() => setMode(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'packing' ? <PackingView /> : null}
+      {mode === 'shops' ? <ShopInfoView /> : null}
+      {mode === 'transport' ? <TransportView /> : null}
     </div>
   );
 }

@@ -64,12 +64,17 @@ test('Today has no Daily list section or checklist copy', () => {
   assert.ok(!today.includes('listsMode'));
 });
 
-test('Lists is packing-only — no Daily view or Daily/Packing switch', () => {
+test('Lists has Packing/Shops/Transport as peers — never a Daily view', () => {
+  // Lists gained offline Shop info and Transport sections as peers of Packing
+  // (a deliberate product decision). The Daily checklist must still be absent:
+  // no Daily view, no checklist reference, and the section tabs are exactly
+  // Packing / Shops / Transport — never a Daily tab.
   const lists = readFileSync(join(src, 'screens', 'ListsScreen.tsx'), 'utf8');
-  assert.ok(!lists.includes('DailyView'));
-  assert.ok(!lists.includes('ListsMode'));
-  assert.ok(!/role="tablist"/.test(lists), 'the Daily/Packing segmented control is gone');
-  assert.ok(!/daily/i.test(lists));
+  assert.ok(!lists.includes('DailyView'), 'no Daily view component');
+  assert.ok(!/checklist/i.test(lists), 'no checklist reference');
+  assert.ok(!/\bdaily\b/i.test(lists), 'no Daily section or copy');
+  const tabIds = [...lists.matchAll(/id: '(packing|shops|transport|daily)'/g)].map((m) => m[1]);
+  assert.deepEqual(tabIds, ['packing', 'shops', 'transport'], 'exactly Packing, Shops, Transport');
 });
 
 test('no user-facing copy in src/ presents the Daily checklist as active', () => {

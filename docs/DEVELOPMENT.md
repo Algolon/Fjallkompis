@@ -488,6 +488,57 @@ every guide resolves its sources and verification date, and stage statistics
 keep coming from the generated route data. Update the module after
 re-verifying against the linked sources and bump `lastVerified`.
 
+## Shop & transport info data
+
+The Lists screen's **Shops** and **Transport** sections (peers of the packing
+list) are static, read-only reference datasets — the same discipline as the
+stops snapshot and stage guides: nothing is scraped at runtime, none of it is
+user-editable, and it all works offline once installed. There is **no**
+persisted-state or routing change; the schema v3 blob and existing user data
+are untouched.
+
+- **Data lives in plain `.mjs` (typed by a sibling `.d.mts`)** so `node --test`
+  imports it directly and the app imports it through Vite the same way (the
+  `packingSeed.mjs` / `stageGuides.mjs` pattern):
+  - `src/data/shops.mjs` — the 10 route shop locations with their STF
+    classification (`station | large | small | none | local`) and a unified
+    product catalogue transcribed from STF's official **2025** Small and Large
+    price lists. Each product carries a per-size listing (`standard` vs `extra`
+    — the source's **bold** vs *italic* distinction) because availability and
+    price can differ between the two lists (e.g. 500 g pasta).
+  - `src/data/transport.mjs` — the route-relevant services grouped by journey
+    context, plus `timetableStatus()` / `scheduleRunsOn()` — the pure validity
+    logic (upcoming / valid / **expired** / live / undated).
+- **Types** live in `src/types/index.ts` (`ShopLocation`, `AssortmentProduct`,
+  `TransportEntry`, `SourceMeta`, …). `SourceMeta` is the shared provenance
+  shape: title, url, publisher, source year, validity range, `lastVerified`,
+  and `kind: 'static' | 'live'`.
+- **Why timetable data is static and validity-bound.** A hut-to-hut app must
+  work with no signal, so timetables are bundled snapshots with an explicit
+  validity window. When today is outside that window the card shows a visible
+  *“Timetable expired — check source”* state — old data is never silently
+  hidden, and the official source is always one tap away.
+- **Why the train uses live links, not a hard-coded time.** The Kiruna–Abisko
+  train has no fixed seasonal timetable equivalent to the bus, so it is modelled
+  as a `live` alternative (`kind: 'live'`, no stored departures) with SJ planner
+  and traffic-information links. The app never presents static data as live, and
+  never states a connection as guaranteed.
+- **Why 2025 shop prices are reference-only.** STF's downloadable price lists
+  are labelled 2025. They are shown as `SHOP_PRICE_REFERENCE_YEAR` (2025)
+  *reference* prices — never as guaranteed 2026 prices.
+- **Updating the data.** Re-verify against the sources, edit the `.mjs`
+  dataset, and bump each entry's `lastVerified`. Presentation
+  (`src/components/ShopInfoView.tsx`, `TransportView.tsx`,
+  `ListDisclosure.tsx`) is deliberately separate from the data, so a new season
+  usually means editing only the datasets. Tests in `tests/shop-info.test.mjs`
+  and `tests/transport.test.mjs` lock the classifications, standard/extra
+  semantics, price-reference labelling and validity/expired logic.
+- **Sources** (checked 2026-07-12): STF mountain shops overview and the Small /
+  Large 2025 price-list PDFs; Länstrafiken line 91 (17 Aug – 20 Sep 2026);
+  STF mountain boats + Enoks (Láddjujávri); Nikkaluoktaexpressen
+  (10 Aug – 20 Sep 2026); SJ (train, live). All are listed in the in-app
+  *Data sources & credits* sheet (`src/data/attribution.ts`).
+
 ## Run it locally
 
 ```bash
@@ -528,6 +579,8 @@ fjallkompis/
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
 │  ├─ state-migration.test.mjs  # localStorage schema migrations (v1 → v3)
+│  ├─ shop-info.test.mjs        # shop classifications + assortment semantics
+│  ├─ transport.test.mjs        # timetable validity / expired-state logic
 │  ├─ stage-guides.test.mjs     # day-guide content/sources integrity
 │  ├─ checklist-removal.test.mjs # archived Daily checklist stays absent
 │  └─ version-consistency.test.mjs   # the guard passes AND fails correctly
@@ -540,7 +593,8 @@ fjallkompis/
    ├─ route/                    # typed ParsedRoute model + hut↔waypoint map
    ├─ map/                      # offline-map cache, pmtiles protocol, style
    ├─ components/               # MapView, ElevationProfile, OfflineMapCard, …
-   ├─ data/                     # stages + day guides + curated stops snapshot + packing seed
+   ├─ data/                     # stages + day guides + stops snapshot + packing
+   │                            #   seed + shops.mjs + transport.mjs (Lists)
    ├─ store/ hooks/ utils/ screens/ styles/
    └─ …
 ```

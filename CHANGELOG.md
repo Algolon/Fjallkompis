@@ -10,6 +10,33 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Added
+
+- **Shop info in Lists (offline).** A new *Shops* section (peer of Packing)
+  answers the resupply questions before you go: a route shop overview classing
+  every stop as a mountain-station shop, an STF **Large** or **Small** cabin
+  shop, **No shop**, or a **local** shop (filterable All / Large / Small / No
+  shop), plus the full STF Small and Large cabin assortments transcribed from
+  the official 2025 price lists. Each product is marked **Standard** (in stock
+  all season) or **Extra** (while stocks last), organised into expandable
+  categories with a product search and a Standard/Extra legend. Mountain-station
+  (Abisko, Kebnekaise) and local (Nikkaluokta) shops are flagged as carrying a
+  different range from the cabin lists. Prices are shown as **2025 reference
+  prices**, never as guaranteed 2026 prices. Static, read-only data
+  (`src/data/shops.mjs`), pinned by `tests/shop-info.test.mjs`.
+- **Transport in Lists (offline).** A new *Transport* section (peer of Packing),
+  organised by journey context — getting to the trail (Länstrafiken bus line
+  91), along the trail (the Alesjaure–Abiskojaure and Láddjujávri/Enoks boats),
+  leaving the trail (Nikkaluoktaexpressen), and live alternatives (the SJ train)
+  — scoped to this route only. Each fixed timetable carries its validity window,
+  operating-day rules (including line 91's special 22/29 Aug and 5 Sep
+  Saturdays), departures, prices, booking rules and connection notes. Timetables
+  are **static planning snapshots**: an out-of-date timetable shows a visible
+  *“Timetable expired — check source”* state rather than being hidden, and the
+  train is a **live** planner (SJ links, no stored times) — the app never
+  presents static data as live or a connection as guaranteed
+  (`src/data/transport.mjs`, pinned by `tests/transport.test.mjs`).
+
 ### Fixed
 
 - **Stages and Stops cards now share Today's vertical rhythm.** Stacked

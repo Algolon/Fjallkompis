@@ -133,6 +133,61 @@ export const BASEMAP_SOURCE_INFO = DATA_SOURCE_BY_ID['osm-protomaps-basemap'];
 export const SATELLITE_SOURCE_INFO = DATA_SOURCE_BY_ID['sentinel2-eox'];
 export const TERRAIN_SOURCE_INFO = DATA_SOURCE_BY_ID['copernicus-dem'];
 
+/**
+ * External sources behind the Lists → Shop info & Transport reference data
+ * (src/data/shops.mjs, src/data/transport.mjs). Static snapshots are planning
+ * references; the one `live` source (SJ) is checked per travel date. Rendered
+ * in the "Trip information" section of the credits sheet.
+ */
+export interface TripInfoSource {
+  name: string;
+  detail: string;
+  provider: string;
+  sourceUrl: string;
+  kind: 'static' | 'live';
+}
+
+export const TRIP_INFO_SOURCES: TripInfoSource[] = [
+  {
+    name: 'Mountain cabin shops',
+    detail:
+      'STF Small & Large cabin-shop assortments and prices (2025 reference lists); shop classification per stop.',
+    provider: 'Svenska Turistföreningen (STF)',
+    sourceUrl: 'https://www.swedishtouristassociation.com/guides/mountains/shops/',
+    kind: 'static',
+  },
+  {
+    name: 'Bus line 91 — Kiruna ↔ Abisko',
+    detail: 'Static mountain-line timetable, valid 17 August – 20 September 2026.',
+    provider: 'Länstrafiken Norrbotten',
+    sourceUrl:
+      'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260817_260920/Fjallinje91o94_91_260817_260920.pdf',
+    kind: 'static',
+  },
+  {
+    name: 'Boats along the route',
+    detail:
+      'Alesjaure–Abiskojaure (summer) and Láddjujávri/Enoks (Kebnekaise–Nikkaluokta) seasonal boat timetables.',
+    provider: 'STF · Enoks',
+    sourceUrl: 'https://www.swedishtouristassociation.com/guides/mountains/transport/boats/',
+    kind: 'static',
+  },
+  {
+    name: 'Nikkaluokta → Kiruna bus',
+    detail: 'Static timetable, valid 10 August – 20 September 2026.',
+    provider: 'Nikkaluoktaexpressen',
+    sourceUrl: 'https://nikkaluoktaexpressen.se/?lang=en',
+    kind: 'static',
+  },
+  {
+    name: 'Train — Kiruna ↔ Abisko',
+    detail: 'Live planner alternative — times and disruptions checked per travel date (no stored timetable).',
+    provider: 'SJ',
+    sourceUrl: 'https://www.sj.se/en',
+    kind: 'live',
+  },
+];
+
 export interface SoftwareCredit {
   name: string;
   role: string;
