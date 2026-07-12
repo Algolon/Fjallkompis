@@ -50,7 +50,7 @@ derived, simulated and externally validated evidence.
 
 | Date | Release or milestone | Review type | Status | Judgement |
 |---|---|---|---|---|
-| 2026-07-11 | [v0.18 pre-field deployment](2026-07-v0.18-pre-field-review.md) | Full | Draft | Pending review |
+| 2026-07-11 | [v0.18 pre-field deployment](2026-07-v0.18-pre-field-review.md) | Full | Completed 2026-07-12 | Ready with explicit limitations |
 
 ## Finding and issue relationship
 

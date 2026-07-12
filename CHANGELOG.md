@@ -10,8 +10,31 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Fixed
+
+- **External links are no longer default browser blue.** Text links across
+  the app (stop sources, credits, official-information links) now use the
+  design system's glacier link colour with an underline, hover/visited/
+  focus states, and correct styling for links dressed as buttons; the
+  MapLibre attribution keeps its compact treatment. The last off-palette
+  colour the app could show is gone (Design Review #1, DR-002), fenced by
+  `tests/design-system.test.mjs`.
+
 ### Changed
 
+- **Completed journey days got their own colour.** The day dots on Today
+  for already-walked stages now use a dedicated spruce-hue token
+  (`--journey-complete: #4c6b5c`) instead of the shared success green, so
+  the week's history sits in the same colour family as the hero above it.
+  Packing, checklists, meters and readiness ticks deliberately keep the
+  existing `--good` moss green (Design Review #1, DR-001; rationale in
+  `docs/VISUAL-DESIGN-AUTHORITY.md`).
+- **Design Review #1 (v0.18 pre-field) closed** with judgement *Ready with
+  explicit limitations*: the full report, findings DR-001–DR-008, owner
+  decisions D1–D8 and the phone-evidence checklist live in
+  `docs/design-reviews/2026-07-v0.18-pre-field-review.md`; the visual
+  design system's conventions are now codified in
+  `docs/VISUAL-DESIGN-AUTHORITY.md`.
 - **View Route now looks like a button.** On Today's stage block, View
   Route swapped its translucent glass surface for a solid glacier fill
   (the design system's secondary button colour) so both actions read

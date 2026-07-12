@@ -33,6 +33,15 @@
   --danger: #8c5b46;
   --danger-soft: #e9d9d2;
   --good: #5d7a56;
+  /* Journey-progress completion (Today's day dots) is deliberately a
+     SEPARATE semantic token from --good: generic success (packed items,
+     ticked checks, readiness, meters) stays the warm moss green that
+     harmonises with the paper surfaces, while completed journey days sit
+     directly beside the spruce hero and use a spruce-hue green so the
+     week's history reads as part of the brand family. Decided in Design
+     Review #1 (finding DR-001 / decision D1); see
+     docs/VISUAL-DESIGN-AUTHORITY.md. Do not reuse one for the other. */
+  --journey-complete: #4c6b5c;
 
   /* Shape */
   --r-sm: 10px;
@@ -285,6 +294,9 @@ h3 {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Explicit ink (not inherit): anchors dressed as buttons (a.btn) never
+     inherit text colour — without this they'd fall back to browser blue. */
+  color: var(--ink);
   transition: transform 0.08s ease, background 0.15s ease;
 }
 .btn:active {
@@ -319,6 +331,40 @@ h3 {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* --- Links ----------------------------------------------------------------
+   Text links are on-palette (glacier-700, the established .link-btn colour)
+   and recognisable by underline as well as colour. Without these rules
+   anchors fall back to default browser blue — the only off-palette colour
+   the app could show (Design Review #1, DR-002/D2). Anchors dressed as
+   buttons follow button styling (a.btn below + .btn colour above); MapLibre
+   attribution keeps its own compact treatment (see .maplibregl-ctrl-attrib). */
+
+a:not(.btn) {
+  color: var(--glacier-700);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+a:not(.btn):visited {
+  color: var(--glacier-700); /* app-like: no separate visited state */
+}
+@media (hover: hover) {
+  a:not(.btn):hover {
+    text-decoration-thickness: 2px;
+  }
+}
+a:not(.btn):active {
+  opacity: 0.75;
+}
+a:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+a.btn {
+  text-decoration: none;
 }
 
 /* --- Pills / badges ------------------------------------------------------ */
@@ -1487,9 +1533,17 @@ button.map-status-pill {
   white-space: nowrap;
   z-index: 2;
 }
-/* MapLibre attribution: keep it readable but small. */
+/* MapLibre attribution: keep it readable but small. The link rule below
+   shields attribution anchors from the app's global link styling (underlined
+   glacier would be noise at 10px on the map) regardless of stylesheet
+   bundling order. */
 .maplibregl-ctrl-attrib {
   font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: inherit;
+  font-weight: inherit;
+  text-decoration: none;
 }
 
 /* --- Empty states -------------------------------------------------------- */
@@ -2067,9 +2121,9 @@ button.map-status-pill {
   transform: scale(0.94);
 }
 .journey-step.is-past .journey-dot {
-  background: var(--good);
-  border-color: var(--good);
-  color: #fff;
+  background: var(--journey-complete);
+  border-color: var(--journey-complete);
+  color: #fff; /* 5.9:1 on --journey-complete */
 }
 .journey-step.is-current .journey-dot {
   background: var(--cloudberry);
