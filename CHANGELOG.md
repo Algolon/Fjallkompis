@@ -14,10 +14,11 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Added
 
-- **Walk the route in either direction.** A new **Route direction** choice in
-  **Settings** lets you follow the trail **Abisko → Nikkaluokta** (the default)
-  or the reverse **Nikkaluokta → Abisko**. The whole app follows the direction
-  you pick: Today's stage and Tonight's stop, the Journey order and legend,
+- **Walk the route in either direction.** A new **Route direction** choice —
+  the first section in **Settings** — lets you follow the trail **Abisko →
+  Nikkaluokta** (the default) or the reverse **Nikkaluokta → Abisko**. The whole
+  app follows the direction you pick: Today's stage and Tonight's stop, the
+  Journey order and legend,
   the Stages list and day numbers (Day 1–7 for the direction you're walking),
   every from/to and ascent/descent, elevation profiles and silhouettes, the
   Stops order and "x km in" labels, and the Map's stage selector, Prev/Next and
