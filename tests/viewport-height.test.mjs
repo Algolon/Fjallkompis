@@ -13,7 +13,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   APP_HEIGHT_VAR,
-  STANDALONE_HEIGHT,
   startViewportHeightSync,
 } from '../src/utils/viewportHeight.mjs';
 
@@ -231,9 +230,9 @@ test('Apple standalone writes the 100vh token, not the underreported height', ()
   win.innerHeight = 844; // full standalone canvas (iPhone 12/13/14 portrait)
   win.visualViewport.height = 759; // WebKit's inset-subtracted under-report
   const stop = startViewportHeightSync(win);
-  // The exact contract: a live CSS token, so WebKit keeps resolving the true
-  // full-screen canvas across rotation with no re-measure — never 759px.
-  assert.equal(win.appHeight(), STANDALONE_HEIGHT);
+  // The exact contract: the public observable is the live CSS `100vh` token,
+  // so WebKit keeps resolving the true full-screen canvas across rotation
+  // with no re-measure — never the under-reported 759px.
   assert.equal(win.appHeight(), '100vh');
   assert.notEqual(win.appHeight(), '759px');
   stop();

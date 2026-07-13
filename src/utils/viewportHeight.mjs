@@ -56,7 +56,7 @@
 export const APP_HEIGHT_VAR = '--app-height';
 
 /** WebKit's standalone-mode full-canvas workaround (see the header, case 2). */
-export const STANDALONE_HEIGHT = '100vh';
+const STANDALONE_HEIGHT = '100vh';
 
 const EDITABLE_TAG = /^(input|textarea|select)$/i;
 

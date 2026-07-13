@@ -29,6 +29,8 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   unchanged, as is browser-mode Safari/Chrome, the keyboard, pinch-zoom,
   orientation and PWA-toast behaviour.
 
+## [0.20.0] - 2026-07-13
+
 ### Added
 
 - **Walk the route in either direction.** A new **Route direction** choice —
