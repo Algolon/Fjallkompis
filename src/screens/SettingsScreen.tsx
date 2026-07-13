@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Check,
   CheckCircle2,
   ChevronDown,
   Circle,
-  Clipboard,
   ExternalLink,
 } from 'lucide-react';
 import { useStore } from '../store/AppStore';
@@ -34,24 +33,22 @@ import {
   useServiceWorkerControlled,
 } from '../components/InstallCard';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 type SettingsSection =
-  | 'direction'
   | 'install'
   | 'maps'
   | 'backup'
   | 'sources'
   | 'advanced';
 
+const BETA_FORM_URL =
+  'https://docs.google.com/forms/d/e/1FAIpQLSdKmFYZ4uRrfcqc5dPlF1VgxFcggMjtFVl8WQyLtebGokUllg/viewform';
+
 /** Human label for a direction, sourced from its itinerary (single source). */
 function directionLabel(direction: RouteDirection): string {
   return getActiveItinerary(direction).displayName;
 }
-
-const BETA_FORM_URL = '';
 
 function checkLabel(done: boolean, pending = false): string {
   if (pending) return 'Checking…';
@@ -86,8 +83,12 @@ function ReadinessRow({
 
 function TrailReadinessCard({
   storageOk,
+  open,
+  onToggle,
 }: {
   storageOk: boolean;
+  open: boolean;
+  onToggle: () => void;
 }) {
   const { installed } = useInstallPrompt();
   const swControlled = useServiceWorkerControlled();
@@ -105,21 +106,25 @@ function TrailReadinessCard({
   const pending = basemap.checking || terrain.checking || satellite.checking;
   const ready = passed === requiredChecks.length;
 
-  return (
-    <div className={`card readiness-card ${ready ? 'is-ready' : ''}`}>
-      <div className="readiness-card__head">
-        <div>
-          <span className="card-title">Trail readiness</span>
-          <p className="card-sub">
-            Local checks for beta testing and offline trail preparation.
-          </p>
-        </div>
-        <div className="readiness-score">
-          <strong>{passed}/{requiredChecks.length}</strong>
-          <span>{pending ? 'Checking' : ready ? 'Ready' : 'Setup'}</span>
-        </div>
-      </div>
+  // The score lives in the collapsed header, so the readiness status stays
+  // visible without expanding the panel — computed once, shown in both places.
+  const score = (
+    <span className="readiness-score">
+      <strong>{passed}/{requiredChecks.length}</strong>
+      <span>{pending ? 'Checking' : ready ? 'Ready' : 'Setup'}</span>
+    </span>
+  );
 
+  return (
+    <SettingsAccordion
+      id="readiness"
+      title="Trail readiness"
+      summary="Local checks for beta testing and offline trail preparation."
+      open={open}
+      onToggle={onToggle}
+      aside={score}
+      className={`readiness-card ${ready ? 'is-ready' : ''}`}
+    >
       <div className="readiness-list">
         <ReadinessRow
           label="App installed"
@@ -167,7 +172,7 @@ function TrailReadinessCard({
       <p className="readiness-note">
         Airplane-mode, sunlight, glove and reopen checks still need a real device.
       </p>
-    </div>
+    </SettingsAccordion>
   );
 }
 
@@ -178,34 +183,47 @@ function SettingsAccordion({
   open,
   onToggle,
   children,
+  aside,
+  className = '',
 }: {
-  id: SettingsSection;
+  id: string;
   title: string;
   summary: string;
   open: boolean;
-  onToggle: (id: SettingsSection) => void;
+  onToggle: () => void;
   children: ReactNode;
+  /** Optional element shown in the header, before the chevron (e.g. a score). */
+  aside?: ReactNode;
+  className?: string;
 }) {
   const panelId = `settings-panel-${id}`;
+  const buttonId = `settings-heading-${id}`;
   return (
-    <section className={`card settings-accordion ${open ? 'is-open' : ''}`}>
+    <section className={`card settings-accordion ${open ? 'is-open' : ''} ${className}`.trim()}>
       <h2 className="settings-accordion__heading">
         <button
           type="button"
+          id={buttonId}
           className="settings-accordion__button"
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => onToggle(id)}
+          onClick={onToggle}
         >
-          <span>
+          <span className="settings-accordion__label">
             <span className="settings-accordion__title">{title}</span>
             <span className="settings-accordion__summary">{summary}</span>
           </span>
+          {aside}
           <ChevronDown className="settings-accordion__chevron" size={20} aria-hidden />
         </button>
       </h2>
       {open ? (
-        <div id={panelId} className="settings-accordion__panel" role="region">
+        <div
+          id={panelId}
+          className="settings-accordion__panel"
+          role="region"
+          aria-labelledby={buttonId}
+        >
           {children}
         </div>
       ) : null}
@@ -275,9 +293,10 @@ function ConfirmDialog({
 
 /**
  * Route direction chooser — an accessible radio group over the two supported
- * directions. Changing direction reorders stages, stops, elevation profiles
- * and progress; a confirmation dialog appears first whenever a current stage
- * is selected (personal data is never touched).
+ * directions, rendered inside the Route direction accordion. Changing direction
+ * reorders stages, stops, elevation profiles and progress; a confirmation
+ * dialog appears first whenever a current stage is selected (personal data is
+ * never touched).
  */
 function RouteDirectionCard() {
   const { routeDirection, setRouteDirection, currentStage } = useStore();
@@ -293,8 +312,7 @@ function RouteDirectionCard() {
 
   return (
     <>
-      <span className="card-title">Route direction</span>
-      <p className="card-sub" style={{ marginTop: 4 }}>
+      <p className="card-sub" style={{ marginTop: 0 }}>
         Choose the direction you are walking. Stages, stops, elevation profiles
         and progress will follow this sequence.
       </p>
@@ -347,42 +365,24 @@ function RouteDirectionCard() {
   );
 }
 
-function BetaFeedbackCard({
-  diagnostics,
-  onCopyDiagnostics,
-}: {
-  diagnostics: string;
-  onCopyDiagnostics: () => void;
-}) {
+function BetaFeedbackCard() {
   return (
     <div className="card beta-card">
       <span className="card-title">Beta testing</span>
       <p className="card-sub" style={{ marginTop: 4 }}>
-        Send confusing moments, wrong facts, GPS oddities and readiness gaps.
-        Safe diagnostics add device/app status only; they exclude coordinates,
-        notes, journal entries and packing-list contents.
+        Send confusing moments, wrong facts, GPS oddities and readiness gaps. The
+        no-login feedback form opens in your browser.
       </p>
 
-      {BETA_FORM_URL ? (
-        <a
-          className="btn btn-primary btn-block"
-          style={{ marginTop: 12, textDecoration: 'none' }}
-          href={BETA_FORM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <ExternalLink size={16} aria-hidden /> Report beta feedback
-        </a>
-      ) : (
-        <p className="banner-warn beta-card__pending">
-          <span>ⓘ</span>
-          <span>The no-login beta form is waiting on the final Google Forms URL.</span>
-        </p>
-      )}
-
-      <button className="btn btn-block" style={{ marginTop: 10 }} onClick={onCopyDiagnostics}>
-        <Clipboard size={16} aria-hidden /> Copy safe diagnostics
-      </button>
+      <a
+        className="btn btn-primary btn-block"
+        style={{ marginTop: 12, textDecoration: 'none' }}
+        href={BETA_FORM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <ExternalLink size={16} aria-hidden /> Report beta feedback
+      </a>
 
       <a
         className="btn btn-block"
@@ -393,62 +393,21 @@ function BetaFeedbackCard({
       >
         <ExternalLink size={16} aria-hidden /> GitHub feedback
       </a>
-
-      <details className="diagnostics-preview">
-        <summary>Show safe diagnostics preview</summary>
-        <pre>{diagnostics}</pre>
-      </details>
     </div>
   );
 }
 
 export function SettingsScreen() {
-  const { state, storageOk, currentStage, replaceState, resetAll } = useStore();
+  const { state, storageOk, replaceState, resetAll } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<SettingsSection | null>('install');
+  // Route direction is the primary setting: its accordion is the ONE section
+  // open on load. Trail readiness (its own independent state) and the grouped
+  // foldouts below start collapsed, so exactly one section is open initially.
+  const [directionOpen, setDirectionOpen] = useState(true);
+  const [readinessOpen, setReadinessOpen] = useState(false);
+  const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const online = useOnlineStatus();
-  const swControlled = useServiceWorkerControlled();
-  const { installed } = useInstallPrompt();
-  const basemap = useCombinedArchiveStatus([VECTOR_ARCHIVE]);
-  const terrain = useCombinedArchiveStatus([TERRAIN_ARCHIVE, CONTOURS_ARCHIVE]);
-  const satellite = useCombinedArchiveStatus([SATELLITE_ARCHIVE]);
-
-  const currentStageLabel = currentStage
-    ? `Day ${currentStage.day} · ${stopShortName(STOPS_BY_ID[currentStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[currentStage.toHutId])}`
-    : null;
-
-  const diagnostics = useMemo(() => {
-    const displayMode = installed ? 'standalone' : 'browser-tab';
-    return [
-      'Fjällkompis beta diagnostics',
-      `App version: ${APP_VERSION}`,
-      `URL: ${window.location.href}`,
-      `Display mode: ${displayMode}`,
-      `Service worker controlled: ${swControlled ? 'yes' : 'no'}`,
-      `Online hint: ${online ? 'online' : 'offline'}`,
-      `Local storage: ${storageOk ? 'available' : 'unavailable'}`,
-      `Current stage: ${currentStageLabel ?? 'not selected'}`,
-      `Offline basemap: ${basemap.downloaded ? `stored (${formatBytes(basemap.sizeBytes)})` : 'not stored'}`,
-      `Terrain relief: ${terrain.downloaded ? `stored (${formatBytes(terrain.sizeBytes)})` : 'not stored'}`,
-      `Satellite imagery: ${satellite.downloaded ? `stored (${formatBytes(satellite.sizeBytes)})` : 'not stored'}`,
-      `Platform: ${navigator.platform || 'unknown'}`,
-      `User agent: ${navigator.userAgent}`,
-    ].join('\n');
-  }, [
-    basemap.downloaded,
-    basemap.sizeBytes,
-    currentStageLabel,
-    installed,
-    online,
-    satellite.downloaded,
-    satellite.sizeBytes,
-    storageOk,
-    swControlled,
-    terrain.downloaded,
-    terrain.sizeBytes,
-  ]);
 
   const doExport = () => {
     downloadJson(`fjallkompis-backup-${todayIso()}.json`, buildExport(state));
@@ -481,27 +440,15 @@ export function SettingsScreen() {
     }
   };
 
-  const copyDiagnostics = async () => {
-    try {
-      await navigator.clipboard.writeText(diagnostics);
-      setNotice({ kind: 'ok', text: 'Diagnostics copied.' });
-    } catch {
-      setNotice({
-        kind: 'err',
-        text: 'Could not copy diagnostics. Use the preview text instead.',
-      });
-    }
-  };
-
   const toggleSection = (id: SettingsSection) => {
     setOpenSection((current) => (current === id ? null : id));
   };
 
   return (
     <div className="screen screen--settings">
-      <ScreenHeader eyebrow="Beta trust & trail readiness" title="Settings">
-        Check whether this device is ready for offline testing, then use the
-        detailed sections below when you need to change something.
+      <ScreenHeader eyebrow="Trail readiness" title="Settings">
+        Adjust app settings to tailor Fjällkompis to your trip and how you use
+        it. Tap a section to expand its options.
       </ScreenHeader>
 
       {notice ? (
@@ -519,37 +466,34 @@ export function SettingsScreen() {
         </div>
       ) : null}
 
-      <TrailReadinessCard storageOk={storageOk} />
+      {/* Route direction — the primary setting: first, and the one section open
+          on load. It lives in the same accordion/card system as everything
+          below (independent open state, like Trail readiness). */}
+      <SettingsAccordion
+        id="direction"
+        title="Route direction"
+        summary="Walk Abisko → Nikkaluokta or the reverse"
+        open={directionOpen}
+        onToggle={() => setDirectionOpen((current) => !current)}
+      >
+        <RouteDirectionCard />
+      </SettingsAccordion>
 
-      <BetaFeedbackCard
-        diagnostics={diagnostics}
-        onCopyDiagnostics={() => {
-          void copyDiagnostics();
-        }}
+      <TrailReadinessCard
+        storageOk={storageOk}
+        open={readinessOpen}
+        onToggle={() => setReadinessOpen((current) => !current)}
       />
 
-      <p className="settings-foldout-note">
-        Trail readiness and beta feedback stay visible above. The remaining
-        settings are grouped below; tap a section to expand its options.
-      </p>
+      <BetaFeedbackCard />
 
       <div className="settings-grid settings-grid--accordions">
-        <SettingsAccordion
-          id="direction"
-          title="Route direction"
-          summary="Walk Abisko → Nikkaluokta or the reverse"
-          open={openSection === 'direction'}
-          onToggle={toggleSection}
-        >
-          <RouteDirectionCard />
-        </SettingsAccordion>
-
         <SettingsAccordion
           id="install"
           title="Install"
           summary="App shell, home-screen install and offline app behavior"
           open={openSection === 'install'}
-          onToggle={toggleSection}
+          onToggle={() => toggleSection('install')}
         >
           <InstallCard embedded />
         </SettingsAccordion>
@@ -559,7 +503,7 @@ export function SettingsScreen() {
           title="Offline maps"
           summary="Basemap, terrain relief and optional satellite downloads"
           open={openSection === 'maps'}
-          onToggle={toggleSection}
+          onToggle={() => toggleSection('maps')}
         >
           <div className="settings-panel-stack">
             <OfflineMapCard embedded />
@@ -573,7 +517,7 @@ export function SettingsScreen() {
           title="Backup & restore"
           summary="Export, import or reset local trip data"
           open={openSection === 'backup'}
-          onToggle={toggleSection}
+          onToggle={() => toggleSection('backup')}
         >
           <span className="card-title">Backup & restore</span>
           <p className="card-sub" style={{ marginTop: 4 }}>
@@ -613,7 +557,7 @@ export function SettingsScreen() {
           title="Data sources"
           summary="Map, imagery, route and software credits"
           open={openSection === 'sources'}
-          onToggle={toggleSection}
+          onToggle={() => toggleSection('sources')}
         >
           <span className="card-title">Data sources &amp; credits</span>
           <p className="card-sub" style={{ marginTop: 4 }}>
@@ -634,7 +578,7 @@ export function SettingsScreen() {
           title="Advanced"
           summary="Version and manual test reminders"
           open={openSection === 'advanced'}
-          onToggle={toggleSection}
+          onToggle={() => toggleSection('advanced')}
         >
           <span className="card-title">Advanced status</span>
           <div className="row-between" style={{ marginTop: 10 }}>
