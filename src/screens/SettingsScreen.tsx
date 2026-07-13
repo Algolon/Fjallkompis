@@ -12,8 +12,21 @@ import { getActiveItinerary } from '../route/activeItinerary';
 import type { RouteDirection } from '../types';
 import { ScreenHeader } from '../components/ui';
 import { APP_VERSION } from '../constants';
-import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
+import { buildExport, downloadCsv, downloadJson, parseImport } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
+import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
+import { seedPersonalList } from '../utils/stateMigration.mjs';
+import {
+  MAX_INPUT_BYTES,
+  buildImportPreview,
+  buildPackingCsv,
+  buildTemplateCsv,
+  packingCsvFilename,
+  packingTemplateFilename,
+  parsePasted,
+  rowsToPackingItems,
+} from '../utils/packingSpreadsheet.mjs';
+import type { PackingImportPreview } from '../utils/packingSpreadsheet.mjs';
 import {
   CONTOURS_ARCHIVE,
   OfflineMapCard,
@@ -38,6 +51,7 @@ type Notice = { kind: 'ok' | 'err'; text: string } | null;
 type SettingsSection =
   | 'install'
   | 'maps'
+  | 'packing'
   | 'backup'
   | 'sources'
   | 'advanced';
@@ -242,12 +256,20 @@ function ConfirmDialog({
   primaryLabel,
   onConfirm,
   onCancel,
+  tone = 'default',
+  secondaryLabel,
+  onSecondary,
 }: {
   title: string;
   body: string;
   primaryLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** 'danger' styles the primary action for a destructive confirmation. */
+  tone?: 'default' | 'danger';
+  /** Optional extra action (e.g. "Export current list first"). */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 }) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -273,10 +295,15 @@ function ConfirmDialog({
         <p id="confirm-body" className="card-sub" style={{ marginTop: 6 }}>
           {body}
         </p>
-        <div className="row" style={{ marginTop: 14, gap: 10 }}>
+        {secondaryLabel && onSecondary ? (
+          <button className="btn btn-block" style={{ marginTop: 12 }} onClick={onSecondary}>
+            {secondaryLabel}
+          </button>
+        ) : null}
+        <div className="row" style={{ marginTop: secondaryLabel ? 10 : 14, gap: 10 }}>
           <button
             ref={confirmRef}
-            className="btn btn-primary"
+            className={`btn ${tone === 'danger' ? 'btn-danger' : 'btn-primary'}`}
             style={{ flex: 1 }}
             onClick={onConfirm}
           >
@@ -397,6 +424,273 @@ function BetaFeedbackCard() {
   );
 }
 
+/**
+ * Import / export / restore for the personal packing list. Editing individual
+ * items lives on the Packing screen; this section is purely data management,
+ * built on the same SettingsAccordion + ConfirmDialog language. Everything is
+ * local — no packing data ever leaves the device.
+ */
+function PackingDataCard({
+  open,
+  onToggle,
+  onNotice,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onNotice: (n: Notice) => void;
+}) {
+  const { state, replacePackingList, resetPackingProgress, restoreDefaultPacking } = useStore();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [pasteText, setPasteText] = useState('');
+  const [preview, setPreview] = useState<{ result: PackingImportPreview; source: string } | null>(
+    null,
+  );
+  const [restoreOpen, setRestoreOpen] = useState(false);
+
+  const itemCount = state.packing.length;
+
+  const exportList = () => {
+    downloadCsv(
+      packingCsvFilename(todayIso()),
+      buildPackingCsv(state.packing, PACKING_CATEGORIES, state.packingSections),
+    );
+    onNotice({ kind: 'ok', text: 'Packing list exported.' });
+  };
+
+  const downloadTemplate = () => {
+    downloadCsv(
+      packingTemplateFilename(),
+      buildTemplateCsv(seedPersonalList(), PACKING_CATEGORIES),
+    );
+    onNotice({ kind: 'ok', text: 'Spreadsheet template downloaded.' });
+  };
+
+  const runPreview = (text: string, source: string) => {
+    if (text.length > MAX_INPUT_BYTES) {
+      onNotice({ kind: 'err', text: 'That file is too large to import.' });
+      return;
+    }
+    const result = buildImportPreview(parsePasted(text), PACKING_CATEGORIES);
+    setPreview({ result, source });
+  };
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_INPUT_BYTES) {
+      onNotice({ kind: 'err', text: 'That file is too large to import.' });
+      return;
+    }
+    try {
+      runPreview(await file.text(), file.name);
+    } catch {
+      onNotice({ kind: 'err', text: 'That file could not be read.' });
+    }
+  };
+
+  const confirmImport = () => {
+    if (!preview || preview.result.validCount === 0) return;
+    const items = rowsToPackingItems(preview.result.rows);
+    replacePackingList(items, preview.result.customSections);
+    setPreview(null);
+    setPasteText('');
+    onNotice({
+      kind: 'ok',
+      text: `Imported ${items.length} item${items.length === 1 ? '' : 's'} — your previous list was replaced.`,
+    });
+  };
+
+  const doRestore = () => {
+    restoreDefaultPacking();
+    setRestoreOpen(false);
+    onNotice({ kind: 'ok', text: 'Fjällkompis default packing list restored.' });
+  };
+
+  return (
+    <SettingsAccordion
+      id="packing"
+      title="Packing list data"
+      summary="Import, export or restore your personal packing list"
+      open={open}
+      onToggle={onToggle}
+    >
+      <p className="card-sub" style={{ marginTop: 0 }}>
+        Your packing list stays on this device. Export or import it as a
+        spreadsheet, or restore the Fjällkompis default. Editing individual items
+        happens on the Packing screen.
+      </p>
+
+      <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={exportList}>
+        Export packing list
+      </button>
+      <button className="btn btn-block" style={{ marginTop: 10 }} onClick={downloadTemplate}>
+        Download template
+      </button>
+
+      <div className="section-label" style={{ marginTop: 16 }}>
+        Import a spreadsheet
+      </div>
+      <p className="card-sub" style={{ marginTop: 0 }}>
+        Open the template in Excel, Numbers or Google Sheets, then save it and
+        choose it here — or copy rows from your spreadsheet and paste them below.
+        Importing <strong>replaces</strong> your current list; every imported
+        item starts as “Needed”.
+      </p>
+
+      <button
+        className="btn btn-block"
+        style={{ marginTop: 10 }}
+        onClick={() => fileRef.current?.click()}
+      >
+        Choose spreadsheet file
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".csv,text/csv,text/plain,text/tab-separated-values"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          void onFile(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+
+      <label className="field" style={{ marginTop: 10 }}>
+        <span>Or paste rows from a spreadsheet</span>
+        <textarea
+          className="input"
+          rows={3}
+          placeholder="Paste copied spreadsheet rows here…"
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+        />
+      </label>
+      <button
+        className="btn btn-block"
+        style={{ marginTop: 10 }}
+        disabled={pasteText.trim() === ''}
+        onClick={() => runPreview(pasteText, 'pasted rows')}
+      >
+        Preview pasted rows
+      </button>
+
+      {preview ? (
+        <div className="card import-preview" style={{ marginTop: 14 }}>
+          <span className="card-title">Import preview</span>
+          <p className="card-sub" style={{ marginTop: 4 }}>
+            From {preview.source}: <strong>{preview.result.validCount}</strong> item
+            {preview.result.validCount === 1 ? '' : 's'} across{' '}
+            {preview.result.sectionCount} section
+            {preview.result.sectionCount === 1 ? '' : 's'}.
+          </p>
+
+          {preview.result.warnings.length > 0 ? (
+            <ul className="import-notes">
+              {preview.result.warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          {preview.result.skipped.length > 0 ? (
+            <>
+              <p className="card-sub" style={{ marginTop: 8 }}>
+                Skipped {preview.result.skipped.length} row
+                {preview.result.skipped.length === 1 ? '' : 's'}:
+              </p>
+              <ul className="import-notes import-notes--skip">
+                {preview.result.skipped.slice(0, 20).map((s, i) => (
+                  <li key={i}>
+                    Row {s.row}: {s.reason}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+
+          {preview.result.validCount === 0 ? (
+            <p className="banner-warn" style={{ marginTop: 12 }}>
+              <span>⚠️</span>
+              <span>No valid items found — nothing will be imported.</span>
+            </p>
+          ) : (
+            <p className="banner-warn" style={{ marginTop: 12 }}>
+              <span>⚠️</span>
+              <span>
+                This replaces your current list of {itemCount} item
+                {itemCount === 1 ? '' : 's'}. Export it first if you want to keep it.
+              </span>
+            </p>
+          )}
+
+          <button className="btn btn-block" style={{ marginTop: 10 }} onClick={exportList}>
+            Export current list first
+          </button>
+          <div className="row" style={{ marginTop: 10, gap: 10 }}>
+            <button
+              className="btn btn-danger"
+              style={{ flex: 1 }}
+              onClick={confirmImport}
+              disabled={preview.result.validCount === 0}
+            >
+              Replace my list
+            </button>
+            <button
+              className="btn btn-ghost"
+              style={{ flex: 1 }}
+              onClick={() => setPreview(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="section-label" style={{ marginTop: 16 }}>
+        Reset &amp; restore
+      </div>
+      <button
+        className="btn btn-block"
+        onClick={() => {
+          if (confirm('Reset all packing progress? Your customized list will be kept.')) {
+            resetPackingProgress();
+            onNotice({ kind: 'ok', text: 'Packing progress reset — every item is “Needed”.' });
+          }
+        }}
+      >
+        Reset packing progress
+      </button>
+      <p className="card-sub" style={{ marginTop: 6 }}>
+        Marks every item as “Needed” while keeping your customized list.
+      </p>
+
+      <button
+        className="btn btn-danger btn-block"
+        style={{ marginTop: 12 }}
+        onClick={() => setRestoreOpen(true)}
+      >
+        Restore default packing list
+      </button>
+      <p className="card-sub" style={{ marginTop: 6 }}>
+        Replaces your list with a fresh copy of the Fjällkompis default. Removes
+        your custom items and edits.
+      </p>
+
+      {restoreOpen ? (
+        <ConfirmDialog
+          title="Restore the Fjällkompis default packing list?"
+          body="This removes your custom items and edits and replaces the list with a fresh copy of the Fjällkompis default. Every item returns to “Needed”."
+          primaryLabel="Restore default"
+          tone="danger"
+          secondaryLabel="Export current list first"
+          onSecondary={exportList}
+          onConfirm={doRestore}
+          onCancel={() => setRestoreOpen(false)}
+        />
+      ) : null}
+    </SettingsAccordion>
+  );
+}
+
 export function SettingsScreen() {
   const { state, storageOk, replaceState, resetAll } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
@@ -511,6 +805,12 @@ export function SettingsScreen() {
             <SatelliteMapCard embedded />
           </div>
         </SettingsAccordion>
+
+        <PackingDataCard
+          open={openSection === 'packing'}
+          onToggle={() => toggleSection('packing')}
+          onNotice={setNotice}
+        />
 
         <SettingsAccordion
           id="backup"

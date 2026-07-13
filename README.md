@@ -45,10 +45,13 @@ starts empty; use Settings → Export/Import to move your data across (see below
 - **Stops** — a curated guide to all eight huts and stations (shops, saunas,
   opening periods, beds), verified against the official STF/Nikkaluokta
   information, plus space for your own notes.
-- **Lists** — a hiking-specific packing list you can adapt to your own gear,
-  plus offline **Shop info** (where you can resupply, and the STF cabin-shop
-  assortments with 2025 reference prices) and **Transport** (the buses, boats
-  and train for this route as static 2026 planning snapshots, with
+- **Lists** — a hiking-specific packing list that becomes **your own editable
+  copy**: add, edit, duplicate and delete items, set quantities and notes, and
+  filter by All / Needed / Ready / Packed. Import or export it as a spreadsheet
+  (Settings → *Packing list data*), or restore the Fjällkompis default at any
+  time. Plus offline **Shop info** (where you can resupply, and the STF
+  cabin-shop assortments with 2025 reference prices) and **Transport** (the
+  buses, boats and train for this route as static 2026 planning snapshots, with
   expired-timetable warnings — never live status).
 - **Route direction** — walk the trail either way. Choose **Abisko →
   Nikkaluokta** (the default) or the reverse **Nikkaluokta → Abisko** in
@@ -94,6 +97,12 @@ Fjällkompis does not have a backend.
   to another device: export on one, import on the other. Opening Fjällkompis
   on a new device never copies data by itself — there is no account and
   nothing is synced — and offline maps are downloaded per device.
+- **Packing list vs backup are separate on purpose.** Settings → *Packing list
+  data* exports a **human-editable spreadsheet** (CSV: Section, Item, Quantity,
+  Notes) you can edit in Excel/Numbers/Sheets and re-import — importing
+  **replaces** your list and every imported item starts as *Needed*. The
+  full **Export all data** file is a complete machine-readable backup of all
+  app state. Both stay entirely on your device; no packing data is uploaded.
 - **Battery discipline beats everything**: flight mode + screen mostly off
   is the difference between a phone that lasts a week of huts and one that
   dies on day two.

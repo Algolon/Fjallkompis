@@ -320,7 +320,16 @@ export interface PackingItem {
   status: PackingStatus;
   weightGrams?: number;
   essential: boolean;
-  /** True for user-added items (editable/deletable); seed items are fixed. */
+  /** Optional free-text note (size, brand, reminder). Absent when empty. */
+  notes?: string;
+  /** Deterministic display order within the personal list (ascending). */
+  sortOrder: number;
+  /**
+   * Provenance only: true for user-added items, false for items that originated
+   * from the Fjällkompis template. Since v5 the personal list is fully owned —
+   * every item (template or custom) is editable and deletable; this flag no
+   * longer gates anything, it just records where the item came from.
+   */
   custom: boolean;
 }
 
@@ -364,6 +373,12 @@ export interface HutUserData {
  * normalisation — see src/utils/stateMigration.mjs).
  * Schema v4 added `routeDirection`; older payloads default to the canonical
  * 'abisko-to-nikkaluokta'.
+ * Schema v5 turned the packing list into a fully-owned personal copy: items are
+ * no longer re-merged from the seed on load, `sortOrder`/`notes` were added,
+ * `packingTemplateVersion` records which template revision the list was seeded
+ * from (used by "Restore default"), and `packingSections` holds user-owned
+ * custom sections created by spreadsheet import (default sections live in
+ * `PACKING_CATEGORIES`, not here).
  */
 export interface PersistentState {
   schemaVersion: number;
@@ -378,6 +393,15 @@ export interface PersistentState {
   /** stopId -> personal trip notes (legacy key name kept from v1). */
   hutData: Record<string, HutUserData>;
   journal: JournalEntry[];
-  /** Persistent packing list: seed items (statuses merged) + custom items. */
+  /** Fully-owned personal packing list (template copy + custom items). */
   packing: PackingItem[];
+  /**
+   * User-owned custom sections created by spreadsheet import (id + display
+   * name), in first-appearance order. Default sections are NOT stored here —
+   * they come from `PACKING_CATEGORIES`. A custom section is kept only while at
+   * least one item references it; it is pruned when its last item is removed.
+   */
+  packingSections: PackingCategory[];
+  /** Template revision the personal list was seeded/restored from (v5+). */
+  packingTemplateVersion: number;
 }

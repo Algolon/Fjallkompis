@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type {
   JournalEntry,
+  PackingCategory,
   PackingItem,
   PackingStatus,
   PersistentState,
@@ -20,7 +21,7 @@ import {
   defaultState,
   storageAvailable,
 } from '../utils/storage';
-import { seedPackingItems } from '../utils/stateMigration.mjs';
+import { seedPersonalList, TEMPLATE_VERSION } from '../utils/stateMigration.mjs';
 import { normalizeDirection } from '../route/direction.mjs';
 import { getActiveItinerary } from '../route/activeItinerary';
 import type { ActiveItinerary, ItineraryStage } from '../route/activeItinerary';
@@ -53,14 +54,21 @@ interface AppStore {
   getStopNote: (stopId: string) => string;
   setStopNote: (stopId: string, notes: string) => void;
 
-  // Packing list
+  // Packing list (a fully-owned personal copy — every item is editable)
   setPackingStatus: (itemId: string, status: PackingStatus) => void;
   addPackingItem: (
-    item: Omit<PackingItem, 'id' | 'custom' | 'status'>,
+    item: Omit<PackingItem, 'id' | 'custom' | 'status' | 'sortOrder'>,
   ) => void;
   updatePackingItem: (itemId: string, patch: Partial<PackingItem>) => void;
+  /** Duplicate an item (new id, status reset to needed). Returns the new id. */
+  duplicatePackingItem: (itemId: string) => string;
   deletePackingItem: (itemId: string) => void;
-  resetPacking: () => void;
+  /** Status → 'needed' for every item; items, notes, order all preserved. */
+  resetPackingProgress: () => void;
+  /** Replace the personal list with a fresh copy of the Fjällkompis template. */
+  restoreDefaultPacking: () => void;
+  /** Replace the personal list wholesale (spreadsheet import), incl. sections. */
+  replacePackingList: (items: PackingItem[], sections: PackingCategory[]) => void;
 
   // Journal
   upsertJournalEntry: (entry: JournalEntry) => void;
@@ -73,6 +81,24 @@ interface AppStore {
 }
 
 const Ctx = createContext<AppStore | null>(null);
+
+/** Next free display order (append to the end of the personal list). */
+function nextSortOrder(items: PackingItem[]): number {
+  return items.reduce((max, i) => Math.max(max, i.sortOrder), -1) + 1;
+}
+
+/**
+ * Drop custom sections no item references any more — a custom section
+ * disappears naturally once its last item is removed or moved elsewhere.
+ */
+function pruneSections(
+  items: PackingItem[],
+  sections: PackingCategory[],
+): PackingCategory[] {
+  const used = new Set(items.map((i) => i.categoryId));
+  const kept = sections.filter((s) => used.has(s.id));
+  return kept.length === sections.length ? sections : kept;
+}
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PersistentState>(() => loadState());
@@ -112,11 +138,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addPackingItem = useCallback(
-    (item: Omit<PackingItem, 'id' | 'custom' | 'status'>) => {
+    (item: Omit<PackingItem, 'id' | 'custom' | 'status' | 'sortOrder'>) => {
       const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
       setState((s) => ({
         ...s,
-        packing: [...s.packing, { ...item, id, status: 'needed', custom: true }],
+        packing: [
+          ...s.packing,
+          { ...item, id, status: 'needed', sortOrder: nextSortOrder(s.packing), custom: true },
+        ],
       }));
     },
     [],
@@ -124,37 +153,79 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const updatePackingItem = useCallback(
     (itemId: string, patch: Partial<PackingItem>) => {
-      setState((s) => ({
-        ...s,
-        packing: s.packing.map((i) =>
-          // id/custom are immutable; label & category edits only for custom items.
+      setState((s) => {
+        // id/sortOrder/custom are structural and never patched; every other
+        // field (label, category, quantity, notes, weight, status, essential)
+        // is editable on any item now that the list is fully owned.
+        const packing = s.packing.map((i) =>
           i.id === itemId
-            ? {
-                ...i,
-                ...patch,
-                id: i.id,
-                custom: i.custom,
-                label: i.custom && patch.label != null ? patch.label : i.label,
-                categoryId:
-                  i.custom && patch.categoryId != null ? patch.categoryId : i.categoryId,
-              }
+            ? { ...i, ...patch, id: i.id, sortOrder: i.sortOrder, custom: i.custom }
             : i,
-        ),
-      }));
+        );
+        // Moving an item out of a custom section may empty it.
+        return { ...s, packing, packingSections: pruneSections(packing, s.packingSections) };
+      });
     },
     [],
   );
 
+  const duplicatePackingItem = useCallback((itemId: string): string => {
+    const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    setState((s) => {
+      const src = s.packing.find((i) => i.id === itemId);
+      if (!src) return s;
+      const copy: PackingItem = {
+        ...src,
+        id,
+        status: 'needed', // a duplicate starts unprepared (documented decision)
+        sortOrder: nextSortOrder(s.packing),
+        custom: true,
+      };
+      // Insert directly after the source so the copy appears next to it.
+      const idx = s.packing.findIndex((i) => i.id === itemId);
+      const packing = [...s.packing];
+      packing.splice(idx + 1, 0, copy);
+      return { ...s, packing };
+    });
+    return id;
+  }, []);
+
   const deletePackingItem = useCallback((itemId: string) => {
+    setState((s) => {
+      const packing = s.packing.filter((i) => i.id !== itemId);
+      // Removing the last item in a custom section prunes that section.
+      return { ...s, packing, packingSections: pruneSections(packing, s.packingSections) };
+    });
+  }, []);
+
+  const resetPackingProgress = useCallback(() => {
     setState((s) => ({
       ...s,
-      packing: s.packing.filter((i) => !(i.id === itemId && i.custom)),
+      packing: s.packing.map((i) => (i.status === 'needed' ? i : { ...i, status: 'needed' })),
     }));
   }, []);
 
-  const resetPacking = useCallback(() => {
-    setState((s) => ({ ...s, packing: seedPackingItems() }));
+  const restoreDefaultPacking = useCallback(() => {
+    setState((s) => ({
+      ...s,
+      packing: seedPersonalList(),
+      packingSections: [], // custom sections are removed with the custom items
+      packingTemplateVersion: TEMPLATE_VERSION,
+    }));
   }, []);
+
+  const replacePackingList = useCallback(
+    (items: PackingItem[], sections: PackingCategory[]) => {
+      // Import is replace-only: the file defines the whole list and its custom
+      // sections. Keep only sections an imported item actually references.
+      setState((s) => ({
+        ...s,
+        packing: items,
+        packingSections: pruneSections(items, sections),
+      }));
+    },
+    [],
+  );
 
   const upsertJournalEntry = useCallback((entry: JournalEntry) => {
     setState((s) => {
@@ -222,8 +293,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setPackingStatus,
     addPackingItem,
     updatePackingItem,
+    duplicatePackingItem,
     deletePackingItem,
-    resetPacking,
+    resetPackingProgress,
+    restoreDefaultPacking,
+    replacePackingList,
     upsertJournalEntry,
     deleteJournalEntry,
     latestJournalEntry,

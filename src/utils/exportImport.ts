@@ -39,6 +39,11 @@ export function downloadJson(filename: string, data: unknown): void {
   downloadTextFile(filename, JSON.stringify(data, null, 2), 'application/json');
 }
 
+/** Trigger a CSV file download (content already carries its own BOM). */
+export function downloadCsv(filename: string, csv: string): void {
+  downloadTextFile(filename, csv, 'text/csv;charset=utf-8');
+}
+
 export type ImportResult =
   | { ok: true; state: PersistentState }
   | { ok: false; error: string };

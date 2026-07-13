@@ -512,10 +512,63 @@ one, cards render a generated route-silhouette fallback.
 
 Personal data stays separate: per-stop **trip notes** and the **packing
 list** live in one versioned `localStorage` blob
-(`src/utils/stateMigration.mjs`, schema v3; defensive v1/v2 migration covered
-by `tests/state-migration.test.mjs` — v3 drops the archived Daily checklist's
-data while preserving everything else, see
-[archived-features/daily-checklist.md](archived-features/daily-checklist.md)).
+(`src/utils/stateMigration.mjs`, **schema v5**; defensive v1→v5 migration
+covered by `tests/state-migration.test.mjs` + `tests/packing-model.test.mjs`).
+v3 dropped the archived Daily checklist's data (see
+[archived-features/daily-checklist.md](archived-features/daily-checklist.md)),
+v4 added `routeDirection`, and **v5 made the packing list a fully-owned
+personal copy**.
+
+**Owned packing list (v5).** Before v5 the seed list was rebuilt from
+`src/data/packingSeed.mjs` on every load and persisted status/quantity/weight
+were merged on top — so template items could not be deleted and template
+wording always won. From v5 the stored array **is** the list: it is never
+re-merged (`normalizeOwnedPacking`), every item is editable and deletable,
+and `sortOrder`/`notes` plus a recorded `packingTemplateVersion` were added.
+The one-time v<5 → v5 conversion (`migratePackingToOwned`) runs the old
+seed-merge once to preserve every user's exact list (statuses, quantities,
+weights, custom items), then freezes it. Trade-off (intended): future template
+wording changes no longer reach an existing list automatically — only
+**Restore default** (`seedPersonalList`) re-seeds from the template.
+
+The **human-editable spreadsheet** layer (`src/utils/packingSpreadsheet.mjs`,
+pure + tested in `tests/packing-spreadsheet.test.mjs`) is CSV/TSV only — no
+`.xlsx`, no spreadsheet dependency — with columns Section, Item, Quantity,
+Notes. Packing status is app state and never a column, so imports always
+default to `needed`; import is **replace-only**, always preview-first, and
+reuses the full-state JSON backup (`src/utils/exportImport.ts`) which stays a
+separate function. The Settings → *Packing list data* section is the data-
+management home; item editing lives on the Packing screen.
+
+**Section (category) model.** Two kinds of section coexist, both `{ id, title }`
+(`PackingCategory`):
+- **Default sections** — the 11 fixed sections in `PACKING_CATEGORIES`
+  (`src/data/packingSeed.mjs`). Not stored in state; ids are unprefixed slugs
+  (`clothing`, `footwear`, …).
+- **Custom sections** — user-owned, created only by spreadsheet import, stored
+  in `PersistentState.packingSections` in first-appearance order. Ids are
+  generated `sec-<slug(name)>` (the `sec-` prefix guarantees no clash with a
+  default id; slug collisions between different names get a numeric suffix), so
+  they are **stable** across export → re-import. Titles are trimmed and capped
+  at `SECTION_TITLE_MAX` (60).
+
+Each `PackingItem.categoryId` names a default OR custom section. Resolution and
+generation happen in the importer (`makeSectionResolver`): a blank Section →
+the default fallback (`comfort`); a name matching a default (by title or id,
+case-insensitively) → that default; any other non-empty name → a custom section
+(deduped case-insensitively, so `Fishing`/`fishing` share one section and the
+first spelling wins). **Selecting** a section when adding/editing an item is a
+dropdown over default + current custom sections (`usePackingSections`) — there
+is no free-text category entry and no separate section manager in this
+iteration. A custom section **disappears naturally** when its last item is
+deleted or moved: `pruneSections` (store) drops unreferenced sections on
+delete/update/import, and `normalizePackingState` (migration) prunes + reconciles
+on load (an item pointing at an unknown/dropped section id falls back to
+`comfort`; a stored section id that shadows a default id is rejected). Custom
+sections ride along in the full-state JSON backup (they are part of
+`PersistentState`) and in spreadsheet export (their titles are looked up
+alongside the defaults). **Restore default** clears `packingSections` with the
+custom items. Migrating v<5 data yields none (older lists only used defaults).
 
 ## Stage day-guide data
 
@@ -643,7 +696,10 @@ fjallkompis/
 │  └─ check-version-consistency.mjs  # version-drift guard (npm run check:version)
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
-│  ├─ state-migration.test.mjs  # localStorage schema migrations (v1 → v4)
+│  ├─ state-migration.test.mjs  # localStorage schema migrations (v1 → v5)
+│  ├─ packing-model.test.mjs    # owned packing list + v5 migration/normalisation
+│  ├─ packing-spreadsheet.test.mjs # CSV/TSV parse, import preview, export
+│  ├─ packing-ui.test.mjs       # packing/settings source-text contracts
 │  ├─ shop-info.test.mjs        # shop classifications + assortment semantics
 │  ├─ shops-by-type.test.mjs    # 3 shop-type categories + stop→type deep links
 │  ├─ transport.test.mjs        # timetable validity / expired-state logic

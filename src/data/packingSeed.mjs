@@ -9,6 +9,14 @@
  * must survive label tweaks. If an item's *meaning* changes, give it a new id.
  */
 
+/**
+ * Template revision. Bump when the seed list's *content* changes meaningfully
+ * so a future "template updated" prompt can tell whether a user's restored copy
+ * is current. Personal lists never auto-follow this — only "Restore default"
+ * re-seeds from the template (see src/utils/stateMigration.mjs).
+ */
+export const TEMPLATE_VERSION = 1;
+
 export const PACKING_CATEGORIES = [
   { id: 'backpack', title: 'Backpack & carrying' },
   { id: 'sleep', title: 'Sleep & hut' },

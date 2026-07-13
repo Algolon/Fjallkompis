@@ -21,7 +21,7 @@ outdoor platform.
 
 ## Current state
 
-Offline-first Kungsleden hiking companion PWA (beta, v0.20.0). The core trip
+Offline-first Kungsleden hiking companion PWA (beta, v0.21.0). The core trip
 loop works end to end and offline, in either walking direction (Abisko →
 Nikkaluokta or the reverse, chosen in Settings): verified route with stage
 statistics and
@@ -29,7 +29,8 @@ elevation profiles, researched per-stage day guides (sources and verification
 dates auditable in the repo), along-route GPS progress on the current stage,
 an offline vector basemap with hillshade and contour relief, plus an optional
 Sentinel-2 satellite layer (all independently downloadable), a curated stops
-guide, a packing list (the Daily checklist is archived —
+guide, an editable personal packing list you can import/export as a
+spreadsheet (the Daily checklist is archived —
 docs/archived-features/daily-checklist.md), offline shop-info and transport
 reference in Lists (STF cabin-shop assortments with 2025 reference prices;
 route buses, boats and the train as validity-bound 2026 planning snapshots —
@@ -84,13 +85,20 @@ cross-device synchronization is deliberately far down this roadmap.
 ## Next
 
 4. **Custom list portability and templates** — an early follow-up to
-   multi-device access, and deliberately separate from it. Potential
-   capabilities: import a standalone packing list; import or create custom
-   recurring lists (any successor to the archived Daily checklist would be
-   decided here, as a new product decision); export an individual list;
-   preview an import before applying it; map categories; validate invalid
-   rows; detect duplicates; choose between adding, replacing or merging; and
-   keep the current full-state backup as a separate function. Scope is list
+   multi-device access, and deliberately separate from it. **First iteration
+   shipped in 0.21.0**: the packing list is now an editable, fully-owned
+   personal copy with add/edit/duplicate/delete, optional notes, spreadsheet
+   (CSV) export, a downloadable template, spreadsheet import with a validated
+   preview (replace-only), a paste-from-spreadsheet route, user-owned custom
+   sections for unknown import Section names, and distinct reset-progress vs
+   restore-default actions; the full-state JSON backup stays a separate
+   function. The import/export layer is deliberately CSV-only —
+   zero new dependencies, fully offline — and structured so true `.xlsx` could
+   sit behind the same UI later without touching the data model.
+   **Still open:** append/merge imports (replace-only for now, to avoid
+   duplicate/order ambiguity); standalone importable/recurring lists beyond
+   packing (any successor to the archived Daily checklist would be decided
+   here, as a new product decision); and native `.xlsx`. Scope stays list
    files only — no accounts, no sync.
 5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.

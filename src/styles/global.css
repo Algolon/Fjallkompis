@@ -2548,7 +2548,14 @@ button.stop-fac:focus-visible {
   font-size: 12px;
   color: var(--ink-faint);
 }
-.pack-edit {
+.pack-note-dot {
+  color: var(--ink-faint);
+  margin-left: 6px;
+  vertical-align: -2px;
+}
+/* Chevron disclosure — replaces the old explicit edit pencil. Its job is now
+   expand/collapse, so it rotates to signal state (not an edit affordance). */
+.pack-chevron {
   flex: 0 0 auto;
   width: 38px;
   height: 38px;
@@ -2559,20 +2566,83 @@ button.stop-fac:focus-visible {
   background: transparent;
   color: var(--ink-faint);
 }
-.pack-edit[aria-expanded='true'] {
-  background: var(--paper-2);
+.pack-chevron svg {
+  transition: transform 0.16s ease;
+}
+.pack-chevron[aria-expanded='true'] {
   color: var(--ink);
+}
+.pack-chevron[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+/* Disclosed panel: the expanded body of a row (summary + actions or editor). */
+.pack-panel {
+  padding: 2px 0 12px;
+}
+.pack-detail {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.pack-detail div {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+.pack-detail dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.pack-detail dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pack-action {
+  flex: 1 1 auto;
+  gap: 6px;
+  font-size: 13px;
+  min-height: 40px;
+}
+.pack-action--danger {
+  color: var(--danger);
 }
 .pack-editor {
   background: var(--paper-2);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: 12px;
-  margin: 0 0 10px;
+  margin: 0 0 4px;
 }
 .pack-editor .input,
 .pack-editor .select {
   background: var(--paper-bright);
+}
+
+/* Import preview (Settings → Packing list data) — reuses cards/pills/banners. */
+.import-preview {
+  background: var(--paper-2);
+}
+.import-notes {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+.import-notes li {
+  margin-top: 2px;
+}
+.import-notes--skip {
+  color: var(--danger);
 }
 
 /* --- Lists: Shop info & Transport ----------------------------------------- */

@@ -10,6 +10,55 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-07-13
+
+### Added
+
+- **Your packing list is now truly yours — editable, importable and
+  exportable.** The built-in Fjällkompis list is still what every new hiker
+  starts with, but it is now a personal copy you own and can shape to your
+  trip. On the **Packing** screen each item expands with a **chevron** (the old
+  Edit button is gone) to reveal its quantity and notes and three actions —
+  **Edit item**, **Duplicate item** and **Delete item**. You can add items,
+  give any item an optional **note** (size, brand, a reminder), set a quantity,
+  duplicate, and delete — every item, not just custom ones. The **All / Needed
+  / Ready / Packed** status filters, the progress meter, essential markers and
+  per-item weight all work exactly as before.
+- **Reset packing progress** (on the Packing screen and in Settings) marks every
+  item “Needed” again while keeping your customized list — distinct from the new
+  **Restore default packing list** (Settings), a clearly destructive action that
+  replaces your list with a fresh copy of the Fjällkompis default and offers to
+  export your current list first.
+- **Import & export as a spreadsheet.** A new **Settings → Packing list data**
+  section lets you **Export packing list**, **Download template**, and **Import
+  a spreadsheet**. Files are plain UTF-8 CSV (columns **Section, Item, Quantity,
+  Notes**) that open and save directly in Excel, Numbers and Google Sheets — no
+  file-format knowledge needed. You can also **paste rows** copied straight from
+  a spreadsheet. Import always shows a **preview** first (valid items, sections,
+  skipped rows and warnings), clearly warns that it **replaces** your current
+  list, and lets you export first. Every imported item starts as **Needed** —
+  packing status stays app state, never a spreadsheet column. Any **Section**
+  name that isn't one of the built-in sections becomes **your own custom
+  section** (its name kept, its items grouped under it, and it survives reload,
+  backup and export); a custom section disappears on its own once its last item
+  is gone. All of it works offline; no packing data ever leaves your device.
+
+### Changed
+
+- **Architecture: the packing list is a fully-owned personal copy (schema v5).**
+  Before, seed items were rebuilt from the template on every load and your
+  status/quantity/weight were merged on top — so template items could not be
+  deleted and template wording always won. From v5 the stored list is
+  authoritative: it is never re-merged, deletions and edits persist, and new
+  `sortOrder`/`notes` fields plus a recorded `packingTemplateVersion` were added.
+  Existing lists migrate loss-free (every status, quantity, weight and custom
+  item is preserved and frozen as your owned copy); the trade-off is that future
+  template wording changes no longer reach an existing list automatically — only
+  **Restore default** re-seeds it. User-owned **custom sections** (from import)
+  are stored alongside the list with stable ids and pruned automatically when
+  empty. The full-state JSON backup/restore is unchanged and remains a separate
+  function.
+
 ## [0.20.0] - 2026-07-13
 
 ### Added

@@ -1,12 +1,29 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Plus, RotateCcw, Scale, TriangleAlert } from 'lucide-react';
+import {
+  ChevronDown,
+  Copy,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Scale,
+  StickyNote,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
 import { TransportView, TransportHelp } from '../components/TransportView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
-import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
+import { NOTES_MAX } from '../utils/stateMigration.mjs';
+import type {
+  PackingCategory,
+  PackingItem,
+  PackingStatus,
+  ShopCategory,
+  TransportContext,
+} from '../types';
 
 /** Lists sub-sections: the packing list plus the two offline reference
  *  sections (Shop info, Transport). */
@@ -39,6 +56,21 @@ function formatGrams(g: number): string {
   return g >= 1000 ? `${(g / 1000).toFixed(g >= 10000 ? 1 : 2)} kg` : `${g} g`;
 }
 
+/**
+ * The full ordered section list the UI works with: the fixed default sections
+ * followed by the user's custom sections (from spreadsheet import). Used both
+ * for the on-screen grouping and the add/edit section pickers, so users select
+ * an existing section rather than typing free-form category names.
+ */
+function usePackingSections(): PackingCategory[] {
+  const { state } = useStore();
+  return useMemo(
+    () => [...PACKING_CATEGORIES, ...state.packingSections],
+    [state.packingSections],
+  );
+}
+
+/** Inline edit form for one item — every field editable now the list is owned. */
 function ItemEditor({
   item,
   onClose,
@@ -46,55 +78,52 @@ function ItemEditor({
   item: PackingItem;
   onClose: () => void;
 }) {
-  const { updatePackingItem, deletePackingItem } = useStore();
+  const { updatePackingItem } = useStore();
+  const sections = usePackingSections();
   const [label, setLabel] = useState(item.label);
   const [categoryId, setCategoryId] = useState(item.categoryId);
   const [quantity, setQuantity] = useState(String(item.quantity));
+  const [notes, setNotes] = useState(item.notes ?? '');
   const [weight, setWeight] = useState(item.weightGrams != null ? String(item.weightGrams) : '');
 
+  const trimmedLabel = label.trim();
+
   const save = () => {
+    if (!trimmedLabel) return;
     const qty = Math.min(99, Math.max(1, Math.round(Number(quantity) || 1)));
     const w = Number(weight);
+    const trimmedNotes = notes.trim().slice(0, NOTES_MAX);
     updatePackingItem(item.id, {
-      ...(item.custom ? { label: label.trim() || item.label, categoryId } : {}),
+      label: trimmedLabel,
+      categoryId,
       quantity: qty,
+      notes: trimmedNotes || undefined,
       weightGrams: Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
     });
     onClose();
   };
 
-  const doDelete = () => {
-    if (confirm(`Delete “${item.label}” from the packing list?`)) {
-      deletePackingItem(item.id);
-      onClose();
-    }
-  };
-
   return (
     <div className="pack-editor">
-      {item.custom ? (
-        <>
-          <label className="field" style={{ marginTop: 0 }}>
-            <span>Item name</span>
-            <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Category</span>
-            <select
-              className="select"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              {PACKING_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
-      ) : null}
-      <div className="row" style={{ marginTop: item.custom ? 12 : 0 }}>
+      <label className="field" style={{ marginTop: 0 }}>
+        <span>Item name</span>
+        <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Category</span>
+        <select
+          className="select"
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+        >
+          {sections.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="row" style={{ marginTop: 12 }}>
         <label className="field" style={{ marginTop: 0, flex: 1 }}>
           <span>Quantity</span>
           <input
@@ -120,18 +149,29 @@ function ItemEditor({
           />
         </label>
       </div>
+      <label className="field">
+        <span>Notes</span>
+        <textarea
+          className="input"
+          rows={2}
+          maxLength={NOTES_MAX}
+          placeholder="optional — size, brand, reminder…"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </label>
       <div className="row" style={{ marginTop: 10 }}>
-        <button className="btn btn-primary" style={{ flex: 1 }} onClick={save}>
+        <button
+          className="btn btn-primary"
+          style={{ flex: 1 }}
+          onClick={save}
+          disabled={!trimmedLabel}
+        >
           Save
         </button>
         <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>
           Cancel
         </button>
-        {item.custom ? (
-          <button className="btn btn-danger" onClick={doDelete}>
-            Delete
-          </button>
-        ) : null}
       </div>
     </div>
   );
@@ -139,19 +179,23 @@ function ItemEditor({
 
 function AddItemForm({ onClose }: { onClose: () => void }) {
   const { addPackingItem } = useStore();
+  const sections = usePackingSections();
   const [label, setLabel] = useState('');
   const [categoryId, setCategoryId] = useState(PACKING_CATEGORIES[0].id);
   const [quantity, setQuantity] = useState('1');
+  const [notes, setNotes] = useState('');
   const [weight, setWeight] = useState('');
   const [essential, setEssential] = useState(false);
 
   const save = () => {
     if (!label.trim()) return;
     const w = Number(weight);
+    const trimmedNotes = notes.trim().slice(0, NOTES_MAX);
     addPackingItem({
       label: label.trim(),
       categoryId,
       quantity: Math.min(99, Math.max(1, Math.round(Number(quantity) || 1))),
+      ...(trimmedNotes ? { notes: trimmedNotes } : {}),
       ...(Number.isFinite(w) && w > 0 ? { weightGrams: Math.round(w) } : {}),
       essential,
     });
@@ -174,7 +218,7 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
       <label className="field">
         <span>Category</span>
         <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          {PACKING_CATEGORIES.map((c) => (
+          {sections.map((c) => (
             <option key={c.id} value={c.id}>
               {c.title}
             </option>
@@ -207,6 +251,17 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
           />
         </label>
       </div>
+      <label className="field">
+        <span>Notes</span>
+        <textarea
+          className="input"
+          rows={2}
+          maxLength={NOTES_MAX}
+          placeholder="optional — size, brand, reminder…"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </label>
       <button
         className="check"
         aria-pressed={essential}
@@ -230,9 +285,121 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** One packing row: collapsed summary + a chevron that discloses the panel. */
+function PackingRow({
+  item,
+  expanded,
+  editing,
+  onToggle,
+  onEdit,
+  onCloseEdit,
+  onDuplicate,
+  onDelete,
+  onCycleStatus,
+}: {
+  item: PackingItem;
+  expanded: boolean;
+  editing: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onCloseEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onCycleStatus: () => void;
+}) {
+  const panelId = `pack-panel-${item.id}`;
+  const toggleId = `pack-toggle-${item.id}`;
+  const hasQty = item.quantity > 1;
+  return (
+    <div className={`pack-row-wrap ${expanded ? 'is-open' : ''}`}>
+      <div className="pack-row">
+        <button
+          className={`pack-status is-${item.status}`}
+          onClick={onCycleStatus}
+          aria-label={`${item.label}: ${STATUS_LABEL[item.status]}. Tap to change status.`}
+        >
+          {STATUS_LABEL[item.status]}
+        </button>
+        <span className={`pack-label ${item.status === 'packed' ? 'is-packed' : ''}`}>
+          {item.label}
+          {item.essential ? (
+            <span className="pack-essential" title="Essential">
+              ●
+            </span>
+          ) : null}
+          {item.notes ? (
+            <StickyNote
+              className="pack-note-dot"
+              size={12}
+              strokeWidth={2}
+              aria-label="Has a note"
+            />
+          ) : null}
+          <span className="pack-sub tnum">
+            {hasQty ? `×${item.quantity}` : ''}
+            {item.weightGrams != null
+              ? `${hasQty ? ' · ' : ''}${formatGrams(item.weightGrams * item.quantity)}`
+              : ''}
+          </span>
+        </span>
+        <button
+          id={toggleId}
+          className="pack-chevron"
+          onClick={onToggle}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${item.label}`}
+          aria-expanded={expanded}
+          aria-controls={panelId}
+        >
+          <ChevronDown size={18} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
+
+      {expanded ? (
+        <div id={panelId} className="pack-panel" role="region" aria-labelledby={toggleId}>
+          {editing ? (
+            <ItemEditor item={item} onClose={onCloseEdit} />
+          ) : (
+            <>
+              <dl className="pack-detail">
+                <div>
+                  <dt>Quantity</dt>
+                  <dd className="tnum">{item.quantity}</dd>
+                </div>
+                <div>
+                  <dt>Notes</dt>
+                  <dd>{item.notes ? item.notes : <span className="muted">None</span>}</dd>
+                </div>
+              </dl>
+              <div className="pack-actions">
+                <button className="btn btn-ghost pack-action" onClick={onEdit}>
+                  <Pencil size={14} strokeWidth={1.9} aria-hidden /> Edit item
+                </button>
+                <button className="btn btn-ghost pack-action" onClick={onDuplicate}>
+                  <Copy size={14} strokeWidth={1.9} aria-hidden /> Duplicate item
+                </button>
+                <button className="btn btn-ghost pack-action pack-action--danger" onClick={onDelete}>
+                  <Trash2 size={14} strokeWidth={1.9} aria-hidden /> Delete item
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function PackingView() {
-  const { state, setPackingStatus, resetPacking } = useStore();
+  const {
+    state,
+    setPackingStatus,
+    duplicatePackingItem,
+    deletePackingItem,
+    resetPackingProgress,
+  } = useStore();
+  const sections = usePackingSections();
   const [filter, setFilter] = useState<Filter>('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -256,13 +423,29 @@ function PackingView() {
 
   const visible = filter === 'all' ? items : items.filter((i) => i.status === filter);
 
-  const doReset = () => {
-    if (
-      confirm(
-        'Reset the packing list? Custom items will be removed and all statuses return to “Needed”.',
-      )
-    ) {
-      resetPacking();
+  const toggleExpanded = (id: string) => {
+    setExpandedId((cur) => (cur === id ? null : id));
+    setEditingId(null); // opening/closing a row always closes any open editor
+  };
+
+  const doResetProgress = () => {
+    if (confirm('Reset all packing progress? Your customized list will be kept.')) {
+      resetPackingProgress();
+    }
+  };
+
+  const doDuplicate = (item: PackingItem) => {
+    // Open the copy's editor immediately so the user can tell the two apart and
+    // rename it (no automatic "copy" suffix — the app has no such convention).
+    const newId = duplicatePackingItem(item.id);
+    setExpandedId(newId);
+    setEditingId(newId);
+  };
+
+  const doDelete = (item: PackingItem) => {
+    if (confirm(`Delete “${item.label}” from your packing list?`)) {
+      deletePackingItem(item.id);
+      if (expandedId === item.id) setExpandedId(null);
       setEditingId(null);
     }
   };
@@ -327,9 +510,10 @@ function PackingView() {
         ))}
       </div>
 
-      {/* Categories — two-column layout ≥900px (.lists-cats, global.css). */}
+      {/* Sections (default categories + custom import sections) — two-column
+          layout ≥900px (.lists-cats, global.css). */}
       <div className="lists-cats">
-      {PACKING_CATEGORIES.map((cat) => {
+      {sections.map((cat) => {
         const catItems = items.filter((i) => i.categoryId === cat.id);
         if (catItems.length === 0) return null;
         const catVisible = visible.filter((i) => i.categoryId === cat.id);
@@ -345,42 +529,18 @@ function PackingView() {
             </div>
             <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
               {catVisible.map((item) => (
-                <div key={item.id} className="pack-row-wrap">
-                  <div className="pack-row">
-                    <button
-                      className={`pack-status is-${item.status}`}
-                      onClick={() => cycleStatus(item)}
-                      aria-label={`${item.label}: ${STATUS_LABEL[item.status]}. Tap to change status.`}
-                    >
-                      {STATUS_LABEL[item.status]}
-                    </button>
-                    <span className={`pack-label ${item.status === 'packed' ? 'is-packed' : ''}`}>
-                      {item.label}
-                      {item.essential ? (
-                        <span className="pack-essential" title="Essential">
-                          ●
-                        </span>
-                      ) : null}
-                      <span className="pack-sub tnum">
-                        {item.quantity > 1 ? `×${item.quantity}` : ''}
-                        {item.weightGrams != null
-                          ? `${item.quantity > 1 ? ' · ' : ''}${formatGrams(item.weightGrams * item.quantity)}`
-                          : ''}
-                      </span>
-                    </span>
-                    <button
-                      className="pack-edit"
-                      onClick={() => setEditingId((cur) => (cur === item.id ? null : item.id))}
-                      aria-label={`Edit ${item.label}`}
-                      aria-expanded={editingId === item.id}
-                    >
-                      <Pencil size={15} strokeWidth={1.8} aria-hidden />
-                    </button>
-                  </div>
-                  {editingId === item.id ? (
-                    <ItemEditor item={item} onClose={() => setEditingId(null)} />
-                  ) : null}
-                </div>
+                <PackingRow
+                  key={item.id}
+                  item={item}
+                  expanded={expandedId === item.id}
+                  editing={editingId === item.id}
+                  onToggle={() => toggleExpanded(item.id)}
+                  onEdit={() => setEditingId(item.id)}
+                  onCloseEdit={() => setEditingId(null)}
+                  onDuplicate={() => doDuplicate(item)}
+                  onDelete={() => doDelete(item)}
+                  onCycleStatus={() => cycleStatus(item)}
+                />
               ))}
             </div>
           </div>
@@ -388,9 +548,27 @@ function PackingView() {
       })}
       </div>
 
-      {visible.length === 0 ? (
+      {items.length === 0 ? (
         <div className="card empty" style={{ marginTop: 14 }}>
-          <p>Nothing with status “{filter === 'all' ? 'any' : STATUS_LABEL[filter as PackingStatus]}”.</p>
+          <p>Your packing list is empty.</p>
+          <p className="card-sub" style={{ marginTop: 4 }}>
+            Add an item below, or import a list or restore the Fjällkompis default
+            from Settings → Packing list data.
+          </p>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="card empty" style={{ marginTop: 14 }}>
+          <p>
+            No items are currently marked{' '}
+            {filter === 'all' ? 'anything' : STATUS_LABEL[filter as PackingStatus]}.
+          </p>
+          <button
+            className="btn btn-ghost"
+            style={{ marginTop: 10 }}
+            onClick={() => setFilter('all')}
+          >
+            Show all items
+          </button>
         </div>
       ) : null}
 
@@ -399,14 +577,20 @@ function PackingView() {
           <AddItemForm onClose={() => setAdding(false)} />
         ) : (
           <button className="btn btn-primary btn-block" onClick={() => setAdding(true)}>
-            <Plus size={16} strokeWidth={2} aria-hidden /> Add custom item
+            <Plus size={16} strokeWidth={2} aria-hidden /> Add item
           </button>
         )}
       </div>
 
-      <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={doReset}>
-        <RotateCcw size={15} strokeWidth={1.8} aria-hidden /> Reset packing list
-      </button>
+      {items.length > 0 ? (
+        <button
+          className="btn btn-ghost btn-block"
+          style={{ marginTop: 10 }}
+          onClick={doResetProgress}
+        >
+          <RotateCcw size={15} strokeWidth={1.8} aria-hidden /> Reset packing progress
+        </button>
+      ) : null}
     </>
   );
 }
