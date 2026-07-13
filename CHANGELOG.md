@@ -10,6 +10,27 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-07-13
+
+### Changed
+
+- **Elevation moved from Map to Stages.** The Map screen is now focused on
+  navigation and positioning: the combined route/stage summary card — its
+  title, the Distance / Ascent-descent / Elevation-range / time statistics,
+  the elevation chart and the card's "Set as current" action — has been
+  removed. All of the map's navigation and tracking stays (stage selector,
+  Prev / Fit / Next, stop previews, Terrain/Satellite, Locate, live tracking,
+  Follow, and position & route-progress feedback), and the roomy-landscape
+  layout rebalances so the map-dominant square no longer leaves a bare column
+  where the planning card used to sit. Route and stage planning now live in
+  one place — **Stages**. The full-route summary card gains a collapsed-by-
+  default **Elevation profile** disclosure (the complete 104.5 km profile),
+  and each **Day guide**, when opened, now shows that stage's own elevation
+  profile — a stage-local axis (0 km → the stage's own distance) drawn from
+  the authoritative hydrated stage data — above its written guidance. The
+  redundant Map statistics table is not reproduced on Stages; the existing
+  summary pills and stage cards remain the information authority.
+
 ## [0.18.2] - 2026-07-12
 
 ### Changed
