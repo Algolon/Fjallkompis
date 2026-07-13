@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useStore, STAGES } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
+import { ElevationProfile } from '../components/ElevationProfile';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { STAGE_GUIDES } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
@@ -10,17 +11,30 @@ import {
   formatHoursEstimate,
   formatVerifiedDate,
 } from '../utils/format';
-import { ROUTE } from '../route/routeData';
+import { ROUTE, OVERVIEW_ELEVATION_PROFILE, STAGE_BY_ID } from '../route/routeData';
 
 /**
- * The expanded day guide: editorial, hedged route guidance from
- * src/data/stageGuides.mjs — deliberately calm prose, not another stats
- * dashboard, and NOT live conditions. Sources/verification stay auditable in
- * the data module; the panel shows only the verification date.
+ * The expanded day guide: this stage's own elevation profile first, then
+ * editorial, hedged route guidance from src/data/stageGuides.mjs —
+ * deliberately calm prose, not another stats dashboard, and NOT live
+ * conditions. The chart uses the authoritative hydrated stage data
+ * (STAGE_BY_ID[stageId]) — stage-local distances (0 → stage length) and
+ * statistics, never a crop of the overview profile. Sources/verification
+ * stay auditable in the data module; the panel shows only the verification
+ * date.
  */
-function StageGuidePanel({ guide }: { guide: StageGuide }) {
+function StageGuidePanel({ stageId, guide }: { stageId: string; guide: StageGuide }) {
+  const routeStage = STAGE_BY_ID[stageId];
   return (
     <>
+      <div className="stage-guide__section stage-guide__elevation">
+        <span className="stage-guide__label">Elevation profile</span>
+        <ElevationProfile
+          profile={routeStage.elevationProfile}
+          statistics={routeStage.statistics}
+        />
+      </div>
+
       <p className="stage-guide__overview">{guide.overview}</p>
 
       <div className="stage-guide__section">
@@ -69,6 +83,11 @@ export function StagesScreen({
   const [openGuides, setOpenGuides] = useState<ReadonlySet<string>>(
     () => new Set<string>(initialGuideStageId ? [initialGuideStageId] : []),
   );
+  // The full-route elevation profile is an on-demand disclosure inside the
+  // summary card — collapsed by default so the default Stages page stays
+  // compact; the pills above already carry the headline figures.
+  const [routeElevOpen, setRouteElevOpen] = useState(false);
+  const routeElevPanelId = 'route-elevation-panel';
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
   const scrollTargetId = useRef(initialGuideStageId ?? null);
 
@@ -113,6 +132,41 @@ export function StagesScreen({
             {Math.round(ROUTE.statistics.maximumElevationM ?? 0)} m
           </span>
         </div>
+
+        {/* Full-route elevation: the same disclosure pattern as the day
+            guides below (shared .stage-guide__toggle / .stage-guide styling
+            and motion). Collapsed by default — the pills above are the
+            information authority, so no statistics grid is repeated here. */}
+        <button
+          type="button"
+          className="stage-guide__toggle"
+          aria-expanded={routeElevOpen}
+          aria-controls={routeElevPanelId}
+          onClick={() => setRouteElevOpen((open) => !open)}
+        >
+          <span>Elevation profile</span>
+          <ChevronDown
+            className="stage-guide__chevron"
+            size={18}
+            strokeWidth={2}
+            aria-hidden
+          />
+        </button>
+        {routeElevOpen ? (
+          <div
+            id={routeElevPanelId}
+            className="stage-guide"
+            role="region"
+            aria-label={`${ROUTE.name} elevation profile`}
+          >
+            <div className="stage-guide__section stage-guide__elevation">
+              <ElevationProfile
+                profile={OVERVIEW_ELEVATION_PROFILE}
+                statistics={ROUTE.statistics}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="stack">
@@ -202,7 +256,7 @@ export function StagesScreen({
                       role="region"
                       aria-label={`Day ${stage.day} guide`}
                     >
-                      <StageGuidePanel guide={guide} />
+                      <StageGuidePanel stageId={stage.id} guide={guide} />
                     </div>
                   ) : null}
                 </>

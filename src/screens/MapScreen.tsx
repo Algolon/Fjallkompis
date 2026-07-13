@@ -3,7 +3,6 @@ import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
-import { ElevationProfile } from '../components/ElevationProfile';
 import { TrackingStatusOverlay } from '../components/TrackingStatus';
 import { FacilityIcon } from '../components/FacilityIcon';
 import { IconLocate } from '../components/Icons';
@@ -17,10 +16,8 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
-import { STAGES_BY_ID } from '../data/stages';
 import {
   ROUTE,
-  OVERVIEW_ELEVATION_PROFILE,
   STAGE_BY_ID,
   WAYPOINT_BY_ID,
   stopIdForWaypoint,
@@ -103,8 +100,8 @@ function renderProgress(
   if (progress.kind === 'no-stage') {
     return (
       <p className="card-sub" style={{ marginTop: 4 }}>
-        Select a current stage before route progress can be calculated — set one
-        with “Set as current” above, or from the Stages tab.
+        Select a current stage before route progress can be calculated — set
+        one on the Stages tab.
       </p>
     );
   }
@@ -267,7 +264,7 @@ export function MapScreen({
   /** Focused navigation: open this stop's full detail in Huts & Stations. */
   onOpenStop?: (stopId: string) => void;
 }) {
-  const { currentStage, setCurrentStage } = useStore();
+  const { currentStage } = useStore();
   const geo = useGeolocation();
   const mapRef = useRef<MapViewHandle>(null);
 
@@ -283,9 +280,6 @@ export function MapScreen({
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualHutId, setManualHutId] = useState<string>(STOPS[0].id);
-
-  const viewStage = viewStageId ? STAGE_BY_ID[viewStageId] : null;
-  const appStage = viewStageId ? STAGES_BY_ID[viewStageId] : null;
 
   // ---- Live tracking (beta, opt-in, foreground-only) ----------------------
   // Status is judged against the COMPLETE route; progress against the
@@ -338,9 +332,6 @@ export function MapScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.status, geo.timestamp]);
 
-  const profile = viewStage ? viewStage.elevationProfile : OVERVIEW_ELEVATION_PROFILE;
-  const stats = viewStage ? viewStage.statistics : ROUTE.statistics;
-
   const stepStage = (dir: 1 | -1) => {
     // Order: overview → d1 … d7 → overview.
     const ids = [null, ...ROUTE.stages.map((s) => s.id)];
@@ -367,11 +358,6 @@ export function MapScreen({
   const selectedWaypointName = selectedWaypointId
     ? WAYPOINT_BY_ID[selectedWaypointId]?.name ?? null
     : null;
-
-  const summaryTitle = useMemo(() => {
-    if (!appStage) return 'Full route';
-    return `Day ${appStage.day}: ${stopShortName(STOPS_BY_ID[appStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[appStage.toHutId])}`;
-  }, [appStage]);
 
   const currentStageTitle = currentStage
     ? `Day ${currentStage.day}: ${stopShortName(STOPS_BY_ID[currentStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[currentStage.toHutId])}`
@@ -413,10 +399,13 @@ export function MapScreen({
         An offline basemap of the route. Tap a stage line or stop.
       </ScreenHeader>
 
-      {/* Primary Map composition. Compact: plain blocks in DOM order (map
-          card, then the route selector, then the combined summary+elevation
-          card). Roomy landscape (≥ 900×500, see global.css): a map-dominant
-          two-column grid — the complete map card left, .map-side right. */}
+      {/* Primary Map composition, focused on navigation and positioning.
+          Compact: plain blocks in DOM order (map card, then the route
+          selector, then the position/progress card). Roomy landscape
+          (≥ 900×500, see global.css): a map-dominant two-column grid — the
+          complete map card left, .map-side right. Route/stage planning —
+          elevation, statistics and choosing the current stage — lives on
+          Stages. */}
       <div className="map-layout">
         <div className="card map-card">
           <div className="map-canvas-wrap">
@@ -567,7 +556,7 @@ export function MapScreen({
           {!currentStage ? (
             <p className="card-sub" style={{ margin: '0 12px 12px' }}>
               Live tracking (beta) follows today’s stage — select a current
-              stage first with “Set as current” below, or from the Stages tab.
+              stage first on the Stages tab.
             </p>
           ) : null}
         </div>
@@ -596,55 +585,6 @@ export function MapScreen({
                 {s.day}
               </button>
             ))}
-          </div>
-
-          {/* Combined stage/route summary: identity and scannable statistics
-              first, the elevation profile as the detailed visual below. */}
-          <div className="card">
-            <div className="row-between">
-              <span className="card-title">{summaryTitle}</span>
-              {appStage && currentStage?.id !== appStage.id ? (
-                <button className="link-btn" onClick={() => setCurrentStage(appStage.id)}>
-                  Set as current
-                </button>
-              ) : appStage ? (
-                <span className="pill pill-current">Current stage</span>
-              ) : null}
-            </div>
-            <div className="stat-grid" style={{ marginTop: 12 }}>
-              <div className="stat">
-                <div className="k">Distance</div>
-                <div className="v tnum">{formatDistanceKm(stats.distanceKm)}</div>
-              </div>
-              <div className="stat">
-                <div className="k">Ascent / descent</div>
-                <div className="v tnum" style={{ fontSize: 17 }}>
-                  ↗ {stats.totalAscentM ?? '—'} · ↘ {stats.totalDescentM ?? '—'} m
-                </div>
-              </div>
-              <div className="stat">
-                <div className="k">Elevation range</div>
-                <div className="v tnum" style={{ fontSize: 17 }}>
-                  {stats.minimumElevationM != null
-                    ? `${Math.round(stats.minimumElevationM)}–${Math.round(stats.maximumElevationM ?? 0)} m`
-                    : '—'}
-                </div>
-              </div>
-              <div className="stat">
-                <div className="k">{appStage ? 'Est. time' : 'Stages · stops'}</div>
-                <div className="v tnum" style={{ fontSize: 17 }}>
-                  {appStage ? `~${appStage.estimatedHours} h` : `${ROUTE.stages.length} · ${ROUTE.waypoints.length}`}
-                </div>
-              </div>
-            </div>
-            <div className="elev-section">
-              <p className="elev-heading">Elevation</p>
-              <ElevationProfile
-                profile={profile}
-                statistics={stats}
-                onScrub={(s) => mapRef.current?.setScrubPoint(s ? { lat: s.lat, lon: s.lon } : null)}
-              />
-            </div>
           </div>
 
           {/* Position & progress. No raw coordinates in the normal UI — the

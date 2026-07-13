@@ -1459,6 +1459,14 @@ button.map-status-pill {
   line-height: 1.45;
   color: var(--ink-faint);
 }
+/* Elevation profile inside a disclosure panel (each day guide and the
+   full-route summary card). The chart is width:100% and sits at the panel's
+   content edge, so it aligns with the written guidance and never overflows
+   the card on narrow phones. A small gap separates the "Elevation profile"
+   label from the chart without adding the heavier section rhythm. */
+.stage-guide__elevation .elev-wrap {
+  margin-top: 6px;
+}
 
 /* Map screen stage selector: a block grid with every option visible at
    once — no horizontal scrolling. "Full route" spans the row; the seven
@@ -1506,29 +1514,12 @@ button.map-status-pill {
 }
 
 /* Map screen primary composition (.map-layout > .map-card + .map-side).
-   Compact: plain blocks in DOM order — map card, route selector, combined
-   summary+elevation card. On roomy landscape viewports the wrapper becomes
-   a map-dominant two-column grid (see the adaptive-shell section below). */
+   Compact: plain blocks in DOM order — map card, route selector, position &
+   progress card. On roomy landscape viewports the wrapper becomes a
+   map-dominant two-column grid (see the adaptive-shell section below).
+   Route/stage planning (elevation, statistics) lives on Stages. */
 
 /* Elevation profile ------------------------------------------------------------ */
-
-/* Elevation section of the combined stage/route summary card: visually
-   separated below the 2×2 statistics, introduced by a quiet uppercase
-   mini-title (the app's eyebrow/section-label language — it must not
-   compete with the card title above). */
-.elev-section {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-.elev-heading {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
 
 .elev-wrap {
   position: relative;
@@ -3164,6 +3155,40 @@ button.stop-fac:focus-visible {
   font-size: 13px;
   line-height: 1.45;
 }
+/* Install toast heading: the visual title, distinct from the supporting
+   copy below it. The right padding reserves room for the absolutely
+   positioned close button so the two never collide on a narrow phone. */
+.pwa-toast--install {
+  position: relative;
+}
+.pwa-toast__title {
+  margin: 0;
+  padding-right: 40px;
+  color: var(--ink-strong);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.35;
+}
+/* Close (X): a 44×44 touch target parked in the toast's top-right corner;
+   dismisses the prompt exactly like "Later". */
+.pwa-toast__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  border-radius: var(--r-sm);
+}
+.pwa-toast__close:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: -2px;
+}
 .pwa-toast__actions {
   display: flex;
   gap: 8px;
@@ -3531,6 +3556,13 @@ button.stop-fac:focus-visible {
     gap: 14px;
     align-items: start;
   }
+  /* With route/stage planning moved to Stages, the information column holds
+     only the stage selector and the position/progress panel. Both are
+     content-sized: align-items:start keeps them at the top of the column,
+     and any unused height below simply stays empty rather than stretching
+     the compact position card to the map-dominant square's height. The
+     selector's 12px bottom margin and the map-layout 14px card rhythm are
+     unchanged. */
   /* Persistent status banners (satellite-not-downloaded, basemap missing)
      are part of the left card, so they are
      part of the fit — one allowance per banner, sized for the compact
@@ -3587,17 +3619,6 @@ button.stop-fac:focus-visible {
       font-size: 12.5px;
       padding: 6px 8px;
     }
-  }
-  /* Flatter elevation chart in the two-column composition. The chart's
-     intrinsic 360×150 shape grows ~0.42 × column width tall, and the wide
-     information column would let it push the tracking-hint card ("Use
-     Locate…") below the fold on fullscreen landscape screens. An explicit
-     height caps it — scaled to the viewport so short laptops get the
-     flattest chart — and ElevationProfile.tsx adapts its viewBox to the
-     rendered box, so the drawing stays uniform-scale and edge-to-edge:
-     no letterboxing, no stretched labels, exact scrub mapping. */
-  .map-layout .elev-svg {
-    height: clamp(120px, calc(var(--app-height, 100vh) * 0.19), 200px);
   }
   /* :where() keeps specificity at the base .mapview level so the
      .mapview:fullscreen rules above still win.
