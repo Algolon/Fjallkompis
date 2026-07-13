@@ -13,6 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   APP_HEIGHT_VAR,
+  STANDALONE_HEIGHT,
   startViewportHeightSync,
 } from '../src/utils/viewportHeight.mjs';
 
@@ -39,11 +40,14 @@ function fakeTarget() {
   };
 }
 
-function fakeWindow({ visualViewport = true } = {}) {
+function fakeWindow({ visualViewport = true, standalone = undefined } = {}) {
   const win = fakeTarget();
   const doc = fakeTarget();
   const style = new Map();
   win.innerHeight = 800;
+  // navigator.standalone: undefined = Android/other, false = browser-mode
+  // iOS Safari, true = Apple home-screen standalone PWA.
+  win.navigator = { standalone };
   win.document = doc;
   doc.visibilityState = 'visible';
   doc.activeElement = null;
@@ -213,4 +217,80 @@ test('tolerates a missing visualViewport', () => {
   assert.equal(win.appHeight(), '600px');
   stop();
   assert.equal(win.listenerCount(), 0);
+});
+
+// ---- 16–20. Apple home-screen standalone (WebKit bug 254868) ----------------
+// The iPhone installed-PWA regression: with viewport-fit=cover WebKit reports
+// visualViewport.height as the display height MINUS the safe-area insets, even
+// though the standalone canvas is the full display. Trusting it shortened the
+// shell (~85px on a 390×844 iPhone), leaving a blank band below the tab bar.
+// In standalone mode the shell authority must be the full canvas — expressed
+// as the WebKit-recommended CSS `100vh` token, not a pixel snapshot.
+test('Apple standalone writes the 100vh token, not the underreported height', () => {
+  const win = fakeWindow({ standalone: true });
+  win.innerHeight = 844; // full standalone canvas (iPhone 12/13/14 portrait)
+  win.visualViewport.height = 759; // WebKit's inset-subtracted under-report
+  const stop = startViewportHeightSync(win);
+  // The exact contract: a live CSS token, so WebKit keeps resolving the true
+  // full-screen canvas across rotation with no re-measure — never 759px.
+  assert.equal(win.appHeight(), STANDALONE_HEIGHT);
+  assert.equal(win.appHeight(), '100vh');
+  assert.notEqual(win.appHeight(), '759px');
+  stop();
+});
+
+test('Apple standalone keeps 100vh even while a text control is focused', () => {
+  // The keyboard shrinks the visual viewport; the full-canvas token is stable
+  // and must not be replaced by a pixel height on focus.
+  const win = fakeWindow({ standalone: true });
+  win.innerHeight = 844;
+  win.visualViewport.height = 500;
+  win.document.activeElement = { tagName: 'INPUT' };
+  const stop = startViewportHeightSync(win);
+  assert.equal(win.appHeight(), '100vh');
+  stop();
+});
+
+test('Apple standalone re-asserts 100vh on every lifecycle event', () => {
+  const win = fakeWindow({ standalone: true });
+  const stop = startViewportHeightSync(win);
+  assert.equal(win.appHeight(), '100vh');
+  for (const [target, event] of [
+    ['win', 'resize'],
+    ['win', 'orientationchange'],
+    ['win', 'pageshow'],
+    ['vv', 'resize'],
+  ]) {
+    (target === 'vv' ? win.visualViewport : win).dispatch(event);
+    assert.equal(win.appHeight(), '100vh');
+  }
+  stop();
+});
+
+// display-mode:standalone WITHOUT navigator.standalone === true is Android's
+// installed PWA. It must NOT take the Apple path — it needs case 1's stale
+// visualViewport protection. Our discriminator is navigator.standalone alone,
+// so an Android standalone (standalone: undefined) with a stale innerHeight
+// still resolves to the visible visualViewport height.
+test('Android standalone (no navigator.standalone) still prefers visualViewport', () => {
+  const win = fakeWindow({ standalone: undefined });
+  win.innerHeight = 915; // stale, oversized layout viewport after SW reload
+  win.visualViewport.height = 830; // what is genuinely visible
+  const stop = startViewportHeightSync(win);
+  assert.equal(win.appHeight(), '830px');
+  assert.notEqual(win.appHeight(), '100vh');
+  stop();
+});
+
+// Browser-mode iOS Safari reports navigator.standalone === false. It must stay
+// on the existing visualViewport logic (collapsible chrome makes 100vh unsafe
+// there), exactly like any other browser-mode mobile.
+test('browser-mode iOS (navigator.standalone === false) stays on visualViewport logic', () => {
+  const win = fakeWindow({ standalone: false });
+  win.innerHeight = 812;
+  win.visualViewport.height = 748;
+  const stop = startViewportHeightSync(win);
+  assert.equal(win.appHeight(), '748px');
+  assert.notEqual(win.appHeight(), '100vh');
+  stop();
 });

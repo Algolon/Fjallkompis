@@ -139,12 +139,22 @@ h3 {
           in CSS alone, but Android Chrome can leave it stale after the
           reload that applies a service-worker update and after resuming
           from background, which stranded the tab bar below the viewport.
-       3. --app-height — the JS-measured *visible* viewport height (the
-          visual viewport, since after the buggy reload even the layout
-          viewport can be oversized), refreshed on resize / visualViewport
-          resize / orientationchange / pageshow / visibilitychange (see
-          src/utils/viewportHeight.mjs). The var() fallbacks keep 1–2 in
-          charge until the first measurement lands. */
+       3. --app-height — the JS-resolved height authority, refreshed on
+          resize / visualViewport resize / orientationchange / pageshow /
+          visibilitychange (see src/utils/viewportHeight.mjs). Its value is
+          platform-specific:
+            - Android / browser-mode mobile: the JS-measured *visible*
+              viewport height in px (the visual viewport, since after the
+              buggy SW-update reload even the layout viewport can be
+              oversized).
+            - Apple home-screen standalone: the literal `100vh` token, so
+              CSS resolves the full standalone canvas. WebKit under-reports
+              `visualViewport.height` behind the safe-area insets there
+              (bug 254868), which would otherwise shorten the shell and
+              leave a blank band below the tab bar; standalone mode has no
+              browser chrome, so 100vh carries no phantom-scroll risk.
+          The var() fallbacks keep 1–2 in charge until the first
+          measurement lands. */
   height: 100vh;
   height: var(--app-height, 100vh);
   display: flex;
