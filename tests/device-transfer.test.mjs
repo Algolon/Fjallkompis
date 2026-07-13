@@ -126,3 +126,22 @@ test('a bare state object (no envelope) also imports', () => {
   assert.equal(restored.currentStageId, 'd3');
   assert.ok(restored.packing.some((i) => i.id === 'custom_abc'));
 });
+
+test('export/import preserves the selected route direction', () => {
+  const s = populatedState();
+  s.routeDirection = 'nikkaluokta-to-abisko';
+  const restored = exportImportRoundTrip(s);
+  assert.equal(restored.routeDirection, 'nikkaluokta-to-abisko');
+  // Unrelated data still intact.
+  assert.equal(restored.currentStageId, 'd3');
+  assert.equal(restored.hutData.salka.notes, 'Sauna coins!');
+});
+
+test('an older export without a direction imports as the canonical default', () => {
+  // A pre-v4 export never carried routeDirection.
+  const legacy = { ...populatedState(), schemaVersion: 3 };
+  delete legacy.routeDirection;
+  const restored = exportImportRoundTrip(legacy);
+  assert.equal(restored.routeDirection, 'abisko-to-nikkaluokta');
+  assert.ok(restored.packing.some((i) => i.id === 'custom_abc'), 'personal data survives');
+});

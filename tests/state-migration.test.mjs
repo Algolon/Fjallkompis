@@ -43,13 +43,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 3', () => {
-  assert.equal(SCHEMA_VERSION, 3);
+test('schema version is 4', () => {
+  assert.equal(SCHEMA_VERSION, 4);
 });
 
-test('v1 → v3: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v4: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 3);
+  assert.equal(s.schemaVersion, 4);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -182,11 +182,50 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 3);
+    assert.equal(s.schemaVersion, 4);
     assert.equal(s.currentStageId, 'd1');
+    assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
     assert.deepEqual(s.journal, []);
     assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
+  }
+});
+
+// ---- Route direction (v3 → v4) ---------------------------------------------
+
+test('v3 → v4: older state without routeDirection defaults to forward', () => {
+  // A realistic v3 payload never carried a direction field.
+  const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
+  const s = normalizeState(v3);
+  assert.equal(s.schemaVersion, 4);
+  assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
+  // Unrelated data survives untouched.
+  assert.equal(s.currentStageId, 'd5');
+});
+
+test('a valid routeDirection persists through normalisation', () => {
+  const s = normalizeState({ routeDirection: 'nikkaluokta-to-abisko' });
+  assert.equal(s.routeDirection, 'nikkaluokta-to-abisko');
+});
+
+test('invalid / unknown routeDirection values normalise to the canonical default', () => {
+  for (const bad of ['reverse', 'north', '', 42, null, {}, true, 'ABISKO-TO-NIKKALUOKTA']) {
+    const s = normalizeState({ routeDirection: bad });
+    assert.equal(s.routeDirection, 'abisko-to-nikkaluokta', `bad=${JSON.stringify(bad)}`);
+  }
+});
+
+test('defaultState uses the canonical forward direction', () => {
+  assert.equal(defaultState('d1').routeDirection, 'abisko-to-nikkaluokta');
+  assert.equal(defaultState().routeDirection, 'abisko-to-nikkaluokta');
+});
+
+test('direction normalisation is idempotent (both directions round-trip)', () => {
+  for (const dir of ['abisko-to-nikkaluokta', 'nikkaluokta-to-abisko']) {
+    const once = normalizeState({ routeDirection: dir, currentStageId: 'd2' });
+    const twice = normalizeState(once);
+    assert.deepEqual(twice, once);
+    assert.equal(once.routeDirection, dir);
   }
 });
 

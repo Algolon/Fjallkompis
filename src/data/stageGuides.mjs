@@ -280,3 +280,156 @@ export const STAGE_GUIDES = {
     lastVerified: '2026-07-11',
   },
 };
+
+/**
+ * Reverse-direction (Nikkaluokta → Abisko) overrides per STABLE physical
+ * segment id. Only the DIRECTION-DEPENDENT fields are authored here —
+ * `overview`, `highlights` (reordered/reoriented) and `watchFor` (resupply and
+ * approach direction). The direction-neutral fields (`terrain`, `sourceIds`,
+ * `lastVerified`) are inherited from the forward guide by {@link stageGuide},
+ * so trail character and provenance stay single-sourced.
+ *
+ * This content is REORIENTED from the same verified facts as the forward
+ * guides — it is not word-reversed prose, and it invents no new field
+ * conditions. No independent reverse-direction field verification was done, so
+ * the inherited `lastVerified` continues to mean "these underlying route facts
+ * were checked on that date"; the direction wording derives from them. Claims
+ * stay cautious and hedged (see docs/decisions/0003-route-direction.md).
+ */
+export const REVERSE_STAGE_GUIDES = {
+  d1: {
+    overview:
+      'An easy final day back into Abisko National Park: from the lake at ' +
+      'Abiskojaure the trail follows the Abiskojåkka down through sheltered ' +
+      'birch forest to the Abisko trailhead. Gentle and well-graded, but ' +
+      'still a full mountain-trail day out to the road and railway.',
+    highlights: [
+      'Lake Abiskojaure and its sandy beach by the cabins at the start',
+      'The forest gradually closing in as you descend toward Abisko',
+      'A limestone bluff with wide river views a few kilometres before Abisko',
+      'The rushing Abiskojåkka river and its canyon near the end',
+    ],
+    watchFor: [
+      'Abisko is a full-service stop again — apart from Kebnekaise station, the cabins behind you were small or had no shop',
+      'This sheltered forest day is the gentle end of the route; the exposed high fjäll is now behind you',
+    ],
+  },
+  d2: {
+    overview:
+      'A long day that hands the landscape back: from the open fjäll around ' +
+      'Alesjaure the route runs down the broad valley and along lake ' +
+      'Alisjávri, then drops through the treeline into the birch forest near ' +
+      'Abiskojaure. The exposed miles come first; shelter returns lower down.',
+    highlights: [
+      'Alesjaure cabins on their hill, overlooking lake and valley, at the start',
+      'Long views along lake Alisjávri',
+      'The suspension bridge over Šiellajohka',
+      'Dropping back below the treeline into sheltered birch forest',
+    ],
+    watchFor: [
+      'A long, exposed day up high with few sheltered spots until the forest — check the forecast before committing',
+      'In high season a small private boat can shorten the walk along Alisjávri; it is seasonal and never guaranteed, so don’t plan around it',
+    ],
+  },
+  d3: {
+    overview:
+      'A shorter day down the broad high valley from Tjäktja — the highest ' +
+      'cabin on the Kungsleden, just below the pass — losing height toward ' +
+      'greener ground around Alesjaure. Austere fjäll gradually gives way to ' +
+      'lower, less sparse country.',
+    highlights: [
+      'The barren country around Tjäktjapasset close behind you at the start',
+      'The wide sweep of the upper valley, river braiding below the trail',
+      'Vegetation slowly returning as you lose height toward Alesjaure',
+    ],
+    watchFor: [
+      'Open and weather-exposed up high; wind is often strongest near the pass behind you',
+      'Alesjaure ahead has a shop and sauna — the first resupply since Sälka',
+    ],
+  },
+  d4: {
+    overview:
+      'Up to Tjäktjapasset — at about 1,150 m the highest point of the entire ' +
+      'Kungsleden — approached from the south. Long, gently rising valley ' +
+      'walking up Tjäktjavagge leads to a steep, stony climb to the pass, ' +
+      'with Tjäktja cabin a short way down the far side. The difficulty is ' +
+      'exposure, conditions and the climb rather than distance.',
+    highlights: [
+      'Tjäktjavagge opening out behind you as you gain height',
+      'The steep, stony pull to Tjäktjapasset — the route’s high point, with an unstaffed day shelter near the top',
+      'Wide views back down the valley from the pass',
+    ],
+    watchFor: [
+      'Snow patches often linger around the pass well into summer — depending on conditions you may cross old snowfields on the climb',
+      'In poor visibility or hard wind this is the most serious point of the week; the pass shelter is for rest and emergencies, not accommodation',
+      'Valley streams can run high with meltwater after warm days or rain',
+      'Tjäktja has no shop or sauna — carry food from Sälka',
+    ],
+  },
+  d5: {
+    overview:
+      'A gentle valley day up Tjäktjavagge, framed by steep mountainsides and ' +
+      'glacier-bearing peaks. It begins at Singi — where this route meets the ' +
+      'main Kungsleden — and follows easy gradients to the well-equipped ' +
+      'cabin at Sälka.',
+    highlights: [
+      'The Singi junction — the main Kungsleden runs south from here, and this route comes in from Kebnekaise',
+      'Suspension bridges over the Gaskkasjohka streams',
+      'The broad reaches of Tjäktjavagge, big-mountain views on both sides toward Sälka',
+    ],
+    watchFor: [
+      'Singi has no shop or sauna — Sälka ahead is the next resupply',
+      'Wet sections vary with weather and meltwater, even on this easier day',
+    ],
+  },
+  d6: {
+    overview:
+      'Leaving the large Kebnekaise Mountain Station, the day heads up ' +
+      'Ladtjovagge and back into narrow, alpine country to Singi, where it ' +
+      'rejoins the official Kungsleden. Steep valley walls and the peaks of ' +
+      'the Kebnekaise massif frame the start.',
+    highlights: [
+      'Kebnekaise Mountain Station and the massif’s peaks — cloud permitting — at the start',
+      'Duolbagorni (Tolpagorni) with its crater-like hollow to the north as you head up the valley',
+      'Narrowing, dramatic valley walls on the approach to Singi',
+      'Singi, where the connecting trail rejoins the official Kungsleden',
+    ],
+    watchFor: [
+      'As far as Singi you follow the connecting trail from Kebnekaise, not the official Kungsleden — the way remains clearly marked',
+      'The station area is far busier than the cabins ahead: Kebnekaise summit traffic gathers here',
+      'Singi has no shop or sauna — carry what you need from Kebnekaise',
+    ],
+  },
+  d7: {
+    overview:
+      'The way in from the road head at Nikkaluokta: a long but mostly easy ' +
+      'first day on a well-used trail, rising gently from birch forest around ' +
+      'lake Láddjujávri onto open fjäll and up Ladtjovagge to Kebnekaise ' +
+      'Mountain Station. Straightforward underfoot, yet a substantial day if ' +
+      'walked in full.',
+    highlights: [
+      'Nikkaluokta trailhead, with a seasonal bus link from Kiruna, at the start',
+      'Lake Láddjujávri, with the lakeside restaurant at the boat landing (Enoks — famous for its reindeer burger)',
+      'Birch forest giving way to open fjäll as you gain height',
+      'The Kebnekaise massif rising ahead up the valley',
+    ],
+    watchFor: [
+      'A seasonal boat across Láddjujávri (run by Enoks, typically mid-June to mid-September) can cut roughly 6 km off the day — schedules, capacity and running status must be verified locally; never count on it',
+      'The Kiruna–Nikkaluokta bus is seasonal too — check current timetables before the trip',
+    ],
+  },
+};
+
+/**
+ * The resolved day guide for a stage in the given direction. Forward returns
+ * the canonical guide unchanged; reverse merges the direction-neutral fields
+ * (terrain, sources, verification date) with the reverse overrides above.
+ * Unknown stage ids return undefined.
+ */
+export function stageGuide(stageId, direction) {
+  const base = STAGE_GUIDES[stageId];
+  if (!base) return undefined;
+  if (direction !== 'nikkaluokta-to-abisko') return base;
+  const overrides = REVERSE_STAGE_GUIDES[stageId];
+  return overrides ? { ...base, ...overrides } : base;
+}

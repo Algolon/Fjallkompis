@@ -237,8 +237,12 @@ test('Lists deep link is a one-shot in-memory payload, default Packing', () => {
   assert.ok(!/localStorage[\s\S]*lists/.test(app), 'deep link is not persisted');
 });
 
-test('no persisted-state schema change was introduced (still v3)', () => {
+test('the context-help / deep-link feature persists nothing of its own', () => {
+  // Deep-link payloads are one-shot in-memory Nav state, never persisted. The
+  // persisted schema (now v4 — the route-direction feature owns that bump, see
+  // tests/state-migration.test.mjs) carries no deep-link / lists field.
   const mig = read('src/utils/stateMigration.mjs');
-  assert.match(mig, /SCHEMA_VERSION\s*=\s*3/, 'schema stays at v3');
-  assert.ok(!/SCHEMA_VERSION\s*=\s*4/.test(mig), 'no v4 migration added');
+  assert.ok(!/lists|deepLink|guideStageId/.test(mig), 'no deep-link field persisted');
+  const app = read('src/App.tsx');
+  assert.ok(!/localStorage[\s\S]*lists/.test(app), 'deep link never touches storage');
 });

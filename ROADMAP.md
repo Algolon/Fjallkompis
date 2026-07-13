@@ -21,8 +21,10 @@ outdoor platform.
 
 ## Current state
 
-Offline-first Kungsleden hiking companion PWA (beta, v0.18.0). The core trip
-loop works end to end and offline: verified route with stage statistics and
+Offline-first Kungsleden hiking companion PWA (beta, v0.20.0). The core trip
+loop works end to end and offline, in either walking direction (Abisko →
+Nikkaluokta or the reverse, chosen in Settings): verified route with stage
+statistics and
 elevation profiles, researched per-stage day guides (sources and verification
 dates auditable in the repo), along-route GPS progress on the current stage,
 an offline vector basemap with hillshade and contour relief, plus an optional
@@ -122,6 +124,19 @@ cross-device synchronization is deliberately far down this roadmap.
   until its imagery actually ships.
 
 ## Completed
+
+- **Reversible route direction (v0.20.0)**: the route can be walked
+  Abisko → Nikkaluokta (default) or Nikkaluokta → Abisko, chosen in Settings.
+  One canonical GPX dataset feeds a pure, tested active-itinerary transform
+  (reversed order/endpoints/geometry, distances rebuilt from 0, ascent/descent
+  swapped, direction-aware editorial); every screen consumes the active
+  itinerary rather than reversing data locally. Physical segment ids `d1`–`d7`
+  are kept as stable identities (a saved current stage, Map selection and deep
+  links survive a direction change) while the displayed day is direction-
+  derived. Persisted schema v4 (older data defaults to forward); architecture
+  recorded in [ADR 0003](docs/decisions/0003-route-direction.md). First
+  architectural step toward a modular itinerary model — still exactly two
+  validated directions, not a free-form builder.
 
 - **Stage day guides & Daily checklist archive (v0.18.0)**: every stage card
   on Stages expands into a researched, hedged day guide (overview, trail

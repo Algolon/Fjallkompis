@@ -17,7 +17,7 @@ import { ContextHelp } from '../components/ContextHelp';
 import { FacilityIcon } from '../components/FacilityIcon';
 import { StopVisual } from '../components/StopVisual';
 import {
-  STOPS,
+  STOPS_BY_ID,
   collapsedFacilities,
   importantAbsences,
   stopShortName,
@@ -25,7 +25,7 @@ import {
 import { shopTypeForStop } from '../data/shops.mjs';
 import { transportLinkForStop } from '../data/transport.mjs';
 import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
-import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID, WAYPOINT_ROUTE_KM } from '../route/routeData';
+import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import type { StopTransportLink } from '../data/transport.mjs';
 import type { ShopCategory, TrailStop } from '../types';
 import type { TabId } from '../components/TabBar';
@@ -96,6 +96,7 @@ function TripNote({ stop }: { stop: TrailStop }) {
 
 function StopCard({
   stop,
+  routeKm,
   open,
   onToggle,
   headerRef,
@@ -104,6 +105,8 @@ function StopCard({
   onOpenTransport,
 }: {
   stop: TrailStop;
+  /** Cumulative km from the selected itinerary start (0 at the start stop). */
+  routeKm: number;
   open: boolean;
   onToggle: () => void;
   headerRef: (el: HTMLButtonElement | null) => void;
@@ -112,7 +115,6 @@ function StopCard({
   onOpenTransport: (link: StopTransportLink) => void;
 }) {
   const waypoint = WAYPOINT_BY_ID[HUT_TO_WAYPOINT[stop.id]];
-  const routeKm = WAYPOINT_ROUTE_KM[HUT_TO_WAYPOINT[stop.id]] ?? 0;
   const elevation = waypoint?.elevation != null ? Math.round(waypoint.elevation) : null;
   const icons = collapsedFacilities(stop);
   const absences = importantAbsences(stop);
@@ -330,6 +332,13 @@ export function StopsScreen({
   initialStopId?: string | null;
   onNavigate: (tab: TabId, payload?: NavPayload) => void;
 }) {
+  // Stops in the ACTIVE itinerary's walking order, with route-km measured from
+  // the selected start (facilities/notes stay tied to the STABLE stop id).
+  const { itinerary } = useStore();
+  const stops = itinerary.orderedStops;
+  const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
+  const endStop = itinerary.endStopId ? STOPS_BY_ID[itinerary.endStopId] : null;
+
   // Deep link out to the matching Lists section (one-shot in-memory payload,
   // the same pattern as Today → Stages / Map → Stops).
   const openShop = (shopType: ShopCategory) => onNavigate('checklist', { lists: { shopType } });
@@ -348,21 +357,22 @@ export function StopsScreen({
   // into view once mounted.
   useEffect(() => {
     if (!openedFromNav.current) return;
-    const idx = STOPS.findIndex((s) => s.id === openedFromNav.current);
+    const idx = stops.findIndex((s) => s.id === openedFromNav.current);
     headerRefs.current[idx]?.scrollIntoView({ block: 'start', behavior: 'auto' });
     openedFromNav.current = null;
-  }, []);
+  }, [stops]);
 
-  // WAI-ARIA accordion keyboard pattern: arrows/Home/End move between headers.
+  // WAI-ARIA accordion keyboard pattern: arrows/Home/End move between headers,
+  // following the RENDERED (itinerary) order.
   const onHeaderKeyDown = (index: number) => (e: React.KeyboardEvent) => {
     const focus = (i: number) => {
-      headerRefs.current[(i + STOPS.length) % STOPS.length]?.focus();
+      headerRefs.current[(i + stops.length) % stops.length]?.focus();
       e.preventDefault();
     };
     if (e.key === 'ArrowDown') focus(index + 1);
     else if (e.key === 'ArrowUp') focus(index - 1);
     else if (e.key === 'Home') focus(0);
-    else if (e.key === 'End') focus(STOPS.length - 1);
+    else if (e.key === 'End') focus(stops.length - 1);
   };
 
   return (
@@ -383,8 +393,12 @@ export function StopsScreen({
           </ContextHelp>
         }
       >
-        Eight stops, north to south. Facility details are a verified snapshot —
-        tap a stop to see everything.
+        Eight stops in walking order
+        {startStop && endStop
+          ? `, ${stopShortName(startStop)} to ${stopShortName(endStop)}`
+          : ''}
+        . Facility details are a verified snapshot — tap a stop to see
+        everything.
       </ScreenHeader>
 
       {/* stops-detail switches the roomy-landscape grid (≥ 900×500, see
@@ -396,12 +410,13 @@ export function StopsScreen({
           the number of stops. */}
       <div
         className={`stack${openId ? ' stops-detail' : ''}`}
-        style={{ marginTop: 14, '--stop-count': STOPS.length } as React.CSSProperties}
+        style={{ marginTop: 14, '--stop-count': stops.length } as React.CSSProperties}
       >
-        {STOPS.map((stop, i) => (
+        {stops.map((stop, i) => (
           <StopCard
             key={stop.id}
             stop={stop}
+            routeKm={itinerary.stopDistanceKm[stop.id] ?? 0}
             open={openId === stop.id}
             onToggle={() => setOpenId((cur) => (cur === stop.id ? null : stop.id))}
             headerRef={(el) => {

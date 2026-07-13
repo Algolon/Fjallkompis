@@ -46,6 +46,57 @@ bounds and monotonic cumulative distances. The generator itself fails the
 build on hard violations. In dev, a route-diagnostics summary is logged to the
 console.
 
+## Active itinerary & route direction
+
+The generated route (above) is the **canonical physical route**, stored once,
+north-to-south. The app can present it in either walking direction — Abisko →
+Nikkaluokta (default) or Nikkaluokta → Abisko — chosen in **Settings**. The
+architecture and rationale live in
+[ADR 0003](decisions/0003-route-direction.md); the essentials for contributors:
+
+```
+ROUTE (canonical, forward)                      selected RouteDirection
+        │                                                │
+        └──────────────► buildDirectionalItinerary() ◄───┘   (src/route/itinerary.mjs, pure + tested)
+                                   │
+                                   ▼
+                         getActiveItinerary(direction)         (src/route/activeItinerary.ts, memoised, + editorial)
+                                   │
+                                   ▼
+                         useStore().itinerary / stages / currentStage   ← every screen reads this
+```
+
+- **One active-itinerary layer, no local reversal.** Screens and store
+  selectors consume the active itinerary (ordered stages/stops, oriented
+  geometry, elevation profiles, statistics, stop distances, display name).
+  **Do not** call `.reverse()` on route data in a screen, and never render
+  reversed progress as `100 − percent` — supply correctly oriented geometry and
+  let the existing projection (`routeProgress.mjs`) compute against it. The
+  transform mirrors `cumulativeDistanceKm` (`total − cum`) from the generator's
+  verified distances and swaps ascent/descent; it never recomputes from raw
+  jitter and never mutates the canonical arrays (forward returns them by
+  identity).
+- **Stable physical id vs itinerary day.** The `d1`–`d7` ids are **stable
+  physical-segment identities** (the north-to-south generation order), keyed on
+  by persisted current-stage state, Map selection, deep links and tests. They
+  are **no longer the itinerary day** — the displayed `day` is direction-derived
+  (reverse: `d7` = Day 1 … `d1` = Day 7). UI shows the itinerary day; it never
+  infers a day from the id.
+- **Direction is a persisted preference, never inferred from GPS.** It lives in
+  `PersistentState.routeDirection` (schema v4; older payloads and invalid values
+  normalise to the default — `src/route/direction.mjs`,
+  `src/utils/stateMigration.mjs`). Only the direction is persisted; the itinerary
+  is rebuilt at runtime. Changing direction reinitialises reactively (no reload):
+  the physical current-stage id is preserved, and `App` resets the in-memory Map
+  browse state and drops one-shot deep-link payloads.
+- **Direction-aware editorial.** Only content whose meaning changes with
+  direction has variants — one-line notes (`stageEditorial.mjs`), day-guide
+  `overview`/`highlights`/`watchFor` (`stageGuides.mjs`) and climb/descent chips
+  (`stageHighlights.mjs`); shared, direction-neutral content stays single-
+  sourced. Walking-time estimates are direction-neutral and explicitly
+  approximate. A future third itinerary would reuse this transform + the stable
+  segment identity; free-form itinerary building is deliberately out of scope.
+
 ## Offline basemap
 
 `scripts/extract-offline-map.sh [BUILD_DATE] [MAXZOOM]` extracts the region
@@ -592,11 +643,14 @@ fjallkompis/
 │  └─ check-version-consistency.mjs  # version-drift guard (npm run check:version)
 ├─ tests/
 │  ├─ route-data.test.mjs       # deterministic pipeline validation
-│  ├─ state-migration.test.mjs  # localStorage schema migrations (v1 → v3)
+│  ├─ state-migration.test.mjs  # localStorage schema migrations (v1 → v4)
 │  ├─ shop-info.test.mjs        # shop classifications + assortment semantics
 │  ├─ shops-by-type.test.mjs    # 3 shop-type categories + stop→type deep links
 │  ├─ transport.test.mjs        # timetable validity / expired-state logic
 │  ├─ stage-guides.test.mjs     # day-guide content/sources integrity
+│  ├─ itinerary.test.mjs        # pure directional-itinerary transform (both directions)
+│  ├─ route-direction.test.mjs  # direction constants + reverse editorial resolvers
+│  ├─ route-direction-screens.test.mjs # screens consume the active itinerary
 │  ├─ checklist-removal.test.mjs # archived Daily checklist stays absent
 │  └─ version-consistency.test.mjs   # the guard passes AND fails correctly
 ├─ public/

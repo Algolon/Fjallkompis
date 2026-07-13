@@ -18,7 +18,7 @@ import {
   Waves,
   Wind,
 } from 'lucide-react';
-import { useStore, STAGES } from '../store/AppStore';
+import { useStore } from '../store/AppStore';
 import { ScreenHeader, OnlineBadge } from '../components/ui';
 import { FacilityIcon } from '../components/FacilityIcon';
 import {
@@ -30,7 +30,8 @@ import {
 import { stageHighlights } from '../data/stageHighlights.mjs';
 import type { StageHighlightIcon } from '../data/stageHighlights.mjs';
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
-import { HUT_TO_WAYPOINT, STAGE_BY_ID, WAYPOINT_BY_ID } from '../route/routeData';
+import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
+import type { ElevationSample } from '../route/types';
 import type { TabId } from '../components/TabBar';
 import type { ListsDeepLink } from './ListsScreen';
 
@@ -73,10 +74,13 @@ const HIGHLIGHT_ICONS: Record<StageHighlightIcon, typeof Wind> = {
   'tree-pine': TreePine,
 };
 
-/** Subtle elevation silhouette drawn behind the hero card content. */
-function HeroSilhouette({ stageId }: { stageId: string }) {
+/**
+ * Subtle elevation silhouette drawn behind the hero card content. The profile
+ * is the ACTIVE stage's oriented elevation profile (0 km at the direction's
+ * stage start), so the silhouette follows the direction being walked.
+ */
+function HeroSilhouette({ profile }: { profile: ElevationSample[] }) {
   const path = useMemo(() => {
-    const profile = STAGE_BY_ID[stageId]?.elevationProfile;
     if (!profile || profile.length < 2) return null;
     const W = 400;
     const H = 120;
@@ -96,7 +100,7 @@ function HeroSilhouette({ stageId }: { stageId: string }) {
       pts.push(`${b === 0 ? 'M' : 'L'}${sx(p.distanceKm).toFixed(1)},${sy(p.elevationM).toFixed(1)}`);
     }
     return { line: pts.join(''), area: `${pts.join('')}L${W},${H}L0,${H}Z`, W, H };
-  }, [stageId]);
+  }, [profile]);
 
   if (!path) return null;
   return (
@@ -113,11 +117,14 @@ function HeroSilhouette({ stageId }: { stageId: string }) {
 }
 
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
-  const { currentStage } = useStore();
+  const { currentStage, stages, routeDirection } = useStore();
 
   // Static, priority-capped stage metadata (max four) — deterministic and
-  // offline; no GPS, network or time-of-day input.
-  const highlights = currentStage ? stageHighlights(currentStage.id) : [];
+  // offline; no GPS, network or time-of-day input. Direction-aware: the
+  // climb/descent chips reflect the way this physical segment is walked.
+  const highlights = currentStage
+    ? stageHighlights(currentStage.id, undefined, routeDirection)
+    : [];
   const from = currentStage ? STOPS_BY_ID[currentStage.fromHutId] : null;
   const to = currentStage ? STOPS_BY_ID[currentStage.toHutId] : null;
   const nextStop = to;
@@ -168,9 +175,9 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
               today's stage, its essential characteristics, and the two
               follow-up actions — nothing else grows in here. */}
           <section className="hero" aria-label={`Current stage, day ${currentStage.day}`}>
-            <HeroSilhouette stageId={currentStage.id} />
+            <HeroSilhouette profile={currentStage.elevationProfile} />
             <div className="hero-content">
-              <span className="hero-day">Day {currentStage.day} of {STAGES.length}</span>
+              <span className="hero-day">Day {currentStage.day} of {stages.length}</span>
               <h2 className="hero-title">
                 {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
               </h2>
@@ -229,11 +236,11 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
             <div className="row-between">
               <span className="card-title">Journey</span>
               <span className="card-sub tnum" style={{ marginTop: 0 }}>
-                Day {currentStage.day} of {STAGES.length}
+                Day {currentStage.day} of {stages.length}
               </span>
             </div>
             <div className="journey" role="list">
-              {STAGES.map((stage) => {
+              {stages.map((stage) => {
                 const status =
                   stage.day < currentStage.day
                     ? 'past'
@@ -261,8 +268,8 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
               })}
             </div>
             <div className="journey-legend row-between">
-              <span>{stopShortName(STOPS_BY_ID[STAGES[0].fromHutId])}</span>
-              <span>{stopShortName(STOPS_BY_ID[STAGES[STAGES.length - 1].toHutId])}</span>
+              <span>{stopShortName(STOPS_BY_ID[stages[0].fromHutId])}</span>
+              <span>{stopShortName(STOPS_BY_ID[stages[stages.length - 1].toHutId])}</span>
             </div>
           </section>
 

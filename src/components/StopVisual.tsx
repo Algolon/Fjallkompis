@@ -10,16 +10,16 @@
 import { useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 import type { TrailStop } from '../types';
-import { HUT_TO_WAYPOINT, OVERVIEW_ELEVATION_PROFILE, WAYPOINT_ROUTE_KM } from '../route/routeData';
-import { stopShortName } from '../data/stops';
+import type { ElevationSample } from '../route/types';
+import { STOPS_BY_ID, stopShortName } from '../data/stops';
+import { useStore } from '../store/AppStore';
 
 const W = 400;
 const H = 160;
 
-/** Downsampled overview silhouette, computed once per module load. */
-function useSilhouette() {
+/** Downsampled silhouette of the ACTIVE overview profile (rebuilt per direction). */
+function useSilhouette(profile: ElevationSample[]) {
   return useMemo(() => {
-    const profile = OVERVIEW_ELEVATION_PROFILE;
     if (profile.length < 2) return null;
     const xMax = profile[0] ? profile[profile.length - 1].distanceKm : 1;
     const eles = profile.map((p) => p.elevationM);
@@ -61,12 +61,15 @@ function useSilhouette() {
       },
       sx,
     };
-  }, []);
+  }, [profile]);
 }
 
 export function StopVisual({ stop }: { stop: TrailStop }) {
-  const sil = useSilhouette();
-  const routeKm = WAYPOINT_ROUTE_KM[HUT_TO_WAYPOINT[stop.id]] ?? 0;
+  const { itinerary } = useStore();
+  const sil = useSilhouette(itinerary.overviewElevationProfile);
+  const routeKm = itinerary.stopDistanceKm[stop.id] ?? 0;
+  const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
+  const startName = startStop ? stopShortName(startStop) : 'the start';
 
   if (stop.image) {
     return (
@@ -96,7 +99,7 @@ export function StopVisual({ stop }: { stop: TrailStop }) {
     <div
       className="stop-visual stop-visual-fallback"
       role="img"
-      aria-label={`${stopShortName(stop)} — position on the route's elevation silhouette, ${routeKm.toFixed(0)} km from Abisko`}
+      aria-label={`${stopShortName(stop)} — position on the route's elevation silhouette, ${routeKm.toFixed(0)} km from ${startName}`}
     >
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
         <defs>
@@ -137,7 +140,7 @@ export function StopVisual({ stop }: { stop: TrailStop }) {
       </svg>
       <span className="stop-visual-tag">
         <MapPin size={13} strokeWidth={2} aria-hidden />
-        {routeKm.toFixed(0)} km from Abisko
+        {routeKm.toFixed(0)} km from {startName}
       </span>
     </div>
   );

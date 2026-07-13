@@ -1,37 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { useStore, STAGES } from '../store/AppStore';
+import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
-import { STAGE_GUIDES } from '../data/stageGuides.mjs';
+import { stageGuide } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
 import {
   formatDistanceKm,
   formatHoursEstimate,
   formatVerifiedDate,
 } from '../utils/format';
-import { ROUTE, OVERVIEW_ELEVATION_PROFILE, STAGE_BY_ID } from '../route/routeData';
+import type { ItineraryStage } from '../route/activeItinerary';
 
 /**
  * The expanded day guide: this stage's own elevation profile first, then
  * editorial, hedged route guidance from src/data/stageGuides.mjs —
  * deliberately calm prose, not another stats dashboard, and NOT live
- * conditions. The chart uses the authoritative hydrated stage data
- * (STAGE_BY_ID[stageId]) — stage-local distances (0 → stage length) and
- * statistics, never a crop of the overview profile. Sources/verification
- * stay auditable in the data module; the panel shows only the verification
- * date.
+ * conditions. The chart uses the ACTIVE itinerary stage's oriented data
+ * (stage-local distances 0 → stage length and direction-aware ascent/descent),
+ * never a crop of the overview profile. Sources/verification stay auditable in
+ * the data module; the panel shows only the verification date.
  */
-function StageGuidePanel({ stageId, guide }: { stageId: string; guide: StageGuide }) {
-  const routeStage = STAGE_BY_ID[stageId];
+function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: StageGuide }) {
   return (
     <>
       <div className="stage-guide__section stage-guide__elevation">
         <span className="stage-guide__label">Elevation profile</span>
         <ElevationProfile
-          profile={routeStage.elevationProfile}
-          statistics={routeStage.statistics}
+          profile={stage.elevationProfile}
+          statistics={stage.statistics}
         />
       </div>
 
@@ -76,7 +74,11 @@ export function StagesScreen({
   /** Today's "Stage Guide" deep link: open this stage's guide on arrival. */
   initialGuideStageId?: string | null;
 }) {
-  const { state, currentStage, setCurrentStage } = useStore();
+  const { state, itinerary, stages, currentStage, setCurrentStage } = useStore();
+  const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
+  const endStop = itinerary.endStopId ? STOPS_BY_ID[itinerary.endStopId] : null;
+  const startName = startStop ? stopShortName(startStop) : 'the start';
+  const endName = endStop ? stopShortName(endStop) : 'the end';
   // Independent disclosure per card; collapsed on entry unless deep-linked
   // from Today's Stage Guide action (matches the Stops accordion pattern:
   // local state only, nothing persisted).
@@ -115,21 +117,21 @@ export function StagesScreen({
   return (
     <div className="screen screen--stages">
       <ScreenHeader eyebrow="7 days · 8 stops" title="Stages">
-        The week from Abisko to Nikkaluokta as seven day stages. Distances and
-        climbing come from the GPX; ± times are personal estimates. Open a
+        The week from {startName} to {endName} as seven day stages. Distances
+        and climbing come from the GPX; ± times are personal estimates. Open a
         day’s guide for what to expect, and use the pill in its corner to set
         the stage you’re walking.
       </ScreenHeader>
 
       <div className="card" style={{ marginBottom: 14 }}>
-        <span className="card-title">{ROUTE.name}</span>
+        <span className="card-title">{itinerary.displayName}</span>
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <span className="pill tnum">{formatDistanceKm(ROUTE.statistics.distanceKm)} total</span>
-          <span className="pill tnum">↗ {ROUTE.statistics.totalAscentM} m</span>
-          <span className="pill tnum">↘ {ROUTE.statistics.totalDescentM} m</span>
+          <span className="pill tnum">{formatDistanceKm(itinerary.statistics.distanceKm)} total</span>
+          <span className="pill tnum">↗ {itinerary.statistics.totalAscentM} m</span>
+          <span className="pill tnum">↘ {itinerary.statistics.totalDescentM} m</span>
           <span className="pill tnum">
-            {Math.round(ROUTE.statistics.minimumElevationM ?? 0)}–
-            {Math.round(ROUTE.statistics.maximumElevationM ?? 0)} m
+            {Math.round(itinerary.statistics.minimumElevationM ?? 0)}–
+            {Math.round(itinerary.statistics.maximumElevationM ?? 0)} m
           </span>
         </div>
 
@@ -157,12 +159,12 @@ export function StagesScreen({
             id={routeElevPanelId}
             className="stage-guide"
             role="region"
-            aria-label={`${ROUTE.name} elevation profile`}
+            aria-label={`${itinerary.displayName} elevation profile`}
           >
             <div className="stage-guide__section stage-guide__elevation">
               <ElevationProfile
-                profile={OVERVIEW_ELEVATION_PROFILE}
-                statistics={ROUTE.statistics}
+                profile={itinerary.overviewElevationProfile}
+                statistics={itinerary.statistics}
               />
             </div>
           </div>
@@ -170,11 +172,11 @@ export function StagesScreen({
       </div>
 
       <div className="stack">
-        {STAGES.map((stage) => {
+        {stages.map((stage) => {
           const from = STOPS_BY_ID[stage.fromHutId];
           const to = STOPS_BY_ID[stage.toHutId];
           const isCurrent = state.currentStageId === stage.id;
-          const guide = STAGE_GUIDES[stage.id];
+          const guide = stageGuide(stage.id, itinerary.direction);
           const guideOpen = openGuides.has(stage.id);
           const guidePanelId = `stage-guide-${stage.id}`;
           return (
@@ -256,7 +258,7 @@ export function StagesScreen({
                       role="region"
                       aria-label={`Day ${stage.day} guide`}
                     >
-                      <StageGuidePanel stageId={stage.id} guide={guide} />
+                      <StageGuidePanel stage={stage} guide={guide} />
                     </div>
                   ) : null}
                 </>

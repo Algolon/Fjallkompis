@@ -1,11 +1,15 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  Check,
   CheckCircle2,
   ChevronDown,
   Circle,
   ExternalLink,
 } from 'lucide-react';
 import { useStore } from '../store/AppStore';
+import { ROUTE_DIRECTIONS } from '../route/direction.mjs';
+import { getActiveItinerary } from '../route/activeItinerary';
+import type { RouteDirection } from '../types';
 import { ScreenHeader } from '../components/ui';
 import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
@@ -40,6 +44,11 @@ type SettingsSection =
 
 const BETA_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSdKmFYZ4uRrfcqc5dPlF1VgxFcggMjtFVl8WQyLtebGokUllg/viewform';
+
+/** Human label for a direction, sourced from its itinerary (single source). */
+function directionLabel(direction: RouteDirection): string {
+  return getActiveItinerary(direction).displayName;
+}
 
 function checkLabel(done: boolean, pending = false): string {
   if (pending) return 'Checking…';
@@ -222,6 +231,140 @@ function SettingsAccordion({
   );
 }
 
+/**
+ * Compact, accessible confirmation dialog for a direction change. Focus is
+ * moved to the primary action on open; Escape and the backdrop cancel. No new
+ * design language — reuses the app's button and card classes.
+ */
+function ConfirmDialog({
+  title,
+  body,
+  primaryLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  body: string;
+  primaryLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    confirmRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="confirm-backdrop" onClick={onCancel}>
+      <div
+        className="card confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-body"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span id="confirm-title" className="card-title">{title}</span>
+        <p id="confirm-body" className="card-sub" style={{ marginTop: 6 }}>
+          {body}
+        </p>
+        <div className="row" style={{ marginTop: 14, gap: 10 }}>
+          <button
+            ref={confirmRef}
+            className="btn btn-primary"
+            style={{ flex: 1 }}
+            onClick={onConfirm}
+          >
+            {primaryLabel}
+          </button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Route direction chooser — an accessible radio group over the two supported
+ * directions, rendered inside the Route direction accordion. Changing direction
+ * reorders stages, stops, elevation profiles and progress; a confirmation
+ * dialog appears first whenever a current stage is selected (personal data is
+ * never touched).
+ */
+function RouteDirectionCard() {
+  const { routeDirection, setRouteDirection, currentStage } = useStore();
+  const [pending, setPending] = useState<RouteDirection | null>(null);
+
+  const request = (dir: RouteDirection) => {
+    if (dir === routeDirection) return; // never confirm the active direction
+    // A current stage (or live progress) makes the change consequential — ask
+    // first. With nothing selected, apply immediately.
+    if (currentStage) setPending(dir);
+    else setRouteDirection(dir);
+  };
+
+  return (
+    <>
+      <p className="card-sub" style={{ marginTop: 0 }}>
+        Choose the direction you are walking. Stages, stops, elevation profiles
+        and progress will follow this sequence.
+      </p>
+
+      <div
+        className="direction-group"
+        role="radiogroup"
+        aria-label="Route direction"
+        style={{ marginTop: 12 }}
+      >
+        {ROUTE_DIRECTIONS.map((dir) => {
+          const selected = dir === routeDirection;
+          return (
+            <label
+              key={dir}
+              className={`direction-option${selected ? ' is-selected' : ''}`}
+            >
+              <input
+                type="radio"
+                name="route-direction"
+                value={dir}
+                checked={selected}
+                onChange={() => request(dir)}
+              />
+              <span className="direction-option__label">{directionLabel(dir)}</span>
+              <Check
+                className="direction-option__check"
+                size={18}
+                strokeWidth={2.4}
+                aria-hidden
+              />
+            </label>
+          );
+        })}
+      </div>
+
+      {pending ? (
+        <ConfirmDialog
+          title="Change route direction?"
+          body="Stages and progress will be reordered for the new direction. Your packing list, journal and stop notes will stay unchanged. Any live tracking on the Map stops."
+          primaryLabel="Change direction"
+          onConfirm={() => {
+            setRouteDirection(pending);
+            setPending(null);
+          }}
+          onCancel={() => setPending(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
 function BetaFeedbackCard() {
   return (
     <div className="card beta-card">
@@ -258,8 +401,12 @@ export function SettingsScreen() {
   const { state, storageOk, replaceState, resetAll } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  // Route direction is the primary setting: its accordion is the ONE section
+  // open on load. Trail readiness (its own independent state) and the grouped
+  // foldouts below start collapsed, so exactly one section is open initially.
+  const [directionOpen, setDirectionOpen] = useState(true);
   const [readinessOpen, setReadinessOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<SettingsSection | null>('install');
+  const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const doExport = () => {
@@ -299,9 +446,9 @@ export function SettingsScreen() {
 
   return (
     <div className="screen screen--settings">
-      <ScreenHeader eyebrow="Beta trust & trail readiness" title="Settings">
-        Check whether this device is ready for offline testing, then use the
-        detailed sections below when you need to change something.
+      <ScreenHeader eyebrow="Trail readiness" title="Settings">
+        Adjust app settings to tailor Fjällkompis to your trip and how you use
+        it. Tap a section to expand its options.
       </ScreenHeader>
 
       {notice ? (
@@ -319,6 +466,19 @@ export function SettingsScreen() {
         </div>
       ) : null}
 
+      {/* Route direction — the primary setting: first, and the one section open
+          on load. It lives in the same accordion/card system as everything
+          below (independent open state, like Trail readiness). */}
+      <SettingsAccordion
+        id="direction"
+        title="Route direction"
+        summary="Walk Abisko → Nikkaluokta or the reverse"
+        open={directionOpen}
+        onToggle={() => setDirectionOpen((current) => !current)}
+      >
+        <RouteDirectionCard />
+      </SettingsAccordion>
+
       <TrailReadinessCard
         storageOk={storageOk}
         open={readinessOpen}
@@ -326,11 +486,6 @@ export function SettingsScreen() {
       />
 
       <BetaFeedbackCard />
-
-      <p className="settings-foldout-note">
-        Beta feedback stays visible above. Trail readiness and the remaining
-        settings are grouped as foldouts; tap a section to expand its options.
-      </p>
 
       <div className="settings-grid settings-grid--accordions">
         <SettingsAccordion
