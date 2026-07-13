@@ -3155,6 +3155,40 @@ button.stop-fac:focus-visible {
   font-size: 13px;
   line-height: 1.45;
 }
+/* Install toast heading: the visual title, distinct from the supporting
+   copy below it. The right padding reserves room for the absolutely
+   positioned close button so the two never collide on a narrow phone. */
+.pwa-toast--install {
+  position: relative;
+}
+.pwa-toast__title {
+  margin: 0;
+  padding-right: 40px;
+  color: var(--ink-strong);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.35;
+}
+/* Close (X): a 44×44 touch target parked in the toast's top-right corner;
+   dismisses the prompt exactly like "Later". */
+.pwa-toast__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  border-radius: var(--r-sm);
+}
+.pwa-toast__close:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: -2px;
+}
 .pwa-toast__actions {
   display: flex;
   gap: 8px;
@@ -3523,27 +3557,12 @@ button.stop-fac:focus-visible {
     align-items: start;
   }
   /* With route/stage planning moved to Stages, the information column holds
-     only the stage selector and the position/progress panel. Stretch the
-     column to the map-dominant square's height and let the position panel
-     grow into it, so the composition stays two full columns instead of
-     leaving a bare void where the removed planning card used to sit. The
-     selector's own bottom margin is folded into the flex gap so the 14px
-     rhythm (the layout's reference spacing) is preserved. */
-  .map-side {
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .map-layout .map-side .stage-select {
-    margin: 0;
-  }
-  .map-side > .card + .card {
-    margin-top: 0;
-  }
-  .map-side > .card:last-child {
-    flex: 1 1 auto;
-  }
+     only the stage selector and the position/progress panel. Both are
+     content-sized: align-items:start keeps them at the top of the column,
+     and any unused height below simply stays empty rather than stretching
+     the compact position card to the map-dominant square's height. The
+     selector's 12px bottom margin and the map-layout 14px card rhythm are
+     unchanged. */
   /* Persistent status banners (satellite-not-downloaded, basemap missing)
      are part of the left card, so they are
      part of the fit — one allowance per banner, sized for the compact

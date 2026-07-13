@@ -12,13 +12,15 @@
  *    screen state (e.g. an in-progress form) would be lost on a surprise
  *    reload.
  *  - "Install Fjällkompis" during beta when the app is still running in a
- *    browser tab. Chromium gets the native install prompt; Safari/iOS and
- *    Firefox get direct Add-to-Home-Screen guidance.
+ *    browser tab. Chromium shows a native "Install now"; Safari/iOS and
+ *    Firefox (no native prompt) get concise Add-to-Home-Screen guidance
+ *    straight away. A top-right close button and "Later" both dismiss it.
  *  - "Offline ready" once, the first time the app has finished precaching.
  *    `offlineReady` is only raised on first activation, so ordinary relaunches
  *    of an already-installed app don't nag.
  */
 import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
@@ -53,7 +55,11 @@ export function PwaLifecycle() {
   });
   const { installed, canPrompt, promptInstall } = useInstallPrompt();
   const [installDismissed, setInstallDismissed] = useState(readInstallNudgeDismissed);
-  const [installHelpOpen, setInstallHelpOpen] = useState(false);
+  // Minimal fallback flag: set only if the captured native prompt is
+  // unexpectedly unavailable when the user taps "Install now", so the toast
+  // degrades to manual instructions + Settings instead of leaving a dead
+  // button. Normal Safari/iOS/Firefox (canPrompt === false) never needs it.
+  const [nativePromptFailed, setNativePromptFailed] = useState(false);
 
   const dismissInstallNudge = () => {
     writeInstallNudgeDismissed();
@@ -63,7 +69,10 @@ export function PwaLifecycle() {
   const runInstallPrompt = async () => {
     const outcome = await promptInstall();
     if (outcome === 'accepted') dismissInstallNudge();
-    if (outcome === 'unavailable') setInstallHelpOpen(true);
+    // 'dismissed' flips canPrompt false (the deferred prompt is single-use),
+    // which already surfaces the manual fallback on re-render; 'unavailable'
+    // does not, so force the fallback here rather than leave a dead button.
+    else if (outcome === 'unavailable') setNativePromptFailed(true);
   };
 
   const openInstallSettings = () => {
@@ -109,19 +118,36 @@ export function PwaLifecycle() {
           </div>
         </div>
       ) : showInstallNudge ? (
-        <div className="pwa-toast" role="alertdialog" aria-label="Install app">
-          <p className="pwa-toast__msg">
-            Install Fjällkompis on this device before beta testing offline.
+        <div
+          className="pwa-toast pwa-toast--install"
+          role="alertdialog"
+          aria-labelledby="pwa-install-title"
+        >
+          <button
+            type="button"
+            className="pwa-toast__close"
+            onClick={dismissInstallNudge}
+            aria-label="Close installation prompt"
+          >
+            <X size={18} strokeWidth={2} aria-hidden />
+          </button>
+          <h2 id="pwa-install-title" className="pwa-toast__title">
+            Install Fjällkompis on this device?
+          </h2>
+          <p className="pwa-toast__sub">
+            For the best experience, install Fjällkompis as an app. It opens
+            full-screen and keeps the route available offline once it has
+            loaded.
           </p>
-          {installHelpOpen || !canPrompt ? (
+          {canPrompt && !nativePromptFailed ? null : (
             <p className="pwa-toast__sub">
               Use your browser’s Share or menu button, then choose Add to Home
               Screen or Install app. On iPhone and iPad, use Safari’s Share
               button.
             </p>
-          ) : null}
+          )}
           <div className="pwa-toast__actions">
-            {canPrompt && !installHelpOpen ? (
+            {canPrompt && !nativePromptFailed ? (
               <button
                 type="button"
                 className="btn btn-primary"
@@ -141,13 +167,9 @@ export function PwaLifecycle() {
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={
-                canPrompt && !installHelpOpen
-                  ? () => setInstallHelpOpen(true)
-                  : dismissInstallNudge
-              }
+              onClick={dismissInstallNudge}
             >
-              {canPrompt && !installHelpOpen ? 'How?' : 'Later'}
+              Later
             </button>
           </div>
         </div>

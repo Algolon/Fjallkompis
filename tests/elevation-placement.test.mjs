@@ -29,6 +29,25 @@ const route = require(join(root, 'src/generated/kungsleden-route.json'));
 
 const mapScreen = readFileSync(join(root, 'src/screens/MapScreen.tsx'), 'utf8');
 const stagesScreen = readFileSync(join(root, 'src/screens/StagesScreen.tsx'), 'utf8');
+const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
+
+// ---- Map: information column is content-sized, not stretched ----------------
+
+test('the Map information column is not stretched to the map height', () => {
+  // The roomy-landscape grid keeps items at the top of the column…
+  assert.match(css, /\.map-layout\s*\{[\s\S]*?align-items:\s*start;/);
+  // …and the right-hand column must NOT force a full-height / flex-grown card
+  // (the reverted PR #52 regression): the compact position/manual-mode card
+  // stays only as tall as its content.
+  assert.ok(
+    !/\.map-side\s*\{[^}]*align-self:\s*stretch/.test(css),
+    'no align-self:stretch on .map-side',
+  );
+  assert.ok(
+    !/\.map-side\s*>\s*\.card:last-child\s*\{[^}]*flex:\s*1/.test(css),
+    'no flex-grow on the last .map-side card',
+  );
+});
 
 // ---- Map: no route-planning summary or elevation profile -------------------
 
