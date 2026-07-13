@@ -50,8 +50,14 @@ starts empty; use Settings → Export/Import to move your data across (see below
   assortments with 2025 reference prices) and **Transport** (the buses, boats
   and train for this route as static 2026 planning snapshots, with
   expired-timetable warnings — never live status).
-- **Settings** — trail-readiness checks, offline map downloads, feedback,
-  backup/restore of your data, sources and credits.
+- **Route direction** — walk the trail either way. Choose **Abisko →
+  Nikkaluokta** (the default) or the reverse **Nikkaluokta → Abisko** in
+  Settings, and the whole app follows that direction: stage order and day
+  numbers, from/to and ascent/descent, elevation profiles, the stop order and
+  distances, and the Map. It's the same physical route and the same offline
+  maps — just presented in the direction you're walking.
+- **Settings** — route direction, trail-readiness checks, offline map
+  downloads, feedback, backup/restore of your data, sources and credits.
 
 Everything you enter stays on your phone. No account, no server, no tracking —
 Fjällkompis does not have a backend.

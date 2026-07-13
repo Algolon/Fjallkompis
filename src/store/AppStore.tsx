@@ -12,7 +12,7 @@ import type {
   PackingItem,
   PackingStatus,
   PersistentState,
-  Stage,
+  RouteDirection,
 } from '../types';
 import {
   loadState,
@@ -21,14 +21,31 @@ import {
   storageAvailable,
 } from '../utils/storage';
 import { seedPackingItems } from '../utils/stateMigration.mjs';
-import { STAGES, STAGES_BY_ID } from '../data/stages';
+import { normalizeDirection } from '../route/direction.mjs';
+import { getActiveItinerary } from '../route/activeItinerary';
+import type { ActiveItinerary, ItineraryStage } from '../route/activeItinerary';
 
 interface AppStore {
   state: PersistentState;
   storageOk: boolean;
 
-  // Stage
-  currentStage: Stage | null;
+  // Active directional itinerary (the single authoritative directional view of
+  // the canonical route; screens read this, never reverse route data locally).
+  itinerary: ActiveItinerary;
+  routeDirection: RouteDirection;
+  /** Ordered stages for the active direction (day = itinerary day). */
+  stages: ItineraryStage[];
+  /**
+   * Set the walking direction. The persisted current-stage id is a STABLE
+   * physical segment id and stays selected across the change — every physical
+   * segment exists in both directions, so its itinerary day, endpoints and
+   * ascent/descent are simply recomputed by the itinerary selector.
+   */
+  setRouteDirection: (direction: RouteDirection) => void;
+
+  // Stage (resolved against the active itinerary — itinerary day + oriented
+  // endpoints/geometry for the persisted physical segment id).
+  currentStage: ItineraryStage | null;
   nextHutId: string | null;
   setCurrentStage: (stageId: string) => void;
 
@@ -69,6 +86,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const setCurrentStage = useCallback((stageId: string) => {
     setState((s) => ({ ...s, currentStageId: stageId }));
+  }, []);
+
+  const setRouteDirection = useCallback((direction: RouteDirection) => {
+    setState((s) => {
+      const next = normalizeDirection(direction);
+      // No-op (and no re-render churn) when re-selecting the active direction.
+      if (s.routeDirection === next) return s;
+      return { ...s, routeDirection: next };
+    });
   }, []);
 
   const setStopNote = useCallback((stopId: string, notes: string) => {
@@ -155,9 +181,18 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   // ---- Derived selectors -------------------------------------------------
 
-  const currentStage = useMemo<Stage | null>(
-    () => (state.currentStageId ? STAGES_BY_ID[state.currentStageId] ?? null : null),
-    [state.currentStageId],
+  // Built once per direction change (memoised in getActiveItinerary too), never
+  // on every render. Only the direction is persisted; this is derived.
+  const itinerary = useMemo<ActiveItinerary>(
+    () => getActiveItinerary(state.routeDirection),
+    [state.routeDirection],
+  );
+  const stages = itinerary.stages;
+
+  const currentStage = useMemo<ItineraryStage | null>(
+    () =>
+      state.currentStageId ? itinerary.stageById[state.currentStageId] ?? null : null,
+    [itinerary, state.currentStageId],
   );
 
   const nextHutId = currentStage ? currentStage.toHutId : null;
@@ -175,6 +210,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const value: AppStore = {
     state,
     storageOk,
+    itinerary,
+    routeDirection: state.routeDirection,
+    stages,
+    setRouteDirection,
     currentStage,
     nextHutId,
     setCurrentStage,
@@ -200,6 +239,3 @@ export function useStore(): AppStore {
   if (!ctx) throw new Error('useStore must be used within AppStoreProvider');
   return ctx;
 }
-
-/** Convenience: all stages, exported for screens that list them. */
-export { STAGES };

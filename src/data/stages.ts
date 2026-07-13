@@ -1,5 +1,6 @@
 import type { Stage } from '../types';
 import { ROUTE, WAYPOINT_TO_HUT } from '../route/routeData';
+import { forwardStageNote, stageEstimatedHours } from './stageEditorial.mjs';
 
 /**
  * Stages = GPX-derived geometry/statistics (via src/route/routeData) merged
@@ -9,47 +10,20 @@ import { ROUTE, WAYPOINT_TO_HUT } from '../route/routeData';
  *   must never be hand-edited here;
  * - estimatedHours is a personal planning ESTIMATE (the GPX contains no
  *   timestamps) — screens must label it as such;
- * - notes are editorial.
+ * - notes are editorial and DIRECTION-AWARE (src/data/stageEditorial.mjs).
+ *
+ * This is the canonical FORWARD (Abisko → Nikkaluokta) stage list. The active
+ * directional itinerary (src/route/activeItinerary.ts) rebuilds an equivalent
+ * list oriented to the selected direction — screens consume that, not this.
  */
-const EDITORIAL: Record<string, { estimatedHours: number; notes: string }> = {
-  d1: {
-    estimatedHours: 5,
-    notes: 'Gentle start through birch forest along the Abiskojåkka river.',
-  },
-  d2: {
-    estimatedHours: 6.5,
-    notes: 'Long day climbing above the treeline. Exposed and beautiful.',
-  },
-  d3: {
-    estimatedHours: 4.5,
-    notes: 'Open high valley. Wind picks up approaching the pass.',
-  },
-  d4: {
-    estimatedHours: 4.5,
-    notes: 'Over the Tjäktja pass (route high point), then down to Sälka.',
-  },
-  d5: {
-    estimatedHours: 4,
-    notes: 'Valley walking. Singi is the junction for the Kebnekaise spur.',
-  },
-  d6: {
-    estimatedHours: 5.5,
-    notes: 'Leave the main Kungsleden east toward Kebnekaise station.',
-  },
-  d7: {
-    estimatedHours: 6,
-    notes: 'Final stretch out to Nikkaluokta. Boat shortcut option on Láddjujávri.',
-  },
-};
-
 export const STAGES: Stage[] = ROUTE.stages.map((s) => ({
   id: s.id,
   day: s.day,
   fromHutId: WAYPOINT_TO_HUT[s.fromWaypointId],
   toHutId: WAYPOINT_TO_HUT[s.toWaypointId],
   distanceKm: s.statistics.distanceKm,
-  estimatedHours: EDITORIAL[s.id]?.estimatedHours ?? 0,
-  notes: EDITORIAL[s.id]?.notes ?? '',
+  estimatedHours: stageEstimatedHours(s.id),
+  notes: forwardStageNote(s.id),
   totalAscentM: s.statistics.totalAscentM,
   totalDescentM: s.statistics.totalDescentM,
   minimumElevationM: s.statistics.minimumElevationM,

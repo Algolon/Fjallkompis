@@ -24,5 +24,19 @@ export interface StageGuide {
   lastVerified: string;
 }
 
+import type { RouteDirection } from '../route/direction.mjs';
+
 export declare const GUIDE_SOURCES: Record<string, StageGuideSource>;
 export declare const STAGE_GUIDES: Record<string, StageGuide>;
+
+/** Reverse-direction overrides (overview/highlights/watchFor) per stage id. */
+export declare const REVERSE_STAGE_GUIDES: Record<
+  string,
+  Pick<StageGuide, 'overview' | 'highlights' | 'watchFor'>
+>;
+
+/** Resolved day guide for a stage in the given direction (undefined if unknown). */
+export declare function stageGuide(
+  stageId: string,
+  direction: RouteDirection | string,
+): StageGuide | undefined;

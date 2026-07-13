@@ -103,10 +103,13 @@ test('Stages renders the full-route elevation as a collapsed disclosure', () => 
   assert.match(stagesScreen, /<span>Elevation profile<\/span>/);
 });
 
-test('the full-route profile uses the overview profile and route statistics', () => {
+test('the full-route profile uses the ACTIVE itinerary overview profile and statistics', () => {
+  // Direction-aware: the overview profile and statistics come from the active
+  // itinerary (oriented, ascent/descent following the walked direction), not
+  // the fixed-forward routeData constants.
   assert.match(
     stagesScreen,
-    /profile=\{OVERVIEW_ELEVATION_PROFILE\}[\s\S]*?statistics=\{ROUTE\.statistics\}/,
+    /profile=\{itinerary\.overviewElevationProfile\}[\s\S]*?statistics=\{itinerary\.statistics\}/,
   );
   // No second full-route statistics grid above the chart — the pills own it.
   assert.ok(!/<div className="stat-grid"/.test(stagesScreen), 'no statistics grid on Stages');
@@ -114,13 +117,12 @@ test('the full-route profile uses the overview profile and route statistics', ()
 
 // ---- Stages: per-stage elevation inside the day guide ----------------------
 
-test('each day guide draws its own hydrated stage profile and statistics', () => {
-  // The panel takes the stage id and looks up the authoritative hydrated
-  // route stage — never a crop of the overview chart.
-  assert.match(stagesScreen, /const routeStage = STAGE_BY_ID\[stageId\]/);
-  assert.match(stagesScreen, /profile=\{routeStage\.elevationProfile\}/);
-  assert.match(stagesScreen, /statistics=\{routeStage\.statistics\}/);
-  assert.match(stagesScreen, /<StageGuidePanel stageId=\{stage\.id\} guide=\{guide\}/);
+test('each day guide draws its own oriented stage profile and statistics', () => {
+  // The panel takes the ACTIVE itinerary stage and draws its own oriented,
+  // stage-local profile + statistics — never a crop of the overview chart.
+  assert.match(stagesScreen, /profile=\{stage\.elevationProfile\}/);
+  assert.match(stagesScreen, /statistics=\{stage\.statistics\}/);
+  assert.match(stagesScreen, /<StageGuidePanel stage=\{stage\} guide=\{guide\}/);
   // A semantic label sits above each stage chart.
   assert.match(stagesScreen, /<span className="stage-guide__label">Elevation profile<\/span>/);
 });

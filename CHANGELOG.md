@@ -10,6 +10,35 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-07-13
+
+### Added
+
+- **Walk the route in either direction.** A new **Route direction** choice in
+  **Settings** lets you follow the trail **Abisko → Nikkaluokta** (the default)
+  or the reverse **Nikkaluokta → Abisko**. The whole app follows the direction
+  you pick: Today's stage and Tonight's stop, the Journey order and legend,
+  the Stages list and day numbers (Day 1–7 for the direction you're walking),
+  every from/to and ascent/descent, elevation profiles and silhouettes, the
+  Stops order and "x km in" labels, and the Map's stage selector, Prev/Next and
+  live/one-shot progress. It's the same physical route, the same eight stops and
+  the same offline maps — just presented in the direction you're walking.
+- Changing direction shows a short confirmation (your packing list, journal and
+  stop notes are never touched) and reorders everything reactively — no reload.
+  The choice is saved and survives refresh, reinstall and device transfer.
+
+### Changed
+
+- **Architecture: one active-itinerary layer.** The generated GPX route stays
+  the single canonical dataset; a new pure, tested transform derives the active
+  directional itinerary (reversed order, endpoints, geometry, distances-from-0
+  and swapped ascent/descent) that every screen now reads. Physical segment ids
+  (`d1`–`d7`) stay stable identities — so a saved current stage, Map selection
+  and deep links keep working across a direction change — while the displayed
+  **day** is derived from the direction. Persisted-state schema bumped to v4
+  (older data migrates to the default direction). See
+  [ADR 0003](docs/decisions/0003-route-direction.md).
+
 ## [0.19.0] - 2026-07-13
 
 ### Changed

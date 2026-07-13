@@ -10,18 +10,12 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useRouteTracking } from '../hooks/useRouteTracking';
 import type { TrackingSession } from '../utils/trackingSession.mjs';
 import {
-  STOPS,
   STOPS_BY_ID,
   collapsedFacilities,
   importantAbsences,
   stopShortName,
 } from '../data/stops';
-import {
-  ROUTE,
-  STAGE_BY_ID,
-  WAYPOINT_BY_ID,
-  stopIdForWaypoint,
-} from '../route/routeData';
+import { WAYPOINT_BY_ID, stopIdForWaypoint } from '../route/routeData';
 import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import { STAGE_COLORS } from '../map/mapStyle';
 import type { BasemapMode } from '../map/pmtilesProtocol';
@@ -264,7 +258,8 @@ export function MapScreen({
   /** Focused navigation: open this stop's full detail in Huts & Stations. */
   onOpenStop?: (stopId: string) => void;
 }) {
-  const { currentStage } = useStore();
+  const { itinerary, currentStage } = useStore();
+  const route = itinerary.route;
   const geo = useGeolocation();
   const mapRef = useRef<MapViewHandle>(null);
 
@@ -279,16 +274,21 @@ export function MapScreen({
   const [satelliteAvailable, setSatelliteAvailable] = useState(false);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
-  const [manualHutId, setManualHutId] = useState<string>(STOPS[0].id);
+  const [manualHutId, setManualHutId] = useState<string>(
+    itinerary.orderedStops[0]?.id ?? '',
+  );
 
   // ---- Live tracking (beta, opt-in, foreground-only) ----------------------
   // Status is judged against the COMPLETE route; progress against the
   // persisted CURRENT stage only (never the stage merely browsed above).
   // Production mode: no diagnostic log, no breadcrumb (see trackingSession).
-  const currentRouteStage = currentStage ? STAGE_BY_ID[currentStage.id] : null;
+  // Progress/status geometry is the ACTIVE itinerary's oriented data: the
+  // current stage carries its direction-correct point order, so projection
+  // increases from the selected start toward the selected end with no
+  // presentation-time "100 − percent".
   const tracking = useRouteTracking({
-    routePoints: ROUTE.overviewPoints,
-    stagePoints: currentRouteStage?.points ?? null,
+    routePoints: route.overviewPoints,
+    stagePoints: currentStage?.points ?? null,
     stageId: currentStage?.id ?? null,
     keepLog: false,
     keepTrail: false,
@@ -333,8 +333,8 @@ export function MapScreen({
   }, [geo.status, geo.timestamp]);
 
   const stepStage = (dir: 1 | -1) => {
-    // Order: overview → d1 … d7 → overview.
-    const ids = [null, ...ROUTE.stages.map((s) => s.id)];
+    // Order follows the active itinerary: overview → Day 1 … Day 7 → overview.
+    const ids = [null, ...route.stages.map((s) => s.id)];
     const idx = ids.indexOf(viewStageId);
     setViewStageId(ids[(idx + dir + ids.length) % ids.length]);
   };
@@ -369,12 +369,13 @@ export function MapScreen({
     if (geo.status !== 'success' || !geo.coord) return null;
     if (!currentStage) return { kind: 'no-stage' };
 
-    const routeStage = STAGE_BY_ID[currentStage.id];
     const totalKm =
-      routeStage.points[routeStage.points.length - 1]?.cumulativeDistanceKm ??
+      currentStage.points[currentStage.points.length - 1]?.cumulativeDistanceKm ??
       currentStage.distanceKm;
 
     if (geo.source === 'manual') {
+      // fromHutId/toHutId are already oriented, so "start"/"end" follow the
+      // active direction.
       if (geo.manualStopId === currentStage.fromHutId)
         return { kind: 'manual-start', totalKm };
       if (geo.manualStopId === currentStage.toHutId)
@@ -386,7 +387,7 @@ export function MapScreen({
     return {
       kind: 'gps',
       proj: projectOntoRoute(
-        routeStage.points,
+        currentStage.points,
         { lat: geo.coord.lat, lon: geo.coord.lng },
         { accuracyM: geo.accuracyM },
       ),
@@ -410,7 +411,13 @@ export function MapScreen({
         <div className="card map-card">
           <div className="map-canvas-wrap">
             <MapView
+              // Remount when the direction flips: MapView captures its route at
+              // mount (route lines, markers, camera bounds), so a fresh key is
+              // the clean way to rebuild it with the oriented geometry — no
+              // stale selected-stage or progress state can survive.
+              key={itinerary.direction}
               ref={mapRef}
+              route={route}
               selectedStageId={viewStageId}
               onSelectStage={(id) => setViewStageId(id)}
               onSelectWaypoint={(id) => setSelectedWaypointId(id)}
@@ -573,7 +580,7 @@ export function MapScreen({
             >
               Full route
             </button>
-            {ROUTE.stages.map((s) => (
+            {route.stages.map((s) => (
               <button
                 key={s.id}
                 className="chip stage-select__day"
@@ -656,7 +663,7 @@ export function MapScreen({
                         value={manualHutId}
                         onChange={(e) => setManualHutId(e.target.value)}
                       >
-                        {STOPS.map((s) => (
+                        {itinerary.orderedStops.map((s) => (
                           <option key={s.id} value={s.id}>
                             {stopShortName(s)}
                           </option>

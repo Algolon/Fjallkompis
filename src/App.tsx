@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppStoreProvider } from './store/AppStore';
+import { AppStoreProvider, useStore } from './store/AppStore';
 import { startViewportHeightSync } from './utils/viewportHeight.mjs';
 import {
   attemptPhonePortraitLock,
@@ -69,6 +69,16 @@ function Screens({
 }
 
 export default function App() {
+  // The provider must wrap the shell so the shell can read the active
+  // direction (to reset the in-memory Map browse state when it changes).
+  return (
+    <AppStoreProvider>
+      <AppShell />
+    </AppStoreProvider>
+  );
+}
+
+function AppShell() {
   // Hash-routed tab state (#/today … #/settings, see navigation/routes.mjs):
   // Back/Forward work, refresh keeps the destination, and primary
   // destinations are bookmarkable — no router dependency, and safe on the
@@ -86,6 +96,21 @@ export default function App() {
   // Read by the hashchange handler without re-subscribing per navigation.
   const navRef = useRef(nav);
   navRef.current = nav;
+
+  // When the walking direction changes, the whole app re-derives from the new
+  // active itinerary reactively (no reload). Two pieces of transient IN-MEMORY
+  // browse state are not itinerary-derived and must be reset here so nothing
+  // stale survives: the Map's browsed stage (reset to the full-route overview)
+  // and any one-shot deep-link payload (dropped). Persisted data — packing,
+  // journal, stop notes, current stage, downloaded maps — is untouched.
+  const { routeDirection } = useStore();
+  const prevDirectionRef = useRef(routeDirection);
+  useEffect(() => {
+    if (prevDirectionRef.current === routeDirection) return;
+    prevDirectionRef.current = routeDirection;
+    setMapViewStageId(INITIAL_MAP_VIEW_STAGE_ID);
+    setNav((n) => (n.payload ? { tab: n.tab } : n));
+  }, [routeDirection]);
 
   // Keep --app-height in sync with the measured viewport so the shell (and
   // the tab bar at its bottom) survives stale dvh after SW-update reloads,
@@ -153,7 +178,7 @@ export default function App() {
   };
 
   return (
-    <AppStoreProvider>
+    <>
       <div className="app" ref={shellRef}>
         {/* Two instances of the SAME navigation (shared route table, active
             state and handler); CSS displays exactly one per viewport. The
@@ -177,6 +202,6 @@ export default function App() {
       </div>
       {/* Outside .app so the shell's inert state never affects the guard. */}
       <RotateGuard active={phoneLandscape} shellRef={shellRef} />
-    </AppStoreProvider>
+    </>
   );
 }

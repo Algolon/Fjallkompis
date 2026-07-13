@@ -1,5 +1,8 @@
 // All domain types live here so screens and utils share one source of truth.
 
+import type { RouteDirection } from '../route/direction.mjs';
+export type { RouteDirection };
+
 export type LatLng = {
   lat: number;
   lng: number;
@@ -359,10 +362,19 @@ export interface HutUserData {
  * Schema v3 dropped the `checklist` map of the archived Daily checklist
  * feature; old payloads carrying it still load (the key is ignored during
  * normalisation — see src/utils/stateMigration.mjs).
+ * Schema v4 added `routeDirection`; older payloads default to the canonical
+ * 'abisko-to-nikkaluokta'.
  */
 export interface PersistentState {
   schemaVersion: number;
   currentStageId: string | null;
+  /**
+   * Selected walking direction over the canonical route. Only the direction is
+   * persisted; the derived directional itinerary is rebuilt at runtime (see
+   * src/route/activeItinerary.ts). Missing/invalid values normalise to the
+   * canonical 'abisko-to-nikkaluokta'.
+   */
+  routeDirection: RouteDirection;
   /** stopId -> personal trip notes (legacy key name kept from v1). */
   hutData: Record<string, HutUserData>;
   journal: JournalEntry[];

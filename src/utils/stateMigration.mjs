@@ -20,12 +20,21 @@
  *   - Everything else (currentStageId, hutData, journal, packing) passes
  *     through unchanged.
  *
+ * v3 → v4:
+ *   - `routeDirection` is added (the selected walking direction over the
+ *     canonical route). Payloads without it — every existing user — normalise
+ *     to the canonical 'abisko-to-nikkaluokta'; unknown/invalid values do the
+ *     same (see src/route/direction.mjs). Only the direction is persisted; the
+ *     derived directional itinerary is rebuilt at runtime. Everything else
+ *     passes through unchanged.
+ *
  * Normalisation is idempotent and never throws: malformed fields fall back to
  * defaults instead of wiping the app.
  */
 import { PACKING_CATEGORIES, SEED_PACKING_ITEMS } from '../data/packingSeed.mjs';
+import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const PACKING_STATUSES = new Set(['needed', 'ready', 'packed']);
 const CATEGORY_IDS = new Set(PACKING_CATEGORIES.map((c) => c.id));
@@ -39,6 +48,7 @@ export function defaultState(defaultStageId) {
   return {
     schemaVersion: SCHEMA_VERSION,
     currentStageId: defaultStageId ?? null,
+    routeDirection: DEFAULT_DIRECTION,
     hutData: {},
     journal: [],
     packing: seedPackingItems(),
@@ -144,6 +154,9 @@ export function normalizeState(raw, defaultStageId) {
       typeof raw.currentStageId === 'string' || raw.currentStageId === null
         ? raw.currentStageId
         : base.currentStageId,
+    // Missing (older payload) or invalid values normalise to the canonical
+    // forward direction — an older export can never carry an invalid one.
+    routeDirection: normalizeDirection(raw.routeDirection),
     hutData: normalizeHutData(raw.hutData),
     journal: Array.isArray(raw.journal) ? raw.journal.filter(isJournalish) : [],
     packing: normalizePacking(raw.packing),

@@ -31,15 +31,26 @@ export interface StageHighlight extends StageHighlightType {
   id: string;
 }
 
+import type { RouteDirection } from '../route/direction.mjs';
+
 export declare const HIGHLIGHT_TYPES: Record<string, StageHighlightType>;
 export declare const MAX_STAGE_HIGHLIGHTS: number;
 export declare const STAGE_HIGHLIGHT_IDS: Record<string, readonly string[]>;
+export declare const REVERSE_STAGE_HIGHLIGHT_IDS: Record<string, readonly string[]>;
+
+/** Highlight ids for a stage in the given direction (falls back to forward). */
+export declare function highlightIdsFor(
+  stageId: string,
+  direction: RouteDirection | string,
+): readonly string[];
 
 /**
  * The highlights to display for a stage: resolved, priority-sorted, capped
- * at MAX_STAGE_HIGHLIGHTS. Unknown stage ids return [].
+ * at MAX_STAGE_HIGHLIGHTS. Unknown stage ids return []. `direction` defaults
+ * to the canonical Abisko → Nikkaluokta.
  */
 export declare function stageHighlights(
   stageId: string,
   max?: number,
+  direction?: RouteDirection | string,
 ): StageHighlight[];

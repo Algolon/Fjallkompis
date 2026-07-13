@@ -50,16 +50,22 @@ export const HIGHLIGHT_TYPES = {
   exposed: { label: 'Exposed', icon: 'wind', priority: 1 },
   'snow-patches': { label: 'Snow patches', icon: 'snowflake', priority: 2 },
   'route-high-point': { label: 'High point', icon: 'mountain-snow', priority: 3 },
+  // Climb/descent chips are DIRECTION-DEPENDENT: the same physical segment
+  // that descends from Tjäktjapasset southbound climbs to it northbound, so a
+  // reverse itinerary swaps steep-descent↔steep-ascent and
+  // sustained-climb↔sustained-descent (see STAGE_HIGHLIGHT_IDS below).
   'steep-descent': { label: 'Steep descent', icon: 'trending-down', priority: 4 },
-  'sustained-climb': { label: 'Long climb', icon: 'trending-up', priority: 5 },
-  'rocky-terrain': { label: 'Rocky trail', icon: 'mountain', priority: 6 },
-  'treeline-crossing': { label: 'Above treeline', icon: 'trees', priority: 7 },
-  'kungsleden-junction': { label: 'Leaves Kungsleden', icon: 'signpost', priority: 8 },
-  'bridge-crossings': { label: 'Bridges', icon: 'waves', priority: 9 },
-  'wet-ground': { label: 'Wet sections', icon: 'droplets', priority: 10 },
-  'boat-option': { label: 'Boat possible', icon: 'sailboat', priority: 11 },
-  'busy-trail': { label: 'Busy trail', icon: 'users', priority: 12 },
-  forest: { label: 'Sheltered forest', icon: 'tree-pine', priority: 13 },
+  'steep-ascent': { label: 'Steep climb', icon: 'trending-up', priority: 5 },
+  'sustained-climb': { label: 'Long climb', icon: 'trending-up', priority: 6 },
+  'sustained-descent': { label: 'Long descent', icon: 'trending-down', priority: 7 },
+  'rocky-terrain': { label: 'Rocky trail', icon: 'mountain', priority: 8 },
+  'treeline-crossing': { label: 'Above treeline', icon: 'trees', priority: 9 },
+  'kungsleden-junction': { label: 'Leaves Kungsleden', icon: 'signpost', priority: 10 },
+  'bridge-crossings': { label: 'Bridges', icon: 'waves', priority: 11 },
+  'wet-ground': { label: 'Wet sections', icon: 'droplets', priority: 12 },
+  'boat-option': { label: 'Boat possible', icon: 'sailboat', priority: 13 },
+  'busy-trail': { label: 'Busy trail', icon: 'users', priority: 14 },
+  forest: { label: 'Sheltered forest', icon: 'tree-pine', priority: 15 },
 };
 
 /** Display ceiling — four is a maximum, never a target to fill. */
@@ -112,13 +118,42 @@ export const STAGE_HIGHLIGHT_IDS = {
 };
 
 /**
+ * Reverse-direction (Nikkaluokta → Abisko) highlight assignments per STABLE
+ * physical segment id. Only the direction-dependent chips differ from the
+ * forward set: the sustained CLIMB out of the birch forest (d2) and up the
+ * high valley (d3) become sustained DESCENTS, and the steep descent off
+ * Tjäktjapasset's south side (d4) becomes a steep CLIMB to the pass. Every
+ * other chip (exposure, snow, the high point itself, bridges, wet ground,
+ * rocky trail, the Kungsleden junction, the boat option, busy trail, forest)
+ * is direction-neutral and reused unchanged. Only ids that materially change
+ * meaning are overridden; unlisted segments fall back to the forward set.
+ */
+export const REVERSE_STAGE_HIGHLIGHT_IDS = {
+  d2: ['exposed', 'sustained-descent', 'treeline-crossing', 'bridge-crossings', 'boat-option'],
+  d3: ['exposed', 'sustained-descent', 'rocky-terrain'],
+  d4: ['exposed', 'snow-patches', 'route-high-point', 'steep-ascent'],
+};
+
+/** Highlight ids for a stage in the given direction (falls back to forward). */
+export function highlightIdsFor(stageId, direction) {
+  if (direction === 'nikkaluokta-to-abisko') {
+    return REVERSE_STAGE_HIGHLIGHT_IDS[stageId] ?? STAGE_HIGHLIGHT_IDS[stageId] ?? [];
+  }
+  return STAGE_HIGHLIGHT_IDS[stageId] ?? [];
+}
+
+/**
  * The highlights to display for a stage: resolved, priority-sorted, capped.
  * Unknown stage ids return [] — the UI renders no chip row at all (no empty
  * placeholder). Deterministic: same input, same output, no clock/location.
+ * `direction` defaults to the canonical Abisko → Nikkaluokta.
  */
-export function stageHighlights(stageId, max = MAX_STAGE_HIGHLIGHTS) {
-  const ids = STAGE_HIGHLIGHT_IDS[stageId] ?? [];
-  return ids
+export function stageHighlights(
+  stageId,
+  max = MAX_STAGE_HIGHLIGHTS,
+  direction = 'abisko-to-nikkaluokta',
+) {
+  return highlightIdsFor(stageId, direction)
     .map((id) => ({ id, ...HIGHLIGHT_TYPES[id] }))
     .sort((a, b) => a.priority - b.priority)
     .slice(0, max);

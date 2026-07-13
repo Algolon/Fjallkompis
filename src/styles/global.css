@@ -3804,3 +3804,75 @@ button.stop-fac:focus-visible {
   line-height: 1.5;
   color: var(--ink-soft);
 }
+
+/* --- Route direction (Settings) ------------------------------------------ */
+
+.direction-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.direction-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px; /* ≥ 44px touch target */
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  cursor: pointer;
+}
+.direction-option input[type='radio'] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--spruce);
+  cursor: pointer;
+}
+.direction-option__label {
+  flex: 1;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* Selection is signalled by THREE cues, never colour alone: a filled native
+   radio, a heavier spruce border, and an explicit check glyph. */
+.direction-option.is-selected {
+  border-color: var(--spruce);
+  box-shadow: 0 0 0 1px var(--spruce);
+  background: var(--paper-bright);
+}
+.direction-option.is-selected .direction-option__label {
+  color: var(--ink-strong);
+}
+.direction-option__check {
+  color: var(--spruce);
+  opacity: 0;
+  flex-shrink: 0;
+}
+.direction-option.is-selected .direction-option__check {
+  opacity: 1;
+}
+.direction-option:focus-within {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+/* --- Confirmation dialog -------------------------------------------------- */
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(27, 42, 39, 0.42);
+}
+.confirm-dialog {
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 8px 40px rgba(27, 42, 39, 0.28);
+}
