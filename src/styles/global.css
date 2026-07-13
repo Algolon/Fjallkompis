@@ -455,12 +455,6 @@ a.btn {
 .readiness-card.is-ready {
   border-color: #b8c9b0;
 }
-.readiness-card__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
 .readiness-score {
   flex: 0 0 auto;
   padding: 5px 7px;
@@ -486,9 +480,12 @@ a.btn {
   letter-spacing: 0.04em;
 }
 .readiness-list {
+  /* Rows sit flush inside the accordion panel padding, so their outer left and
+     right edges are equidistant from the parent card's inner edge. */
   display: grid;
   gap: 8px;
-  margin-top: 14px;
+  margin: 0;
+  padding: 0;
 }
 .readiness-row {
   display: grid;
@@ -496,7 +493,7 @@ a.btn {
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: rgba(238, 243, 236, 0.55);
@@ -539,37 +536,6 @@ a.btn {
 .beta-card {
   margin-top: 14px;
 }
-.beta-card__pending {
-  margin-top: 12px;
-  background: #e5ece4;
-  border-color: var(--line);
-  color: var(--ink-soft);
-}
-.diagnostics-preview {
-  margin-top: 12px;
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
-}
-.diagnostics-preview summary {
-  color: var(--ink-soft);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-}
-.diagnostics-preview pre {
-  margin: 10px 0 0;
-  max-height: 220px;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--paper-bright);
-  padding: 10px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--ink-soft);
-  font-size: 11.5px;
-  line-height: 1.45;
-}
 .settings-foldout-note {
   margin-top: 16px;
 }
@@ -600,6 +566,10 @@ a.btn {
   outline: 2px solid var(--glacier-700);
   outline-offset: -2px;
   border-radius: var(--r-md);
+}
+.settings-accordion__label {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .settings-accordion__title,
 .settings-accordion__summary {
@@ -2247,15 +2217,8 @@ button.stop-fac:focus-visible {
   }
 }
 
-/* --- Today: readiness + quick actions + journal peek ------------------------------ */
+/* --- Today: quick actions + journal peek ------------------------------ */
 
-.readiness-list {
-  margin: 10px 0 0;
-  padding-left: 20px;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--ink-soft);
-}
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
