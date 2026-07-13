@@ -112,9 +112,13 @@ function AppShell() {
     setNav((n) => (n.payload ? { tab: n.tab } : n));
   }, [routeDirection]);
 
-  // Keep --app-height in sync with the measured viewport so the shell (and
-  // the tab bar at its bottom) survives stale dvh after SW-update reloads,
-  // background resume, and orientation changes. See viewportHeight.mjs.
+  // Keep --app-height in sync with the real canvas so the shell (and the tab
+  // bar at its bottom) fills the display on both misbehaving mobile
+  // platforms: Android Chrome's stale/oversized dvh after SW-update reloads,
+  // background resume and rotation, and Apple standalone's under-reported
+  // visualViewport under viewport-fit=cover (which otherwise leaves a blank
+  // band below the tab bar). See viewportHeight.mjs for the per-platform
+  // authority and the WebKit bug reference.
   useEffect(() => startViewportHeightSync(), []);
 
   // Phones are portrait-only (product decision). The classifier is

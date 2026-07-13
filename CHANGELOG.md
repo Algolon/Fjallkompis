@@ -10,6 +10,25 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-07-13
+
+### Fixed
+
+- **The installed iPhone app now fills the whole screen — no blank band
+  below the tab bar.** On iOS/iPadOS home-screen (installed) PWAs, WebKit
+  reports the visible-viewport height as the display height *minus* the
+  safe-area insets under `viewport-fit=cover` (WebKit bug 254868), even
+  though the standalone app canvas spans the full display. The app shell was
+  sizing itself to that under-reported value, so it stopped ~85 px short of
+  the bottom on a notched iPhone and left a stone-coloured empty band beneath
+  the bottom navigation. In Apple home-screen standalone mode the shell now
+  takes the full-canvas `100vh` authority (WebKit's documented workaround),
+  so it reaches the physical bottom and the tab bar sits flush with the
+  bottom safe area. The separate Android Chrome protection against a stale,
+  oversized viewport after a service-worker update or background resume is
+  unchanged, as is browser-mode Safari/Chrome, the keyboard, pinch-zoom,
+  orientation and PWA-toast behaviour.
+
 ## [0.20.0] - 2026-07-13
 
 ### Added
