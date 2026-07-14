@@ -10,6 +10,19 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-07-14
+
+### Changed
+
+- **Leaner bottom navigation.** The compact bottom tab bar's content row is
+  now 56 px tall (was 64 px), with tighter padding around each tab, so it sits
+  at a more native mobile proportion instead of looking vertically stretched.
+  The iPhone home-gesture safe area is untouched — it is still reserved in full
+  below the row (the bar's total height remains the 56 px row plus
+  `env(safe-area-inset-bottom)`, counted once), icons and labels stay above it,
+  each tab keeps a ≥ 44 px touch target, and the 0.20.1 standalone-PWA viewport
+  fix is unchanged. The tablet/desktop side rail is unaffected.
+
 ## [0.20.1] - 2026-07-13
 
 ### Fixed
