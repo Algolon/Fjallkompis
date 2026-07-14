@@ -134,10 +134,13 @@ test('the placeholder "waiting on the final Google Forms URL" warning is gone', 
   assert.ok(!/beta-card__pending/.test(css), 'placeholder warning style removed');
 });
 
-test('the GitHub feedback button remains as the secondary alternative', () => {
+test('the GitHub feedback route is retired — the form is the only entry point', () => {
   const beta = settings.slice(settings.indexOf('function BetaFeedbackCard'));
-  assert.match(beta, /issues\/new\?template=beta-feedback\.yml/);
-  assert.match(beta, /GitHub feedback/);
+  assert.ok(!/issues\/new\?template=beta-feedback\.yml/.test(beta), 'no GitHub issue link');
+  assert.ok(!/GitHub feedback/.test(beta), 'no GitHub feedback button');
+  // Exactly one feedback link remains in the card (the no-login form).
+  const links = (beta.match(/<a\b/g) ?? []).length;
+  assert.equal(links, 1, 'a single feedback entry point in Beta testing');
 });
 
 // ---- Diagnostics removed (not hidden) --------------------------------------

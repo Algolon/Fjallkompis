@@ -10,7 +10,17 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
-## [0.20.3] - 2026-07-14
+## [0.20.4] - 2026-07-14
+
+### Changed
+
+- **Tidier Settings.** The **Route direction** section now starts collapsed like
+  every other Settings section (its collapsed summary shows the direction you're
+  currently walking, so the choice stays visible without expanding). **Beta
+  testing** is simplified to the single no-login feedback form; the secondary
+  "GitHub feedback" issue route has been retired (its issue template is removed
+  and the README points to the in-app form). Changing direction and every
+  expand/collapse behave exactly as before.
 
 ### Changed
 

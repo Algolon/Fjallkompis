@@ -43,15 +43,28 @@ test('Route direction lives in the accordion/card system and is not duplicated',
   assert.match(render, /<RouteDirectionCard \/>/);
 });
 
-test('exactly one section is open on load: Route direction', () => {
-  assert.match(settings, /const \[directionOpen, setDirectionOpen\] = useState\(true\)/);
+test('every section starts collapsed on load, Route direction included', () => {
+  // Route direction is collapsed by default like the rest — no default-open,
+  // visually dominant section.
+  assert.match(settings, /const \[directionOpen, setDirectionOpen\] = useState\(false\)/);
   assert.match(settings, /const \[readinessOpen, setReadinessOpen\] = useState\(false\)/);
   assert.match(
     settings,
     /const \[openSection, setOpenSection\] = useState<SettingsSection \| null>\(null\)/,
-    'the grouped foldouts start collapsed so only Route direction is open',
+    'the grouped foldouts start collapsed too',
   );
   assert.match(render, /open=\{directionOpen\}/);
+});
+
+test('the collapsed Route direction summary shows the current direction', () => {
+  // Its selected direction stays visible without expanding, via the shared
+  // accordion summary (no special-case accordion logic).
+  assert.match(
+    render,
+    /summary=\{`Walking \$\{directionLabel\(routeDirection\)\}`\}/,
+    'summary renders the active direction label',
+  );
+  assert.match(settings, /routeDirection \} = useStore\(\)/);
 });
 
 test('accordion open states stay independent and predictable', () => {
@@ -134,10 +147,14 @@ test('Trail readiness stays a foldout: accordion, collapsed by default, score in
   assert.match(settings, /const score = \(\s*<span className="readiness-score">/);
 });
 
-test('beta feedback keeps the Google Forms button and GitHub route, diagnostics gone', () => {
+test('beta feedback is the no-login form only — GitHub route and diagnostics gone', () => {
   assert.match(settings, /href=\{BETA_FORM_URL\}/);
   assert.match(settings, /docs\.google\.com\/forms/);
-  assert.match(settings, /issues\/new\?template=beta-feedback\.yml/);
+  // The GitHub issue feedback route (link, template URL and its import) is
+  // retired; the form is the single entry point here.
+  assert.ok(!/issues\/new\?template=beta-feedback\.yml/.test(settings), 'GitHub feedback link removed');
+  assert.ok(!/GitHub feedback/.test(settings), 'GitHub feedback label removed');
+  assert.ok(!/REPOSITORY_URL/.test(settings), 'now-unused REPOSITORY_URL import removed');
   assert.ok(!/Copy safe diagnostics/.test(settings), 'no Copy safe diagnostics control');
   assert.ok(!/Show safe diagnostics preview/.test(settings), 'no diagnostics preview control');
   assert.ok(!/navigator\.clipboard/.test(settings), 'no clipboard handler');

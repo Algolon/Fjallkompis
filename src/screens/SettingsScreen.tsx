@@ -25,7 +25,6 @@ import {
   formatBytes,
   useCombinedArchiveStatus,
 } from '../components/OfflineMapCard';
-import { REPOSITORY_URL } from '../data/attribution';
 import { CreditsSheet } from '../components/CreditsSheet';
 import {
   InstallCard,
@@ -374,28 +373,20 @@ function BetaFeedbackCard() {
       >
         <ExternalLink size={16} aria-hidden /> Report beta feedback
       </a>
-
-      <a
-        className="btn btn-block"
-        style={{ marginTop: 10, textDecoration: 'none' }}
-        href={`${REPOSITORY_URL}/issues/new?template=beta-feedback.yml`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <ExternalLink size={16} aria-hidden /> GitHub feedback
-      </a>
     </div>
   );
 }
 
 export function SettingsScreen() {
-  const { state, storageOk, replaceState, resetAll } = useStore();
+  const { state, storageOk, replaceState, resetAll, routeDirection } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  // Route direction is the primary setting: its accordion is the ONE section
-  // open on load. Trail readiness (its own independent state) and the grouped
-  // foldouts below start collapsed, so exactly one section is open initially.
-  const [directionOpen, setDirectionOpen] = useState(true);
+  // Every Settings section starts collapsed for a consistent, scannable list
+  // (Route direction is still first; its collapsed summary shows the current
+  // choice). Route direction and Trail readiness each own an independent
+  // boolean; the grouped foldouts below share a single-open group — same
+  // shared SettingsAccordion behaviour, no section is open on load.
+  const [directionOpen, setDirectionOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -457,13 +448,15 @@ export function SettingsScreen() {
         </div>
       ) : null}
 
-      {/* Route direction — the primary setting: first, and the one section open
-          on load. It lives in the same accordion/card system as everything
-          below (independent open state, like Trail readiness). */}
+      {/* Route direction — the primary setting: first, but collapsed by default
+          like every other section. Its summary shows the current choice so the
+          selected direction stays visible without expanding. Same accordion/card
+          system as everything below (independent open state, like Trail
+          readiness). */}
       <SettingsAccordion
         id="direction"
         title="Route direction"
-        summary="Walk Abisko → Nikkaluokta or the reverse"
+        summary={`Walking ${directionLabel(routeDirection)}`}
         open={directionOpen}
         onToggle={() => setDirectionOpen((current) => !current)}
       >

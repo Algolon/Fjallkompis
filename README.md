@@ -103,10 +103,8 @@ Fjällkompis does not have a backend.
 Fjällkompis is still under active development and improves through real use —
 on the Kungsleden or anywhere you want to test its offline hiking workflow. If
 something is confusing, wrong or missing, use **Settings → Beta testing** in
-Fjällkompis, or open an issue directly through
-[Beta feedback](https://github.com/Algolon/Fjallkompis/issues/new?template=beta-feedback.yml)
-(free GitHub account required). Please never include exact GPS coordinates in
-public feedback.
+Fjällkompis to open the short no-login feedback form. Please never include exact
+GPS coordinates in public feedback.
 
 ## For developers
 
