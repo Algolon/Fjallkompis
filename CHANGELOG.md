@@ -10,7 +10,18 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
-## [0.20.2] - 2026-07-14
+## [0.20.3] - 2026-07-14
+
+### Changed
+
+- **Simpler Settings and Lists.** Trimmed a few low-value bits of screen text:
+  the **Advanced** section (which only repeated the app version — already in the
+  footer — and a static "manual checks" reminder) is gone, and **Trail
+  readiness** no longer carries the "airplane-mode, sunlight, gloves…" reminder
+  line, since the readiness score already says what's ready. On **Lists**, the
+  description that changes with the selected tab now sits **directly under the
+  Packing / Shops / Transport control** instead of under the page title, so it
+  clearly reads as an intro to the chosen list.
 
 ### Changed
 

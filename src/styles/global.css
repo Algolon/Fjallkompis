@@ -540,12 +540,6 @@ a.btn {
   line-height: 1.25;
   text-align: right;
 }
-.readiness-note {
-  margin: 12px 2px 0;
-  color: var(--ink-soft);
-  font-size: 13px;
-  line-height: 1.45;
-}
 .beta-card {
   margin-top: 14px;
 }
@@ -2608,6 +2602,17 @@ button.stop-fac:focus-visible {
   .seg--lists .seg-btn {
     font-size: 12px;
   }
+}
+
+/* Per-list intro: sits directly under the Lists tab control so it reads as an
+   introduction to the SELECTED list, not static page copy. Same type as a
+   screen-header intro (.screen-head p); the .seg above owns the gap to the
+   tabs, this owns the gap down to the list content. */
+.lists-intro {
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 /* Disclosure header: badge slot sits between the title block and the chevron. */

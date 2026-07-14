@@ -1,7 +1,7 @@
 {
   "name": "fjallkompis",
   "private": true,
-  "version": "0.20.2",
+  "version": "0.20.3",
   "type": "module",
   "description": "Fjällkompis — an offline hiking companion for the Kungsleden, designed to complement hikers' navigation tools.",
   "scripts": {

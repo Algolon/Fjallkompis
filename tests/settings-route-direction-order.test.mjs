@@ -95,8 +95,35 @@ test('the standalone foldout-note block and its orphaned CSS are gone', () => {
     !/stay visible above/.test(settings),
     'no "readiness/feedback stay visible above" copy remains',
   );
-  // .readiness-note (still used by Trail readiness) survived the class split.
-  assert.match(css, /\.readiness-note\s*\{/);
+});
+
+// ---- Simplifications: Advanced block and readiness manual-note removed -------
+
+test('the Advanced accordion and its version/manual-check block are gone', () => {
+  assert.ok(!/id="advanced"/.test(settings), 'Advanced accordion removed');
+  assert.ok(!/Advanced status/.test(settings), 'Advanced status heading removed');
+  assert.ok(!/Manual checks/.test(settings), 'Manual checks row removed');
+  assert.ok(
+    !/Airplane mode · sunlight · gloves/.test(settings),
+    'the manual-check value string is gone',
+  );
+  // 'advanced' is dropped from the section union (no dead section id).
+  assert.ok(
+    !/'advanced'/.test(settings),
+    "the 'advanced' SettingsSection member is removed",
+  );
+  // The app version now appears only in the footer, not a second time.
+  const versionUses = (settings.match(/\{APP_VERSION\}/g) ?? []).length;
+  assert.equal(versionUses, 1, 'APP_VERSION rendered once (the footer only)');
+});
+
+test('the Trail-readiness manual-reminder note and its CSS are removed', () => {
+  assert.ok(!/readiness-note/.test(settings), 'note element removed from the screen');
+  assert.ok(!/\.readiness-note\s*\{/.test(css), 'orphaned .readiness-note CSS removed');
+  assert.ok(
+    !/still need a real device/.test(settings),
+    'the manual-reminder copy is gone (the score conveys the status)',
+  );
 });
 
 // ---- PR #53 behaviours preserved through the reorder ------------------------

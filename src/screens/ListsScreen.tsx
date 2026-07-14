@@ -446,9 +446,7 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
 
   return (
     <div className="screen screen--lists">
-      <ScreenHeader eyebrow="Stay on top of it" title="Lists" action={headerAction}>
-        {LISTS_HEADER[mode]}
-      </ScreenHeader>
+      <ScreenHeader eyebrow="Stay on top of it" title="Lists" action={headerAction} />
 
       <div className="seg seg--lists" role="tablist" aria-label="Lists section">
         {LISTS_TABS.map((t) => (
@@ -463,6 +461,11 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
           </button>
         ))}
       </div>
+
+      {/* Intro sits directly below the tab control (not the page title) so it
+          reads as a description of the SELECTED list and its per-tab change is
+          obvious. Same typography as a screen-header intro. */}
+      <p className="lists-intro">{LISTS_HEADER[mode]}</p>
 
       {mode === 'packing' ? <PackingView /> : null}
       {mode === 'shops' ? (

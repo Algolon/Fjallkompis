@@ -35,12 +35,7 @@ import {
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
-type SettingsSection =
-  | 'install'
-  | 'maps'
-  | 'backup'
-  | 'sources'
-  | 'advanced';
+type SettingsSection = 'install' | 'maps' | 'backup' | 'sources';
 
 const BETA_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSdKmFYZ4uRrfcqc5dPlF1VgxFcggMjtFVl8WQyLtebGokUllg/viewform';
@@ -168,10 +163,6 @@ function TrailReadinessCard({
           optional
         />
       </div>
-
-      <p className="readiness-note">
-        Airplane-mode, sunlight, glove and reopen checks still need a real device.
-      </p>
     </SettingsAccordion>
   );
 }
@@ -571,24 +562,6 @@ export function SettingsScreen() {
           >
             View sources and licences
           </button>
-        </SettingsAccordion>
-
-        <SettingsAccordion
-          id="advanced"
-          title="Advanced"
-          summary="Version and manual test reminders"
-          open={openSection === 'advanced'}
-          onToggle={() => toggleSection('advanced')}
-        >
-          <span className="card-title">Advanced status</span>
-          <div className="row-between" style={{ marginTop: 10 }}>
-            <span className="muted">App version</span>
-            <span className="tnum">{APP_VERSION}</span>
-          </div>
-          <div className="row-between" style={{ marginTop: 8 }}>
-            <span className="muted">Manual checks</span>
-            <span style={{ textAlign: 'right' }}>Airplane mode · sunlight · gloves</span>
-          </div>
         </SettingsAccordion>
       </div>
 
