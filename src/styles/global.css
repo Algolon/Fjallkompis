@@ -52,7 +52,11 @@
   /* Spacing rhythm */
   --gap: 16px;
 
-  --tabbar-h: 64px;
+  /* Compact bottom-nav CONTENT height — the icon+label row only, never
+     including the safe area. The .tabbar adds env(safe-area-inset-bottom)
+     on top exactly once (and the PWA toast clears the same sum), so this
+     stays the lean native-tab-bar row above the iPhone home-gesture area. */
+  --tabbar-h: 56px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 
@@ -1585,7 +1589,9 @@ button.map-status-pill {
   font-size: clamp(6.5px, calc(3.2vw - 3.4px), 10px);
   font-weight: 600;
   letter-spacing: 0.01em;
-  padding: 5px 2px;
+  /* Tight vertical padding so the 56px row (see --tabbar-h) reads lean, not
+     stretched; the whole full-width × 56px cell stays the touch target. */
+  padding: 3px 2px;
   /* Kill the browser's default (blue-ish) tap highlight that would flash over
      the entire full-height cell. Press feedback is drawn on the pill instead so
      the visible click target matches the chip the user actually sees. */
@@ -1607,7 +1613,9 @@ button.map-status-pill {
   align-items: center;
   gap: 3px;
   max-width: 100%;
-  padding: 6px 8px;
+  /* Slimmer vertical padding to match the compact 56px row; horizontal
+     padding is unchanged so the active pill still frames icon + label. */
+  padding: 4px 8px;
   /* Softly rounded rectangle rather than a full pill: a large radius curves in
      right where the label ends and crowds it; a smaller one keeps the sides
      straight past the text. */
