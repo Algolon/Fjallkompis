@@ -1,60 +1,44 @@
 import type {
   ExperienceRouteAsset,
-  ExperienceScale,
   RouteDirection,
   RouteExperience,
 } from '../types';
 
-// ── Commitment grouping (future Explore Index) ──
-export type ExperienceGroupKey = 'on-route' | 'detours' | 'larger';
-export declare const EXPERIENCE_GROUP_ORDER: ExperienceGroupKey[];
-export declare const EXPERIENCE_GROUP_LABEL: Record<ExperienceGroupKey, string>;
-export declare const GROUP_THRESHOLD: number;
-export declare function experienceGroup(scale: ExperienceScale): ExperienceGroupKey;
+// ── Highlight vs Detour (derived from `access`) ──
+export type ExperienceKind = 'highlight' | 'detour';
+export declare function experienceKind(experience: RouteExperience): ExperienceKind;
+export declare function isHighlight(experience: RouteExperience): boolean;
+export declare function isDetour(experience: RouteExperience): boolean;
 
 // ── Stage presentation: physical journey order ──
 export declare function isBasecamp(experience: RouteExperience): boolean;
+export declare function isRouteWide(experience: RouteExperience): boolean;
 export declare function segmentPosition(experience: RouteExperience): number;
 export declare function walkedPosition(
   experience: RouteExperience,
   direction: RouteDirection | string,
 ): number;
 
-export interface StageOrder {
-  linear: RouteExperience[];
-  basecamp: RouteExperience[];
-}
-export declare function orderForStage(
-  experiences: RouteExperience[],
-  stageId: string,
-  direction: RouteDirection | string,
-): StageOrder;
-
 export declare function hasExperiences(
   experiences: RouteExperience[],
   stageId: string,
 ): boolean;
 
-export type PositionGroupKey = 'near-start' | 'along' | 'near-end';
-export declare const POSITION_GROUP_ORDER: PositionGroupKey[];
-export declare const POSITION_GROUP_LABEL: Record<PositionGroupKey, string>;
-export declare function positionGroup(walked: number): PositionGroupKey;
-
-export interface StageSection {
-  key: string;
-  label: string | null;
-  larger?: boolean;
-  items: RouteExperience[];
+export interface StageHighlightsDetours {
+  highlights: RouteExperience[];
+  detours: RouteExperience[];
+  basecamp: RouteExperience[];
 }
-export declare function groupForStageDisplay(
+export declare function highlightsAndDetoursForStage(
   experiences: RouteExperience[],
   stageId: string,
   direction: RouteDirection | string,
-): StageSection[];
+): StageHighlightsDetours;
 
-// ── Inline vs detail (content depth) ──
-export declare function needsDetailView(experience: RouteExperience): boolean;
-export declare function isInlineExperience(experience: RouteExperience): boolean;
+export declare function journeyPositionLabel(
+  experience: RouteExperience,
+  direction: RouteDirection | string,
+): string | null;
 
 // ── Progressive provenance ──
 export type ProvenanceLevel = 'shown' | 'optional' | 'hidden';

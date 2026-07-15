@@ -1,7 +1,13 @@
-# Along the way — spatial data policy & Day 1 pilot
+# Spatial data policy & Day 1 pilot
 
-Operational companion to `explore-more.md` (the architecture). Governs how mappable
-geometry enters the experience layer. Status: **awaiting owner sign-off on Day 1**.
+**Authoritative and current.** Governs how mappable geometry enters the
+experience layer (the Highlights & detours architecture lives in
+`highlights-and-detours.md`). Status: **awaiting owner sign-off on Day 1**.
+
+> **Presentation note.** The stage UI is now "Highlights & detours". The
+> spatial-data policy below is unchanged. The route-wide Day-1 birch record no
+> longer opens a full-stage map view (a route-wide observation is not a map
+> target), so the `full-stage` map mode is currently unused by any record.
 
 ## 1. Policy (non-negotiable)
 

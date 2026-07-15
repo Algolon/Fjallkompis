@@ -42,14 +42,9 @@ test('every guide is structured, compact and complete', () => {
   for (const [id, g] of Object.entries(STAGE_GUIDES)) {
     assert.ok(typeof g.overview === 'string' && g.overview.length > 40, `${id} overview`);
     assert.ok(typeof g.terrain === 'string' && g.terrain.length > 20, `${id} terrain`);
-    assert.ok(Array.isArray(g.highlights), `${id} highlights is an array`);
-    assert.ok(
-      g.highlights.length >= 2 && g.highlights.length <= 4,
-      `${id} has 2–4 highlights (got ${g.highlights.length})`,
-    );
-    for (const h of g.highlights) {
-      assert.ok(typeof h === 'string' && h.trim().length > 0, `${id} highlight non-empty`);
-    }
+    // The day guide is narrative only — the Highlights list has moved to the
+    // Highlights & detours layer, so a guide must NOT carry one.
+    assert.equal(g.highlights, undefined, `${id} carries no guide Highlights list`);
     if (g.watchFor !== undefined) {
       assert.ok(Array.isArray(g.watchFor) && g.watchFor.length > 0, `${id} watchFor`);
       for (const w of g.watchFor) {

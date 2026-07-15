@@ -75,7 +75,7 @@ test('stageGuide returns the canonical guide forward and a merged guide reverse'
 
     const rev = stageGuide(id, REVERSE_DIRECTION);
     // Reverse merges direction-neutral fields (terrain/sources/date) with the
-    // reoriented overview/highlights/watchFor.
+    // reoriented overview/watchFor.
     assert.equal(rev.terrain, STAGE_GUIDES[id].terrain, `${id} terrain is shared`);
     assert.deepEqual(rev.sourceIds, STAGE_GUIDES[id].sourceIds, `${id} sources are shared`);
     assert.equal(rev.lastVerified, STAGE_GUIDES[id].lastVerified, `${id} verification is shared`);
@@ -84,13 +84,14 @@ test('stageGuide returns the canonical guide forward and a merged guide reverse'
   }
 });
 
-test('every reverse guide is structurally valid (2–4 highlights, non-empty prose)', () => {
+test('every reverse guide is structurally valid (narrative only — no highlights list)', () => {
   for (const id of STAGE_IDS) {
     const g = stageGuide(id, REVERSE_DIRECTION);
     assert.ok(g.overview.length > 40, `${id} reverse overview length`);
-    assert.ok(Array.isArray(g.highlights) && g.highlights.length >= 2 && g.highlights.length <= 4, `${id} highlights`);
     assert.ok(Array.isArray(g.watchFor) && g.watchFor.length > 0, `${id} watchFor`);
-    for (const h of g.highlights) assert.ok(typeof h === 'string' && h.trim().length > 0);
+    // The day guide no longer carries a Highlights list — that content moved to
+    // the Highlights & detours layer (routeExperiences.ts).
+    assert.equal(g.highlights, undefined, `${id} has no guide highlights list`);
   }
 });
 

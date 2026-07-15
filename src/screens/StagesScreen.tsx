@@ -3,7 +3,7 @@ import { ChevronDown, Compass } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { ElevationProfile } from '../components/ElevationProfile';
-import { ExperienceDetail, ExperienceList } from '../components/StageExperiences';
+import { HighlightsAndDetours } from '../components/StageExperiences';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { stageGuide } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
@@ -43,15 +43,6 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
       <div className="stage-guide__section">
         <span className="stage-guide__label">Trail character</span>
         <p>{guide.terrain}</p>
-      </div>
-
-      <div className="stage-guide__section">
-        <span className="stage-guide__label">Highlights</span>
-        <ul className="stage-guide__list">
-          {guide.highlights.map((h) => (
-            <li key={h}>{h}</li>
-          ))}
-        </ul>
       </div>
 
       {guide.watchFor && guide.watchFor.length > 0 ? (
@@ -98,25 +89,14 @@ export function StagesScreen({
   // compact; the pills above already carry the headline figures.
   const [routeElevOpen, setRouteElevOpen] = useState(false);
   const routeElevPanelId = 'route-elevation-panel';
-  // "Along the way" is an independent disclosure per card, collapsed on entry —
-  // the same local-only pattern as the day guides (nothing persisted).
+  // "Highlights & detours" is an independent disclosure per card, collapsed on
+  // entry — the same local-only pattern as the day guides (nothing persisted).
+  // Detours expand inline inside it; there is no pushed detail page.
   const [openExplore, setOpenExplore] = useState<ReadonlySet<string>>(
     () => new Set<string>(),
   );
-  // A selected experience opens a pushed detail view in place of the stage list.
-  const [selectedExperience, setSelectedExperience] =
-    useState<RouteExperience | null>(null);
-  const detailRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
   const scrollTargetId = useRef(initialGuideStageId ?? null);
-
-  // On opening a detail, bring it to the top of the scroll region (the list may
-  // have been scrolled mid-way) — same intent as the deep-link scroll below.
-  useEffect(() => {
-    if (selectedExperience) {
-      detailRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
-    }
-  }, [selectedExperience]);
 
   // When arriving via Stage Guide, bring the (already expanded) current
   // stage card into view once mounted — the user must never have to find
@@ -149,7 +129,7 @@ export function StagesScreen({
   };
 
   // "View on map": deep-link to the Map with a one-shot, geometry-aware focus.
-  // Only reachable when the row/detail exposed the action (canViewOnMap). Geometry
+  // Only reachable when the row/card exposed the action (canViewOnMap). Geometry
   // comes from verified sources only — an owner GPX route, the whole Stage, or an
   // exact point — never derived from an editorial position.
   const viewOnMap = (experience: RouteExperience) => {
@@ -177,21 +157,6 @@ export function StagesScreen({
       onNavigate('map', { mapFocus: { kind: 'point', stageId, label, coord: loc.coord } });
     }
   };
-
-  // Pushed detail view replaces the stage list (mobile push pattern); its own
-  // back control returns to the list. Kept above the list render so the header
-  // and cards don't compete with the detail.
-  if (selectedExperience) {
-    return (
-      <div className="screen screen--stages" ref={detailRef}>
-        <ExperienceDetail
-          experience={selectedExperience}
-          onBack={() => setSelectedExperience(null)}
-          onViewOnMap={viewOnMap}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="screen screen--stages">
@@ -258,7 +223,7 @@ export function StagesScreen({
           const guide = stageGuide(stage.id, itinerary.direction);
           const guideOpen = openGuides.has(stage.id);
           const guidePanelId = `stage-guide-${stage.id}`;
-          // "Along the way" — count is direction-independent (segment-stable).
+          // "Highlights & detours" — count is direction-independent (segment-stable).
           const experienceCount = experienceCountForStage(stage.id);
           const exploreOpen = openExplore.has(stage.id);
           const explorePanelId = `stage-explore-${stage.id}`;
@@ -349,13 +314,12 @@ export function StagesScreen({
                     </>
                   ) : null}
 
-                  {/* "Along the way" — a second, quiet disclosure (Option A). It
-                      is a disclosure, not an action: the count is metadata on the
-                      trigger, and it stays clear of the top-right current-stage
-                      pill. Only rendered when the stage has verified content —
-                      never an empty "· 0". Structured so it can move inside the
-                      Day guide (Option B) with minimal change if testing shows a
-                      third footer row crowds the card. */}
+                  {/* "Highlights & detours" — a second, quiet disclosure. It is
+                      a disclosure, not an action: the count (combined Highlights +
+                      Detours) is metadata on the trigger, and it stays clear of
+                      the top-right current-stage pill. Only rendered when the
+                      stage has content — never an empty "· 0". Detours expand
+                      inline within it; there is no pushed detail page. */}
                   {experienceCount > 0 ? (
                     <>
                       <button
@@ -367,7 +331,7 @@ export function StagesScreen({
                       >
                         <span className="stage-explore__label">
                           <Compass size={16} strokeWidth={1.9} aria-hidden />
-                          Along the way
+                          Highlights &amp; detours
                           <span className="stage-explore__count">
                             {' '}
                             · {experienceCount}
@@ -385,12 +349,11 @@ export function StagesScreen({
                           id={explorePanelId}
                           className="stage-guide"
                           role="region"
-                          aria-label={`Day ${stage.day} — along the way`}
+                          aria-label={`Day ${stage.day} — highlights and detours`}
                         >
-                          <ExperienceList
+                          <HighlightsAndDetours
                             stageId={stage.id}
                             direction={itinerary.direction}
-                            onOpenDetail={setSelectedExperience}
                             onViewOnMap={viewOnMap}
                           />
                         </div>

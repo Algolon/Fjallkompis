@@ -14,8 +14,6 @@ export interface StageGuide {
   overview: string;
   /** Compact underfoot/character description. */
   terrain: string;
-  /** 2–4 genuinely useful landmarks or transitions. */
-  highlights: string[];
   /** Stage-specific planning considerations only. */
   watchFor?: string[];
   /** Keys into GUIDE_SOURCES. */
@@ -29,10 +27,10 @@ import type { RouteDirection } from '../route/direction.mjs';
 export declare const GUIDE_SOURCES: Record<string, StageGuideSource>;
 export declare const STAGE_GUIDES: Record<string, StageGuide>;
 
-/** Reverse-direction overrides (overview/highlights/watchFor) per stage id. */
+/** Reverse-direction overrides (overview/watchFor) per stage id. */
 export declare const REVERSE_STAGE_GUIDES: Record<
   string,
-  Pick<StageGuide, 'overview' | 'highlights' | 'watchFor'>
+  Pick<StageGuide, 'overview' | 'watchFor'>
 >;
 
 /** Resolved day guide for a stage in the given direction (undefined if unknown). */

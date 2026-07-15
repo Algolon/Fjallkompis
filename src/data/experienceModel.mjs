@@ -1,7 +1,8 @@
 /**
- * Pure logic for the "Along the way" stage experience layer (see
- * docs/proposals/explore-more.md). Plain .mjs + sibling .d.mts so `node --test`
- * can exercise it without a TypeScript toolchain — the itinerary.mjs convention.
+ * Pure logic for the Highlights & detours stage experience layer (see
+ * docs/proposals/highlights-and-detours.md). Plain .mjs + sibling .d.mts so
+ * `node --test` can exercise it without a TypeScript toolchain — the
+ * itinerary.mjs convention.
  * The data module and the React layer both consume these, so the rules live in
  * exactly one tested place.
  *
@@ -11,31 +12,27 @@
  * active direction; records are never duplicated per direction.
  */
 
-// ─── Commitment grouping — kept for the future Explore Index, which answers a
-//     different question ("what's worth doing across the route, by commitment").
-//     Stage presentation uses PHYSICAL order instead (below).
-export const EXPERIENCE_GROUP_ORDER = ['on-route', 'detours', 'larger'];
-export const EXPERIENCE_GROUP_LABEL = {
-  'on-route': 'On the route',
-  detours: 'Short detours',
-  larger: 'Larger options',
-};
-/** A short list stays flat; longer than this earns headers. */
-export const GROUP_THRESHOLD = 3;
+// ─── Highlight vs Detour — DERIVED from the spatial `access` field ───────────
+//
+// The Stage presents two internal sections. The split is not a new dimension:
+// it reads the existing `access` relationship.
+//  - Highlight — experienced while following the normal stage route
+//    (on-trail / beside-trail / visible-from-trail);
+//  - Detour — the hiker deliberately leaves the route
+//    (short-detour / side-route / basecamp-trip).
 
-export function experienceGroup(scale) {
-  switch (scale) {
-    case 'on-route':
-      return 'on-route';
-    case 'mini-detour':
-    case 'short-excursion':
-      return 'detours';
-    case 'half-full-day':
-    case 'major-adventure':
-      return 'larger';
-    default:
-      return 'larger';
-  }
+/** Access relationships that mean "you leave the normal route". */
+const DETOUR_ACCESS = new Set(['short-detour', 'side-route', 'basecamp-trip']);
+
+/** 'detour' when the hiker leaves the route; 'highlight' otherwise. */
+export function experienceKind(experience) {
+  return DETOUR_ACCESS.has(experience.location?.access) ? 'detour' : 'highlight';
+}
+export function isHighlight(experience) {
+  return experienceKind(experience) === 'highlight';
+}
+export function isDetour(experience) {
+  return experienceKind(experience) === 'detour';
 }
 
 // ─── Stage presentation: order by the PHYSICAL journey ───────────────────────
@@ -43,6 +40,12 @@ export function experienceGroup(scale) {
 /** A basecamp trip is launched from an overnight stop, not met "along" the walk. */
 export function isBasecamp(experience) {
   return experience.location?.access === 'basecamp-trip';
+}
+
+/** A route-wide observation (a stretch/zone, not a single point or destination). */
+export function isRouteWide(experience) {
+  const kind = experience.location?.kind;
+  return kind === 'segment-portion' || kind === 'area';
 }
 
 /** Coarse canonical order position (0..1; 0.5 fallback). ORDERING ONLY — never a coordinate. */
@@ -57,100 +60,56 @@ export function walkedPosition(experience, direction) {
   return direction === 'nikkaluokta-to-abisko' ? 1 - p : p;
 }
 
-/**
- * Experiences on a stage, split into the LINEAR on-stage items (ordered by the
- * physical order the hiker meets them, direction-aware) and the BASECAMP trips
- * (kept separate — not encountered "along" the walk). Stable within a position
- * tie via curated order. Reversing direction only reverses the linear order; no
- * record is duplicated.
- */
-export function orderForStage(experiences, stageId, direction) {
-  const along = experiences
-    .map((x, i) => ({ x, i }))
-    .filter((e) => e.x.segmentIds.includes(stageId));
-  const linear = along.filter((e) => !isBasecamp(e.x));
-  const basecamp = along.filter((e) => isBasecamp(e.x));
-  linear.sort(
-    (a, b) =>
-      walkedPosition(a.x, direction) - walkedPosition(b.x, direction) ||
-      a.i - b.i,
-  );
-  return { linear: linear.map((e) => e.x), basecamp: basecamp.map((e) => e.x) };
-}
-
 /** Whether a stage has any experiences (drives whether the disclosure shows). */
 export function hasExperiences(experiences, stageId) {
   return experiences.some((x) => x.segmentIds.includes(stageId));
 }
 
-// Positional grouping — used only when a linear list is long enough to benefit.
-export const POSITION_GROUP_ORDER = ['near-start', 'along', 'near-end'];
-export const POSITION_GROUP_LABEL = {
-  'near-start': 'Near the start',
-  along: 'Along the stage',
-  'near-end': 'Near the end',
-};
+/**
+ * The two internal Stage sections, each journey-ordered and direction-aware:
+ *  - `highlights` — on/beside/visible-from the trail, ordered by the physical
+ *    order the hiker meets them (reverse flips it);
+ *  - `detours` — route detours ordered by where they leave the trail, with the
+ *    basecamp trips kept visibly LAST (launched from an overnight stop, not met
+ *    "along" the walk).
+ * `basecamp` is also returned split out so the UI can label that trailing group.
+ * Returns empty arrays when the stage carries nothing.
+ */
+export function highlightsAndDetoursForStage(experiences, stageId, direction) {
+  const onStage = experiences
+    .map((x, i) => ({ x, i }))
+    .filter((e) => e.x.segmentIds.includes(stageId));
+  const byWalked = (a, b) =>
+    walkedPosition(a.x, direction) - walkedPosition(b.x, direction) || a.i - b.i;
 
-export function positionGroup(walked) {
-  if (walked < 1 / 3) return 'near-start';
-  if (walked < 2 / 3) return 'along';
-  return 'near-end';
+  const highlights = onStage.filter((e) => isHighlight(e.x)).sort(byWalked);
+  const routeDetours = onStage
+    .filter((e) => isDetour(e.x) && !isBasecamp(e.x))
+    .sort(byWalked);
+  // Basecamp trips have no trail position — keep them in curated order, last.
+  const basecamp = onStage
+    .filter((e) => isBasecamp(e.x))
+    .sort((a, b) => a.i - b.i);
+
+  return {
+    highlights: highlights.map((e) => e.x),
+    detours: [...routeDetours, ...basecamp].map((e) => e.x),
+    basecamp: basecamp.map((e) => e.x),
+  };
 }
 
 /**
- * Stage display as ordered sections. Linear items keep journey order; a short
- * list (≤ GROUP_THRESHOLD) stays flat with no headers (never pad); a longer one
- * is split into Near the start / Along the stage / Near the end (empty dropped).
- * Basecamp trips are a separate trailing "Larger options" section. Returns [] if
- * the stage has nothing.
+ * Optional per-row journey-position label for a Highlight — 'Near the start' /
+ * 'Near the end', direction-aware. The quiet middle band and route-wide
+ * observations return null (no invented precision), so the label appears only
+ * where it genuinely helps orient the reader.
  */
-export function groupForStageDisplay(experiences, stageId, direction) {
-  const { linear, basecamp } = orderForStage(experiences, stageId, direction);
-  const sections = [];
-  if (linear.length > 0 && linear.length <= GROUP_THRESHOLD) {
-    sections.push({ key: 'linear', label: null, items: linear });
-  } else if (linear.length > GROUP_THRESHOLD) {
-    for (const g of POSITION_GROUP_ORDER) {
-      const items = linear.filter(
-        (x) => positionGroup(walkedPosition(x, direction)) === g,
-      );
-      if (items.length) sections.push({ key: g, label: POSITION_GROUP_LABEL[g], items });
-    }
-  }
-  if (basecamp.length > 0) {
-    sections.push({ key: 'larger', label: 'Larger options', larger: true, items: basecamp });
-  }
-  return sections;
-}
-
-// ─── Inline vs detail: CONTENT DEPTH, not scale ──────────────────────────────
-
-/**
- * A separate detail view is warranted when an item carries meaningful extra
- * planning/safety content that won't fit inline — a GPX route, multiple route
- * statistics, equipment, substantial weather sensitivity, multiple warnings,
- * turnaround advice, prep/booking or a major time commitment. Otherwise it stays
- * inline (short why-notice + planning fit + optional single warning + View on
- * map). Scale is deliberately NOT the rule.
- */
-const MAJOR_TIME_SCALES = new Set(['half-full-day', 'major-adventure']);
-
-export function needsDetailView(experience) {
-  if (experience.expedition) return true; // equipment / turnaround / warnings / guide / booking
-  if (experience.location && experience.location.gpxAssetId) return true; // a route to show
-  if (MAJOR_TIME_SCALES.has(experience.scale)) return true; // major time commitment
-  const stats = [
-    experience.roundTripKm,
-    experience.elevationGainM,
-    experience.detourDistanceKm,
-  ].filter((v) => v != null);
-  if (stats.length >= 2) return true; // multiple route statistics
-  if (experience.weatherSensitivity === 'high') return true;
-  return false;
-}
-
-export function isInlineExperience(experience) {
-  return !needsDetailView(experience);
+export function journeyPositionLabel(experience, direction) {
+  if (isRouteWide(experience)) return null;
+  const walked = walkedPosition(experience, direction);
+  if (walked < 1 / 3) return 'Near the start';
+  if (walked >= 2 / 3) return 'Near the end';
+  return null;
 }
 
 // ─── Progressive provenance ──────────────────────────────────────────────────
@@ -158,14 +117,14 @@ export function isInlineExperience(experience) {
 /**
  * How much source/verification to surface, so attribution never clutters small
  * sights but is always visible where it matters:
- *  - 'shown'    major / safety-sensitive / time-sensitive / draft-spatial → source + date;
- *  - 'optional' medium (has a detail view) → a collapsible "Source";
- *  - 'hidden'   small stable on-route sight → no attribution in the primary UI.
+ *  - 'shown'    safety-/time-sensitive (expedition, high weather sensitivity) → source + date;
+ *  - 'optional' a committing detour → a collapsible "Source" inside the card;
+ *  - 'hidden'   an on-route highlight → no attribution in the primary UI.
  */
 export function provenanceLevel(experience) {
   if (experience.expedition) return 'shown';
   if (experience.weatherSensitivity === 'high') return 'shown';
-  if (needsDetailView(experience)) return 'optional';
+  if (isDetour(experience)) return 'optional';
   return 'hidden';
 }
 
