@@ -165,8 +165,12 @@ export function StagesScreen({
           kind: 'route',
           stageId,
           label,
-          entry: experienceWaypoint(experience.id, 'entry'),
           track: experienceTrack(experience.id),
+          start: experienceWaypoint(experience.id, 'entry'),
+          // Destination marker: the viewpoint (canyon) or lakeside primary (lake).
+          destination:
+            experienceWaypoint(experience.id, 'viewpoint') ??
+            experienceWaypoint(experience.id, 'primary'),
         },
       });
     } else if (loc.coord) {

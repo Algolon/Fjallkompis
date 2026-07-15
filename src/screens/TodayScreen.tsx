@@ -54,8 +54,9 @@ export interface NavPayload {
     stageId: string;
     label: string;
     coord?: LatLng;
-    entry?: LatLng;
     track?: LatLng[];
+    start?: LatLng;
+    destination?: LatLng;
     note?: string;
   };
 }

@@ -264,8 +264,9 @@ export function MapScreen({
     stageId: string;
     label: string;
     coord?: LatLng;
-    entry?: LatLng;
     track?: LatLng[];
+    start?: LatLng;
+    destination?: LatLng;
     note?: string;
   } | null;
 }) {
@@ -354,7 +355,11 @@ export function MapScreen({
       m.focusPoint(null);
       m.fitStage(focus.stageId);
     } else if (focus.kind === 'route' && focus.track && focus.track.length > 0) {
-      m.focusRoute(focus.track, focus.entry ?? null);
+      m.focusRoute({
+        track: focus.track,
+        start: focus.start ?? null,
+        destination: focus.destination ?? null,
+      });
     } else if (focus.coord) {
       m.focusPoint({ lat: focus.coord.lat, lon: focus.coord.lng });
     }

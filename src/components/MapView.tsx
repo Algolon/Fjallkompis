@@ -56,6 +56,8 @@ import {
   type CameraConstraints,
 } from '../map/cameraBounds.mjs';
 import type { LatLng } from '../types';
+import { buildFocusFeatures } from '../map/focusFeatures.mjs';
+import type { FocusRoute } from '../map/focusFeatures.mjs';
 
 export interface MapViewHandle {
   /** Move/hide the elevation-scrub marker without re-rendering React. */
@@ -71,8 +73,8 @@ export interface MapViewHandle {
    * persistent experience-marker layer. Safe to call before load (applied then).
    */
   focusPoint: (p: { lat: number; lon: number } | null) => void;
-  /** Draw an owner detour track (+ entry point) on the transient 'focus' source. */
-  focusRoute: (track: LatLng[], entry: LatLng | null) => void;
+  /** Draw an owner detour (track + start/destination markers) on the 'focus' source. */
+  focusRoute: (route: FocusRoute) => void;
 }
 
 /** Which basemap the user is looking at: the offline vector map or satellite. */
@@ -276,35 +278,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return true;
   };
 
-  // Draw an owner detour: the track as a LineString + an entry Point, framed to
-  // the track bounds. Non-persistent — same transient 'focus' source.
-  const applyFocusRoute = (
-    map: maplibregl.Map,
-    track: LatLng[],
-    entry: LatLng | null,
-  ): boolean => {
+  // Draw an owner detour: one LineString for the track + start/destination Point
+  // markers (built by the pure, tested buildFocusFeatures — never intermediate
+  // vertices), framed to the track. Non-persistent — same transient 'focus'
+  // source, whose layers filter by geometry type.
+  const applyFocusRoute = (map: maplibregl.Map, route: FocusRoute): boolean => {
     const src = map.getSource('focus') as GeoJSONSource | undefined;
-    if (!src || track.length === 0) return false;
-    const features: GeoJSON.Feature[] = [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: track.map((t) => [t.lng, t.lat]),
-        },
-        properties: {},
-      },
-    ];
-    if (entry) {
-      features.push({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [entry.lng, entry.lat] },
-        properties: {},
-      });
-    }
-    src.setData({ type: 'FeatureCollection', features });
+    if (!src || route.track.length === 0) return false;
+    src.setData(buildFocusFeatures(route) as FeatureCollection);
     const b = new maplibregl.LngLatBounds();
-    for (const t of track) b.extend([t.lng, t.lat]);
+    for (const t of route.track) b.extend([t.lng, t.lat]);
     map.fitBounds(b, { padding: 64, maxZoom: 15, ...animate() });
     return true;
   };
@@ -342,10 +325,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       if (map && applyFocus(map, p)) pendingFocusRef.current = null;
       else pendingFocusRef.current = (m) => applyFocus(m, p);
     },
-    focusRoute: (track, entry) => {
+    focusRoute: (route) => {
       const map = mapRef.current;
-      if (map && applyFocusRoute(map, track, entry)) pendingFocusRef.current = null;
-      else pendingFocusRef.current = (m) => applyFocusRoute(m, track, entry);
+      if (map && applyFocusRoute(map, route)) pendingFocusRef.current = null;
+      else pendingFocusRef.current = (m) => applyFocusRoute(m, route);
     },
     centerOn: (p) => {
       const map = mapRef.current;

@@ -179,10 +179,14 @@ function AppShell() {
     if (tab === 'map' && 'mapStageId' in (payload ?? {})) {
       setMapViewStageId(payload?.mapStageId ?? null);
     }
-    // "View on map" selects the physical stage so the focus point is shown in
-    // its stage context, then delivers the one-shot focus to MapScreen.
+    // "View on map": a full-stage focus selects the Stage (whole route framed +
+    // highlighted). A point/route focus DESELECTS the stage (→ overview), so the
+    // stage never re-fits the camera and buries the detour — the
+    // focusRoute/focusPoint bounds fit the geometry itself.
     if (tab === 'map' && payload?.mapFocus) {
-      setMapViewStageId(payload.mapFocus.stageId);
+      setMapViewStageId(
+        payload.mapFocus.kind === 'stage' ? payload.mapFocus.stageId : null,
+      );
     }
     setNav({ tab, payload });
     // Push the destination onto history AFTER state is queued: the

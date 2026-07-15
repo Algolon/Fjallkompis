@@ -257,10 +257,14 @@ export function routeLayers(): LayerSpecification[] {
     // Cloudberry = "look here now" (a sanctioned map-highlight, distinct from the
     // muted terrain). The line renders LineString focus features; the circles
     // render Point focus features (both read the same source).
+    // The three focus layers share one source, so each MUST filter by geometry:
+    // without the filter a circle layer renders a dot at every LineString vertex
+    // (the breadcrumb bug). Line → LineString only; circles → Point only.
     {
       id: 'focus-line',
       type: 'line',
       source: 'focus',
+      filter: ['==', ['geometry-type'], 'LineString'],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': '#b78443', 'line-width': 4, 'line-opacity': 0.9 },
     },
@@ -268,16 +272,32 @@ export function routeLayers(): LayerSpecification[] {
       id: 'focus-halo',
       type: 'circle',
       source: 'focus',
-      paint: { 'circle-radius': 16, 'circle-color': '#b78443', 'circle-opacity': 0.22 },
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: { 'circle-radius': 15, 'circle-color': '#b78443', 'circle-opacity': 0.2 },
     },
+    // Endpoint markers, distinguished by role within one colour: the start is a
+    // solid cloudberry dot, the destination a cloudberry ring (open centre).
     {
       id: 'focus-point',
       type: 'circle',
       source: 'focus',
+      filter: ['==', ['geometry-type'], 'Point'],
       paint: {
         'circle-radius': 7,
-        'circle-color': '#b78443',
-        'circle-stroke-color': '#fff',
+        'circle-color': [
+          'match',
+          ['get', 'role'],
+          'destination',
+          '#f2f5ef',
+          '#b78443',
+        ],
+        'circle-stroke-color': [
+          'match',
+          ['get', 'role'],
+          'destination',
+          '#b78443',
+          '#ffffff',
+        ],
         'circle-stroke-width': 2.5,
       },
     },
