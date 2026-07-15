@@ -33,10 +33,8 @@ import {
   isBasecamp,
   isRouteWide,
   journeyPositionLabel,
-  provenanceLevel,
   stageHighlightsAndDetours,
 } from '../data/routeExperiences';
-import { formatVerifiedDate } from '../utils/format';
 
 /**
  * The "Highlights & detours" experience layer for a stage
@@ -184,28 +182,6 @@ function HighlightRow({
 
 // ── Detours ──────────────────────────────────────────────────────────────────
 
-/** Source/verification, shown per the progressive-provenance level (never the
- *  internal spatial fields — only a hiker-facing source line). */
-function Provenance({ experience }: { experience: RouteExperience }) {
-  const level = provenanceLevel(experience);
-  if (level === 'hidden') return null;
-  const line = (
-    <>
-      Source: {experience.source.label} · verified{' '}
-      {formatVerifiedDate(experience.source.lastVerified)}
-    </>
-  );
-  if (level === 'optional') {
-    return (
-      <details className="dt-source">
-        <summary>Source</summary>
-        <p className="dt-verified">{line}</p>
-      </details>
-    );
-  }
-  return <p className="dt-verified">{line}</p>;
-}
-
 /** The "before you commit" safety block — present only for a major adventure. */
 function ExpeditionBlock({ experience }: { experience: RouteExperience }) {
   const { expedition } = experience;
@@ -273,21 +249,28 @@ function DetourCard({
   const [open, setOpen] = useState(false);
   const bodyId = `dt-body-${experience.id}`;
 
-  // Factual decision pills only: difficulty · distance · time/commitment. Each
-  // is omitted when its value is unavailable (no empty placeholders). Route
-  // shape stays in the expanded facts, not a collapsed pill.
+  // Factual decision pills only, each omitted when unavailable (no empty
+  // placeholders). An off-trail objective reads honestly — Off-trail · difficulty
+  // · No marked path — and never invents a distance/time. A routed detour shows
+  // difficulty · distance · time/commitment; route shape stays in the body.
   const pills: string[] = [];
-  if (experience.difficulty) pills.push(DIFFICULTY_LABEL[experience.difficulty]);
-  if (experience.roundTripKm != null) {
-    pills.push(`${km(experience.roundTripKm)} km return`);
-  } else if (experience.detourDistanceKm != null) {
-    pills.push(`${km(experience.detourDistanceKm)} km`);
-  }
-  if (experience.addedTimeText) {
-    pills.push(experience.addedTimeText);
+  if (experience.offTrail) {
+    pills.push('Off-trail');
+    if (experience.difficulty) pills.push(DIFFICULTY_LABEL[experience.difficulty]);
+    pills.push('No marked path');
   } else {
-    const plan = PLANNING_SHORT[experience.planningFit];
-    if (plan) pills.push(plan);
+    if (experience.difficulty) pills.push(DIFFICULTY_LABEL[experience.difficulty]);
+    if (experience.roundTripKm != null) {
+      pills.push(`${km(experience.roundTripKm)} km return`);
+    } else if (experience.detourDistanceKm != null) {
+      pills.push(`${km(experience.detourDistanceKm)} km`);
+    }
+    if (experience.addedTimeText) {
+      pills.push(experience.addedTimeText);
+    } else {
+      const plan = PLANNING_SHORT[experience.planningFit];
+      if (plan) pills.push(plan);
+    }
   }
 
   const mappable = canViewOnMap(experience);
@@ -326,6 +309,16 @@ function DetourCard({
           {experience.description ? (
             <p className="dt-desc">{experience.description}</p>
           ) : null}
+          {experience.offTrail ? (
+            <p className="banner-warn dt-offtrail">
+              <TriangleAlert size={16} strokeWidth={1.9} aria-hidden />
+              <span>
+                No marked path — route-finding required over off-trail ground. Go
+                only in clear, stable conditions, at your own risk, and turn back
+                if terrain or visibility becomes uncertain.
+              </span>
+            </p>
+          ) : null}
           {experience.routeShape || weatherDependent ? (
             <dl className="dt-facts">
               {experience.routeShape ? (
@@ -349,10 +342,10 @@ function DetourCard({
               className="exp-maplink"
               onClick={() => onViewOnMap(experience)}
             >
-              <MapPin size={14} strokeWidth={1.9} aria-hidden /> View on map
+              <MapPin size={14} strokeWidth={1.9} aria-hidden />{' '}
+              {experience.offTrail ? 'View point on map' : 'View on map'}
             </button>
           ) : null}
-          <Provenance experience={experience} />
         </div>
       ) : null}
     </div>

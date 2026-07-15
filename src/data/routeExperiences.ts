@@ -7,6 +7,7 @@ import type {
 import { STAGES_BY_ID } from './stages';
 import { STOPS_BY_ID } from './stops';
 import { EXPERIENCE_ROUTES } from './experienceRoutes';
+import { experienceGeometry } from './experienceGeometry';
 import {
   experienceRefErrors,
   gpxRefErrors,
@@ -74,6 +75,7 @@ export const EXPERIENCE_TYPE_LABEL: Record<ExperienceType, string> = {
 export const ACCESS_LABEL: Record<ExperienceAccess, string> = {
   'on-trail': 'On the trail',
   'beside-trail': 'Beside the trail',
+  'beside-station': 'Beside the station',
   'visible-from-trail': 'Seen from the trail',
   'short-detour': 'Short detour',
   'side-route': 'Side trip',
@@ -110,7 +112,7 @@ const CURATED: RouteExperience[] = [
     nearestStopId: 'abisko',
     routeRelationship: 'Short detour off Stage 1 to the lakeside (out-and-back)',
     addedTimeText: '~30 min',
-    roundTripKm: 1.23,
+    // roundTripKm derived from the GPX geometry at load (see ROUTE_EXPERIENCES).
     summary:
       'A quiet lakeside detour with open water views and, in clear conditions, a possible view toward Lapporten.',
     whyNotice:
@@ -148,7 +150,7 @@ const CURATED: RouteExperience[] = [
     nearestStopId: 'abisko',
     routeRelationship: 'Short marked detour at the Abisko trailhead (out-and-back)',
     addedTimeText: '~10 min',
-    roundTripKm: 0.42,
+    // roundTripKm derived from the GPX geometry at load (see ROUTE_EXPERIENCES).
     summary: 'A turquoise glacial river in a blasted gorge at the trailhead.',
     whyNotice:
       'The Abiskojåkka has cut a sharp canyon toward Lake Torneträsk; in 1899 the railway builders blasted a tunnel to carry the river rather than bridge it. A brief detour loop from the start.',
@@ -433,21 +435,20 @@ const CURATED: RouteExperience[] = [
     confidence: 'high',
   },
   {
+    // A Highlight, not a Detour: it is right at STF Sälka and needs no real
+    // route deviation — something available at the overnight stop.
     id: 'salka-bathing-stream',
     title: 'Sälka bathing stream',
     type: 'water',
-    scale: 'mini-detour',
-    difficulty: 'easy',
-    planningFit: 'adds-under-30',
-    routeShape: 'out-and-back',
+    scale: 'on-route',
+    planningFit: 'directly-on-route',
+    icon: 'river',
     segmentIds: ['d4'],
-    location: { kind: 'point', access: 'short-detour', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
+    location: { kind: 'point', access: 'beside-station', orderHint: 0.98, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'salka',
-    addedTimeText: '+15 min',
     summary: 'A cold dip and reindeer-watching by the cabin.',
     whyNotice:
       'The stream by Sälka is a recognised spot for a bracing plunge (glacial-cold — seconds, not a swim) with reindeer often grazing nearby.',
-    weatherSensitivity: 'medium',
     source: {
       label: 'STF — Sälka Mountain cabin',
       url: 'https://www.swedishtouristassociation.com/facilities/stf-salka-mountain-cabin/',
@@ -456,26 +457,29 @@ const CURATED: RouteExperience[] = [
     confidence: 'medium',
   },
   {
-    id: 'sockertoppen',
-    title: 'Sockertoppen side-summit',
+    // Replaces the former "Sockertoppen" record (that route could not be
+    // reliably identified). An OWNER-supplied off-trail objective on the Sälka
+    // mountain — a small high lake and a valley viewpoint, reached over open
+    // ground with no marked or supplied path. Destination point only.
+    id: 'salka-half-summit-lake-viewpoint',
+    title: 'Sälka high lake & valley viewpoint',
     type: 'landform',
     scale: 'short-excursion',
     difficulty: 'hard',
     planningFit: 'shorter-hiking-day',
-    icon: 'summit',
-    routeShape: 'out-and-back',
+    icon: 'viewpoint',
+    offTrail: true,
     segmentIds: ['d4'],
-    location: { kind: 'route', access: 'side-route', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
+    // A verified owner point (no route): mapAvailability 'exact-point' opens the
+    // destination marker only — never a line. Coord resolves from the GPX
+    // waypoint at runtime, so nothing is hand-typed.
+    location: { kind: 'point', access: 'side-route', orderHint: 0.94, spatialProvenance: 'owner-provided', mapAvailability: 'exact-point', spatialStatus: 'complete' },
     nearestStopId: 'salka',
-    routeRelationship: 'From Sälka — a shorter main stage or a rest day',
-    addedTimeText: '2–3 h',
-    roundTripKm: 6,
-    summary: 'A named side-summit scramble with Sarek views.',
+    summary: 'An off-trail high lake and valley viewpoint above Sälka.',
     whyNotice:
-      'Sälka is a base for peak-bagging; “Sugar Top” is the named nearby summit — a scramble rewarded with wild-strawberry slopes and long views toward Sarek.',
+      'Roughly a quarter of the way up the Sälka mountain, a small high lake sits below a broad viewpoint over the valley. There is no marked or made path — the approach is open off-trail ground, at your own risk and only in clear, stable conditions.',
     description:
-      'A steepish 2–3 h round trip from near Sälka. Not a casual stroll — expect rough ground and route-finding. Best in clear, settled weather; leave a margin for the main stage.',
-    weatherSensitivity: 'high',
+      'An unmarked off-trail objective, not an established hike. Expect route-finding over rough, pathless terrain; judge the ground and weather for yourself and turn back if either becomes uncertain. The map shows the destination point only — there is no supplied route to follow.',
     source: {
       label: 'STF — Sälka Mountain cabin',
       url: 'https://www.swedishtouristassociation.com/facilities/stf-salka-mountain-cabin/',
@@ -490,16 +494,28 @@ const CURATED: RouteExperience[] = [
     scale: 'half-full-day',
     difficulty: 'moderate',
     planningFit: 'best-from-overnight',
+    icon: 'valley',
+    routeShape: 'out-and-back',
     segmentIds: ['d4'],
-    location: { kind: 'route', access: 'side-route', orderHint: 0.92, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
+    // Owner-provided route (nallo-side-valley.gpx); the track is stored
+    // Nallo → Sälka and normalised to the walked Sälka → Nallo at build time.
+    // Distance/return come from that geometry — never hand-typed.
+    location: {
+      kind: 'route',
+      access: 'side-route',
+      orderHint: 0.92,
+      spatialProvenance: 'owner-provided',
+      mapAvailability: 'verified-route',
+      spatialStatus: 'complete',
+      gpxAssetId: 'nallo-side-valley.detour',
+    },
     nearestStopId: 'salka',
-    routeRelationship: 'A branch from near Sälka — best from an overnight stop',
-    addedTimeText: 'Half day+',
-    summary: 'A dramatic side valley and loop alternative.',
+    routeRelationship: 'A branch from Sälka up the valley toward Nallo',
+    summary: 'A dramatic side valley reached from Sälka.',
     whyNotice:
-      'From near Sälka a well-known route branches up a dramatic side valley toward Nallo — a worthwhile detour or loop for hikers with a spare half-day or an extra night.',
+      'From Sälka a well-marked path branches up a dramatic side valley toward Nallo — a worthwhile out-and-back for hikers with a spare half-day or an extra night.',
     description:
-      'Best tackled from an overnight rather than squeezed into a stage. Confirm the exact junction on a current map before committing — sources vary.',
+      'An out-and-back up the valley from Sälka and back the same way. Best tackled from an overnight rather than squeezed into a stage.',
     weatherSensitivity: 'medium',
     source: {
       label: 'STF — trail section Tjäktja–Sälka',
@@ -549,6 +565,67 @@ const CURATED: RouteExperience[] = [
       lastVerified: EXPERIENCES_VERIFIED_ON,
     },
     confidence: 'high',
+  },
+  {
+    // Owner-provided short detour (day5-along-the-way.gpx): a brief spur off the
+    // main route to a bridge over the waterfall/rapids. Track + entry/destination
+    // are supplied; return distance comes from that geometry.
+    id: 'day5-waterfall-rapids-bridge',
+    title: 'Waterfall & rapids bridge',
+    type: 'water',
+    scale: 'mini-detour',
+    difficulty: 'easy',
+    planningFit: 'adds-under-30',
+    icon: 'bridge',
+    routeShape: 'out-and-back',
+    segmentIds: ['d5'],
+    location: {
+      kind: 'route',
+      access: 'short-detour',
+      orderHint: 0.6,
+      spatialProvenance: 'owner-provided',
+      mapAvailability: 'verified-route',
+      spatialStatus: 'complete',
+      gpxAssetId: 'day5-waterfall-rapids-bridge.detour',
+    },
+    nearestStopId: 'singi',
+    summary: 'A brief step off the route to a bridge over the rapids.',
+    whyNotice:
+      'A short step off the main route reaches a bridge over the waterfall and rapids — fast white water below the span, a quick, worthwhile pause.',
+    source: {
+      label: 'Naturkartan — Sälka–Singi',
+      url: 'https://www.naturkartan.se/en/norrbottens-lan/vandringsled-bd38-mellan-salka-och-singi',
+      lastVerified: EXPERIENCES_VERIFIED_ON,
+    },
+    confidence: 'medium',
+  },
+  {
+    // Owner-supplied off-trail objective (day5-along-the-way.gpx): a plateau
+    // viewpoint near the route with NO supplied or established path. Destination
+    // point only — the track in this file belongs to the waterfall detour, never
+    // to this viewpoint.
+    id: 'madirjavri-plateau-viewpoint',
+    title: 'Mádírjávri plateau viewpoint',
+    type: 'viewpoint',
+    scale: 'short-excursion',
+    difficulty: 'hard',
+    planningFit: 'shorter-hiking-day',
+    icon: 'viewpoint',
+    offTrail: true,
+    segmentIds: ['d5'],
+    location: { kind: 'point', access: 'side-route', orderHint: 0.7, spatialProvenance: 'owner-provided', mapAvailability: 'exact-point', spatialStatus: 'complete' },
+    nearestStopId: 'singi',
+    summary: 'An off-trail plateau with a broad view over the Singi area.',
+    whyNotice:
+      'An elevated plateau near the route opens a broad view over the Singi area. There is no marked or made path — reaching it means open off-trail ground, at your own risk and only in clear, stable conditions.',
+    description:
+      'An unmarked off-trail objective, not an established hike. Expect route-finding over rough, pathless terrain; judge the ground and weather for yourself and turn back if either becomes uncertain. The map shows the destination point only — there is no supplied route to follow.',
+    source: {
+      label: 'Naturkartan — Sälka–Singi',
+      url: 'https://www.naturkartan.se/en/norrbottens-lan/vandringsled-bd38-mellan-salka-och-singi',
+      lastVerified: EXPERIENCES_VERIFIED_ON,
+    },
+    confidence: 'medium',
   },
 
   // ── d6 · Singi → Kebnekaise Fjällstation ──────────────────────────────────
@@ -685,15 +762,18 @@ const CURATED: RouteExperience[] = [
     icon: 'summit',
     routeShape: 'out-and-back',
     segmentIds: ['d6', 'd7'],
+    // Owner-provided route (kebnekaise-summit-western.gpx): station → summit via
+    // Vierranvárri. Return distance comes from that geometry (out-and-back).
     location: {
       kind: 'route',
       access: 'basecamp-trip',
-      spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input',
+      spatialProvenance: 'owner-provided',
+      mapAvailability: 'verified-route',
+      spatialStatus: 'complete',
+      gpxAssetId: 'kebnekaise-summit-western.detour',
     },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'Western route · extra day from Kebnekaise Fjällstation',
-    roundTripKm: 18,
-    elevationGainM: 1700,
     weatherSensitivity: 'high',
     summary: 'Sweden’s highest peak — a full alpine day from the station.',
     whyNotice:
@@ -733,17 +813,27 @@ const CURATED: RouteExperience[] = [
     icon: 'glacier',
     routeShape: 'out-and-back',
     segmentIds: ['d6', 'd7'],
-    location: { kind: 'route', access: 'basecamp-trip', spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
+    // Owner-provided route (tarfala-valley.gpx): Kebnekaise Fjällstation → the
+    // high Tarfala valley. Return distance comes from that geometry
+    // (out-and-back); the research station, cabin and waterfall are internal
+    // route-context points, not map markers.
+    location: {
+      kind: 'route',
+      access: 'basecamp-trip',
+      spatialProvenance: 'owner-provided',
+      mapAvailability: 'verified-route',
+      spatialStatus: 'complete',
+      gpxAssetId: 'tarfala-valley.detour',
+    },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'A full day from Kebnekaise Fjällstation',
-    roundTripKm: 16,
-    elevationGainM: 600,
+    // Ascent is GPX-derived (see the route asset); no hand-typed figure.
     weatherSensitivity: 'high',
     summary: 'A high-alpine glacier cirque and glaciology research station.',
     whyNotice:
       'A marked trail climbs into a rock-and-ice amphitheatre ringed by glaciers (Storglaciären, Isfallsglaciären). Storglaciären holds the world’s longest continuous glacier mass-balance record — a superb “active rest day” alternative to a summit.',
     description:
-      'Roughly 16 km round trip with ~600 m of climbing through birch, over suspension bridges and stone fields — some airy, slippery snow patches. High-alpine terrain; carry food and layers and check the weather.',
+      'A long round trip with a stiff climb through birch, over suspension bridges and stone fields — some airy, slippery snow patches. High-alpine terrain; carry food and layers and check the weather.',
     season: { fromMonth: 7, toMonth: 9 },
     source: {
       label: 'STF — Glacier research at Tarfala',
@@ -758,16 +848,26 @@ const CURATED: RouteExperience[] = [
  * Validated experience list. Fails fast at import on an unknown segment/stop id
  * or a broken experience↔GPX-asset link — cheap guards against typos. The checks
  * live in the tested pure module (experienceRefErrors / gpxRefErrors).
+ *
+ * For a routed detour (one with a `gpxAssetId`), the displayed return distance
+ * is DERIVED from the generated GPX geometry — never hand-typed — so the pill can
+ * never drift from the owner's track.
  */
 const KNOWN_STAGE_IDS = new Set(Object.keys(STAGES_BY_ID));
 const KNOWN_STOP_IDS = new Set(Object.keys(STOPS_BY_ID));
 
-export const ROUTE_EXPERIENCES: RouteExperience[] = CURATED.map((x) => {
-  const errors = experienceRefErrors(x, KNOWN_STAGE_IDS, KNOWN_STOP_IDS);
+export const ROUTE_EXPERIENCES: RouteExperience[] = CURATED.map((raw) => {
+  const errors = experienceRefErrors(raw, KNOWN_STAGE_IDS, KNOWN_STOP_IDS);
   if (errors.length > 0) {
     throw new Error(`Invalid RouteExperience: ${errors.join('; ')}`);
   }
-  return x;
+  if (raw.location.gpxAssetId) {
+    const g = experienceGeometry(raw.id);
+    if (g?.roundTripKm != null) {
+      return { ...raw, roundTripKm: g.roundTripKm };
+    }
+  }
+  return raw;
 });
 
 {

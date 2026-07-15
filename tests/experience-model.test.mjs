@@ -53,11 +53,14 @@ test('kind is derived from the access relationship', () => {
   const kind = (access) => experienceKind({ location: { access } });
   assert.equal(kind('on-trail'), 'highlight');
   assert.equal(kind('beside-trail'), 'highlight');
+  // Beside an overnight stop (no real deviation) is a Highlight, not a Detour —
+  // the Sälka bathing stream reclassification depends on this.
+  assert.equal(kind('beside-station'), 'highlight');
   assert.equal(kind('visible-from-trail'), 'highlight');
   assert.equal(kind('short-detour'), 'detour');
   assert.equal(kind('side-route'), 'detour');
   assert.equal(kind('basecamp-trip'), 'detour');
-  assert.ok(isHighlight({ location: { access: 'on-trail' } }));
+  assert.ok(isHighlight({ location: { access: 'beside-station' } }));
   assert.ok(isDetour({ location: { access: 'side-route' } }));
 });
 

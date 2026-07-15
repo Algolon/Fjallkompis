@@ -137,24 +137,47 @@ export function StagesScreen({
     const loc = experience.location;
     const stageId = experience.segmentIds[0];
     const label = experience.shortTitle ?? experience.title;
+    const wp = (role: string) => experienceWaypoint(experience.id, role);
     if (loc.mapAvailability === 'full-stage') {
       onNavigate('map', { mapFocus: { kind: 'stage', stageId, label, note: experience.mapNote } });
     } else if (loc.gpxAssetId) {
+      const track = experienceTrack(experience.id);
       onNavigate('map', {
         mapFocus: {
           kind: 'route',
           stageId,
           label,
-          track: experienceTrack(experience.id),
-          start: experienceWaypoint(experience.id, 'entry'),
-          // Destination marker: the viewpoint (canyon) or lakeside primary (lake).
+          track,
+          // Start marker: the entry waypoint, or the track's first point when a
+          // file supplies no entry (Tarfala starts at the station track point).
+          start: wp('entry') ?? track?.[0],
+          // Destination marker by role, falling back to the track's last point.
           destination:
-            experienceWaypoint(experience.id, 'viewpoint') ??
-            experienceWaypoint(experience.id, 'primary'),
+            wp('destination') ??
+            wp('summit') ??
+            wp('viewpoint') ??
+            wp('primary') ??
+            (track ? track[track.length - 1] : undefined),
         },
       });
-    } else if (loc.coord) {
-      onNavigate('map', { mapFocus: { kind: 'point', stageId, label, coord: loc.coord } });
+    } else if (loc.mapAvailability === 'exact-point') {
+      // A verified point with NO route (an off-trail objective, or an exact
+      // point). Opens the destination marker only — never a line — with clear
+      // off-trail wording so the map is a reference, not a route recommendation.
+      const coord = loc.coord ?? wp('destination');
+      if (coord) {
+        onNavigate('map', {
+          mapFocus: {
+            kind: 'point',
+            stageId,
+            label,
+            coord,
+            note: experience.offTrail
+              ? 'Off-trail — no marked or supplied route. This point is a destination reference only; judge the terrain and conditions for yourself.'
+              : undefined,
+          },
+        });
+      }
     }
   };
 

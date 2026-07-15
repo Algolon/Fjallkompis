@@ -440,6 +440,17 @@ export function MapScreen({
           complete map card left, .map-side right. Route/stage planning —
           elevation, statistics and choosing the current stage — lives on
           Stages. */}
+      {/* Off-trail "View on map" note: a point with no supplied route opens with
+          clear wording that the marker is a destination reference, not a route. */}
+      {focus?.note ? (
+        <p className="banner-warn map-focus-note" role="status">
+          <TriangleAlert size={16} strokeWidth={1.9} aria-hidden />
+          <span>
+            <strong>{focus.label}</strong> — {focus.note}
+          </span>
+        </p>
+      ) : null}
+
       <div className="map-layout">
         <div className="card map-card">
           <div className="map-canvas-wrap">

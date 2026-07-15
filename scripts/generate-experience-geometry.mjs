@@ -6,20 +6,35 @@
  * authoritative source and are NEVER modified here; this only extracts.
  *
  * Stable id convention inside the GPX: waypoint/track names are `exp.<id>.<role>`.
- * The `<id>` is everything between `exp.` and the final `.role`. A documented
- * ALIAS map reconciles a legacy id with the canonical RouteExperience id (the
- * owner's file predates the `-sightline` rename — see docs/proposals/along-the-way-spatial.md).
+ * The `<id>` is everything between `exp.` and the final `.role`. Two documented
+ * alias layers reconcile the raw owner file names with canonical RouteExperience
+ * ids WITHOUT ever editing the source GPX (the files are byte-for-byte
+ * authoritative — see docs/proposals/spatial-data-days4-7.md):
+ *  - ID_ALIAS: a legacy `<id>` → canonical id (the Day-1 `-sightline` rename);
+ *  - NAME_ALIAS: an EXACT source waypoint/track name → { id, role }, for the
+ *    Days-4–7 files whose names don't follow the `exp.<id>.<role>` convention
+ *    (bare track names like `nallo-side-valley`, un-prefixed waypoints like
+ *    `kebnekaise-summit-western.start`, or names with extra dots like
+ *    `day5.madirjavri.lake+plateau.viewpoint`). Names not in NAME_ALIAS fall
+ *    back to the `exp.<id>.<role>` convention, so Day 1 is unchanged.
+ *  - TRACK_REVERSE: canonical ids whose track is stored in the opposite of the
+ *    walked direction and must be reversed for display (Nallo is stored
+ *    destination → Sälka; presentation is Sälka → destination). Reversing only
+ *    reorders points — distance and round-trip ascent are direction-invariant.
  *
  * Metrics are derived ONLY from the supplied geometry: distanceKm is the
- * out-and-back length (owner-confirmed both Day-1 detours are out-and-back) =
- * one-way haversine sum × 2; elevationGainM (round trip) = one-way ascent +
- * one-way descent. Rounded so regeneration is byte-stable for CI.
+ * out-and-back length (one-way haversine sum × 2); elevationGainM (round-trip
+ * ascent) = one-way ascent + one-way descent, each computed with the
+ * deterministic hysteresis noise filter in gpx-elevation.mjs (a raw per-delta
+ * sum over-counts DEM/barometric jitter). Rounded so regeneration is byte-stable
+ * for CI. Point-only objectives (waypoint, no track) get waypoints and no metrics.
  *
  * Run via `npm run generate:experiences` (chained into dev/build/test).
  */
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { cumulativeGain } from './gpx-elevation.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const GPX_DIR = join(root, 'public/gpx/experiences');
@@ -29,6 +44,38 @@ const OUT = join(root, 'src/generated/experience-geometry.json');
 const ID_ALIAS = {
   'lake-njakajaure-lapporten-sightline': 'lake-njakajaure-lapporten',
 };
+
+/**
+ * Exact source waypoint/track name → { canonical id, role }. Only the names that
+ * do NOT follow the `exp.<id>.<role>` convention need an entry here; everything
+ * else falls back to the convention. Keeps the owner GPX unedited.
+ */
+const NAME_ALIAS = {
+  // nallo-side-valley.gpx — bare track name + the separate off-trail objective.
+  'nallo-side-valley': { id: 'nallo-side-valley', role: 'detour' },
+  'exp.salke-half-summit.lake+viewpoint': {
+    id: 'salka-half-summit-lake-viewpoint',
+    role: 'destination',
+  },
+  // tarfala-valley.gpx — bare track name (waypoints already use exp.<id>.<role>).
+  'tarfala-valley': { id: 'tarfala-valley', role: 'detour' },
+  // kebnekaise-summit-western.gpx — bare track + un-prefixed start/end.
+  'kebnekaise-summit-western': { id: 'kebnekaise-summit-western', role: 'detour' },
+  'kebnekaise-summit-western.start': { id: 'kebnekaise-summit-western', role: 'entry' },
+  'kebnekaise-summit-western.end': { id: 'kebnekaise-summit-western', role: 'summit' },
+  // day5-along-the-way.gpx — the track belongs ONLY to the waterfall detour; the
+  // Mádírjávri plateau viewpoint is a separate point-only objective.
+  'day5-along-the-way': { id: 'day5-waterfall-rapids-bridge', role: 'detour' },
+  'day-5-waterfall-along-route.entry': { id: 'day5-waterfall-rapids-bridge', role: 'entry' },
+  'day-5-waterfall-along-route': { id: 'day5-waterfall-rapids-bridge', role: 'destination' },
+  'day5.madirjavri.lake+plateau.viewpoint': {
+    id: 'madirjavri-plateau-viewpoint',
+    role: 'destination',
+  },
+};
+
+/** Canonical ids whose stored track runs opposite the walked direction. */
+const TRACK_REVERSE = new Set(['nallo-side-valley']);
 
 const R = 6371000;
 const rad = (d) => (d * Math.PI) / 180;
@@ -42,6 +89,8 @@ const hav = (a, b) => {
 };
 
 function parseName(raw) {
+  const alias = NAME_ALIAS[raw];
+  if (alias) return { id: alias.id, rawId: raw, role: alias.role };
   const s = raw.replace(/^exp\./, '');
   const i = s.lastIndexOf('.');
   const rawId = s.slice(0, i);
@@ -49,8 +98,9 @@ function parseName(raw) {
 }
 
 const experiences = {};
-const ensure = (id) =>
-  (experiences[id] ??= { sourceFile: '', waypoints: {}, track: null });
+// Point-only objectives keep just waypoints — no `track` key is written, so the
+// generated JSON matches the `track?: number[][]` contract (never null).
+const ensure = (id) => (experiences[id] ??= { sourceFile: '', waypoints: {} });
 
 for (const file of readdirSync(GPX_DIR).filter((f) => f.endsWith('.gpx')).sort()) {
   const gpx = readFileSync(join(GPX_DIR, file), 'utf8');
@@ -66,25 +116,23 @@ for (const file of readdirSync(GPX_DIR).filter((f) => f.endsWith('.gpx')).sort()
 
   for (const t of gpx.matchAll(/<trk>\s*<name>([^<]+)<\/name>[\s\S]*?<\/trk>/g)) {
     const { id, role } = parseName(t[1]);
-    const pts = [
+    const raw = [
       ...t[0].matchAll(/<trkpt lat="([\d.]+)" lon="([\d.]+)">\s*<ele>([\d.]+)</g),
     ].map((p) => ({ lat: +p[1], lon: +p[2], ele: +p[3] }));
-    if (pts.length < 2) continue;
+    if (raw.length < 2) continue;
+    // Normalise to the WALKED direction for display (source file untouched).
+    const pts = TRACK_REVERSE.has(id) ? [...raw].reverse() : raw;
     let len = 0;
-    let up = 0;
-    let down = 0;
-    for (let i = 1; i < pts.length; i++) {
-      len += hav(pts[i - 1], pts[i]);
-      const d = pts[i].ele - pts[i - 1].ele;
-      if (d > 0) up += d;
-      else down += -d;
-    }
+    for (let i = 1; i < pts.length; i++) len += hav(pts[i - 1], pts[i]);
+    // Cumulative ascent/descent via the deterministic hysteresis noise filter
+    // (see gpx-elevation.mjs) — raw per-delta sums would over-count DEM jitter.
+    const { ascent, descent } = cumulativeGain(pts.map((p) => p.ele));
     const e = ensure(id);
     e.sourceFile = file;
     e.trackRole = role;
     e.track = pts.map((p) => [+p.lat.toFixed(6), +p.lon.toFixed(6)]);
     e.roundTripKm = +((len * 2) / 1000).toFixed(2); // out-and-back
-    e.elevationGainM = Math.round(up + down); // round-trip ascent
+    e.elevationGainM = Math.round(ascent + descent); // round-trip ascent (filtered)
   }
 }
 

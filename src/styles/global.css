@@ -1819,30 +1819,15 @@ button.map-status-pill {
   margin: 0;
   color: var(--ink-soft);
 }
-/* Subtle source disclosure inside a detour card. */
-.dt-source {
-  margin-top: 2px;
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
-}
-.dt-source > summary {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--ink-faint);
-  cursor: pointer;
-  list-style: none;
-}
-.dt-source > summary::-webkit-details-marker {
-  display: none;
-}
-.dt-verified {
+/* Off-trail objective note inside a detour card — honest, prominent risk
+   wording for an unrouted objective (reuses the shared .banner-warn tone). */
+.dt-offtrail {
   margin: 0;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--ink-faint);
 }
-.dt-source .dt-verified {
-  margin-top: 8px;
+
+/* Off-trail "View on map" note on the Map screen (a point, never a route). */
+.map-focus-note {
+  margin: 0 0 12px;
 }
 
 /* Map screen stage selector: a block grid with every option visible at
