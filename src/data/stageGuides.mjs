@@ -101,10 +101,13 @@ export const GUIDE_SOURCES = {
  * Shape per guide (see stageGuides.d.mts):
  *   overview     – 2–3 sentences: what the day is like;
  *   terrain      – compact underfoot/character description;
- *   highlights   – 2–4 genuinely useful landmarks or transitions;
  *   watchFor     – stage-specific planning considerations only (optional);
  *   sourceIds    – keys into GUIDE_SOURCES;
  *   lastVerified – ISO date the editorial facts were checked.
+ *
+ * The day guide is planning/character narrative only — the concrete things to
+ * see or detour to live in the Highlights & detours layer (routeExperiences.ts),
+ * so a guide never carries its own Highlights list.
  */
 export const STAGE_GUIDES = {
   d1: {
@@ -115,12 +118,6 @@ export const STAGE_GUIDES = {
     terrain:
       'Well-trodden path through mountain birch forest, partly rocky ' +
       'underfoot, with boardwalks across the wetter sections.',
-    highlights: [
-      'The rushing Abiskojåkka river and its canyon right at the start',
-      'A limestone bluff a few kilometres in, with wide views over the river',
-      'The forest slowly opening toward the fjäll ahead',
-      'Lake Abiskojaure, with a sandy beach near the cabins',
-    ],
     watchFor: [
       'Abisko is the last full-service stop — cabin shops further on are small, and Tjäktja and Singi have none',
       'This sheltered day is the exception: from tomorrow the route climbs above the treeline',
@@ -138,12 +135,6 @@ export const STAGE_GUIDES = {
       'A steady climb out of the woods, then open, generally clear trail ' +
       'along lake Alisjávri and up the broad valley, with the bigger river ' +
       'crossings bridged.',
-    highlights: [
-      'Crossing the treeline — wooded national park gives way to open mountain terrain',
-      'The suspension bridge over Šiellajohka',
-      'Long views along lake Alisjávri',
-      'Alesjaure cabins on their hill, overlooking lake and valley for miles',
-    ],
     watchFor: [
       'A long, exposed day with few sheltered spots — check the forecast before committing',
       'In high season a small private boat can shorten the walk along Alisjávri; it is seasonal and never guaranteed, so don’t plan around it',
@@ -165,11 +156,6 @@ export const STAGE_GUIDES = {
       'Mostly moderate gradients on open valley trail along the river, ' +
       'increasingly stony with height, and a steeper final pull up to the ' +
       'cabin on its bare slope.',
-    highlights: [
-      'The wide sweep of the upper valley, river braiding below the trail',
-      'Vegetation thinning to hardy alpine ground as you gain height',
-      'First close views of the barren country around Tjäktjapasset',
-    ],
     watchFor: [
       'Tjäktja has no shop and no sauna — carry food from Alesjaure onward',
       'Open and weather-exposed; wind often strengthens toward the pass',
@@ -188,11 +174,6 @@ export const STAGE_GUIDES = {
       'begins with a steep, stony descent before the gradient eases into ' +
       'long, gently falling valley trail with streams and wet patches that ' +
       'vary with meltwater.',
-    highlights: [
-      'Tjäktjapasset itself — the route’s high point, with an unstaffed day shelter near the top',
-      'The huge view south over Tjäktjavagge from the pass',
-      'The valley unrolling ahead for tens of kilometres as you descend',
-    ],
     watchFor: [
       'Snow patches often linger around the pass well into summer — depending on conditions you may cross old snowfields',
       'In poor visibility or hard wind this is the most serious point of the week; the pass shelter is for rest and emergencies, not accommodation',
@@ -214,11 +195,6 @@ export const STAGE_GUIDES = {
     terrain:
       'Open valley trail, mostly gentle, with many streams crossed on wooden ' +
       'bridges; the path grows more winding and stony on the approach to Singi.',
-    highlights: [
-      'The broadest reaches of Tjäktjavagge, big-mountain views on both sides',
-      'Suspension bridges over the Gaskkasjohka streams',
-      'The Singi junction — the main Kungsleden continues south, this route turns east toward Kebnekaise',
-    ],
     watchFor: [
       'Singi has no shop and no sauna — carry what you need from Sälka',
       'Wet sections vary with weather and meltwater, even on this easier day',
@@ -236,12 +212,6 @@ export const STAGE_GUIDES = {
       'Undulating, sometimes stony trail through a narrow mountain valley ' +
       'that opens into Ladtjovagge (Láddjuvággi), with some climbing before ' +
       'the broader final approach.',
-    highlights: [
-      'Dramatic valley walls closing in beyond Singi',
-      'Duolbagorni (Tolpagorni) with its crater-like hollow appearing to the north as the valley opens',
-      'Peaks of the Kebnekaise massif — cloud permitting',
-      'A staffed mountain station with restaurant, shop and showers after days of cabins',
-    ],
     watchFor: [
       'From Singi you follow the connecting trail toward Nikkaluokta, no longer the official Kungsleden — the way remains clearly marked',
       'The station area is far busier than the cabins: Kebnekaise summit traffic joins here',
@@ -262,12 +232,6 @@ export const STAGE_GUIDES = {
     terrain:
       'Broad, well-trodden and often busy trail, generally level or gently ' +
       'descending; the final kilometres run through easy birch woodland.',
-    highlights: [
-      'Looking back up the valley toward the Kebnekaise massif',
-      'Lake Láddjujávri, with the lakeside restaurant at the boat landing (Enoks — famous for its reindeer burger)',
-      'Birch forest returning after days at and above the treeline',
-      'Nikkaluokta — trail’s end, with a seasonal bus link toward Kiruna',
-    ],
     watchFor: [
       'A seasonal boat across Láddjujávri (run by Enoks, typically mid-June to mid-September) can cut roughly 6 km off the day — schedules, capacity and running status must be verified locally; never count on it',
       'The Nikkaluokta–Kiruna bus is seasonal too — check current timetables before the trip',
@@ -284,10 +248,10 @@ export const STAGE_GUIDES = {
 /**
  * Reverse-direction (Nikkaluokta → Abisko) overrides per STABLE physical
  * segment id. Only the DIRECTION-DEPENDENT fields are authored here —
- * `overview`, `highlights` (reordered/reoriented) and `watchFor` (resupply and
- * approach direction). The direction-neutral fields (`terrain`, `sourceIds`,
- * `lastVerified`) are inherited from the forward guide by {@link stageGuide},
- * so trail character and provenance stay single-sourced.
+ * `overview` and `watchFor` (resupply and approach direction). The
+ * direction-neutral fields (`terrain`, `sourceIds`, `lastVerified`) are
+ * inherited from the forward guide by {@link stageGuide}, so trail character
+ * and provenance stay single-sourced.
  *
  * This content is REORIENTED from the same verified facts as the forward
  * guides — it is not word-reversed prose, and it invents no new field
@@ -303,12 +267,6 @@ export const REVERSE_STAGE_GUIDES = {
       'Abiskojaure the trail follows the Abiskojåkka down through sheltered ' +
       'birch forest to the Abisko trailhead. Gentle and well-graded, but ' +
       'still a full mountain-trail day out to the road and railway.',
-    highlights: [
-      'Lake Abiskojaure and its sandy beach by the cabins at the start',
-      'The forest gradually closing in as you descend toward Abisko',
-      'A limestone bluff with wide river views a few kilometres before Abisko',
-      'The rushing Abiskojåkka river and its canyon near the end',
-    ],
     watchFor: [
       'Abisko is a full-service stop again — apart from Kebnekaise station, the cabins behind you were small or had no shop',
       'This sheltered forest day is the gentle end of the route; the exposed high fjäll is now behind you',
@@ -320,12 +278,6 @@ export const REVERSE_STAGE_GUIDES = {
       'Alesjaure the route runs down the broad valley and along lake ' +
       'Alisjávri, then drops through the treeline into the birch forest near ' +
       'Abiskojaure. The exposed miles come first; shelter returns lower down.',
-    highlights: [
-      'Alesjaure cabins on their hill, overlooking lake and valley, at the start',
-      'Long views along lake Alisjávri',
-      'The suspension bridge over Šiellajohka',
-      'Dropping back below the treeline into sheltered birch forest',
-    ],
     watchFor: [
       'A long, exposed day up high with few sheltered spots until the forest — check the forecast before committing',
       'In high season a small private boat can shorten the walk along Alisjávri; it is seasonal and never guaranteed, so don’t plan around it',
@@ -337,11 +289,6 @@ export const REVERSE_STAGE_GUIDES = {
       'cabin on the Kungsleden, just below the pass — losing height toward ' +
       'greener ground around Alesjaure. Austere fjäll gradually gives way to ' +
       'lower, less sparse country.',
-    highlights: [
-      'The barren country around Tjäktjapasset close behind you at the start',
-      'The wide sweep of the upper valley, river braiding below the trail',
-      'Vegetation slowly returning as you lose height toward Alesjaure',
-    ],
     watchFor: [
       'Open and weather-exposed up high; wind is often strongest near the pass behind you',
       'Alesjaure ahead has a shop and sauna — the first resupply since Sälka',
@@ -354,11 +301,6 @@ export const REVERSE_STAGE_GUIDES = {
       'walking up Tjäktjavagge leads to a steep, stony climb to the pass, ' +
       'with Tjäktja cabin a short way down the far side. The difficulty is ' +
       'exposure, conditions and the climb rather than distance.',
-    highlights: [
-      'Tjäktjavagge opening out behind you as you gain height',
-      'The steep, stony pull to Tjäktjapasset — the route’s high point, with an unstaffed day shelter near the top',
-      'Wide views back down the valley from the pass',
-    ],
     watchFor: [
       'Snow patches often linger around the pass well into summer — depending on conditions you may cross old snowfields on the climb',
       'In poor visibility or hard wind this is the most serious point of the week; the pass shelter is for rest and emergencies, not accommodation',
@@ -372,11 +314,6 @@ export const REVERSE_STAGE_GUIDES = {
       'glacier-bearing peaks. It begins at Singi — where this route meets the ' +
       'main Kungsleden — and follows easy gradients to the well-equipped ' +
       'cabin at Sälka.',
-    highlights: [
-      'The Singi junction — the main Kungsleden runs south from here, and this route comes in from Kebnekaise',
-      'Suspension bridges over the Gaskkasjohka streams',
-      'The broad reaches of Tjäktjavagge, big-mountain views on both sides toward Sälka',
-    ],
     watchFor: [
       'Singi has no shop or sauna — Sälka ahead is the next resupply',
       'Wet sections vary with weather and meltwater, even on this easier day',
@@ -388,12 +325,6 @@ export const REVERSE_STAGE_GUIDES = {
       'Ladtjovagge and back into narrow, alpine country to Singi, where it ' +
       'rejoins the official Kungsleden. Steep valley walls and the peaks of ' +
       'the Kebnekaise massif frame the start.',
-    highlights: [
-      'Kebnekaise Mountain Station and the massif’s peaks — cloud permitting — at the start',
-      'Duolbagorni (Tolpagorni) with its crater-like hollow to the north as you head up the valley',
-      'Narrowing, dramatic valley walls on the approach to Singi',
-      'Singi, where the connecting trail rejoins the official Kungsleden',
-    ],
     watchFor: [
       'As far as Singi you follow the connecting trail from Kebnekaise, not the official Kungsleden — the way remains clearly marked',
       'The station area is far busier than the cabins ahead: Kebnekaise summit traffic gathers here',
@@ -407,12 +338,6 @@ export const REVERSE_STAGE_GUIDES = {
       'lake Láddjujávri onto open fjäll and up Ladtjovagge to Kebnekaise ' +
       'Mountain Station. Straightforward underfoot, yet a substantial day if ' +
       'walked in full.',
-    highlights: [
-      'Nikkaluokta trailhead, with a seasonal bus link from Kiruna, at the start',
-      'Lake Láddjujávri, with the lakeside restaurant at the boat landing (Enoks — famous for its reindeer burger)',
-      'Birch forest giving way to open fjäll as you gain height',
-      'The Kebnekaise massif rising ahead up the valley',
-    ],
     watchFor: [
       'A seasonal boat across Láddjujávri (run by Enoks, typically mid-June to mid-September) can cut roughly 6 km off the day — schedules, capacity and running status must be verified locally; never count on it',
       'The Kiruna–Nikkaluokta bus is seasonal too — check current timetables before the trip',

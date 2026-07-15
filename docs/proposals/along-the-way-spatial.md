@@ -3,6 +3,12 @@
 Operational companion to `explore-more.md` (the architecture). Governs how mappable
 geometry enters the experience layer. Status: **awaiting owner sign-off on Day 1**.
 
+> **Presentation note.** The stage UI is now "Highlights & detours"
+> (`highlights-and-detours.md`); the spatial-data policy in this document is
+> unchanged and still authoritative. The route-wide Day-1 birch record no longer
+> opens a full-stage map view (a route-wide observation is not a map target), so
+> the `full-stage` map mode is currently unused by any record.
+
 ## 1. Policy (non-negotiable)
 
 For hiking/safety data, **missing beats false precision.** Nothing is inferred, guessed,

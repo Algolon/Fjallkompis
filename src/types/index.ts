@@ -356,6 +356,30 @@ export type ExperienceScale =
 
 export type ExperienceDifficulty = 'easy' | 'moderate' | 'hard' | 'alpine';
 
+/**
+ * Optional presentation icon key — overrides the coarse `type → icon` default
+ * when a feature is more specific than its five-value `type` (a bridge is
+ * `type: 'water'` but reads better with a bridge glyph). Resolved to a Lucide
+ * icon in the React layer (ICON_BY_KEY); the semantic `type` still drives the
+ * default, so this stays optional and never introduces a colour category.
+ */
+export type ExperienceIconKey =
+  | 'bridge'
+  | 'lake'
+  | 'river'
+  | 'wildlife'
+  | 'forest'
+  | 'pass'
+  | 'glacier'
+  | 'geology'
+  | 'valley'
+  | 'viewpoint'
+  | 'summit'
+  | 'culture';
+
+/** Physical shape of a detour route — editorial context for the expanded card. */
+export type ExperienceRouteShape = 'out-and-back' | 'loop' | 'one-way';
+
 /** Human planning judgement — shown INSTEAD of raw numbers as the headline. */
 export type PlanningFit =
   | 'directly-on-route'
@@ -533,6 +557,11 @@ export interface RouteExperience {
   /** Omitted for a pure roadside sight with no walking effort. */
   difficulty?: ExperienceDifficulty;
   planningFit: PlanningFit;
+
+  /** Optional specific icon key; falls back to a `type`-derived default. */
+  icon?: ExperienceIconKey;
+  /** Optional detour route shape (out-and-back / loop / one-way). */
+  routeShape?: ExperienceRouteShape;
 
   /** Stable physical stage ids (d1..d7); may be several (a basecamp trip → both adjacent stages). */
   segmentIds: string[];

@@ -1442,9 +1442,9 @@ button.map-status-pill {
   margin-top: 6px;
 }
 
-/* --- Along the way (stage experience layer) ------------------------------- */
+/* --- Highlights & detours (stage experience layer) ------------------------ */
 
-/* Two stacked footer disclosures (Day guide + Along the way). The wrapper is
+/* Two stacked footer disclosures (Day guide + Highlights & detours). The wrapper is
    full-bleed to the card edges and clips its children to the card's bottom
    radius, so each disclosure inside can stay square and margin-free — the
    single-disclosure negative-margin trick, generalised to a stack. */
@@ -1463,8 +1463,8 @@ button.map-status-pill {
   border-radius: 0;
 }
 
-/* "Along the way" trigger: a compass glyph + label; the count is metadata that
-   rides on the trigger (never a separate tap target). */
+/* "Highlights & detours" trigger: a compass glyph + label; the count is metadata
+   that rides on the trigger (never a separate tap target). */
 .stage-explore__label {
   display: inline-flex;
   align-items: center;
@@ -1479,163 +1479,135 @@ button.map-status-pill {
   font-weight: 700;
 }
 
-/* Experience list + scale groups inside the disclosure panel. */
-.exp-list {
+/* Highlights & detours — the two sections under the disclosure panel. */
+.hd-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
   margin-top: 12px;
 }
-.exp-group {
+.hd-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.exp-group + .exp-group {
-  margin-top: 6px;
-}
-.exp-group__label {
+.hd-subhead {
+  margin: 0 2px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  margin: 4px 2px 2px;
+}
+.hd-count {
+  color: var(--ink-faint);
+  font-weight: 700;
 }
 
-/* One experience row — a quiet paper-2 tile; the whole tile is the tap target.
-   Category is carried by the glyph shape + label only; no per-type colour. */
-.exp-row {
+/* --- Highlights: compact icon rows ---------------------------------------- */
+.hl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hl-row {
   background: var(--paper-2);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
 }
-.exp-row.is-open {
+.hl-row.is-open {
   background: var(--paper-bright);
   border-color: var(--line-strong);
 }
-.exp-row__btn {
+.hl-row__btn {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: transparent;
   border: 0;
-  padding: 10px 12px;
-  min-height: 56px;
+  padding: 8px 11px;
+  min-height: 48px;
   color: inherit;
   transition: transform 0.08s ease;
 }
-.exp-row__btn:active {
-  transform: scale(0.995);
+.hl-row__btn:active {
+  transform: scale(0.996);
 }
-.exp-row__btn:focus-visible {
+.hl-row__btn:focus-visible {
   outline: 2px solid var(--glacier-700);
   outline-offset: -2px;
   border-radius: var(--r-sm);
 }
-.exp-glyph {
+/* One restrained semantic glyph — category is never encoded in colour. */
+.hl-glyph {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
   background: var(--paper-bright);
   border: 1px solid var(--line);
   color: var(--spruce);
 }
-.exp-row.is-open .exp-glyph {
+.hl-row.is-open .hl-glyph {
   background: var(--paper);
 }
-.exp-main {
+.hl-main {
   flex: 1;
   min-width: 0;
 }
-.exp-title {
+.hl-title {
   display: block;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink-strong);
 }
-.exp-sub {
+.hl-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
-  margin-top: 3px;
-  font-size: 12px;
+  margin-top: 2px;
+  font-size: 11.5px;
   color: var(--ink-soft);
 }
-.exp-sep {
+.hl-rel {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.hl-pos {
+  color: var(--ink-faint);
+}
+.hl-sep {
   width: 3px;
   height: 3px;
   border-radius: 50%;
   background: var(--line-strong);
   flex: 0 0 auto;
 }
-/* Planning-fit metadata chip. The glacier tint marks a real time cost
-   (planning) — matching the palette's spatial/technical role. Plain otherwise. */
-.exp-fit {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-.exp-fit--plan {
-  background: var(--glacier-soft);
-  border-color: #c3d6da;
-  color: #46626a;
-}
-.exp-diff {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-/* Difficulty pips: severity encoded in FORM, not colour. */
-.exp-pips {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-.exp-pips i {
-  width: 6px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--line-strong);
-  display: block;
-}
-.exp-pips i.on {
-  background: var(--ink-soft);
-}
-.exp-go {
+.hl-chev {
   flex: 0 0 auto;
   color: var(--ink-faint);
   transition: transform 0.2s ease;
 }
-.exp-row.is-open .exp-chev {
+.hl-row.is-open .hl-chev {
   transform: rotate(180deg);
 }
-.exp-note {
-  padding: 0 12px 12px 57px; /* aligns under the title, past the 34px glyph */
+.hl-note {
+  padding: 0 12px 11px 49px; /* aligns under the title, past the 28px glyph */
 }
-.exp-note p {
+.hl-note p {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.55;
   color: var(--ink-soft);
 }
-/* Quiet single action inside an expanded on-route sight. */
+
+/* Quiet single map action inside an expanded row/card. */
 .exp-maplink {
   display: inline-flex;
   align-items: center;
@@ -1654,167 +1626,217 @@ button.map-status-pill {
   outline-offset: 2px;
   border-radius: 6px;
 }
-/* Spatial access as quiet muted text (a geometric fact, not a tappable chip). */
-.exp-access {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-faint);
-}
-/* A trailing "Larger options" group sits slightly apart from the linear list. */
-.exp-group--larger {
-  margin-top: 6px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--line);
-}
 
-/* --- Experience detail (pushed view) -------------------------------------- */
-
-/* View-on-map action row on the detail. */
-.detail-actions {
+/* --- Detours: inline expandable cards ------------------------------------- */
+.dt-group {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 18px;
 }
-.detail-actions .btn {
-  flex: 1;
+.dt-card {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
 }
-/* Optional (medium) provenance disclosure. */
-.exp-source {
-  margin-top: 18px;
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
+.dt-card.is-open {
+  background: var(--paper-bright);
+  border-color: var(--line-strong);
 }
-.exp-source > summary {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-faint);
-  cursor: pointer;
-  list-style: none;
-}
-.exp-source > summary::-webkit-details-marker {
-  display: none;
-}
-.exp-source .exp-verified {
-  margin-top: 8px;
-  padding-top: 0;
-  border-top: 0;
-}
-
-.exp-detail__top {
-  min-height: 44px;
+.dt-card__btn {
   display: flex;
   align-items: center;
-  margin: -2px 0 8px;
-}
-.exp-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
   background: transparent;
   border: 0;
-  padding: 6px 4px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--glacier-700);
+  padding: 10px 12px;
+  min-height: 56px;
+  color: inherit;
+  transition: transform 0.08s ease;
 }
-.exp-back:focus-visible {
+.dt-card__btn:active {
+  transform: scale(0.996);
+}
+.dt-card__btn:focus-visible {
   outline: 2px solid var(--glacier-700);
-  outline-offset: 2px;
-  border-radius: 6px;
+  outline-offset: -2px;
+  border-radius: var(--r-sm);
 }
-.exp-detail__head {
+.dt-glyph {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--paper-bright);
+  border: 1px solid var(--line);
+  color: var(--spruce);
+}
+.dt-card.is-open .dt-glyph {
+  background: var(--paper);
+}
+.dt-main {
+  flex: 1;
+  min-width: 0;
+}
+.dt-title {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-strong);
+}
+/* Decision facts, comparable at a glance: difficulty · distance · time. */
+.dt-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.dt-meta__part {
+  display: inline-flex;
+  align-items: center;
+}
+.dt-dot {
+  color: var(--line-strong);
+  margin: 0 6px;
+}
+.dt-diff {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.dt-chev {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+.dt-card.is-open .dt-chev {
+  transform: rotate(180deg);
+}
+.dt-body {
+  padding: 2px 14px 14px 14px;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
-.exp-glyph--lg {
-  width: 30px;
-  height: 30px;
-  background: var(--paper-2);
+.dt-why {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-strong);
 }
-.exp-detail__title {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.15;
-}
-.exp-anchor {
-  margin: 9px 0 0;
+.dt-desc {
+  margin: 0;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--glacier-700);
-}
-.exp-detail > .banner-info {
-  margin-top: 12px;
-}
-.stat .v .exp-diff {
-  font-size: 17px;
-}
-/* An odd number of experience stats: let the last tile span the row rather than
-   leaving an empty grid cell. */
-.stat-grid.is-odd .stat:last-child {
-  grid-column: 1 / -1;
-}
-.exp-section {
-  margin-top: 20px;
-}
-.exp-section > p {
-  margin: 6px 0 0;
-  font-size: 14px;
   line-height: 1.6;
   color: var(--ink-soft);
 }
-/* Major-adventure "Before you commit" block — present only for summits etc. */
-.exp-expedition {
-  margin-top: 20px;
+.dt-facts {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.dt-facts dt {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.dt-facts dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+/* A basecamp group (adventures from an overnight stop) sits visibly last. */
+.dt-basecamp {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dt-basecamp__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  margin: 0 2px;
+}
+/* "Before you commit" — major-adventure safety block, inline in the card. */
+.dt-expedition {
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   overflow: hidden;
 }
-.exp-expedition__hd {
+.dt-expedition__hd {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 14px;
+  padding: 10px 13px;
   background: var(--paper-2);
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-soft);
 }
-.exp-expedition__hd svg {
+.dt-expedition__hd svg {
   color: var(--danger);
 }
-.exp-expedition__bd {
-  padding: 14px;
+.dt-expedition__bd {
+  padding: 13px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.exp-kv {
+.dt-kv {
   display: grid;
-  grid-template-columns: 92px 1fr;
+  grid-template-columns: 88px 1fr;
   gap: 6px 12px;
   margin: 0;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.5;
 }
-.exp-kv dt {
+.dt-kv dt {
   font-weight: 700;
   color: var(--ink-soft);
 }
-.exp-kv dd {
+.dt-kv dd {
   margin: 0;
   color: var(--ink-soft);
 }
-.exp-verified {
-  margin: 20px 0 0;
-  padding-top: 12px;
+/* Subtle source disclosure inside a detour card. */
+.dt-source {
+  margin-top: 2px;
   border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.dt-source > summary {
   font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  cursor: pointer;
+  list-style: none;
+}
+.dt-source > summary::-webkit-details-marker {
+  display: none;
+}
+.dt-verified {
+  margin: 0;
+  font-size: 11px;
   line-height: 1.45;
   color: var(--ink-faint);
+}
+.dt-source .dt-verified {
+  margin-top: 8px;
 }
 
 /* Map screen stage selector: a block grid with every option visible at

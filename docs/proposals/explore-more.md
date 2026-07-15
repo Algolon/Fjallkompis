@@ -1,5 +1,13 @@
 # Design: a Stage-based experience layer for Fjällkompis ("Along the way")
 
+> **Presentation superseded.** The content architecture and presentation in this
+> document (the "Along the way" disclosure, positional groups, the pushed detail
+> view) were replaced by **`highlights-and-detours.md`** — a combined
+> "Highlights & detours · N" disclosure with two derived sections and inline
+> detour cards. The *data model* (canonical `RouteExperience`, segment-stable
+> ids, direction-safe ordering) and the *spatial-data policy* below still hold;
+> read this doc for that background only, not for the current UI.
+
 Status: accepted architecture for this iteration (draft PR #59) · Scope: Abisko ↔ Nikkaluokta, built to scale
 Spatial data policy & Day-1 pilot: **`along-the-way-spatial.md`** (companion doc).
 
