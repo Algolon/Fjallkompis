@@ -102,6 +102,35 @@ test('the route-wide birch Highlight has no View-on-map target', () => {
   assert.ok(!birch.includes('mapNote'), 'no leftover route-wide map note');
 });
 
+// ── Detour decision facts render as compact pills (Detours only) ─────────────
+
+test('Detour decision facts are compact pills, built from available metadata', () => {
+  // Pills exist for Detour cards…
+  assert.ok(component.includes('className="dt-pill"'), 'detour cards render dt-pill chips');
+  assert.ok(component.includes('className="dt-pills"'), 'a wrapping pill group');
+  // …built only from factual decision metadata, each guarded so an unavailable
+  // value is omitted (no empty placeholder pill).
+  assert.ok(/if \(experience\.difficulty\) pills\.push/.test(component), 'difficulty pill is guarded');
+  assert.ok(/experience\.roundTripKm != null/.test(component), 'distance pill is guarded');
+  assert.ok(/experience\.detourDistanceKm != null/.test(component), 'detour-distance pill is guarded');
+  assert.ok(/if \(experience\.addedTimeText\)/.test(component), 'time pill is guarded');
+  assert.ok(component.includes('PLANNING_SHORT[experience.planningFit]'), 'commitment pill from planning fit');
+  // The obsolete flat text line + dot separators are gone.
+  assert.ok(!component.includes('dt-meta'), 'no obsolete dt-meta text line');
+  assert.ok(!component.includes('dt-dot'), 'no obsolete dot separators');
+  assert.ok(!component.includes('dt-diff'), 'no obsolete inline difficulty span');
+});
+
+test('Highlights stay pill-free and light', () => {
+  // The Highlight row component must not adopt the Detour pill treatment.
+  const start = component.indexOf('function HighlightRow');
+  const end = component.indexOf('// ── Detours');
+  assert.ok(start > -1 && end > start, 'HighlightRow region located');
+  const highlightRow = component.slice(start, end);
+  assert.ok(!highlightRow.includes('dt-pill'), 'HighlightRow renders no pills');
+  assert.ok(!/pill/i.test(highlightRow), 'HighlightRow stays pill-free');
+});
+
 // ── No internal provenance terminology reaches the render layer ──────────────
 
 const BANNED = [

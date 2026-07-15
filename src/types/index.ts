@@ -313,7 +313,8 @@ export interface Stage {
 /**
  * Optional experiences ALONG the walk — viewpoints, water, landforms, nature,
  * Sami/cultural traces, short detours and major adventures. This is the data
- * foundation of the "Along the way" layer (see docs/proposals/explore-more.md).
+ * foundation of the Highlights & detours layer (see
+ * docs/proposals/highlights-and-detours.md).
  *
  * Anchored to STAGES, not Stops. A Stage answers "what will I encounter today?";
  * a Stop answers "what's available here?". Facilities (meals, café, sauna, shop,

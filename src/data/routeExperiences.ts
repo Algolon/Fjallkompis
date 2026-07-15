@@ -36,9 +36,10 @@ export type {
 } from './experienceModel.mjs';
 
 /**
- * Curated "Along the way" experiences — experiential route content surfaced per
- * stage on the Stages screen (see docs/proposals/explore-more.md). A manually
- * verified static snapshot; nothing here is user-editable. Re-verify here.
+ * Curated experience records — experiential route content surfaced per stage on
+ * the Stages screen as Highlights & detours (see
+ * docs/proposals/highlights-and-detours.md). A manually verified static
+ * snapshot; nothing here is user-editable. Re-verify here.
  *
  * Scope discipline:
  *  - EXPERIENTIAL only — things to see / notice / visit / detour to. Facilities

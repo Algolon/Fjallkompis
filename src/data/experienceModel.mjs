@@ -1,7 +1,8 @@
 /**
- * Pure logic for the "Along the way" stage experience layer (see
- * docs/proposals/explore-more.md). Plain .mjs + sibling .d.mts so `node --test`
- * can exercise it without a TypeScript toolchain — the itinerary.mjs convention.
+ * Pure logic for the Highlights & detours stage experience layer (see
+ * docs/proposals/highlights-and-detours.md). Plain .mjs + sibling .d.mts so
+ * `node --test` can exercise it without a TypeScript toolchain — the
+ * itinerary.mjs convention.
  * The data module and the React layer both consume these, so the rules live in
  * exactly one tested place.
  *

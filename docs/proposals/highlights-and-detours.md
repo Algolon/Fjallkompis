@@ -1,8 +1,9 @@
 # Highlights & detours — content architecture redesign
 
-Supersedes the presentation half of `explore-more.md` / `along-the-way-spatial.md`.
-The spatial-data policy (verified geometry only; missing beats false precision) is
-unchanged; only the **content architecture and presentation** change here.
+The authoritative architecture + presentation doc for the stage experience layer
+(it replaced the earlier "Along the way" design doc, now removed — git history
+preserves it). The spatial-data policy (verified geometry only; missing beats
+false precision) is unchanged and lives in `along-the-way-spatial.md`.
 
 ## The decision
 
@@ -28,6 +29,16 @@ Grouping is **derived from the existing `access` field** — no new classificati
 dimension. The main disclosure reads **`Highlights & detours · N`** where
 `N = highlights + detours`; the two internal subsections render only when
 non-empty.
+
+**Presentation.** Highlights are compact icon rows (light, pill-free) that expand
+to a sentence. Detours are inline expandable cards whose collapsed state shows
+the factual decision metadata as **compact pills** — difficulty, return/extra
+distance, added time or commitment (e.g. `Alpine` `18.0 km return` `Separate
+day`) — omitting any pill whose value is unavailable. The pills are quiet,
+restrained chips (no category colour, never button-like), stay in the card header
+when expanded so comparison context is kept, and wrap onto a second line at
+narrow widths. Route shape, terrain/weather notes, the safety block, source and
+View-on-map live in the expanded body, not duplicated as a plain-text line.
 
 ## Data-model changes (minimal)
 

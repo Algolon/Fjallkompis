@@ -184,10 +184,6 @@ function HighlightRow({
 
 // ── Detours ──────────────────────────────────────────────────────────────────
 
-function DifficultyLabel({ difficulty }: { difficulty: ExperienceDifficulty }) {
-  return <span className="dt-diff">{DIFFICULTY_LABEL[difficulty]}</span>;
-}
-
 /** Source/verification, shown per the progressive-provenance level (never the
  *  internal spatial fields — only a hiker-facing source line). */
 function Provenance({ experience }: { experience: RouteExperience }) {
@@ -277,20 +273,21 @@ function DetourCard({
   const [open, setOpen] = useState(false);
   const bodyId = `dt-body-${experience.id}`;
 
-  const meta: React.ReactNode[] = [];
-  if (experience.difficulty) {
-    meta.push(<DifficultyLabel key="d" difficulty={experience.difficulty} />);
-  }
+  // Factual decision pills only: difficulty · distance · time/commitment. Each
+  // is omitted when its value is unavailable (no empty placeholders). Route
+  // shape stays in the expanded facts, not a collapsed pill.
+  const pills: string[] = [];
+  if (experience.difficulty) pills.push(DIFFICULTY_LABEL[experience.difficulty]);
   if (experience.roundTripKm != null) {
-    meta.push(<span key="km">{km(experience.roundTripKm)} km return</span>);
+    pills.push(`${km(experience.roundTripKm)} km return`);
   } else if (experience.detourDistanceKm != null) {
-    meta.push(<span key="km">{km(experience.detourDistanceKm)} km</span>);
+    pills.push(`${km(experience.detourDistanceKm)} km`);
   }
   if (experience.addedTimeText) {
-    meta.push(<span key="t">{experience.addedTimeText}</span>);
+    pills.push(experience.addedTimeText);
   } else {
     const plan = PLANNING_SHORT[experience.planningFit];
-    if (plan) meta.push(<span key="p">{plan}</span>);
+    if (plan) pills.push(plan);
   }
 
   const mappable = canViewOnMap(experience);
@@ -311,14 +308,15 @@ function DetourCard({
         </span>
         <span className="dt-main">
           <span className="dt-title">{experience.title}</span>
-          <span className="dt-meta">
-            {meta.map((node, i) => (
-              <span className="dt-meta__part" key={i}>
-                {i > 0 ? <span className="dt-dot" aria-hidden>·</span> : null}
-                {node}
-              </span>
-            ))}
-          </span>
+          {pills.length > 0 ? (
+            <span className="dt-pills">
+              {pills.map((p) => (
+                <span className="dt-pill" key={p}>
+                  {p}
+                </span>
+              ))}
+            </span>
+          ) : null}
         </span>
         <ChevronDown className="dt-chev" size={18} strokeWidth={2} aria-hidden />
       </button>
