@@ -1442,6 +1442,381 @@ button.map-status-pill {
   margin-top: 6px;
 }
 
+/* --- Along the way (stage experience layer) ------------------------------- */
+
+/* Two stacked footer disclosures (Day guide + Along the way). The wrapper is
+   full-bleed to the card edges and clips its children to the card's bottom
+   radius, so each disclosure inside can stay square and margin-free — the
+   single-disclosure negative-margin trick, generalised to a stack. */
+.stage-foot {
+  margin: 14px -16px -16px;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  overflow: hidden;
+}
+.stage-foot .stage-guide__toggle {
+  margin: 0;
+  width: 100%;
+  border-radius: 0;
+}
+.stage-foot .stage-guide {
+  margin: 0;
+  border-radius: 0;
+}
+
+/* "Along the way" trigger: a compass glyph + label; the count is metadata that
+   rides on the trigger (never a separate tap target). */
+.stage-explore__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.stage-explore__label svg {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+.stage-explore__count {
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+
+/* Experience list + scale groups inside the disclosure panel. */
+.exp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.exp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.exp-group + .exp-group {
+  margin-top: 6px;
+}
+.exp-group__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 4px 2px 2px;
+}
+
+/* One experience row — a quiet paper-2 tile; the whole tile is the tap target.
+   Category is carried by the glyph shape + label only; no per-type colour. */
+.exp-row {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.exp-row.is-open {
+  background: var(--paper-bright);
+  border-color: var(--line-strong);
+}
+.exp-row__btn {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 10px 12px;
+  min-height: 56px;
+  color: inherit;
+  transition: transform 0.08s ease;
+}
+.exp-row__btn:active {
+  transform: scale(0.995);
+}
+.exp-row__btn:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: -2px;
+  border-radius: var(--r-sm);
+}
+.exp-glyph {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--paper-bright);
+  border: 1px solid var(--line);
+  color: var(--spruce);
+}
+.exp-row.is-open .exp-glyph {
+  background: var(--paper);
+}
+.exp-main {
+  flex: 1;
+  min-width: 0;
+}
+.exp-title {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-strong);
+}
+.exp-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.exp-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  flex: 0 0 auto;
+}
+/* Planning-fit metadata chip. The glacier tint marks a real time cost
+   (planning) — matching the palette's spatial/technical role. Plain otherwise. */
+.exp-fit {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.exp-fit--plan {
+  background: var(--glacier-soft);
+  border-color: #c3d6da;
+  color: #46626a;
+}
+.exp-diff {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+/* Difficulty pips: severity encoded in FORM, not colour. */
+.exp-pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.exp-pips i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--line-strong);
+  display: block;
+}
+.exp-pips i.on {
+  background: var(--ink-soft);
+}
+.exp-go {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+.exp-row.is-open .exp-chev {
+  transform: rotate(180deg);
+}
+.exp-note {
+  padding: 0 12px 12px 57px; /* aligns under the title, past the 34px glyph */
+}
+.exp-note p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+/* Quiet single action inside an expanded on-route sight. */
+.exp-maplink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 4px 0;
+  min-height: 32px;
+  background: transparent;
+  border: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--glacier-700);
+}
+.exp-maplink:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Spatial access as quiet muted text (a geometric fact, not a tappable chip). */
+.exp-access {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+/* A trailing "Larger options" group sits slightly apart from the linear list. */
+.exp-group--larger {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+/* --- Experience detail (pushed view) -------------------------------------- */
+
+/* View-on-map action row on the detail. */
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.detail-actions .btn {
+  flex: 1;
+}
+/* Optional (medium) provenance disclosure. */
+.exp-source {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.exp-source > summary {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  cursor: pointer;
+  list-style: none;
+}
+.exp-source > summary::-webkit-details-marker {
+  display: none;
+}
+.exp-source .exp-verified {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.exp-detail__top {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  margin: -2px 0 8px;
+}
+.exp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  padding: 6px 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--glacier-700);
+}
+.exp-back:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.exp-detail__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.exp-glyph--lg {
+  width: 30px;
+  height: 30px;
+  background: var(--paper-2);
+}
+.exp-detail__title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.exp-anchor {
+  margin: 9px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--glacier-700);
+}
+.exp-detail > .banner-info {
+  margin-top: 12px;
+}
+.stat .v .exp-diff {
+  font-size: 17px;
+}
+/* An odd number of experience stats: let the last tile span the row rather than
+   leaving an empty grid cell. */
+.stat-grid.is-odd .stat:last-child {
+  grid-column: 1 / -1;
+}
+.exp-section {
+  margin-top: 20px;
+}
+.exp-section > p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+/* Major-adventure "Before you commit" block — present only for summits etc. */
+.exp-expedition {
+  margin-top: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.exp-expedition__hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.exp-expedition__hd svg {
+  color: var(--danger);
+}
+.exp-expedition__bd {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.exp-kv {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.exp-kv dt {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.exp-kv dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+.exp-verified {
+  margin: 20px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+
 /* Map screen stage selector: a block grid with every option visible at
    once — no horizontal scrolling. "Full route" spans the row; the seven
    day chips share one row beneath it (fits down to 320px). */

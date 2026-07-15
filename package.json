@@ -5,16 +5,18 @@
   "type": "module",
   "description": "Fjällkompis — an offline hiking companion for the Kungsleden, designed to complement hikers' navigation tools.",
   "scripts": {
-    "dev": "npm run generate:route && vite",
-    "build": "npm run check:version && npm run generate:route && tsc -b && vite build",
+    "dev": "npm run generate && vite",
+    "build": "npm run check:version && npm run generate && tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "check:version": "node scripts/check-version-consistency.mjs",
+    "generate": "npm run generate:route && npm run generate:experiences",
     "generate:route": "node scripts/generate-route-data.mjs",
     "generate:route:kungsleden": "node scripts/generate-route-data.mjs kungsleden",
+    "generate:experiences": "node scripts/generate-experience-geometry.mjs",
     "generate:map:satellite": "./scripts/build-satellite-map.sh",
     "generate:map:terrain": "./scripts/build-terrain-map.sh",
-    "test": "npm run check:version && npm run generate:route && node --test 'tests/**/*.test.mjs'"
+    "test": "npm run check:version && npm run generate && node --test 'tests/**/*.test.mjs'"
   },
   "dependencies": {
     "lucide-react": "^1.23.0",

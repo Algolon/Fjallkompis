@@ -252,11 +252,23 @@ export function MapScreen({
   viewStageId,
   onViewStageChange,
   onOpenStop,
+  focus,
 }: {
   viewStageId: string | null;
   onViewStageChange: (stageId: string | null) => void;
   /** Focused navigation: open this stop's full detail in Huts & Stations. */
   onOpenStop?: (stopId: string) => void;
+  /** One-shot "View on map": geometry-aware temporary highlight (verified only). */
+  focus?: {
+    kind: 'point' | 'route' | 'stage';
+    stageId: string;
+    label: string;
+    coord?: LatLng;
+    track?: LatLng[];
+    start?: LatLng;
+    destination?: LatLng;
+    note?: string;
+  } | null;
 }) {
   const { itinerary, currentStage } = useStore();
   const route = itinerary.route;
@@ -331,6 +343,27 @@ export function MapScreen({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.status, geo.timestamp]);
+
+  // One-shot "View on map": highlight the experience's verified geometry — a
+  // point, an owner GPX route, or the whole Stage (route-wide). MapView remounts
+  // on tab switch / direction change, so the highlight never persists.
+  useEffect(() => {
+    if (!focus) return;
+    const m = mapRef.current;
+    if (!m) return;
+    if (focus.kind === 'stage') {
+      m.focusPoint(null);
+      m.fitStage(focus.stageId);
+    } else if (focus.kind === 'route' && focus.track && focus.track.length > 0) {
+      m.focusRoute({
+        track: focus.track,
+        start: focus.start ?? null,
+        destination: focus.destination ?? null,
+      });
+    } else if (focus.coord) {
+      m.focusPoint({ lat: focus.coord.lat, lon: focus.coord.lng });
+    }
+  }, [focus]);
 
   const stepStage = (dir: 1 | -1) => {
     // Order follows the active itinerary: overview → Day 1 … Day 7 → overview.

@@ -308,6 +308,266 @@ export interface Stage {
   maximumElevationM: number | null;
 }
 
+// ---- Route experiences (curated, read-only experiential route content) -------
+
+/**
+ * Optional experiences ALONG the walk — viewpoints, water, landforms, nature,
+ * Sami/cultural traces, short detours and major adventures. This is the data
+ * foundation of the "Along the way" layer (see docs/proposals/explore-more.md).
+ *
+ * Anchored to STAGES, not Stops. A Stage answers "what will I encounter today?";
+ * a Stop answers "what's available here?". Facilities (meals, café, sauna, shop,
+ * showers, drying rooms, accommodation, transport/boat timetables) are therefore
+ * NEVER experiences — they live on Stops / Lists. A facility may be *named* as
+ * logistics inside an experience, never listed as one.
+ *
+ * Keyed to STABLE physical segment ids (`segmentIds`, d1..d7), never to display
+ * day numbers: when the route direction flips, day numbers change but segment ids
+ * do not, so the layer survives reversal. `nearestStopId` is secondary context.
+ *
+ * Four classification dimensions, kept deliberately separate (never fused into
+ * one category system):
+ *   type       — WHAT it is (drives the icon)
+ *   scale      — HOW BIG the commitment (drives grouping + detail depth)
+ *   difficulty — HOW HARD physically
+ *   planningFit— DOES IT FIT the day (a human judgement, not raw numbers)
+ * "Summit" is intentionally NOT a type — it is a Landform at major-adventure
+ * scale with alpine difficulty; scale + difficulty carry its weight.
+ *
+ * User-owned state (favourite / done / notes) is intentionally NOT here — like
+ * packing/journal it would live in PersistentState behind a schema bump.
+ */
+
+/** WHAT an experience is — drives the icon. Five, deliberately tight. */
+export type ExperienceType =
+  | 'viewpoint' // vistas, panoramas, photogenic spots
+  | 'water' // waterfalls, lakes, rapids, swim spots, river crossings, bridges
+  | 'landform' // mountains, summits, valleys, glaciers, moraine, rock formations
+  | 'nature' // flora, wildlife, birdwatching
+  | 'culture'; // Sami landscapes/history, historical remains, old trail traces
+
+/** HOW BIG the commitment — ordered; drives the three UI groups. */
+export type ExperienceScale =
+  | 'on-route' // on/beside the trail, minutes, no real detour
+  | 'mini-detour' // ~10–60 min
+  | 'short-excursion' // ~1–3 h, shapes the day
+  | 'half-full-day' // several hours; may need an overnight
+  | 'major-adventure'; // a separate, committing day
+
+export type ExperienceDifficulty = 'easy' | 'moderate' | 'hard' | 'alpine';
+
+/** Human planning judgement — shown INSTEAD of raw numbers as the headline. */
+export type PlanningFit =
+  | 'directly-on-route'
+  | 'adds-under-30'
+  | 'adds-1-2h'
+  | 'shorter-hiking-day'
+  | 'best-from-overnight'
+  | 'extra-day-recommended'
+  | 'separate-day-required';
+
+/** When an experience is possible/best. Months are 1–12. */
+export interface SeasonWindow {
+  fromMonth: number;
+  toMonth: number;
+  note?: string;
+}
+
+/**
+ * Heavier safety detail, present ONLY on `major-adventure` records. A roadside
+ * sight never carries turnaround advice — depth follows scale.
+ */
+export interface ExperienceExpedition {
+  extraDayRequired: boolean;
+  guide?: { recommended: boolean; required?: boolean; note?: string };
+  booking?: { required: boolean; note?: string };
+  equipment?: string[];
+  /** The single field that most affects safety. */
+  turnaroundAdvice?: string;
+  season?: string;
+  /** Muted-sienna warnings — reserved for decisions that materially affect safety. */
+  warnings?: string[];
+}
+
+// ---- Experience spatial model ----------------------------------------------
+
+/**
+ * How an experience relates to the physical trail. A SEPARATE typed dimension —
+ * `planningFit` must NOT be overloaded to carry spatial meaning ("directly on
+ * route" is a time judgement, not a geometry). Drives map behaviour, stage
+ * ordering (basecamp trips are pulled out of the linear list) and the derived
+ * spatial label.
+ */
+export type ExperienceAccess =
+  | 'on-trail' // you walk over/through it
+  | 'beside-trail' // immediately at the trailside
+  | 'visible-from-trail' // seen from the trail; the feature itself is elsewhere
+  | 'short-detour' // a there-and-back a few minutes off the trail
+  | 'side-route' // a longer branch route (may loop or rejoin)
+  | 'basecamp-trip'; // launched from an overnight stop — not "along" the walk
+
+/** The geometric shape of an experience's location. */
+export type ExperienceGeometryKind =
+  | 'point' // a single spot
+  | 'segment-portion' // a stretch of the trail itself
+  | 'area' // a broad zone
+  | 'vista' // a viewpoint looking toward a separate feature
+  | 'route'; // a standalone detour/excursion route (usually has a GPX asset)
+
+/**
+ * Where the mappable geometry came from. For hiking/safety data, missing beats
+ * false precision — nothing is inferred, guessed or synthesised.
+ *  - owner-provided: a waypoint/GPX the owner supplied or verified;
+ *  - source-verified: a coordinate checked against an authoritative source;
+ *  - researched: credibly researched but not yet owner-confirmed;
+ *  - missing: no verified geometry (the default — stays missing until supplied).
+ */
+export type SpatialProvenance =
+  | 'owner-provided'
+  | 'source-verified'
+  | 'researched'
+  | 'missing';
+
+/**
+ * What the Map may do with an experience — the operational gate for "View on
+ * map". Draft/inferred/synthetic geometry is ALWAYS `unavailable` in production.
+ *  - exact-point: a precise marker + View on map;
+ *  - verified-route: the route line + a route map action;
+ *  - context-only: a general area / trail section / sight direction, clearly
+ *    labelled as contextual — never implying navigational precision;
+ *  - unavailable: no marker, route or View-on-map action.
+ */
+export type MapAvailability =
+  | 'exact-point'
+  | 'verified-route'
+  | 'context-only'
+  | 'full-stage' // intentionally route-wide: opens the whole Stage, clearly labelled
+  | 'unavailable';
+
+/**
+ * Internal authoring/validation state — NOT surfaced as a user control. Every
+ * published experience should reach `complete`; `awaiting-input` means the
+ * intended spatial representation is pending owner data (View-on-map is simply
+ * omitted, never shown as a disabled/"awaiting" action).
+ */
+export type SpatialStatus = 'complete' | 'awaiting-input';
+
+/**
+ * Typed geometry/location for an experience. `kind`/`access` are qualitative
+ * relationships researched from trail descriptions. `orderHint` is a COARSE
+ * editorial trail position (0..1, canonical north-start) used ONLY for
+ * direction-aware journey ordering & grouping — it is never a coordinate and is
+ * never used to synthesise a map location. All actual coordinates/GPX are
+ * present ONLY when `spatialProvenance` is owner-provided/source-verified and
+ * `mapAvailability` permits; otherwise they are absent (missing).
+ */
+export interface ExperienceLocation {
+  kind: ExperienceGeometryKind;
+  access: ExperienceAccess;
+  /** Coarse editorial position for ORDERING/grouping only — NOT a coordinate. */
+  orderHint?: number;
+  spatialProvenance: SpatialProvenance;
+  mapAvailability: MapAvailability;
+  /** Verified exact point (owner-provided/source-verified) — else absent. */
+  coord?: LatLng;
+  /** Verified trailhead where a detour/route leaves the trail — else absent. */
+  trailheadCoord?: LatLng;
+  /** Verified feature a vista looks toward, or a route's destination — else absent. */
+  destinationCoord?: LatLng;
+  /** Verified rejoin point for a side route — else absent. */
+  rejoinCoord?: LatLng;
+  /** Compass bearing (deg) toward a distant sight, for a labelled context view. */
+  viewBearingDeg?: number;
+  /** A distant sight the experience looks toward (orientation only, not a destination). */
+  viewTargetCoord?: LatLng;
+  /** Stable id of a VERIFIED GPX route asset (see ExperienceRouteAsset) — else absent. */
+  gpxAssetId?: string;
+  /** Internal authoring/validation state (not a user control). */
+  spatialStatus?: SpatialStatus;
+}
+
+// ---- Experience GPX route assets -------------------------------------------
+
+export type ExperienceRouteType =
+  | 'out-and-back'
+  | 'loop'
+  | 'point-to-point'
+  | 'spur';
+
+/**
+ * Metadata contract for a separate experience route (a GPX track that is NOT
+ * part of the canonical Kungsleden line). Experiences reference a stable `id`,
+ * never a filename, so a rename can't silently break the link. Assets exist ONLY
+ * for VERIFIED tracks — no placeholder/draft/fixture geometry ships (a route the
+ * owner has not supplied or verified stays `missing`, and the experience's
+ * `mapAvailability` is `unavailable`). The registry is empty until then.
+ */
+export interface ExperienceRouteAsset {
+  id: string; // stable asset id
+  experienceId: string; // the RouteExperience this belongs to
+  filePath: string; // repo-relative, e.g. 'gpx/experiences/day-01-along-the-way.gpx'
+  routeType: ExperienceRouteType;
+  startCoord: LatLng;
+  destinationCoord?: LatLng;
+  rejoinCoord?: LatLng;
+  distanceKm?: number;
+  elevationGainM?: number;
+  /** Source/creation provenance for the track itself. */
+  source: StopSource;
+  /** Verified provenance only — no drafts. */
+  provenance: 'owner-provided' | 'source-verified';
+}
+
+/**
+ * One curated experience along the route. Same provenance discipline as
+ * TrailStop: every entry carries a `source` with a `lastVerified` date and a
+ * `confidence`, and nothing here is user-editable.
+ */
+export interface RouteExperience {
+  id: string; // stable slug: 'tjaktja-pass-view', 'kebnekaise-summit'
+  title: string;
+  shortTitle?: string;
+
+  type: ExperienceType;
+  scale: ExperienceScale;
+  /** Omitted for a pure roadside sight with no walking effort. */
+  difficulty?: ExperienceDifficulty;
+  planningFit: PlanningFit;
+
+  /** Stable physical stage ids (d1..d7); may be several (a basecamp trip → both adjacent stages). */
+  segmentIds: string[];
+  /** Typed spatial model — geometry, trail access and direction-safe position. */
+  location: ExperienceLocation;
+  /** Secondary context only — never the presentation anchor. */
+  nearestStopId?: string;
+  /** Optional direction-neutral phrase override; usually derived from `location`. */
+  routeRelationship?: string;
+
+  /** One calm sentence for the row / preview. */
+  summary: string;
+  /** "What not to walk past without noticing" — the inline-expand line for on-route sights. */
+  whyNotice: string;
+  /** Offline long-form (detour+; on-route sights may omit it). */
+  description?: string;
+
+  // Optional planning detail (detour+; not for roadside sights).
+  addedTimeText?: string; // '+20 min', '2–3 h'
+  detourDistanceKm?: number;
+  roundTripKm?: number;
+  elevationGainM?: number;
+  weatherSensitivity?: 'low' | 'medium' | 'high';
+  season?: SeasonWindow;
+
+  /** Present only for `major-adventure` scale (see ExperienceExpedition). */
+  expedition?: ExperienceExpedition;
+
+  /** Copy shown when a `full-stage` experience opens the Map (route-wide framing). */
+  mapNote?: string;
+
+  source: StopSource;
+  confidence: 'high' | 'medium' | 'low';
+}
+
 // ---- Packing list -------------------------------------------------------------
 
 export type PackingStatus = 'needed' | 'ready' | 'packed';

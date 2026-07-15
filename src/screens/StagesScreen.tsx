@@ -1,17 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Compass } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { ElevationProfile } from '../components/ElevationProfile';
+import { ExperienceDetail, ExperienceList } from '../components/StageExperiences';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { stageGuide } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
+import { experienceCountForStage } from '../data/routeExperiences';
+import { experienceTrack, experienceWaypoint } from '../data/experienceGeometry';
 import {
   formatDistanceKm,
   formatHoursEstimate,
   formatVerifiedDate,
 } from '../utils/format';
 import type { ItineraryStage } from '../route/activeItinerary';
+import type { NavPayload } from './TodayScreen';
+import type { RouteExperience } from '../types';
 
 /**
  * The expanded day guide: this stage's own elevation profile first, then
@@ -70,9 +75,12 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
 
 export function StagesScreen({
   initialGuideStageId,
+  onNavigate,
 }: {
   /** Today's "Stage Guide" deep link: open this stage's guide on arrival. */
   initialGuideStageId?: string | null;
+  /** Router, for the "View on map" one-shot focus deep-link. */
+  onNavigate?: (tab: 'map', payload?: NavPayload) => void;
 }) {
   const { state, itinerary, stages, currentStage, setCurrentStage } = useStore();
   const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
@@ -90,8 +98,25 @@ export function StagesScreen({
   // compact; the pills above already carry the headline figures.
   const [routeElevOpen, setRouteElevOpen] = useState(false);
   const routeElevPanelId = 'route-elevation-panel';
+  // "Along the way" is an independent disclosure per card, collapsed on entry —
+  // the same local-only pattern as the day guides (nothing persisted).
+  const [openExplore, setOpenExplore] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+  // A selected experience opens a pushed detail view in place of the stage list.
+  const [selectedExperience, setSelectedExperience] =
+    useState<RouteExperience | null>(null);
+  const detailRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
   const scrollTargetId = useRef(initialGuideStageId ?? null);
+
+  // On opening a detail, bring it to the top of the scroll region (the list may
+  // have been scrolled mid-way) — same intent as the deep-link scroll below.
+  useEffect(() => {
+    if (selectedExperience) {
+      detailRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    }
+  }, [selectedExperience]);
 
   // When arriving via Stage Guide, bring the (already expanded) current
   // stage card into view once mounted — the user must never have to find
@@ -113,6 +138,60 @@ export function StagesScreen({
       return next;
     });
   };
+
+  const toggleExplore = (stageId: string) => {
+    setOpenExplore((prev) => {
+      const next = new Set(prev);
+      if (next.has(stageId)) next.delete(stageId);
+      else next.add(stageId);
+      return next;
+    });
+  };
+
+  // "View on map": deep-link to the Map with a one-shot, geometry-aware focus.
+  // Only reachable when the row/detail exposed the action (canViewOnMap). Geometry
+  // comes from verified sources only — an owner GPX route, the whole Stage, or an
+  // exact point — never derived from an editorial position.
+  const viewOnMap = (experience: RouteExperience) => {
+    if (!onNavigate) return;
+    const loc = experience.location;
+    const stageId = experience.segmentIds[0];
+    const label = experience.shortTitle ?? experience.title;
+    if (loc.mapAvailability === 'full-stage') {
+      onNavigate('map', { mapFocus: { kind: 'stage', stageId, label, note: experience.mapNote } });
+    } else if (loc.gpxAssetId) {
+      onNavigate('map', {
+        mapFocus: {
+          kind: 'route',
+          stageId,
+          label,
+          track: experienceTrack(experience.id),
+          start: experienceWaypoint(experience.id, 'entry'),
+          // Destination marker: the viewpoint (canyon) or lakeside primary (lake).
+          destination:
+            experienceWaypoint(experience.id, 'viewpoint') ??
+            experienceWaypoint(experience.id, 'primary'),
+        },
+      });
+    } else if (loc.coord) {
+      onNavigate('map', { mapFocus: { kind: 'point', stageId, label, coord: loc.coord } });
+    }
+  };
+
+  // Pushed detail view replaces the stage list (mobile push pattern); its own
+  // back control returns to the list. Kept above the list render so the header
+  // and cards don't compete with the detail.
+  if (selectedExperience) {
+    return (
+      <div className="screen screen--stages" ref={detailRef}>
+        <ExperienceDetail
+          experience={selectedExperience}
+          onBack={() => setSelectedExperience(null)}
+          onViewOnMap={viewOnMap}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="screen screen--stages">
@@ -179,6 +258,10 @@ export function StagesScreen({
           const guide = stageGuide(stage.id, itinerary.direction);
           const guideOpen = openGuides.has(stage.id);
           const guidePanelId = `stage-guide-${stage.id}`;
+          // "Along the way" — count is direction-independent (segment-stable).
+          const experienceCount = experienceCountForStage(stage.id);
+          const exploreOpen = openExplore.has(stage.id);
+          const explorePanelId = `stage-explore-${stage.id}`;
           return (
             <article
               className={`card stage-card ${isCurrent ? 'is-current' : ''}`}
@@ -234,34 +317,87 @@ export function StagesScreen({
                 {stage.notes}
               </p>
 
-              {guide ? (
-                <>
-                  <button
-                    type="button"
-                    className="stage-guide__toggle"
-                    aria-expanded={guideOpen}
-                    aria-controls={guidePanelId}
-                    onClick={() => toggleGuide(stage.id)}
-                  >
-                    <span>Day guide</span>
-                    <ChevronDown
-                      className="stage-guide__chevron"
-                      size={18}
-                      strokeWidth={2}
-                      aria-hidden
-                    />
-                  </button>
-                  {guideOpen ? (
-                    <div
-                      id={guidePanelId}
-                      className="stage-guide"
-                      role="region"
-                      aria-label={`Day ${stage.day} guide`}
-                    >
-                      <StageGuidePanel stage={stage} guide={guide} />
-                    </div>
+              {guide || experienceCount > 0 ? (
+                <div className="stage-foot">
+                  {guide ? (
+                    <>
+                      <button
+                        type="button"
+                        className="stage-guide__toggle"
+                        aria-expanded={guideOpen}
+                        aria-controls={guidePanelId}
+                        onClick={() => toggleGuide(stage.id)}
+                      >
+                        <span>Day guide</span>
+                        <ChevronDown
+                          className="stage-guide__chevron"
+                          size={18}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                      </button>
+                      {guideOpen ? (
+                        <div
+                          id={guidePanelId}
+                          className="stage-guide"
+                          role="region"
+                          aria-label={`Day ${stage.day} guide`}
+                        >
+                          <StageGuidePanel stage={stage} guide={guide} />
+                        </div>
+                      ) : null}
+                    </>
                   ) : null}
-                </>
+
+                  {/* "Along the way" — a second, quiet disclosure (Option A). It
+                      is a disclosure, not an action: the count is metadata on the
+                      trigger, and it stays clear of the top-right current-stage
+                      pill. Only rendered when the stage has verified content —
+                      never an empty "· 0". Structured so it can move inside the
+                      Day guide (Option B) with minimal change if testing shows a
+                      third footer row crowds the card. */}
+                  {experienceCount > 0 ? (
+                    <>
+                      <button
+                        type="button"
+                        className="stage-guide__toggle"
+                        aria-expanded={exploreOpen}
+                        aria-controls={explorePanelId}
+                        onClick={() => toggleExplore(stage.id)}
+                      >
+                        <span className="stage-explore__label">
+                          <Compass size={16} strokeWidth={1.9} aria-hidden />
+                          Along the way
+                          <span className="stage-explore__count">
+                            {' '}
+                            · {experienceCount}
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className="stage-guide__chevron"
+                          size={18}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                      </button>
+                      {exploreOpen ? (
+                        <div
+                          id={explorePanelId}
+                          className="stage-guide"
+                          role="region"
+                          aria-label={`Day ${stage.day} — along the way`}
+                        >
+                          <ExperienceList
+                            stageId={stage.id}
+                            direction={itinerary.direction}
+                            onOpenDetail={setSelectedExperience}
+                            onViewOnMap={viewOnMap}
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
               ) : null}
             </article>
           );

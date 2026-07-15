@@ -33,6 +33,7 @@ import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import type { ElevationSample } from '../route/types';
 import type { TabId } from '../components/TabBar';
+import type { LatLng } from '../types';
 import type { ListsDeepLink } from './ListsScreen';
 
 export interface NavPayload {
@@ -42,6 +43,22 @@ export interface NavPayload {
   guideStageId?: string;
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
+  /**
+   * Map: one-shot "View on map" focus for an experience (from Stages). Geometry
+   * comes only from VERIFIED sources — a point, an owner GPX detour route, or the
+   * whole Stage (route-wide). The Map shows a temporary highlight; it does NOT
+   * enable a persistent experience layer.
+   */
+  mapFocus?: {
+    kind: 'point' | 'route' | 'stage';
+    stageId: string;
+    label: string;
+    coord?: LatLng;
+    track?: LatLng[];
+    start?: LatLng;
+    destination?: LatLng;
+    note?: string;
+  };
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;

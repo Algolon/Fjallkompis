@@ -255,7 +255,7 @@ test('Stage Guide opens the CURRENT stage’s guide on Stages', () => {
   const app = readFileSync(join(root, 'src/App.tsx'), 'utf8');
   assert.match(
     app,
-    /<StagesScreen initialGuideStageId=\{nav\.payload\?\.guideStageId \?\? null\} \/>/,
+    /initialGuideStageId=\{nav\.payload\?\.guideStageId \?\? null\}/,
   );
   // StagesScreen never leaves the user at a generic collapsed list: the
   // deep-linked guide opens and its card scrolls into view.

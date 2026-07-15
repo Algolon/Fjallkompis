@@ -25,6 +25,7 @@ export const WAYPOINT_BY_ID: Record<string, RouteWaypoint> = Object.fromEntries(
   ROUTE.waypoints.map((w) => [w.id, w]),
 );
 
+
 /**
  * GPX waypoint machine ids ↔ the app's existing hut ids. Lives in the plain
  * waypointStops.mjs module (node --test validates it against the generated
