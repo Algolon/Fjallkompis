@@ -57,7 +57,7 @@
       ]
     ],
     "roundTripKm": 0.42,
-    "elevationGainM": 13
+    "elevationGainM": 5
   },
   "day5-waterfall-rapids-bridge": {
     "sourceFile": "day5-along-the-way.gpx",
@@ -105,7 +105,7 @@
       ]
     ],
     "roundTripKm": 0.28,
-    "elevationGainM": 26
+    "elevationGainM": 25
   },
   "kebnekaise-summit-western": {
     "sourceFile": "kebnekaise-summit-western.gpx",
@@ -1290,7 +1290,7 @@
       ]
     ],
     "roundTripKm": 18.42,
-    "elevationGainM": 2050
+    "elevationGainM": 2017
   },
   "lake-njakajaure-lapporten": {
     "sourceFile": "day-01-along-the-way.gpx",
@@ -1382,7 +1382,7 @@
       ]
     ],
     "roundTripKm": 1.23,
-    "elevationGainM": 13
+    "elevationGainM": 7
   },
   "madirjavri-plateau-viewpoint": {
     "sourceFile": "day5-along-the-way.gpx",
@@ -1748,7 +1748,7 @@
       ]
     ],
     "roundTripKm": 10.89,
-    "elevationGainM": 261
+    "elevationGainM": 236
   },
   "salka-half-summit-lake-viewpoint": {
     "sourceFile": "nallo-side-valley.gpx",
@@ -2616,6 +2616,6 @@
       ]
     ],
     "roundTripKm": 16.01,
-    "elevationGainM": 618
+    "elevationGainM": 580
   }
 }

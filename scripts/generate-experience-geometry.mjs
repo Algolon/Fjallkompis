@@ -23,15 +23,18 @@
  *    reorders points — distance and round-trip ascent are direction-invariant.
  *
  * Metrics are derived ONLY from the supplied geometry: distanceKm is the
- * out-and-back length (one-way haversine sum × 2); elevationGainM (round trip) =
- * one-way ascent + one-way descent. Rounded so regeneration is byte-stable for
- * CI. Point-only objectives (waypoint, no track) get waypoints and no metrics.
+ * out-and-back length (one-way haversine sum × 2); elevationGainM (round-trip
+ * ascent) = one-way ascent + one-way descent, each computed with the
+ * deterministic hysteresis noise filter in gpx-elevation.mjs (a raw per-delta
+ * sum over-counts DEM/barometric jitter). Rounded so regeneration is byte-stable
+ * for CI. Point-only objectives (waypoint, no track) get waypoints and no metrics.
  *
  * Run via `npm run generate:experiences` (chained into dev/build/test).
  */
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { cumulativeGain } from './gpx-elevation.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const GPX_DIR = join(root, 'public/gpx/experiences');
@@ -120,20 +123,16 @@ for (const file of readdirSync(GPX_DIR).filter((f) => f.endsWith('.gpx')).sort()
     // Normalise to the WALKED direction for display (source file untouched).
     const pts = TRACK_REVERSE.has(id) ? [...raw].reverse() : raw;
     let len = 0;
-    let up = 0;
-    let down = 0;
-    for (let i = 1; i < pts.length; i++) {
-      len += hav(pts[i - 1], pts[i]);
-      const d = pts[i].ele - pts[i - 1].ele;
-      if (d > 0) up += d;
-      else down += -d;
-    }
+    for (let i = 1; i < pts.length; i++) len += hav(pts[i - 1], pts[i]);
+    // Cumulative ascent/descent via the deterministic hysteresis noise filter
+    // (see gpx-elevation.mjs) — raw per-delta sums would over-count DEM jitter.
+    const { ascent, descent } = cumulativeGain(pts.map((p) => p.ele));
     const e = ensure(id);
     e.sourceFile = file;
     e.trackRole = role;
     e.track = pts.map((p) => [+p.lat.toFixed(6), +p.lon.toFixed(6)]);
     e.roundTripKm = +((len * 2) / 1000).toFixed(2); // out-and-back
-    e.elevationGainM = Math.round(up + down); // round-trip ascent
+    e.elevationGainM = Math.round(ascent + descent); // round-trip ascent (filtered)
   }
 }
 

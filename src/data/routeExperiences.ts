@@ -827,7 +827,7 @@ const CURATED: RouteExperience[] = [
     },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'A full day from Kebnekaise Fjällstation',
-    elevationGainM: 600,
+    // Ascent is GPX-derived (see the route asset); no hand-typed figure.
     weatherSensitivity: 'high',
     summary: 'A high-alpine glacier cirque and glaciology research station.',
     whyNotice:

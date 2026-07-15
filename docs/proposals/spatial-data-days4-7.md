@@ -8,16 +8,34 @@ source files kept byte-for-byte.
 
 ## Files ingested (unedited, under `public/gpx/experiences/`)
 
-| File | Track | One-way | Round-trip | Round-trip ascent | Notes |
+| File | Track | One-way | Round-trip | Round-trip ascent (filtered) | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `nallo-side-valley.gpx` | 84 pt | 5.45 km | **10.9 km** | 261 m | stored Nallo→Sälka, **reversed** for display |
-| `tarfala-valley.gpx` | 207 pt | 8.00 km | **16.0 km** | 618 m | starts at Kebnekaise Fjällstation |
-| `kebnekaise-summit-western.gpx` | 290 pt | 9.21 km | **18.4 km** | 2050 m | station → summit via Vierranvárri |
-| `day5-along-the-way.gpx` | 7 pt | 0.14 km | **0.3 km** | 26 m | track = waterfall spur only |
+| `nallo-side-valley.gpx` | 84 pt | 5.45 km | **10.9 km** | 236 m | stored Nallo→Sälka, **reversed** for display |
+| `tarfala-valley.gpx` | 207 pt | 8.00 km | **16.0 km** | 580 m | starts at Kebnekaise Fjällstation |
+| `kebnekaise-summit-western.gpx` | 290 pt | 9.21 km | **18.4 km** | 2017 m | station → summit via Vierranvárri |
+| `day5-along-the-way.gpx` | 7 pt | 0.14 km | **0.3 km** | 25 m | track = waterfall spur only |
 
 All distances/ascent are **derived from the GPX geometry at build time** and, for
-routed detours, injected into the displayed `roundTripKm` at load — no hand-typed
-figures (the Day-1 hardcodes were removed too).
+routed detours, the displayed `roundTripKm` is injected at load — no hand-typed
+figures (the Day-1 hardcodes were removed too). `elevationGainM` is internal
+metadata (not shown in the UI).
+
+### Elevation policy (deterministic noise filter)
+
+Cumulative ascent/descent uses a **hysteresis filter** (`scripts/gpx-elevation.mjs`,
+threshold **3 m**): elevation accumulates only once the signed move from a running
+reference exceeds the band, so sub-3 m DEM/barometric jitter is ignored while real
+grade changes are preserved in full. Simple, order-deterministic, uniform across
+every experience GPX; no smoothing kernel, no resampling, no per-file tuning.
+
+The threshold is chosen on noise grounds, **not** to hit any editorial figure — on
+these files it trims only ~1–6 % versus a raw per-delta sum, confirming the ascent
+is mostly genuine terrain. For the Kebnekaise Western Route the raw round-trip
+ascent (2050 m) is one-way ascent 1710 m + one-way descent 340 m; the filter yields
+**2017 m**. The gap to the old ~1700 m editorial estimate is **not noise** — 1700 ≈
+the *one-way* ascent to the summit, whereas 2017 is the *round-trip* ascent (the
+route genuinely undulates through Kitteldalen/Kaffedalen). Both quantities are
+correct; the internal field stores round-trip ascent.
 
 ## Alias layer (source name → canonical id · role)
 
