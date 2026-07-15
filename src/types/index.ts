@@ -308,6 +308,133 @@ export interface Stage {
   maximumElevationM: number | null;
 }
 
+// ---- Route experiences (curated, read-only experiential route content) -------
+
+/**
+ * Optional experiences ALONG the walk — viewpoints, water, landforms, nature,
+ * Sami/cultural traces, short detours and major adventures. This is the data
+ * foundation of the "Along the way" layer (see docs/proposals/explore-more.md).
+ *
+ * Anchored to STAGES, not Stops. A Stage answers "what will I encounter today?";
+ * a Stop answers "what's available here?". Facilities (meals, café, sauna, shop,
+ * showers, drying rooms, accommodation, transport/boat timetables) are therefore
+ * NEVER experiences — they live on Stops / Lists. A facility may be *named* as
+ * logistics inside an experience, never listed as one.
+ *
+ * Keyed to STABLE physical segment ids (`segmentIds`, d1..d7), never to display
+ * day numbers: when the route direction flips, day numbers change but segment ids
+ * do not, so the layer survives reversal. `nearestStopId` is secondary context.
+ *
+ * Four classification dimensions, kept deliberately separate (never fused into
+ * one category system):
+ *   type       — WHAT it is (drives the icon)
+ *   scale      — HOW BIG the commitment (drives grouping + detail depth)
+ *   difficulty — HOW HARD physically
+ *   planningFit— DOES IT FIT the day (a human judgement, not raw numbers)
+ * "Summit" is intentionally NOT a type — it is a Landform at major-adventure
+ * scale with alpine difficulty; scale + difficulty carry its weight.
+ *
+ * User-owned state (favourite / done / notes) is intentionally NOT here — like
+ * packing/journal it would live in PersistentState behind a schema bump.
+ */
+
+/** WHAT an experience is — drives the icon. Five, deliberately tight. */
+export type ExperienceType =
+  | 'viewpoint' // vistas, panoramas, photogenic spots
+  | 'water' // waterfalls, lakes, rapids, swim spots, river crossings, bridges
+  | 'landform' // mountains, summits, valleys, glaciers, moraine, rock formations
+  | 'nature' // flora, wildlife, birdwatching
+  | 'culture'; // Sami landscapes/history, historical remains, old trail traces
+
+/** HOW BIG the commitment — ordered; drives the three UI groups. */
+export type ExperienceScale =
+  | 'on-route' // on/beside the trail, minutes, no real detour
+  | 'mini-detour' // ~10–60 min
+  | 'short-excursion' // ~1–3 h, shapes the day
+  | 'half-full-day' // several hours; may need an overnight
+  | 'major-adventure'; // a separate, committing day
+
+export type ExperienceDifficulty = 'easy' | 'moderate' | 'hard' | 'alpine';
+
+/** Human planning judgement — shown INSTEAD of raw numbers as the headline. */
+export type PlanningFit =
+  | 'directly-on-route'
+  | 'adds-under-30'
+  | 'adds-1-2h'
+  | 'shorter-hiking-day'
+  | 'best-from-overnight'
+  | 'extra-day-recommended'
+  | 'separate-day-required';
+
+/** When an experience is possible/best. Months are 1–12. */
+export interface SeasonWindow {
+  fromMonth: number;
+  toMonth: number;
+  note?: string;
+}
+
+/**
+ * Heavier safety detail, present ONLY on `major-adventure` records. A roadside
+ * sight never carries turnaround advice — depth follows scale.
+ */
+export interface ExperienceExpedition {
+  extraDayRequired: boolean;
+  guide?: { recommended: boolean; required?: boolean; note?: string };
+  booking?: { required: boolean; note?: string };
+  equipment?: string[];
+  /** The single field that most affects safety. */
+  turnaroundAdvice?: string;
+  season?: string;
+  /** Muted-sienna warnings — reserved for decisions that materially affect safety. */
+  warnings?: string[];
+}
+
+/**
+ * One curated experience along the route. Same provenance discipline as
+ * TrailStop: every entry carries a `source` with a `lastVerified` date and a
+ * `confidence`, and nothing here is user-editable.
+ */
+export interface RouteExperience {
+  id: string; // stable slug: 'tjaktja-pass-view', 'kebnekaise-summit'
+  title: string;
+  shortTitle?: string;
+
+  type: ExperienceType;
+  scale: ExperienceScale;
+  /** Omitted for a pure roadside sight with no walking effort. */
+  difficulty?: ExperienceDifficulty;
+  planningFit: PlanningFit;
+
+  /** Stable physical stage ids (d1..d7); may be several (a basecamp trip → both adjacent stages). */
+  segmentIds: string[];
+  /** Secondary context only — never the presentation anchor. */
+  nearestStopId?: string;
+  /** Short human phrase; direction-neutral for MVP (e.g. "Extra day from Kebnekaise Fjällstation"). */
+  routeRelationship?: string;
+
+  /** One calm sentence for the row / preview. */
+  summary: string;
+  /** "What not to walk past without noticing" — the inline-expand line for on-route sights. */
+  whyNotice: string;
+  /** Offline long-form (detour+; on-route sights may omit it). */
+  description?: string;
+
+  // Optional planning detail (detour+; not for roadside sights).
+  addedTimeText?: string; // '+20 min', '2–3 h'
+  detourDistanceKm?: number;
+  roundTripKm?: number;
+  elevationGainM?: number;
+  weatherSensitivity?: 'low' | 'medium' | 'high';
+  season?: SeasonWindow;
+  coord?: LatLng;
+
+  /** Present only for `major-adventure` scale (see ExperienceExpedition). */
+  expedition?: ExperienceExpedition;
+
+  source: StopSource;
+  confidence: 'high' | 'medium' | 'low';
+}
+
 // ---- Packing list -------------------------------------------------------------
 
 export type PackingStatus = 'needed' | 'ready' | 'packed';
