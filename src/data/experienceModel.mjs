@@ -180,18 +180,25 @@ export function provenanceLevel(experience) {
  */
 export function canViewOnMap(experience) {
   const a = experience.location?.mapAvailability;
-  return a === 'exact-point' || a === 'verified-route' || a === 'context-only';
+  return (
+    a === 'exact-point' ||
+    a === 'verified-route' ||
+    a === 'context-only' ||
+    a === 'full-stage'
+  );
 }
 
 /**
  * What the Map should render for an experience: a precise marker, the route
- * line, a clearly-labelled contextual area/direction, or nothing.
+ * line, a clearly-labelled contextual area/direction, the whole Stage, or
+ * nothing.
  */
 export function mapDisplayKind(experience) {
   const a = experience.location?.mapAvailability;
   if (a === 'exact-point') return 'marker';
   if (a === 'verified-route') return 'route';
   if (a === 'context-only') return 'context';
+  if (a === 'full-stage') return 'stage';
   return 'none';
 }
 

@@ -251,10 +251,19 @@ export function routeLayers(): LayerSpecification[] {
         'circle-stroke-width': 2,
       },
     },
-    // Temporary experience focus ("View on map"): a single highlighted point,
-    // fed on demand via the 'focus' source and cleared on dismissal / direction
-    // change. NOT a persistent experience-marker layer. Cloudberry = "look here
-    // now" (a sanctioned map-highlight use, distinct from the muted terrain).
+    // Temporary experience focus ("View on map"): a highlighted point and/or an
+    // owner detour track, fed on demand via the 'focus' source and cleared on
+    // dismissal / direction change. NOT a persistent experience-marker layer.
+    // Cloudberry = "look here now" (a sanctioned map-highlight, distinct from the
+    // muted terrain). The line renders LineString focus features; the circles
+    // render Point focus features (both read the same source).
+    {
+      id: 'focus-line',
+      type: 'line',
+      source: 'focus',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#b78443', 'line-width': 4, 'line-opacity': 0.9 },
+    },
     {
       id: 'focus-halo',
       type: 'circle',

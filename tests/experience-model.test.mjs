@@ -160,6 +160,8 @@ test('map availability gates View on map and marker/route/context display', () =
   assert.equal(mapDisplayKind(loc('verified-route')), 'route');
   assert.equal(canViewOnMap(loc('context-only')), true);
   assert.equal(mapDisplayKind(loc('context-only')), 'context');
+  assert.equal(canViewOnMap(loc('full-stage')), true); // intentionally route-wide
+  assert.equal(mapDisplayKind(loc('full-stage')), 'stage');
 });
 
 // ── Commitment grouping stays available for the future Explore Index ─────────

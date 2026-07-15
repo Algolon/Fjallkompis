@@ -258,8 +258,16 @@ export function MapScreen({
   onViewStageChange: (stageId: string | null) => void;
   /** Focused navigation: open this stop's full detail in Huts & Stations. */
   onOpenStop?: (stopId: string) => void;
-  /** One-shot "View on map": temporarily highlight a VERIFIED coordinate. */
-  focus?: { coord: LatLng; label: string; stageId: string } | null;
+  /** One-shot "View on map": geometry-aware temporary highlight (verified only). */
+  focus?: {
+    kind: 'point' | 'route' | 'stage';
+    stageId: string;
+    label: string;
+    coord?: LatLng;
+    entry?: LatLng;
+    track?: LatLng[];
+    note?: string;
+  } | null;
 }) {
   const { itinerary, currentStage } = useStore();
   const route = itinerary.route;
@@ -335,12 +343,21 @@ export function MapScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.status, geo.timestamp]);
 
-  // One-shot "View on map": highlight the VERIFIED coordinate (MapView remounts
-  // on tab switch / direction change, so the highlight never persists). Only ever
-  // fired for experiences whose mapAvailability exposed the action.
+  // One-shot "View on map": highlight the experience's verified geometry — a
+  // point, an owner GPX route, or the whole Stage (route-wide). MapView remounts
+  // on tab switch / direction change, so the highlight never persists.
   useEffect(() => {
     if (!focus) return;
-    mapRef.current?.focusPoint({ lat: focus.coord.lat, lon: focus.coord.lng });
+    const m = mapRef.current;
+    if (!m) return;
+    if (focus.kind === 'stage') {
+      m.focusPoint(null);
+      m.fitStage(focus.stageId);
+    } else if (focus.kind === 'route' && focus.track && focus.track.length > 0) {
+      m.focusRoute(focus.track, focus.entry ?? null);
+    } else if (focus.coord) {
+      m.focusPoint({ lat: focus.coord.lat, lon: focus.coord.lng });
+    }
   }, [focus]);
 
   const stepStage = (dir: 1 | -1) => {

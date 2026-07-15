@@ -71,6 +71,8 @@ export interface MapViewHandle {
    * persistent experience-marker layer. Safe to call before load (applied then).
    */
   focusPoint: (p: { lat: number; lon: number } | null) => void;
+  /** Draw an owner detour track (+ entry point) on the transient 'focus' source. */
+  focusRoute: (track: LatLng[], entry: LatLng | null) => void;
 }
 
 /** Which basemap the user is looking at: the offline vector map or satellite. */
@@ -232,7 +234,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // the imperative handle and effects reading the mounted value.
   const routeRef = useRef(route);
   // A focus requested before the map's 'load' is applied once the source exists.
-  const pendingFocusRef = useRef<{ lat: number; lon: number } | null>(null);
+  const pendingFocusRef = useRef<((map: maplibregl.Map) => void) | null>(null);
   const followRef = useRef(follow);
   followRef.current = follow;
   // The Map constructor already applies the route bounds. The first selection
@@ -274,6 +276,39 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return true;
   };
 
+  // Draw an owner detour: the track as a LineString + an entry Point, framed to
+  // the track bounds. Non-persistent — same transient 'focus' source.
+  const applyFocusRoute = (
+    map: maplibregl.Map,
+    track: LatLng[],
+    entry: LatLng | null,
+  ): boolean => {
+    const src = map.getSource('focus') as GeoJSONSource | undefined;
+    if (!src || track.length === 0) return false;
+    const features: GeoJSON.Feature[] = [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: track.map((t) => [t.lng, t.lat]),
+        },
+        properties: {},
+      },
+    ];
+    if (entry) {
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [entry.lng, entry.lat] },
+        properties: {},
+      });
+    }
+    src.setData({ type: 'FeatureCollection', features });
+    const b = new maplibregl.LngLatBounds();
+    for (const t of track) b.extend([t.lng, t.lat]);
+    map.fitBounds(b, { padding: 64, maxZoom: 15, ...animate() });
+    return true;
+  };
+
   const fitBounds = (bounds: [[number, number], [number, number]]) => {
     mapRef.current?.fitBounds(bounds, { padding: FIT_PADDING, ...animate() });
   };
@@ -304,11 +339,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     resetBearing: () => mapRef.current?.resetNorthPitch(animate()),
     focusPoint: (p) => {
       const map = mapRef.current;
-      if (map && applyFocus(map, p)) {
-        pendingFocusRef.current = null;
-      } else {
-        pendingFocusRef.current = p;
-      }
+      if (map && applyFocus(map, p)) pendingFocusRef.current = null;
+      else pendingFocusRef.current = (m) => applyFocus(m, p);
+    },
+    focusRoute: (track, entry) => {
+      const map = mapRef.current;
+      if (map && applyFocusRoute(map, track, entry)) pendingFocusRef.current = null;
+      else pendingFocusRef.current = (m) => applyFocusRoute(m, track, entry);
     },
     centerOn: (p) => {
       const map = mapRef.current;
@@ -472,7 +509,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
         // Apply a focus requested before load ("View on map" arrives with the map).
         if (pendingFocusRef.current) {
-          applyFocus(map, pendingFocusRef.current);
+          pendingFocusRef.current(map);
           pendingFocusRef.current = null;
         }
 

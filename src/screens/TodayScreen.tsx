@@ -44,12 +44,20 @@ export interface NavPayload {
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
   /**
-   * Map: one-shot focus on a single experience at a VERIFIED coordinate (from
-   * Stages "View on map"). Only ever set for experiences whose `mapAvailability`
-   * permits — never an interpolated/editorial position. The Map shows a
-   * temporary highlight; it does NOT enable a persistent experience layer.
+   * Map: one-shot "View on map" focus for an experience (from Stages). Geometry
+   * comes only from VERIFIED sources — a point, an owner GPX detour route, or the
+   * whole Stage (route-wide). The Map shows a temporary highlight; it does NOT
+   * enable a persistent experience layer.
    */
-  mapFocus?: { coord: LatLng; label: string; stageId: string };
+  mapFocus?: {
+    kind: 'point' | 'route' | 'stage';
+    stageId: string;
+    label: string;
+    coord?: LatLng;
+    entry?: LatLng;
+    track?: LatLng[];
+    note?: string;
+  };
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;

@@ -8,6 +8,7 @@ import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { stageGuide } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
 import { experienceCountForStage } from '../data/routeExperiences';
+import { experienceTrack, experienceWaypoint } from '../data/experienceGeometry';
 import {
   formatDistanceKm,
   formatHoursEstimate,
@@ -147,20 +148,30 @@ export function StagesScreen({
     });
   };
 
-  // "View on map": deep-link to the Map with a one-shot focus at the experience's
-  // VERIFIED coordinate. Only reachable when the row/detail exposed the action
-  // (canViewOnMap) — a coordinate is never derived from an editorial position, so
-  // this is a no-op until real spatial data is supplied.
+  // "View on map": deep-link to the Map with a one-shot, geometry-aware focus.
+  // Only reachable when the row/detail exposed the action (canViewOnMap). Geometry
+  // comes from verified sources only — an owner GPX route, the whole Stage, or an
+  // exact point — never derived from an editorial position.
   const viewOnMap = (experience: RouteExperience) => {
-    const coord = experience.location.coord;
-    if (!onNavigate || !coord) return;
-    onNavigate('map', {
-      mapFocus: {
-        coord,
-        label: experience.shortTitle ?? experience.title,
-        stageId: experience.segmentIds[0],
-      },
-    });
+    if (!onNavigate) return;
+    const loc = experience.location;
+    const stageId = experience.segmentIds[0];
+    const label = experience.shortTitle ?? experience.title;
+    if (loc.mapAvailability === 'full-stage') {
+      onNavigate('map', { mapFocus: { kind: 'stage', stageId, label, note: experience.mapNote } });
+    } else if (loc.gpxAssetId) {
+      onNavigate('map', {
+        mapFocus: {
+          kind: 'route',
+          stageId,
+          label,
+          entry: experienceWaypoint(experience.id, 'entry'),
+          track: experienceTrack(experience.id),
+        },
+      });
+    } else if (loc.coord) {
+      onNavigate('map', { mapFocus: { kind: 'point', stageId, label, coord: loc.coord } });
+    }
   };
 
   // Pushed detail view replaces the stage list (mobile push pattern); its own

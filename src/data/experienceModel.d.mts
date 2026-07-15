@@ -64,7 +64,7 @@ export declare function provenanceLevel(
 
 // ── Map availability (the "View on map" gate) ──
 export declare function canViewOnMap(experience: RouteExperience): boolean;
-export type MapDisplayKind = 'marker' | 'route' | 'context' | 'none';
+export type MapDisplayKind = 'marker' | 'route' | 'context' | 'stage' | 'none';
 export declare function mapDisplayKind(
   experience: RouteExperience,
 ): MapDisplayKind;

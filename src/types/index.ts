@@ -441,7 +441,16 @@ export type MapAvailability =
   | 'exact-point'
   | 'verified-route'
   | 'context-only'
+  | 'full-stage' // intentionally route-wide: opens the whole Stage, clearly labelled
   | 'unavailable';
+
+/**
+ * Internal authoring/validation state — NOT surfaced as a user control. Every
+ * published experience should reach `complete`; `awaiting-input` means the
+ * intended spatial representation is pending owner data (View-on-map is simply
+ * omitted, never shown as a disabled/"awaiting" action).
+ */
+export type SpatialStatus = 'complete' | 'awaiting-input';
 
 /**
  * Typed geometry/location for an experience. `kind`/`access` are qualitative
@@ -469,8 +478,12 @@ export interface ExperienceLocation {
   rejoinCoord?: LatLng;
   /** Compass bearing (deg) toward a distant sight, for a labelled context view. */
   viewBearingDeg?: number;
+  /** A distant sight the experience looks toward (orientation only, not a destination). */
+  viewTargetCoord?: LatLng;
   /** Stable id of a VERIFIED GPX route asset (see ExperienceRouteAsset) — else absent. */
   gpxAssetId?: string;
+  /** Internal authoring/validation state (not a user control). */
+  spatialStatus?: SpatialStatus;
 }
 
 // ---- Experience GPX route assets -------------------------------------------
@@ -547,6 +560,9 @@ export interface RouteExperience {
 
   /** Present only for `major-adventure` scale (see ExperienceExpedition). */
   expedition?: ExperienceExpedition;
+
+  /** Copy shown when a `full-stage` experience opens the Map (route-wide framing). */
+  mapNote?: string;
 
   source: StopSource;
   confidence: 'high' | 'medium' | 'low';

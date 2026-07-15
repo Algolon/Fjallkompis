@@ -48,10 +48,12 @@ export type {
  *    BOTH adjacent stages.
  *  - `location.kind`/`access` are qualitative relationships researched from trail
  *    descriptions; `orderHint` is a COARSE editorial position for ordering only
- *    (never a coordinate). NO verified geometry ships yet, so every record is
- *    `spatialProvenance: 'missing'`, `mapAvailability: 'unavailable'` and has no
- *    coord/GPX — "View on map" is off until the owner supplies/verifies real
- *    spatial data (see docs/proposals/along-the-way-spatial.md, Day 1 pilot).
+ *    (never a coordinate). Verified geometry ships ONLY where owner-provided:
+ *    the three Day-1 records are `complete` (two owner GPX detours + one
+ *    intentionally stage-wide); every other record is `spatialProvenance:
+ *    'missing'`, `mapAvailability: 'unavailable'`, `spatialStatus:
+ *    'awaiting-input'` — its "View on map" is omitted (not a disabled control)
+ *    until the owner supplies data (see docs/proposals/along-the-way-spatial.md).
  *  - Diffuse "the walk is pretty" is route character → the Day Guide, not here,
  *    so d3 carries nothing and d5 carries one — uneven coverage is honest.
  */
@@ -96,23 +98,43 @@ export function isPlanningCost(fit: PlanningFit): boolean {
 const CURATED: RouteExperience[] = [
   // ── d1 · Abisko → Abiskojaure ─────────────────────────────────────────────
   {
-    id: 'lapporten-sightline',
-    title: 'Lapporten sightline',
+    id: 'lake-njakajaure-lapporten',
+    title: 'Lake Njakajaure & Lapporten views',
     type: 'viewpoint',
-    scale: 'on-route',
-    planningFit: 'directly-on-route',
+    scale: 'mini-detour',
+    planningFit: 'adds-under-30',
     segmentIds: ['d1'],
-    location: { kind: 'vista', access: 'visible-from-trail', orderHint: 0.2, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
-    nearestStopId: 'abisko',
-    summary: 'The emblematic U-shaped valley on the skyline.',
-    whyNotice:
-      'Sweden’s most-photographed mountain gap — a textbook glacial U-valley (Čuonjávággi) framing the horizon as you start out. Best light in the evening.',
-    source: {
-      label: 'Wikipedia — Lapporten',
-      url: 'https://en.wikipedia.org/wiki/Lapporten',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+    // Owner-provided out-and-back detour (day-01-along-the-way.gpx). The Lapporten
+    // target is a documented orientation aid ONLY (Wikipedia/Wikidata Q734943,
+    // 68.26833/18.97694, ~141° SE) — not a destination, not a guaranteed view; it
+    // never alters the owner geometry.
+    location: {
+      kind: 'route',
+      access: 'short-detour',
+      orderHint: 0.18,
+      spatialProvenance: 'owner-provided',
+      mapAvailability: 'verified-route',
+      spatialStatus: 'complete',
+      gpxAssetId: 'lake-njakajaure-lapporten.detour',
+      viewTargetCoord: { lat: 68.26833, lng: 18.97694 },
+      viewBearingDeg: 141,
     },
-    confidence: 'high',
+    nearestStopId: 'abisko',
+    routeRelationship: 'Short detour off Stage 1 to the lakeside (out-and-back)',
+    addedTimeText: '~30 min',
+    roundTripKm: 1.23,
+    summary:
+      'A quiet lakeside detour with open water views and, in clear conditions, a possible view toward Lapporten.',
+    whyNotice:
+      'Leave the trail for a short out-and-back to Lake Njakajaure — open water framed by the fjäll. On a clear day, look south-east toward Lapporten; whether it shows depends on weather, cloud and atmospheric conditions.',
+    description:
+      'An owner-researched optional side trip combining the lake setting, a scenic pause and a potential Lapporten view. Out-and-back to the lakeside viewpoint; return the way you came. Lapporten is far to the south-east and is never a walked destination — treat the view as a bonus, not a certainty.',
+    source: {
+      label: 'Naturkartan — Abisko–Abiskojaure (Stage 1)',
+      url: 'https://www.naturkartan.se/en/norrbottens-lan/vandringsled-bd21-fran-abisko-till-abiskojaure',
+      lastVerified: '2026-07-15',
+    },
+    confidence: 'medium',
   },
   {
     id: 'abiskojakka-canyon',
@@ -121,12 +143,24 @@ const CURATED: RouteExperience[] = [
     scale: 'mini-detour',
     planningFit: 'adds-under-30',
     segmentIds: ['d1'],
-    location: { kind: 'point', access: 'short-detour', orderHint: 0.02, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    // Owner-provided out-and-back detour (day-01-along-the-way.gpx); geometry +
+    // metrics derived from the GPX (rejoin = entry).
+    location: {
+      kind: 'route',
+      access: 'short-detour',
+      orderHint: 0.05,
+      spatialProvenance: 'owner-provided',
+      mapAvailability: 'verified-route',
+      spatialStatus: 'complete',
+      gpxAssetId: 'abiskojakka-canyon.detour',
+    },
     nearestStopId: 'abisko',
-    addedTimeText: '+20 min',
+    routeRelationship: 'Short marked detour at the Abisko trailhead (out-and-back)',
+    addedTimeText: '~10 min',
+    roundTripKm: 0.42,
     summary: 'A turquoise glacial river in a blasted gorge at the trailhead.',
     whyNotice:
-      'The Abiskojåkka has cut a sharp canyon toward Lake Torneträsk; in 1899 the railway builders blasted a tunnel to carry the river rather than bridge it. Easily combined with the start.',
+      'The Abiskojåkka has cut a sharp canyon toward Lake Torneträsk; in 1899 the railway builders blasted a tunnel to carry the river rather than bridge it. A brief detour loop from the start.',
     weatherSensitivity: 'low',
     source: {
       label: 'STF — Abisko Turiststation',
@@ -142,11 +176,23 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d1'],
-    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.3, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    // Intentionally STAGE-WIDE (owner decision): no single point/detour. "View on
+    // map" opens and highlights the whole of Stage 1 with route-wide framing; no
+    // point, polygon or GPX is fabricated.
+    location: {
+      kind: 'segment-portion',
+      access: 'on-trail',
+      orderHint: 0.3,
+      spatialProvenance: 'source-verified',
+      mapAvailability: 'full-stage',
+      spatialStatus: 'complete',
+    },
     nearestStopId: 'abisko',
     summary: 'Sub-arctic birch woodland — the trail’s green opening.',
     whyNotice:
       'The first day threads classic fjäll birch forest — prime birding for bluethroat, redwing and brambling before the treeline gives way to open tundra.',
+    mapNote:
+      'Experienced along much of this stage — keep an eye on the birch woodland and surrounding birdlife as you walk.',
     source: {
       label: 'STF — Signature Trail: Kungsleden from Abisko',
       url: 'https://www.swedishtouristassociation.com/trails/signature-trail-kungsleden-abisko/',
@@ -163,7 +209,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
-    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.3, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.3, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'alesjaure',
     summary: 'The moment the birch ends and the open fjäll begins.',
     whyNotice:
@@ -182,7 +228,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
-    location: { kind: 'vista', access: 'visible-from-trail', orderHint: 0.9, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'vista', access: 'visible-from-trail', orderHint: 0.9, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'alesjaure',
     summary: 'A braided glacial delta ringed by peaks.',
     whyNotice:
@@ -201,7 +247,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
-    location: { kind: 'area', access: 'beside-trail', orderHint: 0.85, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'area', access: 'beside-trail', orderHint: 0.85, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'alesjaure',
     summary: 'A living reindeer-herding cultural landscape.',
     whyNotice:
@@ -224,7 +270,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
-    location: { kind: 'vista', access: 'on-trail', orderHint: 0.15, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'vista', access: 'on-trail', orderHint: 0.15, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'tjaktja',
     summary: 'The highest point of the Kungsleden — a 30 km valley opens south.',
     whyNotice:
@@ -243,7 +289,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
-    location: { kind: 'area', access: 'beside-trail', orderHint: 0.2, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'area', access: 'beside-trail', orderHint: 0.2, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'tjaktja',
     summary: 'Textbook glacial geomorphology near the pass.',
     whyNotice:
@@ -262,7 +308,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
-    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.35, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.35, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'salka',
     summary: 'Widely called the route’s prettiest reveal.',
     whyNotice:
@@ -282,7 +328,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'easy',
     planningFit: 'adds-under-30',
     segmentIds: ['d4'],
-    location: { kind: 'point', access: 'short-detour', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'point', access: 'short-detour', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'salka',
     addedTimeText: '+15 min',
     summary: 'A cold dip and reindeer-watching by the cabin.',
@@ -304,7 +350,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'hard',
     planningFit: 'shorter-hiking-day',
     segmentIds: ['d4'],
-    location: { kind: 'route', access: 'side-route', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'route', access: 'side-route', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'salka',
     routeRelationship: 'From Sälka — a shorter main stage or a rest day',
     addedTimeText: '2–3 h',
@@ -330,7 +376,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'moderate',
     planningFit: 'best-from-overnight',
     segmentIds: ['d4'],
-    location: { kind: 'route', access: 'side-route', orderHint: 0.92, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'route', access: 'side-route', orderHint: 0.92, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'salka',
     routeRelationship: 'A branch from near Sälka — best from an overnight stop',
     addedTimeText: 'Half day+',
@@ -356,7 +402,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d5'],
-    location: { kind: 'segment-portion', access: 'visible-from-trail', orderHint: 0.5, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'segment-portion', access: 'visible-from-trail', orderHint: 0.5, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'singi',
     summary: 'Broad glacier and precipice views along the valley floor.',
     whyNotice:
@@ -377,7 +423,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d6'],
-    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.4, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.4, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'kebnekaise',
     summary: 'The register shifts to high-alpine as the massif appears.',
     whyNotice:
@@ -398,7 +444,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d7'],
-    location: { kind: 'point', access: 'on-trail', orderHint: 0.05, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'point', access: 'on-trail', orderHint: 0.05, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'kebnekaise',
     summary: 'The route’s signature bridge, over a canyon.',
     whyNotice:
@@ -417,7 +463,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d7'],
-    location: { kind: 'segment-portion', access: 'beside-trail', orderHint: 0.65, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'segment-portion', access: 'beside-trail', orderHint: 0.65, spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'nikkaluokta',
     summary: 'The long lake that dominates the finish.',
     whyNotice:
@@ -443,7 +489,7 @@ const CURATED: RouteExperience[] = [
     location: {
       kind: 'route',
       access: 'basecamp-trip',
-      spatialProvenance: 'missing', mapAvailability: 'unavailable',
+      spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input',
     },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'Western route · extra day from Kebnekaise Fjällstation',
@@ -486,7 +532,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'hard',
     planningFit: 'extra-day-recommended',
     segmentIds: ['d6', 'd7'],
-    location: { kind: 'route', access: 'basecamp-trip', spatialProvenance: 'missing', mapAvailability: 'unavailable' },
+    location: { kind: 'route', access: 'basecamp-trip', spatialProvenance: 'missing', mapAvailability: 'unavailable', spatialStatus: 'awaiting-input' },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'A full day from Kebnekaise Fjällstation',
     roundTripKm: 16,
