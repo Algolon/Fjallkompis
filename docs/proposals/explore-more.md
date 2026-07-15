@@ -1,67 +1,30 @@
-# Design Proposal: a Stage-based experience layer for Fjällkompis
+# Design: a Stage-based experience layer for Fjällkompis ("Along the way")
 
-Status: Proposal v2 (pre-ADR) · Supersedes v1 (`explore-more-v1-stops.md`)
-Scope: Abisko ↔ Nikkaluokta, built to scale
+Status: accepted architecture for this iteration (draft PR #59) · Scope: Abisko ↔ Nikkaluokta, built to scale
+Spatial data policy & Day-1 pilot: **`along-the-way-spatial.md`** (companion doc).
 
-> **Revision history.** v1 anchored optional experiences to **Stops** ("Nearby Adventures" inside each
-> Stop card). Prototyping that revealed the wrong mental model: Stops are where a hiker asks *"what's
-> available here?"* (practical — beds, food, sauna, shop), and loading experiential content onto them
-> turns Stops into catch-all containers. v2 pivots to **Stages** — where the hiker asks *"what will I
-> encounter today?"* — and removes everything practical (dinner, sauna, café, boats) that duplicates
-> Stops/Lists. This is an information-architecture change, reasoned from first principles below.
+## Current architecture (authoritative)
 
----
+Optional **experiential** route content anchored to **Stages** — the *"what will I encounter today?"*
+question — kept distinct from **Stops** (*"what's available here?"*; facilities never appear here). One
+canonical `RouteExperience` keyed to **stable physical segment ids** (d1–d7); nearest Stop is secondary
+metadata only. Consequences, all accepted:
 
-## 0b. Refinement pass (PR #59, 2nd iteration)
+- **Typed spatial model** `ExperienceLocation`: `kind` × `access` (a dimension SEPARATE from `planningFit`)
+  × coarse `orderHint` (ordering only, never a coordinate) × operational `spatialProvenance` ×
+  `mapAvailability`. Verified coordinates/GPX only; unknown geometry stays `missing`/`unavailable`.
+- **Stage order = physical journey** (direction-aware `orderHint`; reversing flips order, no duplication);
+  basecamp trips separated into a trailing group; positional headers (Near the start / Along the stage /
+  Near the end) only past 3 linear items. Commitment grouping retained for a future Explore Index.
+- **Inline vs detail = content depth** (`needsDetailView`), not scale. **Progressive provenance**
+  (`provenanceLevel`). **GPX asset contract** (`ExperienceRouteAsset`, verified-only; registry empty
+  until owner data). **View on map** gated on `mapAvailability` (off until verified data exists).
+- All pure logic + tests in `experienceModel.mjs`. UI: `StageExperiences.tsx` + the "Along the way · N"
+  disclosure on `StagesScreen.tsx` (Option A).
 
-Layered onto the MVP slice, keeping the core architecture:
-- **Typed spatial model** (`ExperienceLocation`): `kind` (point/segment-portion/area/vista/route) ×
-  `access` (on-trail/beside/visible/short-detour/side-route/basecamp-trip) × canonical `segmentProgress`
-  × `spatialConfidence` (verified/approx/draft). `access` is a SEPARATE dimension from `planningFit`
-  (time) — "Directly on route" is no longer overloaded to mean geometry.
-- **GPX asset contract** (`ExperienceRouteAsset` + `src/data/experienceRoutes.ts`): experiences link a
-  stable asset `id`, not a filename; `gpxRefErrors` validates both directions at import. Kebnekaise ships
-  a **draft** placeholder track; Abiskojåkka canyon is a point (no GPX). No GPX for all.
-- **Stage order = physical journey** (not commitment): linear items ordered by direction-aware
-  `segmentProgress` (reversing flips order, no duplication); basecamp trips separated into a trailing
-  "Larger options" group; positional headers (Near the start / Along the stage / Near the end) only when
-  a linear list exceeds 3. Commitment grouping stays available for the future Explore Index.
-- **Inline vs detail = content depth** (one tested rule `needsDetailView`), not scale.
-- **Progressive provenance** (`provenanceLevel`): hidden on small sights, optional (collapsible) on
-  medium, shown on major/safety/time-sensitive/draft.
-- **Density**: on-trail sights show a quiet muted access word (no chip); difficulty pips only where a
-  detour makes effort a real choice; one "View on map" action.
-- **Map slice**: point-based "View on map" deep-link (payload → `focusPoint` handle → transient `focus`
-  source/layer; `coordAtStageProgress` interpolates on the real line). No persistent experience layer;
-  route-draw + Stage map-toggle deferred/prototyped.
-
-Verified live (375×832): positional order forward & reverse, reduced density, inline vs detail, draft
-badge, shown provenance, View-on-map deep-link. `npm test` (359), `tsc`, `npm run build` all clean.
-
----
-
-## 0. Implementation status (MVP slice — draft PR off `main`)
-
-Isolated on branch `claude/along-the-way-mvp` (cut from `origin/main`, **no packing-list changes**):
-- `src/types/index.ts` — the `RouteExperience` model.
-- `src/data/routeExperiences.ts` — curated, segment-keyed data.
-- `src/data/experienceModel.mjs` (+ `.d.mts`) — the pure selection/sort/group/classification/validation
-  logic, extracted for `node --test` coverage (repo convention).
-- `tests/experience-model.test.mjs` — focused tests: 0/1/many, group ordering, segment stability in both
-  directions, multi-segment, inline-vs-detail, invalid refs, the no-empty-disclosure rule.
-- `src/components/StageExperiences.tsx` — `ExperienceList` + `ExperienceRow` + `ExperienceDetail`
-  (reusable; the Explore Index would reuse them unchanged).
-- `src/screens/StagesScreen.tsx` — Option A: the "Along the way · N" disclosure + detail view.
-- `src/styles/global.css` — the two-disclosure footer, experience rows, detail styles.
-
-Verified in the running app (mobile 375×812): 0/1/many states (d3 empty, d5 flat "·1", d4 grouped "·6"),
-three scale-groups in commitment order, inline-expand for on-route sights vs pushed detail for larger,
-the major-adventure expedition block, back-navigation, and **route-direction safety** (reversing keeps
-each stage's experiences bound to its physical segment; only day numbers flip). `npm test` (357 pass,
-incl. 10 new), `npm run typecheck` and `npm run build` all clean; no console errors. Not shipped: Today
-card, Stops integration, Explore Index, Map layer, favourites (all deferred). Open review question: the
-Day Guide "Highlights" still narrate a few of the same landmarks — overlap deliberately preserved for
-live judgement (do not thin yet).
+**Explicitly out of scope this iteration:** Explore Index, Stage-level map marker toggle, map filters,
+favourites, completion state, Today surfacing, itinerary insertion, a 7th nav tab, broad content
+expansion.
 
 ---
 

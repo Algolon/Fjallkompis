@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import {
   EXPERIENCE_GROUP_ORDER,
   GROUP_THRESHOLD,
+  canViewOnMap,
   experienceGroup,
   experienceRefErrors,
   gpxRefErrors,
@@ -18,6 +19,7 @@ import {
   hasExperiences,
   isBasecamp,
   isInlineExperience,
+  mapDisplayKind,
   needsDetailView,
   orderForStage,
   provenanceLevel,
@@ -31,17 +33,17 @@ const ids = (list) => list.map((x) => x.id);
  *  out of position order to prove sorting isn't accidental. */
 const EXPS = [
   // d1: a late on-trail sight, an early one, and a mid detour (commitment ≠ order)
-  { id: 'd1-late', scale: 'on-route', segmentIds: ['d1'], location: { access: 'on-trail', segmentProgress: 0.8 } },
-  { id: 'd1-early', scale: 'on-route', segmentIds: ['d1'], location: { access: 'on-trail', segmentProgress: 0.1 } },
-  { id: 'd1-mid-detour', scale: 'mini-detour', segmentIds: ['d1'], location: { access: 'short-detour', segmentProgress: 0.5 } },
+  { id: 'd1-late', scale: 'on-route', segmentIds: ['d1'], location: { access: 'on-trail', orderHint: 0.8 } },
+  { id: 'd1-early', scale: 'on-route', segmentIds: ['d1'], location: { access: 'on-trail', orderHint: 0.1 } },
+  { id: 'd1-mid-detour', scale: 'mini-detour', segmentIds: ['d1'], location: { access: 'short-detour', orderHint: 0.5 } },
   // d4: five linear items spanning start → end (triggers positional groups)
-  { id: 'd4-a', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', segmentProgress: 0.1 } },
-  { id: 'd4-b', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', segmentProgress: 0.2 } },
-  { id: 'd4-c', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', segmentProgress: 0.5 } },
-  { id: 'd4-d', scale: 'mini-detour', segmentIds: ['d4'], location: { access: 'short-detour', segmentProgress: 0.9 } },
-  { id: 'd4-e', scale: 'short-excursion', segmentIds: ['d4'], location: { access: 'side-route', segmentProgress: 0.95 } },
+  { id: 'd4-a', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', orderHint: 0.1 } },
+  { id: 'd4-b', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', orderHint: 0.2 } },
+  { id: 'd4-c', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', orderHint: 0.5 } },
+  { id: 'd4-d', scale: 'mini-detour', segmentIds: ['d4'], location: { access: 'short-detour', orderHint: 0.9 } },
+  { id: 'd4-e', scale: 'short-excursion', segmentIds: ['d4'], location: { access: 'side-route', orderHint: 0.95 } },
   // d6 linear + two basecamp trips on d6+d7
-  { id: 'd6-lin', scale: 'on-route', segmentIds: ['d6'], location: { access: 'on-trail', segmentProgress: 0.4 } },
+  { id: 'd6-lin', scale: 'on-route', segmentIds: ['d6'], location: { access: 'on-trail', orderHint: 0.4 } },
   { id: 'summit', scale: 'major-adventure', segmentIds: ['d6', 'd7'], location: { access: 'basecamp-trip', gpxAssetId: 'g1' }, expedition: {} },
   { id: 'tarfala', scale: 'half-full-day', segmentIds: ['d6', 'd7'], location: { access: 'basecamp-trip' } },
 ];
@@ -139,9 +141,25 @@ test('inline vs detail is decided by content depth', () => {
 test('provenance level scales with safety/importance', () => {
   assert.equal(provenanceLevel({ scale: 'major-adventure', expedition: {}, location: {} }), 'shown');
   assert.equal(provenanceLevel({ scale: 'on-route', weatherSensitivity: 'high', location: {} }), 'shown');
-  assert.equal(provenanceLevel({ scale: 'on-route', location: { spatialConfidence: 'draft' } }), 'shown');
-  assert.equal(provenanceLevel({ scale: 'half-full-day', location: { spatialConfidence: 'approx' } }), 'optional');
+  assert.equal(provenanceLevel({ scale: 'half-full-day', location: {} }), 'optional'); // has a detail view
   assert.equal(provenanceLevel({ scale: 'on-route', location: { access: 'on-trail' } }), 'hidden');
+});
+
+// ── Map availability — the operational "View on map" gate (§6) ───────────────
+
+test('map availability gates View on map and marker/route/context display', () => {
+  const loc = (mapAvailability) => ({ location: { mapAvailability } });
+  // unavailable (draft/inferred/synthetic/missing) → no action, nothing drawn.
+  assert.equal(canViewOnMap(loc('unavailable')), false);
+  assert.equal(mapDisplayKind(loc('unavailable')), 'none');
+  assert.equal(canViewOnMap({ location: {} }), false); // missing availability
+  // permitted states.
+  assert.equal(canViewOnMap(loc('exact-point')), true);
+  assert.equal(mapDisplayKind(loc('exact-point')), 'marker');
+  assert.equal(canViewOnMap(loc('verified-route')), true);
+  assert.equal(mapDisplayKind(loc('verified-route')), 'route');
+  assert.equal(canViewOnMap(loc('context-only')), true);
+  assert.equal(mapDisplayKind(loc('context-only')), 'context');
 });
 
 // ── Commitment grouping stays available for the future Explore Index ─────────

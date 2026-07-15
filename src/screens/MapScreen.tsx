@@ -15,11 +15,7 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
-import {
-  WAYPOINT_BY_ID,
-  coordAtStageProgress,
-  stopIdForWaypoint,
-} from '../route/routeData';
+import { WAYPOINT_BY_ID, stopIdForWaypoint } from '../route/routeData';
 import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import { STAGE_COLORS } from '../map/mapStyle';
 import type { BasemapMode } from '../map/pmtilesProtocol';
@@ -262,8 +258,8 @@ export function MapScreen({
   onViewStageChange: (stageId: string | null) => void;
   /** Focused navigation: open this stop's full detail in Huts & Stations. */
   onOpenStop?: (stopId: string) => void;
-  /** One-shot "View on map": temporarily highlight a point on a physical stage. */
-  focus?: { stageId: string; progress: number; label: string } | null;
+  /** One-shot "View on map": temporarily highlight a VERIFIED coordinate. */
+  focus?: { coord: LatLng; label: string; stageId: string } | null;
 }) {
   const { itinerary, currentStage } = useStore();
   const route = itinerary.route;
@@ -339,13 +335,12 @@ export function MapScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.status, geo.timestamp]);
 
-  // One-shot "View on map": interpolate the experience's point on the real
-  // route line and temporarily highlight it (MapView remounts on tab switch /
-  // direction change, so the highlight never persists).
+  // One-shot "View on map": highlight the VERIFIED coordinate (MapView remounts
+  // on tab switch / direction change, so the highlight never persists). Only ever
+  // fired for experiences whose mapAvailability exposed the action.
   useEffect(() => {
     if (!focus) return;
-    const coord = coordAtStageProgress(focus.stageId, focus.progress);
-    if (coord) mapRef.current?.focusPoint(coord);
+    mapRef.current?.focusPoint({ lat: focus.coord.lat, lon: focus.coord.lng });
   }, [focus]);
 
   const stepStage = (dir: 1 | -1) => {

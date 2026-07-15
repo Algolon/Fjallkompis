@@ -415,39 +415,62 @@ export type ExperienceGeometryKind =
   | 'route'; // a standalone detour/excursion route (usually has a GPX asset)
 
 /**
- * Spatial confidence — never present invented precision as fact.
- *  - verified: coordinate/geometry checked against a source;
- *  - approx: an editorial position estimate (e.g. "early in the stage"), no
- *    exact coordinate claimed; a map point is derived from the real route line;
- *  - draft: spatial data incomplete (a route/coordinate is asserted but
- *    unverified) — surfaced as a draft badge, not shipped as fact.
+ * Where the mappable geometry came from. For hiking/safety data, missing beats
+ * false precision — nothing is inferred, guessed or synthesised.
+ *  - owner-provided: a waypoint/GPX the owner supplied or verified;
+ *  - source-verified: a coordinate checked against an authoritative source;
+ *  - researched: credibly researched but not yet owner-confirmed;
+ *  - missing: no verified geometry (the default — stays missing until supplied).
  */
-export type SpatialConfidence = 'verified' | 'approx' | 'draft';
+export type SpatialProvenance =
+  | 'owner-provided'
+  | 'source-verified'
+  | 'researched'
+  | 'missing';
 
 /**
- * Typed geometry/location for an experience. `segmentProgress` is the
- * DIRECTION-SAFE canonical position (0 at the primary segment's north/canonical
- * start, 1 at its end); presentation order is derived from it plus the active
- * direction, so records are never duplicated per direction.
+ * What the Map may do with an experience — the operational gate for "View on
+ * map". Draft/inferred/synthetic geometry is ALWAYS `unavailable` in production.
+ *  - exact-point: a precise marker + View on map;
+ *  - verified-route: the route line + a route map action;
+ *  - context-only: a general area / trail section / sight direction, clearly
+ *    labelled as contextual — never implying navigational precision;
+ *  - unavailable: no marker, route or View-on-map action.
+ */
+export type MapAvailability =
+  | 'exact-point'
+  | 'verified-route'
+  | 'context-only'
+  | 'unavailable';
+
+/**
+ * Typed geometry/location for an experience. `kind`/`access` are qualitative
+ * relationships researched from trail descriptions. `orderHint` is a COARSE
+ * editorial trail position (0..1, canonical north-start) used ONLY for
+ * direction-aware journey ordering & grouping — it is never a coordinate and is
+ * never used to synthesise a map location. All actual coordinates/GPX are
+ * present ONLY when `spatialProvenance` is owner-provided/source-verified and
+ * `mapAvailability` permits; otherwise they are absent (missing).
  */
 export interface ExperienceLocation {
   kind: ExperienceGeometryKind;
   access: ExperienceAccess;
-  /** 0..1 canonical position along the PRIMARY segment (segmentIds[0]). */
-  segmentProgress?: number;
-  /** [from,to] canonical progress span for a segment-portion / area. */
-  segmentSpan?: [number, number];
-  /** Exact point, only when genuinely known (else derived from segmentProgress). */
+  /** Coarse editorial position for ORDERING/grouping only — NOT a coordinate. */
+  orderHint?: number;
+  spatialProvenance: SpatialProvenance;
+  mapAvailability: MapAvailability;
+  /** Verified exact point (owner-provided/source-verified) — else absent. */
   coord?: LatLng;
-  /** Where a detour/route leaves the trail. */
+  /** Verified trailhead where a detour/route leaves the trail — else absent. */
   trailheadCoord?: LatLng;
-  /** The feature a vista looks toward, or a route's destination. */
+  /** Verified feature a vista looks toward, or a route's destination — else absent. */
   destinationCoord?: LatLng;
-  /** Where a side route rejoins the trail. */
+  /** Verified rejoin point for a side route — else absent. */
   rejoinCoord?: LatLng;
-  /** Stable id of a linked GPX route asset (see ExperienceRouteAsset). */
+  /** Compass bearing (deg) toward a distant sight, for a labelled context view. */
+  viewBearingDeg?: number;
+  /** Stable id of a VERIFIED GPX route asset (see ExperienceRouteAsset) — else absent. */
   gpxAssetId?: string;
-  spatialConfidence: SpatialConfidence;
 }
 
 // ---- Experience GPX route assets -------------------------------------------
@@ -460,23 +483,26 @@ export type ExperienceRouteType =
 
 /**
  * Metadata contract for a separate experience route (a GPX track that is NOT
- * part of the canonical Kungsleden line). Experience records reference a stable
- * `id`, never a loosely named file, so a rename can't silently break the link.
+ * part of the canonical Kungsleden line). Experiences reference a stable `id`,
+ * never a filename, so a rename can't silently break the link. Assets exist ONLY
+ * for VERIFIED tracks — no placeholder/draft/fixture geometry ships (a route the
+ * owner has not supplied or verified stays `missing`, and the experience's
+ * `mapAvailability` is `unavailable`). The registry is empty until then.
  */
 export interface ExperienceRouteAsset {
   id: string; // stable asset id
   experienceId: string; // the RouteExperience this belongs to
-  filePath: string; // repo-relative, e.g. 'gpx/experiences/kebnekaise-summit.gpx'
+  filePath: string; // repo-relative, e.g. 'gpx/experiences/day-01-along-the-way.gpx'
   routeType: ExperienceRouteType;
   startCoord: LatLng;
   destinationCoord?: LatLng;
   rejoinCoord?: LatLng;
   distanceKm?: number;
   elevationGainM?: number;
-  /** Creation/source provenance for the track itself. */
+  /** Source/creation provenance for the track itself. */
   source: StopSource;
-  /** draft = a placeholder/fixture track, not a verified survey. */
-  status: 'verified' | 'draft';
+  /** Verified provenance only — no drafts. */
+  provenance: 'owner-provided' | 'source-verified';
 }
 
 /**

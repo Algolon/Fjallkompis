@@ -33,6 +33,7 @@ import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import type { ElevationSample } from '../route/types';
 import type { TabId } from '../components/TabBar';
+import type { LatLng } from '../types';
 import type { ListsDeepLink } from './ListsScreen';
 
 export interface NavPayload {
@@ -43,12 +44,12 @@ export interface NavPayload {
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
   /**
-   * Map: one-shot focus on a single experience point along a physical stage
-   * (from Stages "View on map"). Progress is the canonical 0..1 position on the
-   * segment; the Map interpolates a coordinate on the real route line and shows
-   * a temporary highlight — it does NOT enable a persistent experience layer.
+   * Map: one-shot focus on a single experience at a VERIFIED coordinate (from
+   * Stages "View on map"). Only ever set for experiences whose `mapAvailability`
+   * permits — never an interpolated/editorial position. The Map shows a
+   * temporary highlight; it does NOT enable a persistent experience layer.
    */
-  mapFocus?: { stageId: string; progress: number; label: string };
+  mapFocus?: { coord: LatLng; label: string; stageId: string };
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;

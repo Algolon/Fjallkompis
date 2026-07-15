@@ -19,15 +19,18 @@ import {
 // live in the tested pure module experienceModel.mjs; this file owns only the
 // curated data and its display labels.
 export {
+  canViewOnMap,
   experienceGroup,
   hasExperiences,
   isBasecamp,
   isInlineExperience,
+  mapDisplayKind,
   needsDetailView,
   provenanceLevel,
 } from './experienceModel.mjs';
 export type {
   ExperienceGroupKey,
+  MapDisplayKind,
   ProvenanceLevel,
   StageSection,
 } from './experienceModel.mjs';
@@ -43,10 +46,12 @@ export type {
  *    Stops / Lists and must never appear here.
  *  - Anchored to STABLE segment ids (`segmentIds`, d1..d7); a basecamp trip lists
  *    BOTH adjacent stages.
- *  - Typed `location` carries geometry, trail access and a canonical (north-
- *    start) `segmentProgress` — presentation order derives from it + direction.
- *    Positions are editorial estimates (spatialConfidence 'approx') unless
- *    verified; anything asserting an unverified route/coordinate is 'draft'.
+ *  - `location.kind`/`access` are qualitative relationships researched from trail
+ *    descriptions; `orderHint` is a COARSE editorial position for ordering only
+ *    (never a coordinate). NO verified geometry ships yet, so every record is
+ *    `spatialProvenance: 'missing'`, `mapAvailability: 'unavailable'` and has no
+ *    coord/GPX — "View on map" is off until the owner supplies/verifies real
+ *    spatial data (see docs/proposals/along-the-way-spatial.md, Day 1 pilot).
  *  - Diffuse "the walk is pretty" is route character → the Day Guide, not here,
  *    so d3 carries nothing and d5 carries one — uneven coverage is honest.
  */
@@ -97,7 +102,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d1'],
-    location: { kind: 'vista', access: 'visible-from-trail', segmentProgress: 0.2, spatialConfidence: 'approx' },
+    location: { kind: 'vista', access: 'visible-from-trail', orderHint: 0.2, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'abisko',
     summary: 'The emblematic U-shaped valley on the skyline.',
     whyNotice:
@@ -116,7 +121,7 @@ const CURATED: RouteExperience[] = [
     scale: 'mini-detour',
     planningFit: 'adds-under-30',
     segmentIds: ['d1'],
-    location: { kind: 'point', access: 'short-detour', segmentProgress: 0.02, spatialConfidence: 'approx' },
+    location: { kind: 'point', access: 'short-detour', orderHint: 0.02, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'abisko',
     addedTimeText: '+20 min',
     summary: 'A turquoise glacial river in a blasted gorge at the trailhead.',
@@ -137,7 +142,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d1'],
-    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.3, segmentSpan: [0, 0.6], spatialConfidence: 'approx' },
+    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.3, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'abisko',
     summary: 'Sub-arctic birch woodland — the trail’s green opening.',
     whyNotice:
@@ -158,7 +163,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
-    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.3, spatialConfidence: 'approx' },
+    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.3, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'alesjaure',
     summary: 'The moment the birch ends and the open fjäll begins.',
     whyNotice:
@@ -177,7 +182,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
-    location: { kind: 'vista', access: 'visible-from-trail', segmentProgress: 0.9, spatialConfidence: 'approx' },
+    location: { kind: 'vista', access: 'visible-from-trail', orderHint: 0.9, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'alesjaure',
     summary: 'A braided glacial delta ringed by peaks.',
     whyNotice:
@@ -196,7 +201,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
-    location: { kind: 'area', access: 'beside-trail', segmentProgress: 0.85, spatialConfidence: 'approx' },
+    location: { kind: 'area', access: 'beside-trail', orderHint: 0.85, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'alesjaure',
     summary: 'A living reindeer-herding cultural landscape.',
     whyNotice:
@@ -219,7 +224,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
-    location: { kind: 'vista', access: 'on-trail', segmentProgress: 0.15, spatialConfidence: 'approx' },
+    location: { kind: 'vista', access: 'on-trail', orderHint: 0.15, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'tjaktja',
     summary: 'The highest point of the Kungsleden — a 30 km valley opens south.',
     whyNotice:
@@ -238,7 +243,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
-    location: { kind: 'area', access: 'beside-trail', segmentProgress: 0.2, spatialConfidence: 'approx' },
+    location: { kind: 'area', access: 'beside-trail', orderHint: 0.2, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'tjaktja',
     summary: 'Textbook glacial geomorphology near the pass.',
     whyNotice:
@@ -257,7 +262,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
-    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.35, segmentSpan: [0.2, 0.55], spatialConfidence: 'approx' },
+    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.35, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'salka',
     summary: 'Widely called the route’s prettiest reveal.',
     whyNotice:
@@ -277,7 +282,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'easy',
     planningFit: 'adds-under-30',
     segmentIds: ['d4'],
-    location: { kind: 'point', access: 'short-detour', segmentProgress: 0.95, spatialConfidence: 'approx' },
+    location: { kind: 'point', access: 'short-detour', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'salka',
     addedTimeText: '+15 min',
     summary: 'A cold dip and reindeer-watching by the cabin.',
@@ -299,7 +304,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'hard',
     planningFit: 'shorter-hiking-day',
     segmentIds: ['d4'],
-    location: { kind: 'route', access: 'side-route', segmentProgress: 0.95, spatialConfidence: 'draft' },
+    location: { kind: 'route', access: 'side-route', orderHint: 0.95, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'salka',
     routeRelationship: 'From Sälka — a shorter main stage or a rest day',
     addedTimeText: '2–3 h',
@@ -325,7 +330,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'moderate',
     planningFit: 'best-from-overnight',
     segmentIds: ['d4'],
-    location: { kind: 'route', access: 'side-route', segmentProgress: 0.92, spatialConfidence: 'draft' },
+    location: { kind: 'route', access: 'side-route', orderHint: 0.92, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'salka',
     routeRelationship: 'A branch from near Sälka — best from an overnight stop',
     addedTimeText: 'Half day+',
@@ -351,7 +356,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d5'],
-    location: { kind: 'segment-portion', access: 'visible-from-trail', segmentProgress: 0.5, spatialConfidence: 'approx' },
+    location: { kind: 'segment-portion', access: 'visible-from-trail', orderHint: 0.5, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'singi',
     summary: 'Broad glacier and precipice views along the valley floor.',
     whyNotice:
@@ -372,7 +377,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d6'],
-    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.4, spatialConfidence: 'approx' },
+    location: { kind: 'segment-portion', access: 'on-trail', orderHint: 0.4, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'kebnekaise',
     summary: 'The register shifts to high-alpine as the massif appears.',
     whyNotice:
@@ -393,7 +398,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d7'],
-    location: { kind: 'point', access: 'on-trail', segmentProgress: 0.05, spatialConfidence: 'approx' },
+    location: { kind: 'point', access: 'on-trail', orderHint: 0.05, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'kebnekaise',
     summary: 'The route’s signature bridge, over a canyon.',
     whyNotice:
@@ -412,7 +417,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d7'],
-    location: { kind: 'segment-portion', access: 'beside-trail', segmentProgress: 0.65, segmentSpan: [0.4, 0.9], spatialConfidence: 'approx' },
+    location: { kind: 'segment-portion', access: 'beside-trail', orderHint: 0.65, spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'nikkaluokta',
     summary: 'The long lake that dominates the finish.',
     whyNotice:
@@ -438,8 +443,7 @@ const CURATED: RouteExperience[] = [
     location: {
       kind: 'route',
       access: 'basecamp-trip',
-      gpxAssetId: 'kebnekaise-summit-western',
-      spatialConfidence: 'draft',
+      spatialProvenance: 'missing', mapAvailability: 'unavailable',
     },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'Western route · extra day from Kebnekaise Fjällstation',
@@ -482,7 +486,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'hard',
     planningFit: 'extra-day-recommended',
     segmentIds: ['d6', 'd7'],
-    location: { kind: 'route', access: 'basecamp-trip', spatialConfidence: 'draft' },
+    location: { kind: 'route', access: 'basecamp-trip', spatialProvenance: 'missing', mapAvailability: 'unavailable' },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'A full day from Kebnekaise Fjällstation',
     roundTripKm: 16,

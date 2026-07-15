@@ -23,6 +23,7 @@ import type {
 import {
   ACCESS_LABEL,
   PLANNING_FIT_LABEL,
+  canViewOnMap,
   experienceCountForStage,
   isBasecamp,
   isInlineExperience,
@@ -148,13 +149,18 @@ function ExperienceRow({
       {inline && open ? (
         <div id={noteId} className="exp-note">
           <p>{experience.whyNotice}</p>
-          <button
-            type="button"
-            className="exp-maplink"
-            onClick={() => onViewOnMap(experience)}
-          >
-            <MapPin size={14} strokeWidth={1.9} aria-hidden /> View on map
-          </button>
+          {/* View on map only when the Map has VERIFIED geometry for this item;
+              off until real spatial data is supplied (never derived from an
+              editorial position). */}
+          {canViewOnMap(experience) ? (
+            <button
+              type="button"
+              className="exp-maplink"
+              onClick={() => onViewOnMap(experience)}
+            >
+              <MapPin size={14} strokeWidth={1.9} aria-hidden /> View on map
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -243,7 +249,6 @@ export function ExperienceDetail({
 }) {
   const Icon = TYPE_ICON[experience.type];
   const { expedition } = experience;
-  const draft = experience.location.spatialConfidence === 'draft';
   const stats: React.ReactNode[] = [];
   if (experience.difficulty) {
     stats.push(
@@ -289,10 +294,7 @@ export function ExperienceDetail({
         <h1 className="exp-detail__title">{experience.title}</h1>
       </div>
 
-      <p className="exp-anchor">
-        {spatialLine(experience)}
-        {draft ? <span className="exp-draft">draft location</span> : null}
-      </p>
+      <p className="exp-anchor">{spatialLine(experience)}</p>
 
       {stats.length > 0 ? (
         <div className={`stat-grid ${stats.length % 2 === 1 ? 'is-odd' : ''}`}>

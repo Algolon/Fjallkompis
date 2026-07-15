@@ -7,10 +7,7 @@ import { ExperienceDetail, ExperienceList } from '../components/StageExperiences
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { stageGuide } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
-import {
-  experienceCountForStage,
-  isBasecamp,
-} from '../data/routeExperiences';
+import { experienceCountForStage } from '../data/routeExperiences';
 import {
   formatDistanceKm,
   formatHoursEstimate,
@@ -150,17 +147,19 @@ export function StagesScreen({
     });
   };
 
-  // "View on map": deep-link to the Map with a one-shot focus on the experience's
-  // physical point. Uses the canonical (north-start) segment progress so the Map
-  // interpolates a coordinate on the real route line; basecamp trips (no linear
-  // position) focus the segment end — their launch stop. No persistent layer.
+  // "View on map": deep-link to the Map with a one-shot focus at the experience's
+  // VERIFIED coordinate. Only reachable when the row/detail exposed the action
+  // (canViewOnMap) — a coordinate is never derived from an editorial position, so
+  // this is a no-op until real spatial data is supplied.
   const viewOnMap = (experience: RouteExperience) => {
-    if (!onNavigate) return;
-    const stageId = experience.segmentIds[0];
-    const progress =
-      experience.location.segmentProgress ?? (isBasecamp(experience) ? 1 : 0.5);
+    const coord = experience.location.coord;
+    if (!onNavigate || !coord) return;
     onNavigate('map', {
-      mapFocus: { stageId, progress, label: experience.shortTitle ?? experience.title },
+      mapFocus: {
+        coord,
+        label: experience.shortTitle ?? experience.title,
+        stageId: experience.segmentIds[0],
+      },
     });
   };
 

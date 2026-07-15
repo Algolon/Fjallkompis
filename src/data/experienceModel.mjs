@@ -45,9 +45,9 @@ export function isBasecamp(experience) {
   return experience.location?.access === 'basecamp-trip';
 }
 
-/** Canonical 0..1 position along the primary segment (0.5 fallback if unknown). */
+/** Coarse canonical order position (0..1; 0.5 fallback). ORDERING ONLY — never a coordinate. */
 export function segmentPosition(experience) {
-  const p = experience.location?.segmentProgress;
+  const p = experience.location?.orderHint;
   return typeof p === 'number' ? p : 0.5;
 }
 
@@ -165,11 +165,34 @@ export function isInlineExperience(experience) {
 export function provenanceLevel(experience) {
   if (experience.expedition) return 'shown';
   if (experience.weatherSensitivity === 'high') return 'shown';
-  if (experience.location && experience.location.spatialConfidence === 'draft') {
-    return 'shown';
-  }
   if (needsDetailView(experience)) return 'optional';
   return 'hidden';
+}
+
+// ─── Map availability — the operational "View on map" gate ───────────────────
+
+/**
+ * Whether the Map may show a marker/route + a "View on map" action for an
+ * experience. Draft / inferred / synthetic / missing geometry is always
+ * `unavailable` in production, so this returns false until real verified data
+ * exists. Never derive a coordinate from `orderHint` — that would be false
+ * precision.
+ */
+export function canViewOnMap(experience) {
+  const a = experience.location?.mapAvailability;
+  return a === 'exact-point' || a === 'verified-route' || a === 'context-only';
+}
+
+/**
+ * What the Map should render for an experience: a precise marker, the route
+ * line, a clearly-labelled contextual area/direction, or nothing.
+ */
+export function mapDisplayKind(experience) {
+  const a = experience.location?.mapAvailability;
+  if (a === 'exact-point') return 'marker';
+  if (a === 'verified-route') return 'route';
+  if (a === 'context-only') return 'context';
+  return 'none';
 }
 
 // ─── Reference integrity ─────────────────────────────────────────────────────
