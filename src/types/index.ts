@@ -426,6 +426,7 @@ export interface ExperienceExpedition {
 export type ExperienceAccess =
   | 'on-trail' // you walk over/through it
   | 'beside-trail' // immediately at the trailside
+  | 'beside-station' // at/beside an overnight stop, no real deviation (a Highlight)
   | 'visible-from-trail' // seen from the trail; the feature itself is elsewhere
   | 'short-detour' // a there-and-back a few minutes off the trail
   | 'side-route' // a longer branch route (may loop or rejoin)
@@ -563,6 +564,12 @@ export interface RouteExperience {
   icon?: ExperienceIconKey;
   /** Optional detour route shape (out-and-back / loop / one-way). */
   routeShape?: ExperienceRouteShape;
+  /**
+   * An unrouted off-trail objective: a verified destination point with NO
+   * established or supplied path. Drives the honest "Off-trail / No marked path"
+   * treatment and the point-only (never a line) map action.
+   */
+  offTrail?: boolean;
 
   /** Stable physical stage ids (d1..d7); may be several (a basecamp trip → both adjacent stages). */
   segmentIds: string[];
