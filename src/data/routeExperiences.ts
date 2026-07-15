@@ -1,39 +1,54 @@
-import type { ExperienceType, PlanningFit, RouteExperience } from '../types';
+import type {
+  ExperienceAccess,
+  ExperienceType,
+  PlanningFit,
+  RouteDirection,
+  RouteExperience,
+} from '../types';
 import { STAGES_BY_ID } from './stages';
 import { STOPS_BY_ID } from './stops';
-import { experienceRefErrors, selectForStage } from './experienceModel.mjs';
-
-// Selection, sorting, grouping and validation live in the tested pure module
-// experienceModel.mjs; this file owns only the curated data and its labels.
-export {
-  EXPERIENCE_GROUP_LABEL,
-  EXPERIENCE_GROUP_ORDER,
-  experienceGroup,
-  groupForDisplay,
-  hasExperiences,
-  isInlineExperience,
+import { EXPERIENCE_ROUTES } from './experienceRoutes';
+import {
+  experienceRefErrors,
+  gpxRefErrors,
+  groupForStageDisplay,
+  orderForStage,
 } from './experienceModel.mjs';
-export type { ExperienceGroupKey } from './experienceModel.mjs';
+
+// Selection, ordering, grouping, inline/detail, provenance and validation all
+// live in the tested pure module experienceModel.mjs; this file owns only the
+// curated data and its display labels.
+export {
+  experienceGroup,
+  hasExperiences,
+  isBasecamp,
+  isInlineExperience,
+  needsDetailView,
+  provenanceLevel,
+} from './experienceModel.mjs';
+export type {
+  ExperienceGroupKey,
+  ProvenanceLevel,
+  StageSection,
+} from './experienceModel.mjs';
 
 /**
- * Curated "Along the way" experiences — the experiential route content surfaced
- * per stage on the Stages screen (see docs/proposals/explore-more.md). A
- * manually verified, static snapshot: the app never scrapes anyone at runtime,
- * and none of this is user-editable. Re-verify and update here.
+ * Curated "Along the way" experiences — experiential route content surfaced per
+ * stage on the Stages screen (see docs/proposals/explore-more.md). A manually
+ * verified static snapshot; nothing here is user-editable. Re-verify here.
  *
  * Scope discipline:
  *  - EXPERIENTIAL only — things to see / notice / visit / detour to. Facilities
- *    (meals, café, sauna, shop, showers, accommodation, transport/boats) are NOT
- *    experiences; they live on Stops / Lists and must never appear here.
- *  - Anchored to STABLE segment ids (`segmentIds`, d1..d7). A basecamp trip
- *    (Kebnekaise summit, Tarfala) lists BOTH adjacent stages so it appears under
- *    "Larger options" whether the hiker is arriving or leaving.
- *  - Only confidence high (plus a few clearly-marked medium where a scale would
- *    otherwise be unrepresented). Low-confidence / unverified items wait — e.g.
- *    the "Rihdonjira" waterfall name and the Kaitumjaure suspension bridge (which
- *    is on the SOUTHERN spur, off this route) are deliberately absent.
- *  - Diffuse "the walk is pretty" is route character → the Day Guide, not here.
- *    So d3 carries nothing and d5 carries one — uneven coverage is honest.
+ *    (meals, café, sauna, shop, showers, accommodation, transport/boats) live on
+ *    Stops / Lists and must never appear here.
+ *  - Anchored to STABLE segment ids (`segmentIds`, d1..d7); a basecamp trip lists
+ *    BOTH adjacent stages.
+ *  - Typed `location` carries geometry, trail access and a canonical (north-
+ *    start) `segmentProgress` — presentation order derives from it + direction.
+ *    Positions are editorial estimates (spatialConfidence 'approx') unless
+ *    verified; anything asserting an unverified route/coordinate is 'draft'.
+ *  - Diffuse "the walk is pretty" is route character → the Day Guide, not here,
+ *    so d3 carries nothing and d5 carries one — uneven coverage is honest.
  */
 
 export const EXPERIENCES_VERIFIED_ON = '2026-07-12';
@@ -47,7 +62,7 @@ export const EXPERIENCE_TYPE_LABEL: Record<ExperienceType, string> = {
   culture: 'Culture',
 };
 
-/** Human planning-fit → short headline label. */
+/** Human planning-fit → short headline label (a TIME judgement). */
 export const PLANNING_FIT_LABEL: Record<PlanningFit, string> = {
   'directly-on-route': 'Directly on route',
   'adds-under-30': 'Adds < 30 min',
@@ -56,6 +71,16 @@ export const PLANNING_FIT_LABEL: Record<PlanningFit, string> = {
   'best-from-overnight': 'Best from an overnight stop',
   'extra-day-recommended': 'Extra day recommended',
   'separate-day-required': 'Separate day required',
+};
+
+/** Spatial access → short label (a SEPARATE, geometric descriptor). */
+export const ACCESS_LABEL: Record<ExperienceAccess, string> = {
+  'on-trail': 'On the trail',
+  'beside-trail': 'Beside the trail',
+  'visible-from-trail': 'Seen from the trail',
+  'short-detour': 'Short detour',
+  'side-route': 'Side route',
+  'basecamp-trip': 'From the station',
 };
 
 /** A planning-fit that involves a real time cost gets the glacier (planning) tint. */
@@ -72,6 +97,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d1'],
+    location: { kind: 'vista', access: 'visible-from-trail', segmentProgress: 0.2, spatialConfidence: 'approx' },
     nearestStopId: 'abisko',
     summary: 'The emblematic U-shaped valley on the skyline.',
     whyNotice:
@@ -88,17 +114,14 @@ const CURATED: RouteExperience[] = [
     title: 'Abiskojåkka canyon',
     type: 'water',
     scale: 'mini-detour',
-    difficulty: 'easy',
     planningFit: 'adds-under-30',
     segmentIds: ['d1'],
+    location: { kind: 'point', access: 'short-detour', segmentProgress: 0.02, spatialConfidence: 'approx' },
     nearestStopId: 'abisko',
-    routeRelationship: 'A short detour at the Abisko trailhead',
     addedTimeText: '+20 min',
     summary: 'A turquoise glacial river in a blasted gorge at the trailhead.',
     whyNotice:
-      'The Abiskojåkka has cut a sharp canyon toward Lake Torneträsk; in 1899 the railway builders blasted a tunnel to carry the river rather than bridge it.',
-    description:
-      'Right by Abisko Turiststation, a short, easy walk follows the Abiskojåkka canyon — dramatic water-in-rock and a piece of railway history. A backward/side detour before you head south, easily combined with the start.',
+      'The Abiskojåkka has cut a sharp canyon toward Lake Torneträsk; in 1899 the railway builders blasted a tunnel to carry the river rather than bridge it. Easily combined with the start.',
     weatherSensitivity: 'low',
     source: {
       label: 'STF — Abisko Turiststation',
@@ -114,6 +137,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d1'],
+    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.3, segmentSpan: [0, 0.6], spatialConfidence: 'approx' },
     nearestStopId: 'abisko',
     summary: 'Sub-arctic birch woodland — the trail’s green opening.',
     whyNotice:
@@ -134,6 +158,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
+    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.3, spatialConfidence: 'approx' },
     nearestStopId: 'alesjaure',
     summary: 'The moment the birch ends and the open fjäll begins.',
     whyNotice:
@@ -152,6 +177,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
+    location: { kind: 'vista', access: 'visible-from-trail', segmentProgress: 0.9, spatialConfidence: 'approx' },
     nearestStopId: 'alesjaure',
     summary: 'A braided glacial delta ringed by peaks.',
     whyNotice:
@@ -170,6 +196,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d2'],
+    location: { kind: 'area', access: 'beside-trail', segmentProgress: 0.85, spatialConfidence: 'approx' },
     nearestStopId: 'alesjaure',
     summary: 'A living reindeer-herding cultural landscape.',
     whyNotice:
@@ -190,9 +217,9 @@ const CURATED: RouteExperience[] = [
     title: 'Tjäktja Pass viewpoint',
     type: 'viewpoint',
     scale: 'on-route',
-    difficulty: 'moderate',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
+    location: { kind: 'vista', access: 'on-trail', segmentProgress: 0.15, spatialConfidence: 'approx' },
     nearestStopId: 'tjaktja',
     summary: 'The highest point of the Kungsleden — a 30 km valley opens south.',
     whyNotice:
@@ -211,6 +238,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
+    location: { kind: 'area', access: 'beside-trail', segmentProgress: 0.2, spatialConfidence: 'approx' },
     nearestStopId: 'tjaktja',
     summary: 'Textbook glacial geomorphology near the pass.',
     whyNotice:
@@ -229,6 +257,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d4'],
+    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.35, segmentSpan: [0.2, 0.55], spatialConfidence: 'approx' },
     nearestStopId: 'salka',
     summary: 'Widely called the route’s prettiest reveal.',
     whyNotice:
@@ -248,8 +277,8 @@ const CURATED: RouteExperience[] = [
     difficulty: 'easy',
     planningFit: 'adds-under-30',
     segmentIds: ['d4'],
+    location: { kind: 'point', access: 'short-detour', segmentProgress: 0.95, spatialConfidence: 'approx' },
     nearestStopId: 'salka',
-    routeRelationship: 'By Sälka cabin',
     addedTimeText: '+15 min',
     summary: 'A cold dip and reindeer-watching by the cabin.',
     whyNotice:
@@ -270,6 +299,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'hard',
     planningFit: 'shorter-hiking-day',
     segmentIds: ['d4'],
+    location: { kind: 'route', access: 'side-route', segmentProgress: 0.95, spatialConfidence: 'draft' },
     nearestStopId: 'salka',
     routeRelationship: 'From Sälka — a shorter main stage or a rest day',
     addedTimeText: '2–3 h',
@@ -295,6 +325,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'moderate',
     planningFit: 'best-from-overnight',
     segmentIds: ['d4'],
+    location: { kind: 'route', access: 'side-route', segmentProgress: 0.92, spatialConfidence: 'draft' },
     nearestStopId: 'salka',
     routeRelationship: 'A branch from near Sälka — best from an overnight stop',
     addedTimeText: 'Half day+',
@@ -320,6 +351,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d5'],
+    location: { kind: 'segment-portion', access: 'visible-from-trail', segmentProgress: 0.5, spatialConfidence: 'approx' },
     nearestStopId: 'singi',
     summary: 'Broad glacier and precipice views along the valley floor.',
     whyNotice:
@@ -340,6 +372,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d6'],
+    location: { kind: 'segment-portion', access: 'on-trail', segmentProgress: 0.4, spatialConfidence: 'approx' },
     nearestStopId: 'kebnekaise',
     summary: 'The register shifts to high-alpine as the massif appears.',
     whyNotice:
@@ -360,6 +393,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d7'],
+    location: { kind: 'point', access: 'on-trail', segmentProgress: 0.05, spatialConfidence: 'approx' },
     nearestStopId: 'kebnekaise',
     summary: 'The route’s signature bridge, over a canyon.',
     whyNotice:
@@ -378,6 +412,7 @@ const CURATED: RouteExperience[] = [
     scale: 'on-route',
     planningFit: 'directly-on-route',
     segmentIds: ['d7'],
+    location: { kind: 'segment-portion', access: 'beside-trail', segmentProgress: 0.65, segmentSpan: [0.4, 0.9], spatialConfidence: 'approx' },
     nearestStopId: 'nikkaluokta',
     summary: 'The long lake that dominates the finish.',
     whyNotice:
@@ -400,6 +435,12 @@ const CURATED: RouteExperience[] = [
     difficulty: 'alpine',
     planningFit: 'separate-day-required',
     segmentIds: ['d6', 'd7'],
+    location: {
+      kind: 'route',
+      access: 'basecamp-trip',
+      gpxAssetId: 'kebnekaise-summit-western',
+      spatialConfidence: 'draft',
+    },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'Western route · extra day from Kebnekaise Fjällstation',
     roundTripKm: 18,
@@ -441,6 +482,7 @@ const CURATED: RouteExperience[] = [
     difficulty: 'hard',
     planningFit: 'extra-day-recommended',
     segmentIds: ['d6', 'd7'],
+    location: { kind: 'route', access: 'basecamp-trip', spatialConfidence: 'draft' },
     nearestStopId: 'kebnekaise',
     routeRelationship: 'A full day from Kebnekaise Fjällstation',
     roundTripKm: 16,
@@ -462,10 +504,9 @@ const CURATED: RouteExperience[] = [
 ];
 
 /**
- * Validated experience list. Fails fast at import if an entry references an
- * unknown segment or stop id — cheap guard against typos, mirroring how stops.ts
- * relies on the waypoint map to catch a bad id. The check itself lives in the
- * tested pure module (experienceRefErrors).
+ * Validated experience list. Fails fast at import on an unknown segment/stop id
+ * or a broken experience↔GPX-asset link — cheap guards against typos. The checks
+ * live in the tested pure module (experienceRefErrors / gpxRefErrors).
  */
 const KNOWN_STAGE_IDS = new Set(Object.keys(STAGES_BY_ID));
 const KNOWN_STOP_IDS = new Set(Object.keys(STOPS_BY_ID));
@@ -478,14 +519,31 @@ export const ROUTE_EXPERIENCES: RouteExperience[] = CURATED.map((x) => {
   return x;
 });
 
+{
+  const gpxErrors = gpxRefErrors(ROUTE_EXPERIENCES, EXPERIENCE_ROUTES);
+  if (gpxErrors.length > 0) {
+    throw new Error(`Broken experience GPX links: ${gpxErrors.join('; ')}`);
+  }
+}
+
 export const ROUTE_EXPERIENCES_BY_ID: Record<string, RouteExperience> =
   Object.fromEntries(ROUTE_EXPERIENCES.map((x) => [x.id, x]));
 
-/**
- * Experiences along a given stage, by STABLE segment id (d1..d7), commitment-
- * ordered. Direction-agnostic (segment ids are stable). Selection/sorting lives
- * in experienceModel.mjs; this binds it to the curated data.
- */
-export function experiencesForStage(stageId: string): RouteExperience[] {
-  return selectForStage(ROUTE_EXPERIENCES, stageId);
+/** Flat, journey-ordered experiences for a stage (linear by position, then basecamp). */
+export function experiencesForStage(
+  stageId: string,
+  direction: RouteDirection,
+): RouteExperience[] {
+  const { linear, basecamp } = orderForStage(ROUTE_EXPERIENCES, stageId, direction);
+  return [...linear, ...basecamp];
+}
+
+/** How many experiences a stage has (direction-independent — drives the count). */
+export function experienceCountForStage(stageId: string): number {
+  return ROUTE_EXPERIENCES.filter((x) => x.segmentIds.includes(stageId)).length;
+}
+
+/** Ordered display sections for a stage (journey order; basecamp separated). */
+export function stageExperienceSections(stageId: string, direction: RouteDirection) {
+  return groupForStageDisplay(ROUTE_EXPERIENCES, stageId, direction);
 }

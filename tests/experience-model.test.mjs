@@ -1,9 +1,10 @@
 /**
- * Guards the pure "Along the way" experience logic (src/data/experienceModel.mjs)
- * — selection by stable physical segment, commitment ordering/grouping, the
- * inline-vs-detail classification, reference validation and the zero-state rule.
- * These are the load-bearing rules the Stages screen and the data module both
- * depend on; the React layer is a thin consumer, so this is the regression fence.
+ * Guards the pure "Along the way" experience logic (src/data/experienceModel.mjs):
+ * physical-journey ordering (direction-aware, segment-stable), basecamp
+ * separation, positional grouping, the content-depth inline/detail rule,
+ * progressive provenance, the zero-state rule and reference integrity
+ * (stage/stop + experience↔GPX). The React layer is a thin consumer, so this is
+ * the regression fence.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,165 +13,175 @@ import {
   GROUP_THRESHOLD,
   experienceGroup,
   experienceRefErrors,
-  groupForDisplay,
+  gpxRefErrors,
+  groupForStageDisplay,
   hasExperiences,
+  isBasecamp,
   isInlineExperience,
-  selectForStage,
+  needsDetailView,
+  orderForStage,
+  provenanceLevel,
 } from '../src/data/experienceModel.mjs';
 
-/** Minimal fixtures — only the fields the pure logic reads. */
-const EXPS = [
-  { id: 'a-view', scale: 'on-route', segmentIds: ['d1'], nearestStopId: 'abisko' },
-  { id: 'a-canyon', scale: 'mini-detour', segmentIds: ['d1'], nearestStopId: 'abisko' },
-  { id: 'a-birch', scale: 'on-route', segmentIds: ['d1'], nearestStopId: 'abisko' },
-  { id: 'd4-pass', scale: 'on-route', segmentIds: ['d4'] },
-  { id: 'd4-moraine', scale: 'on-route', segmentIds: ['d4'] },
-  { id: 'd4-descent', scale: 'on-route', segmentIds: ['d4'] },
-  { id: 'd4-stream', scale: 'mini-detour', segmentIds: ['d4'] },
-  { id: 'd4-socker', scale: 'short-excursion', segmentIds: ['d4'] },
-  { id: 'd4-nallo', scale: 'half-full-day', segmentIds: ['d4'] },
-  { id: 'd5-pano', scale: 'on-route', segmentIds: ['d5'] },
-  { id: 'summit', scale: 'major-adventure', segmentIds: ['d6', 'd7'] },
-  { id: 'tarfala', scale: 'half-full-day', segmentIds: ['d6', 'd7'] },
-];
+const FWD = 'abisko-to-nikkaluokta';
+const REV = 'nikkaluokta-to-abisko';
 const ids = (list) => list.map((x) => x.id);
 
-// ── zero / one / many ───────────────────────────────────────────────────────
+/** Minimal fixtures — only the fields the pure logic reads. Deliberately given
+ *  out of position order to prove sorting isn't accidental. */
+const EXPS = [
+  // d1: a late on-trail sight, an early one, and a mid detour (commitment ≠ order)
+  { id: 'd1-late', scale: 'on-route', segmentIds: ['d1'], location: { access: 'on-trail', segmentProgress: 0.8 } },
+  { id: 'd1-early', scale: 'on-route', segmentIds: ['d1'], location: { access: 'on-trail', segmentProgress: 0.1 } },
+  { id: 'd1-mid-detour', scale: 'mini-detour', segmentIds: ['d1'], location: { access: 'short-detour', segmentProgress: 0.5 } },
+  // d4: five linear items spanning start → end (triggers positional groups)
+  { id: 'd4-a', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', segmentProgress: 0.1 } },
+  { id: 'd4-b', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', segmentProgress: 0.2 } },
+  { id: 'd4-c', scale: 'on-route', segmentIds: ['d4'], location: { access: 'on-trail', segmentProgress: 0.5 } },
+  { id: 'd4-d', scale: 'mini-detour', segmentIds: ['d4'], location: { access: 'short-detour', segmentProgress: 0.9 } },
+  { id: 'd4-e', scale: 'short-excursion', segmentIds: ['d4'], location: { access: 'side-route', segmentProgress: 0.95 } },
+  // d6 linear + two basecamp trips on d6+d7
+  { id: 'd6-lin', scale: 'on-route', segmentIds: ['d6'], location: { access: 'on-trail', segmentProgress: 0.4 } },
+  { id: 'summit', scale: 'major-adventure', segmentIds: ['d6', 'd7'], location: { access: 'basecamp-trip', gpxAssetId: 'g1' }, expedition: {} },
+  { id: 'tarfala', scale: 'half-full-day', segmentIds: ['d6', 'd7'], location: { access: 'basecamp-trip' } },
+];
 
-test('zero: a stage with no experiences selects nothing and shows no disclosure', () => {
-  assert.equal(hasExperiences(EXPS, 'd3'), false);
-  assert.deepEqual(selectForStage(EXPS, 'd3'), []);
-  // groupForDisplay on an empty selection is a flat, empty list — never a group.
-  assert.deepEqual(groupForDisplay([]), { grouped: false, items: [] });
+// ── Physical-journey order, direction-aware, segment-stable ──────────────────
+
+test('forward order follows physical position, not commitment', () => {
+  // The mid detour (0.5) sits BETWEEN the two on-trail sights — never bottom.
+  assert.deepEqual(ids(orderForStage(EXPS, 'd1', FWD).linear), [
+    'd1-early',
+    'd1-mid-detour',
+    'd1-late',
+  ]);
 });
 
-test('one: a single-experience stage stays a flat list', () => {
-  const sel = selectForStage(EXPS, 'd5');
-  assert.equal(sel.length, 1);
-  assert.equal(hasExperiences(EXPS, 'd5'), true);
-  const display = groupForDisplay(sel);
-  assert.equal(display.grouped, false);
-  assert.deepEqual(ids(display.items), ['d5-pano']);
+test('reversed order flips the linear sequence', () => {
+  assert.deepEqual(ids(orderForStage(EXPS, 'd1', REV).linear), [
+    'd1-late',
+    'd1-mid-detour',
+    'd1-early',
+  ]);
 });
 
-test('three stays flat; four earns commitment groups (threshold boundary)', () => {
+test('records are stable across both directions (same set, no duplication)', () => {
+  const fwd = orderForStage(EXPS, 'd1', FWD).linear;
+  const rev = orderForStage(EXPS, 'd1', REV).linear;
+  assert.equal(fwd.length, rev.length);
+  assert.deepEqual([...ids(fwd)].sort(), [...ids(rev)].sort());
+});
+
+test('basecamp trips are separated from the linear on-stage items', () => {
+  const { linear, basecamp } = orderForStage(EXPS, 'd6', FWD);
+  assert.deepEqual(ids(linear), ['d6-lin']);
+  assert.deepEqual([...ids(basecamp)].sort(), ['summit', 'tarfala']);
+  EXPS.forEach((x) => {
+    if (isBasecamp(x)) assert.ok(!ids(linear).includes(x.id));
+  });
+  // A multi-segment basecamp trip appears on BOTH its segments.
+  assert.ok(ids(orderForStage(EXPS, 'd7', FWD).basecamp).includes('summit'));
+});
+
+// ── Stage display sections ───────────────────────────────────────────────────
+
+test('few linear items stay flat; a trailing basecamp group is separate', () => {
+  const d1 = groupForStageDisplay(EXPS, 'd1', FWD);
+  assert.equal(d1.length, 1);
+  assert.equal(d1[0].label, null); // flat, no positional headers (≤ threshold)
   assert.equal(GROUP_THRESHOLD, 3);
-  assert.equal(groupForDisplay(selectForStage(EXPS, 'd1')).grouped, false); // d1 has 3
-  assert.equal(groupForDisplay(selectForStage(EXPS, 'd4')).grouped, true); // d4 has 6
+
+  const d6 = groupForStageDisplay(EXPS, 'd6', FWD);
+  const larger = d6.find((s) => s.larger);
+  assert.ok(larger);
+  assert.equal(larger.label, 'Larger options');
+  assert.deepEqual([...ids(larger.items)].sort(), ['summit', 'tarfala']);
 });
 
-// ── commitment-group ordering ───────────────────────────────────────────────
+test('many linear items split into positional groups, in journey order', () => {
+  const fwd = groupForStageDisplay(EXPS, 'd4', FWD);
+  assert.deepEqual(
+    fwd.map((s) => s.key),
+    ['near-start', 'along', 'near-end'],
+  );
+  assert.deepEqual(ids(fwd[0].items), ['d4-a', 'd4-b']);
+  assert.deepEqual(ids(fwd[1].items), ['d4-c']);
+  assert.deepEqual(ids(fwd[2].items), ['d4-d', 'd4-e']);
 
-test('selection orders by rising commitment, curated order within a group', () => {
-  assert.deepEqual(ids(selectForStage(EXPS, 'd4')), [
-    'd4-pass',
-    'd4-moraine',
-    'd4-descent', // on-route (curated order preserved)
-    'd4-stream', // detours (mini)
-    'd4-socker', // detours (short)
-    'd4-nallo', // larger
-  ]);
+  // Reversed: the Sälka-end items become "near the start".
+  const rev = groupForStageDisplay(EXPS, 'd4', REV);
+  assert.deepEqual(ids(rev[0].items), ['d4-e', 'd4-d']);
 });
 
-test('grouped display uses the three groups in commitment order, empty dropped', () => {
-  const display = groupForDisplay(selectForStage(EXPS, 'd4'));
-  assert.equal(display.grouped, true);
-  assert.deepEqual(
-    display.groups.map((g) => g.group),
-    ['on-route', 'detours', 'larger'],
-  );
-  assert.deepEqual(
-    display.groups.map((g) => g.label),
-    ['On the route', 'Short detours', 'Larger options'],
-  );
-  // A set with no "detours" drops that group rather than showing it empty.
-  const noDetours = groupForDisplay([
-    { id: 'v1', scale: 'on-route', segmentIds: ['x'] },
-    { id: 'v2', scale: 'on-route', segmentIds: ['x'] },
-    { id: 'v3', scale: 'on-route', segmentIds: ['x'] },
-    { id: 'm1', scale: 'major-adventure', segmentIds: ['x'] },
-  ]);
-  assert.deepEqual(
-    noDetours.groups.map((g) => g.group),
-    ['on-route', 'larger'],
-  );
+test('zero: a stage with no experiences shows no sections (no empty "· 0")', () => {
+  assert.equal(hasExperiences(EXPS, 'd3'), false);
+  assert.deepEqual(groupForStageDisplay(EXPS, 'd3', FWD), []);
 });
 
-test('experienceGroup maps every scale, group order is stable', () => {
+// ── Inline vs detail: content depth, not scale ───────────────────────────────
+
+test('inline vs detail is decided by content depth', () => {
+  const on = (scale, extra = {}) => ({ scale, location: { access: 'on-trail' }, ...extra });
+  assert.equal(needsDetailView(on('on-route')), false); // plain sight → inline
+  assert.equal(needsDetailView(on('mini-detour')), false); // shallow detour → inline
+  assert.equal(needsDetailView({ scale: 'major-adventure', expedition: {}, location: {} }), true);
+  assert.equal(needsDetailView(on('half-full-day')), true); // major time commitment
+  assert.equal(needsDetailView(on('mini-detour', { weatherSensitivity: 'high' })), true);
+  assert.equal(needsDetailView(on('mini-detour', { roundTripKm: 6, elevationGainM: 100 })), true); // 2 stats
+  assert.equal(needsDetailView({ scale: 'on-route', location: { access: 'basecamp-trip', gpxAssetId: 'g1' } }), true);
+  // isInlineExperience is the inverse.
+  assert.equal(isInlineExperience(on('on-route')), true);
+  assert.equal(isInlineExperience(on('half-full-day')), false);
+});
+
+// ── Progressive provenance ───────────────────────────────────────────────────
+
+test('provenance level scales with safety/importance', () => {
+  assert.equal(provenanceLevel({ scale: 'major-adventure', expedition: {}, location: {} }), 'shown');
+  assert.equal(provenanceLevel({ scale: 'on-route', weatherSensitivity: 'high', location: {} }), 'shown');
+  assert.equal(provenanceLevel({ scale: 'on-route', location: { spatialConfidence: 'draft' } }), 'shown');
+  assert.equal(provenanceLevel({ scale: 'half-full-day', location: { spatialConfidence: 'approx' } }), 'optional');
+  assert.equal(provenanceLevel({ scale: 'on-route', location: { access: 'on-trail' } }), 'hidden');
+});
+
+// ── Commitment grouping stays available for the future Explore Index ─────────
+
+test('commitment grouping is unchanged (for the Index)', () => {
   assert.equal(experienceGroup('on-route'), 'on-route');
   assert.equal(experienceGroup('mini-detour'), 'detours');
-  assert.equal(experienceGroup('short-excursion'), 'detours');
-  assert.equal(experienceGroup('half-full-day'), 'larger');
   assert.equal(experienceGroup('major-adventure'), 'larger');
   assert.deepEqual(EXPERIENCE_GROUP_ORDER, ['on-route', 'detours', 'larger']);
 });
 
-// ── stable physical-segment association in BOTH route directions ─────────────
+// ── Reference integrity ──────────────────────────────────────────────────────
 
-test('experiences follow the physical segment, not the display-day number', () => {
-  // Forward: physical d1 is Day 1. Reverse: physical d1 is Day 7. The query is
-  // always by SEGMENT id, so the same experiences resolve in either direction.
-  const forwardDayToSegment = { 1: 'd1', 6: 'd6', 7: 'd7' };
-  const reverseDayToSegment = { 7: 'd1', 2: 'd6', 1: 'd7' };
-
-  const abiskoForward = selectForStage(EXPS, forwardDayToSegment[1]); // Day 1 fwd
-  const abiskoReverse = selectForStage(EXPS, reverseDayToSegment[7]); // Day 7 rev
-  assert.deepEqual(ids(abiskoForward), ids(abiskoReverse));
-  assert.deepEqual(ids(abiskoForward), ['a-view', 'a-birch', 'a-canyon']);
-
-  // The Kebnekaise basecamp majors sit on d6/d7 whichever day those become.
-  const kebForward = selectForStage(EXPS, forwardDayToSegment[6]); // Day 6 fwd
-  const kebReverse = selectForStage(EXPS, reverseDayToSegment[2]); // Day 2 rev
-  assert.deepEqual(ids(kebForward), ids(kebReverse));
-  assert.ok(ids(kebForward).includes('summit'));
+test('stage/stop reference validation flags unknown ids', () => {
+  const stages = new Set(['d1', 'd4']);
+  const stops = new Set(['abisko']);
+  assert.deepEqual(experienceRefErrors({ id: 'ok', segmentIds: ['d1'], nearestStopId: 'abisko' }, stages, stops), []);
+  assert.deepEqual(experienceRefErrors({ id: 'bad', segmentIds: ['d9'] }, stages, stops), [
+    '"bad" references unknown segment "d9"',
+  ]);
+  assert.deepEqual(experienceRefErrors({ id: 'nostop', segmentIds: ['d1'], nearestStopId: 'x' }, stages, stops), [
+    '"nostop" references unknown stop "x"',
+  ]);
 });
 
-// ── multi-segment experiences ───────────────────────────────────────────────
-
-test('a multi-segment experience appears on every segment it lists', () => {
-  const onD6 = ids(selectForStage(EXPS, 'd6'));
-  const onD7 = ids(selectForStage(EXPS, 'd7'));
-  assert.ok(onD6.includes('summit') && onD6.includes('tarfala'));
-  assert.ok(onD7.includes('summit') && onD7.includes('tarfala'));
-});
-
-// ── inline vs detail classification ─────────────────────────────────────────
-
-test('only on-route sights are inline; everything larger opens a detail', () => {
-  assert.equal(isInlineExperience('on-route'), true);
-  for (const scale of ['mini-detour', 'short-excursion', 'half-full-day', 'major-adventure']) {
-    assert.equal(isInlineExperience(scale), false, scale);
-  }
-});
-
-// ── invalid stage and Stop references ───────────────────────────────────────
-
-test('reference validation flags unknown segment and stop ids, passes valid ones', () => {
-  const stages = new Set(['d1', 'd4', 'd6', 'd7']);
-  const stops = new Set(['abisko', 'kebnekaise']);
-
+test('GPX reference validation flags broken links both ways', () => {
+  const exps = [
+    { id: 'summit', location: { gpxAssetId: 'g1' } },
+    { id: 'plain', location: {} },
+  ];
+  const good = [{ id: 'g1', experienceId: 'summit' }];
+  assert.deepEqual(gpxRefErrors(exps, good), []);
+  // experience → unknown asset
   assert.deepEqual(
-    experienceRefErrors(
-      { id: 'ok', segmentIds: ['d1'], nearestStopId: 'abisko' },
-      stages,
-      stops,
-    ),
-    [],
+    gpxRefErrors([{ id: 'x', location: { gpxAssetId: 'ghost' } }], []),
+    ['experience "x" references unknown GPX asset "ghost"'],
   );
+  // asset → unknown experience
   assert.deepEqual(
-    experienceRefErrors({ id: 'no-seg', segmentIds: [] }, stages, stops),
-    ['"no-seg" has no segmentIds'],
-  );
-  assert.deepEqual(
-    experienceRefErrors({ id: 'bad-seg', segmentIds: ['d9'] }, stages, stops),
-    ['"bad-seg" references unknown segment "d9"'],
-  );
-  assert.deepEqual(
-    experienceRefErrors(
-      { id: 'bad-stop', segmentIds: ['d4'], nearestStopId: 'nowhere' },
-      stages,
-      stops,
-    ),
-    ['"bad-stop" references unknown stop "nowhere"'],
+    gpxRefErrors([], [{ id: 'g9', experienceId: 'nope' }]),
+    ['GPX asset "g9" references unknown experience "nope"'],
   );
 });

@@ -47,12 +47,19 @@ function Screens({
           viewStageId={mapViewStageId}
           onViewStageChange={setMapViewStageId}
           onOpenStop={(stopId) => navigate('huts', { stopId })}
+          focus={nav.payload?.mapFocus ?? null}
         />
       );
     case 'stages':
       // Today's "Stage Guide" action deep-links to the current stage's open
-      // day guide (same one-shot payload pattern as Stops' initialStopId).
-      return <StagesScreen initialGuideStageId={nav.payload?.guideStageId ?? null} />;
+      // day guide (same one-shot payload pattern as Stops' initialStopId);
+      // "View on map" deep-links to the Map (one-shot mapFocus).
+      return (
+        <StagesScreen
+          initialGuideStageId={nav.payload?.guideStageId ?? null}
+          onNavigate={navigate}
+        />
+      );
     case 'huts':
       return (
         <StopsScreen initialStopId={nav.payload?.stopId ?? null} onNavigate={navigate} />
@@ -171,6 +178,11 @@ function AppShell() {
     window.scrollTo(0, 0);
     if (tab === 'map' && 'mapStageId' in (payload ?? {})) {
       setMapViewStageId(payload?.mapStageId ?? null);
+    }
+    // "View on map" selects the physical stage so the focus point is shown in
+    // its stage context, then delivers the one-shot focus to MapScreen.
+    if (tab === 'map' && payload?.mapFocus) {
+      setMapViewStageId(payload.mapFocus.stageId);
     }
     setNav({ tab, payload });
     // Push the destination onto history AFTER state is queued: the

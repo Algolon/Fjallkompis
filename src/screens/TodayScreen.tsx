@@ -42,6 +42,13 @@ export interface NavPayload {
   guideStageId?: string;
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
+  /**
+   * Map: one-shot focus on a single experience point along a physical stage
+   * (from Stages "View on map"). Progress is the canonical 0..1 position on the
+   * segment; the Map interpolates a coordinate on the real route line and shows
+   * a temporary highlight — it does NOT enable a persistent experience layer.
+   */
+  mapFocus?: { stageId: string; progress: number; label: string };
 }
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;

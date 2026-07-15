@@ -26,6 +26,34 @@ export const WAYPOINT_BY_ID: Record<string, RouteWaypoint> = Object.fromEntries(
 );
 
 /**
+ * Coordinate at a CANONICAL 0..1 progress along a physical stage (d1..d7),
+ * interpolated on the real route line (never invented). Uses the canonical
+ * ROUTE geometry, so the point is direction-independent — it's the same spot on
+ * the ground whichever way the hiker walks. Used by the "View on map" focus.
+ */
+export function coordAtStageProgress(
+  stageId: string,
+  progress: number,
+): { lat: number; lon: number } | null {
+  const stage = STAGE_BY_ID[stageId];
+  if (!stage || stage.points.length === 0) return null;
+  const pts = stage.points;
+  const total = pts[pts.length - 1].cumulativeDistanceKm;
+  const target = Math.max(0, Math.min(1, progress)) * total;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    if (target <= b.cumulativeDistanceKm) {
+      const span = b.cumulativeDistanceKm - a.cumulativeDistanceKm;
+      const t = span > 0 ? (target - a.cumulativeDistanceKm) / span : 0;
+      return { lat: a.lat + t * (b.lat - a.lat), lon: a.lon + t * (b.lon - a.lon) };
+    }
+  }
+  const last = pts[pts.length - 1];
+  return { lat: last.lat, lon: last.lon };
+}
+
+/**
  * GPX waypoint machine ids ↔ the app's existing hut ids. Lives in the plain
  * waypointStops.mjs module (node --test validates it against the generated
  * dataset); re-exported here so app code keeps one route-data entry point.

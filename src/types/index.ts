@@ -389,6 +389,96 @@ export interface ExperienceExpedition {
   warnings?: string[];
 }
 
+// ---- Experience spatial model ----------------------------------------------
+
+/**
+ * How an experience relates to the physical trail. A SEPARATE typed dimension —
+ * `planningFit` must NOT be overloaded to carry spatial meaning ("directly on
+ * route" is a time judgement, not a geometry). Drives map behaviour, stage
+ * ordering (basecamp trips are pulled out of the linear list) and the derived
+ * spatial label.
+ */
+export type ExperienceAccess =
+  | 'on-trail' // you walk over/through it
+  | 'beside-trail' // immediately at the trailside
+  | 'visible-from-trail' // seen from the trail; the feature itself is elsewhere
+  | 'short-detour' // a there-and-back a few minutes off the trail
+  | 'side-route' // a longer branch route (may loop or rejoin)
+  | 'basecamp-trip'; // launched from an overnight stop — not "along" the walk
+
+/** The geometric shape of an experience's location. */
+export type ExperienceGeometryKind =
+  | 'point' // a single spot
+  | 'segment-portion' // a stretch of the trail itself
+  | 'area' // a broad zone
+  | 'vista' // a viewpoint looking toward a separate feature
+  | 'route'; // a standalone detour/excursion route (usually has a GPX asset)
+
+/**
+ * Spatial confidence — never present invented precision as fact.
+ *  - verified: coordinate/geometry checked against a source;
+ *  - approx: an editorial position estimate (e.g. "early in the stage"), no
+ *    exact coordinate claimed; a map point is derived from the real route line;
+ *  - draft: spatial data incomplete (a route/coordinate is asserted but
+ *    unverified) — surfaced as a draft badge, not shipped as fact.
+ */
+export type SpatialConfidence = 'verified' | 'approx' | 'draft';
+
+/**
+ * Typed geometry/location for an experience. `segmentProgress` is the
+ * DIRECTION-SAFE canonical position (0 at the primary segment's north/canonical
+ * start, 1 at its end); presentation order is derived from it plus the active
+ * direction, so records are never duplicated per direction.
+ */
+export interface ExperienceLocation {
+  kind: ExperienceGeometryKind;
+  access: ExperienceAccess;
+  /** 0..1 canonical position along the PRIMARY segment (segmentIds[0]). */
+  segmentProgress?: number;
+  /** [from,to] canonical progress span for a segment-portion / area. */
+  segmentSpan?: [number, number];
+  /** Exact point, only when genuinely known (else derived from segmentProgress). */
+  coord?: LatLng;
+  /** Where a detour/route leaves the trail. */
+  trailheadCoord?: LatLng;
+  /** The feature a vista looks toward, or a route's destination. */
+  destinationCoord?: LatLng;
+  /** Where a side route rejoins the trail. */
+  rejoinCoord?: LatLng;
+  /** Stable id of a linked GPX route asset (see ExperienceRouteAsset). */
+  gpxAssetId?: string;
+  spatialConfidence: SpatialConfidence;
+}
+
+// ---- Experience GPX route assets -------------------------------------------
+
+export type ExperienceRouteType =
+  | 'out-and-back'
+  | 'loop'
+  | 'point-to-point'
+  | 'spur';
+
+/**
+ * Metadata contract for a separate experience route (a GPX track that is NOT
+ * part of the canonical Kungsleden line). Experience records reference a stable
+ * `id`, never a loosely named file, so a rename can't silently break the link.
+ */
+export interface ExperienceRouteAsset {
+  id: string; // stable asset id
+  experienceId: string; // the RouteExperience this belongs to
+  filePath: string; // repo-relative, e.g. 'gpx/experiences/kebnekaise-summit.gpx'
+  routeType: ExperienceRouteType;
+  startCoord: LatLng;
+  destinationCoord?: LatLng;
+  rejoinCoord?: LatLng;
+  distanceKm?: number;
+  elevationGainM?: number;
+  /** Creation/source provenance for the track itself. */
+  source: StopSource;
+  /** draft = a placeholder/fixture track, not a verified survey. */
+  status: 'verified' | 'draft';
+}
+
 /**
  * One curated experience along the route. Same provenance discipline as
  * TrailStop: every entry carries a `source` with a `lastVerified` date and a
@@ -407,9 +497,11 @@ export interface RouteExperience {
 
   /** Stable physical stage ids (d1..d7); may be several (a basecamp trip → both adjacent stages). */
   segmentIds: string[];
+  /** Typed spatial model — geometry, trail access and direction-safe position. */
+  location: ExperienceLocation;
   /** Secondary context only — never the presentation anchor. */
   nearestStopId?: string;
-  /** Short human phrase; direction-neutral for MVP (e.g. "Extra day from Kebnekaise Fjällstation"). */
+  /** Optional direction-neutral phrase override; usually derived from `location`. */
   routeRelationship?: string;
 
   /** One calm sentence for the row / preview. */
@@ -426,7 +518,6 @@ export interface RouteExperience {
   elevationGainM?: number;
   weatherSensitivity?: 'low' | 'medium' | 'high';
   season?: SeasonWindow;
-  coord?: LatLng;
 
   /** Present only for `major-adventure` scale (see ExperienceExpedition). */
   expedition?: ExperienceExpedition;

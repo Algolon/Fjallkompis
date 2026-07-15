@@ -65,6 +65,12 @@ export interface MapViewHandle {
   resetBearing: () => void;
   /** Ease the camera to a position (e.g. after a one-shot locate). */
   centerOn: (p: { lat: number; lng: number }) => void;
+  /**
+   * Temporarily highlight a single point and ease to it ("View on map"), or
+   * clear it with null. A transient highlight on the 'focus' source — NOT a
+   * persistent experience-marker layer. Safe to call before load (applied then).
+   */
+  focusPoint: (p: { lat: number; lon: number } | null) => void;
 }
 
 /** Which basemap the user is looking at: the offline vector map or satellite. */
@@ -225,6 +231,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // The dataset is captured at mount (see the route prop doc); a ref keeps
   // the imperative handle and effects reading the mounted value.
   const routeRef = useRef(route);
+  // A focus requested before the map's 'load' is applied once the source exists.
+  const pendingFocusRef = useRef<{ lat: number; lon: number } | null>(null);
   const followRef = useRef(follow);
   followRef.current = follow;
   // The Map constructor already applies the route bounds. The first selection
@@ -233,6 +241,38 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const selectionCameraInitializedRef = useRef(false);
 
   const animate = () => ({ duration: prefersReducedMotion() ? 0 : 700 });
+
+  // Drive the transient 'focus' highlight (returns false if the source isn't
+  // ready yet — the caller then defers to the 'load' handler).
+  const applyFocus = (
+    map: maplibregl.Map,
+    p: { lat: number; lon: number } | null,
+  ): boolean => {
+    const src = map.getSource('focus') as GeoJSONSource | undefined;
+    if (!src) return false;
+    src.setData(
+      p
+        ? {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
+                properties: {},
+              },
+            ],
+          }
+        : EMPTY_FC,
+    );
+    if (p) {
+      map.easeTo({
+        center: [p.lon, p.lat],
+        zoom: Math.max(map.getZoom(), 12.5),
+        ...animate(),
+      });
+    }
+    return true;
+  };
 
   const fitBounds = (bounds: [[number, number], [number, number]]) => {
     mapRef.current?.fitBounds(bounds, { padding: FIT_PADDING, ...animate() });
@@ -262,6 +302,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       if (stage) fitBounds(stage.bounds);
     },
     resetBearing: () => mapRef.current?.resetNorthPitch(animate()),
+    focusPoint: (p) => {
+      const map = mapRef.current;
+      if (map && applyFocus(map, p)) {
+        pendingFocusRef.current = null;
+      } else {
+        pendingFocusRef.current = p;
+      }
+    },
     centerOn: (p) => {
       const map = mapRef.current;
       if (!map) return;
@@ -419,7 +467,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         map.addSource('gps', { type: 'geojson', data: EMPTY_FC });
         map.addSource('scrub', { type: 'geojson', data: EMPTY_FC });
         map.addSource('trail', { type: 'geojson', data: EMPTY_FC });
+        map.addSource('focus', { type: 'geojson', data: EMPTY_FC });
         for (const layer of routeLayers()) map.addLayer(layer);
+
+        // Apply a focus requested before load ("View on map" arrives with the map).
+        if (pendingFocusRef.current) {
+          applyFocus(map, pendingFocusRef.current);
+          pendingFocusRef.current = null;
+        }
 
         // Tap a stage line to select it.
         map.on('click', 'route-stages-hit', (e: MapLayerMouseEvent) => {

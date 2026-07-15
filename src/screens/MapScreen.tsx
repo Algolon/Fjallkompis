@@ -15,7 +15,11 @@ import {
   importantAbsences,
   stopShortName,
 } from '../data/stops';
-import { WAYPOINT_BY_ID, stopIdForWaypoint } from '../route/routeData';
+import {
+  WAYPOINT_BY_ID,
+  coordAtStageProgress,
+  stopIdForWaypoint,
+} from '../route/routeData';
 import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import { STAGE_COLORS } from '../map/mapStyle';
 import type { BasemapMode } from '../map/pmtilesProtocol';
@@ -252,11 +256,14 @@ export function MapScreen({
   viewStageId,
   onViewStageChange,
   onOpenStop,
+  focus,
 }: {
   viewStageId: string | null;
   onViewStageChange: (stageId: string | null) => void;
   /** Focused navigation: open this stop's full detail in Huts & Stations. */
   onOpenStop?: (stopId: string) => void;
+  /** One-shot "View on map": temporarily highlight a point on a physical stage. */
+  focus?: { stageId: string; progress: number; label: string } | null;
 }) {
   const { itinerary, currentStage } = useStore();
   const route = itinerary.route;
@@ -331,6 +338,15 @@ export function MapScreen({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.status, geo.timestamp]);
+
+  // One-shot "View on map": interpolate the experience's point on the real
+  // route line and temporarily highlight it (MapView remounts on tab switch /
+  // direction change, so the highlight never persists).
+  useEffect(() => {
+    if (!focus) return;
+    const coord = coordAtStageProgress(focus.stageId, focus.progress);
+    if (coord) mapRef.current?.focusPoint(coord);
+  }, [focus]);
 
   const stepStage = (dir: 1 | -1) => {
     // Order follows the active itinerary: overview → Day 1 … Day 7 → overview.

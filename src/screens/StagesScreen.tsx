@@ -7,13 +7,17 @@ import { ExperienceDetail, ExperienceList } from '../components/StageExperiences
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { stageGuide } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
-import { experiencesForStage } from '../data/routeExperiences';
+import {
+  experienceCountForStage,
+  isBasecamp,
+} from '../data/routeExperiences';
 import {
   formatDistanceKm,
   formatHoursEstimate,
   formatVerifiedDate,
 } from '../utils/format';
 import type { ItineraryStage } from '../route/activeItinerary';
+import type { NavPayload } from './TodayScreen';
 import type { RouteExperience } from '../types';
 
 /**
@@ -73,9 +77,12 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
 
 export function StagesScreen({
   initialGuideStageId,
+  onNavigate,
 }: {
   /** Today's "Stage Guide" deep link: open this stage's guide on arrival. */
   initialGuideStageId?: string | null;
+  /** Router, for the "View on map" one-shot focus deep-link. */
+  onNavigate?: (tab: 'map', payload?: NavPayload) => void;
 }) {
   const { state, itinerary, stages, currentStage, setCurrentStage } = useStore();
   const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
@@ -143,6 +150,20 @@ export function StagesScreen({
     });
   };
 
+  // "View on map": deep-link to the Map with a one-shot focus on the experience's
+  // physical point. Uses the canonical (north-start) segment progress so the Map
+  // interpolates a coordinate on the real route line; basecamp trips (no linear
+  // position) focus the segment end — their launch stop. No persistent layer.
+  const viewOnMap = (experience: RouteExperience) => {
+    if (!onNavigate) return;
+    const stageId = experience.segmentIds[0];
+    const progress =
+      experience.location.segmentProgress ?? (isBasecamp(experience) ? 1 : 0.5);
+    onNavigate('map', {
+      mapFocus: { stageId, progress, label: experience.shortTitle ?? experience.title },
+    });
+  };
+
   // Pushed detail view replaces the stage list (mobile push pattern); its own
   // back control returns to the list. Kept above the list render so the header
   // and cards don't compete with the detail.
@@ -152,6 +173,7 @@ export function StagesScreen({
         <ExperienceDetail
           experience={selectedExperience}
           onBack={() => setSelectedExperience(null)}
+          onViewOnMap={viewOnMap}
         />
       </div>
     );
@@ -222,8 +244,8 @@ export function StagesScreen({
           const guide = stageGuide(stage.id, itinerary.direction);
           const guideOpen = openGuides.has(stage.id);
           const guidePanelId = `stage-guide-${stage.id}`;
-          // "Along the way" — experiences on this stable segment (direction-safe).
-          const stageExperiences = experiencesForStage(stage.id);
+          // "Along the way" — count is direction-independent (segment-stable).
+          const experienceCount = experienceCountForStage(stage.id);
           const exploreOpen = openExplore.has(stage.id);
           const explorePanelId = `stage-explore-${stage.id}`;
           return (
@@ -281,7 +303,7 @@ export function StagesScreen({
                 {stage.notes}
               </p>
 
-              {guide || stageExperiences.length > 0 ? (
+              {guide || experienceCount > 0 ? (
                 <div className="stage-foot">
                   {guide ? (
                     <>
@@ -320,7 +342,7 @@ export function StagesScreen({
                       never an empty "· 0". Structured so it can move inside the
                       Day guide (Option B) with minimal change if testing shows a
                       third footer row crowds the card. */}
-                  {stageExperiences.length > 0 ? (
+                  {experienceCount > 0 ? (
                     <>
                       <button
                         type="button"
@@ -334,7 +356,7 @@ export function StagesScreen({
                           Along the way
                           <span className="stage-explore__count">
                             {' '}
-                            · {stageExperiences.length}
+                            · {experienceCount}
                           </span>
                         </span>
                         <ChevronDown
@@ -353,7 +375,9 @@ export function StagesScreen({
                         >
                           <ExperienceList
                             stageId={stage.id}
+                            direction={itinerary.direction}
                             onOpenDetail={setSelectedExperience}
+                            onViewOnMap={viewOnMap}
                           />
                         </div>
                       ) : null}

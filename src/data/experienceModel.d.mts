@@ -1,48 +1,74 @@
-import type { ExperienceScale, RouteExperience } from '../types';
+import type {
+  ExperienceRouteAsset,
+  ExperienceScale,
+  RouteDirection,
+  RouteExperience,
+} from '../types';
 
-/** The three display groups, ordered by rising commitment. */
+// ── Commitment grouping (future Explore Index) ──
 export type ExperienceGroupKey = 'on-route' | 'detours' | 'larger';
-
 export declare const EXPERIENCE_GROUP_ORDER: ExperienceGroupKey[];
 export declare const EXPERIENCE_GROUP_LABEL: Record<ExperienceGroupKey, string>;
 export declare const GROUP_THRESHOLD: number;
-
 export declare function experienceGroup(scale: ExperienceScale): ExperienceGroupKey;
 
-/** On-route sights expand inline; everything larger opens a detail view. */
-export declare function isInlineExperience(scale: ExperienceScale): boolean;
+// ── Stage presentation: physical journey order ──
+export declare function isBasecamp(experience: RouteExperience): boolean;
+export declare function segmentPosition(experience: RouteExperience): number;
+export declare function walkedPosition(
+  experience: RouteExperience,
+  direction: RouteDirection | string,
+): number;
 
-/** Stage-filtered (by stable segment id) + commitment-ordered experiences. */
-export declare function selectForStage(
+export interface StageOrder {
+  linear: RouteExperience[];
+  basecamp: RouteExperience[];
+}
+export declare function orderForStage(
   experiences: RouteExperience[],
   stageId: string,
-): RouteExperience[];
+  direction: RouteDirection | string,
+): StageOrder;
 
-/** Whether a stage has any experiences (drives whether the disclosure shows). */
 export declare function hasExperiences(
   experiences: RouteExperience[],
   stageId: string,
 ): boolean;
 
-export type ExperienceDisplay =
-  | { grouped: false; items: RouteExperience[] }
-  | {
-      grouped: true;
-      groups: {
-        group: ExperienceGroupKey;
-        label: string;
-        items: RouteExperience[];
-      }[];
-    };
+export type PositionGroupKey = 'near-start' | 'along' | 'near-end';
+export declare const POSITION_GROUP_ORDER: PositionGroupKey[];
+export declare const POSITION_GROUP_LABEL: Record<PositionGroupKey, string>;
+export declare function positionGroup(walked: number): PositionGroupKey;
 
-/** Flat list when short; commitment groups (empty dropped) when longer. */
-export declare function groupForDisplay(
-  selected: RouteExperience[],
-): ExperienceDisplay;
+export interface StageSection {
+  key: string;
+  label: string | null;
+  larger?: boolean;
+  items: RouteExperience[];
+}
+export declare function groupForStageDisplay(
+  experiences: RouteExperience[],
+  stageId: string,
+  direction: RouteDirection | string,
+): StageSection[];
 
-/** Reference-integrity errors ([] when valid). */
+// ── Inline vs detail (content depth) ──
+export declare function needsDetailView(experience: RouteExperience): boolean;
+export declare function isInlineExperience(experience: RouteExperience): boolean;
+
+// ── Progressive provenance ──
+export type ProvenanceLevel = 'shown' | 'optional' | 'hidden';
+export declare function provenanceLevel(
+  experience: RouteExperience,
+): ProvenanceLevel;
+
+// ── Reference integrity ──
 export declare function experienceRefErrors(
   experience: RouteExperience,
   knownStageIds: Set<string>,
   knownStopIds: Set<string>,
+): string[];
+export declare function gpxRefErrors(
+  experiences: RouteExperience[],
+  assets: ExperienceRouteAsset[],
 ): string[];

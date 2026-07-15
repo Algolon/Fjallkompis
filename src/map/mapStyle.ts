@@ -251,6 +251,27 @@ export function routeLayers(): LayerSpecification[] {
         'circle-stroke-width': 2,
       },
     },
+    // Temporary experience focus ("View on map"): a single highlighted point,
+    // fed on demand via the 'focus' source and cleared on dismissal / direction
+    // change. NOT a persistent experience-marker layer. Cloudberry = "look here
+    // now" (a sanctioned map-highlight use, distinct from the muted terrain).
+    {
+      id: 'focus-halo',
+      type: 'circle',
+      source: 'focus',
+      paint: { 'circle-radius': 16, 'circle-color': '#b78443', 'circle-opacity': 0.22 },
+    },
+    {
+      id: 'focus-point',
+      type: 'circle',
+      source: 'focus',
+      paint: {
+        'circle-radius': 7,
+        'circle-color': '#b78443',
+        'circle-stroke-color': '#fff',
+        'circle-stroke-width': 2.5,
+      },
+    },
     // Live-tracking breadcrumb trail: empty for the normal Kungsleden map;
     // fed by the Delft pilot's tracking session via the 'trail' source.
     {

@@ -1627,14 +1627,93 @@ button.map-status-pill {
   transform: rotate(180deg);
 }
 .exp-note {
-  margin: 0;
   padding: 0 12px 12px 57px; /* aligns under the title, past the 34px glyph */
+}
+.exp-note p {
+  margin: 0;
   font-size: 12.5px;
   line-height: 1.55;
   color: var(--ink-soft);
 }
+/* Quiet single action inside an expanded on-route sight. */
+.exp-maplink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 4px 0;
+  min-height: 32px;
+  background: transparent;
+  border: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--glacier-700);
+}
+.exp-maplink:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Spatial access as quiet muted text (a geometric fact, not a tappable chip). */
+.exp-access {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+/* A trailing "Larger options" group sits slightly apart from the linear list. */
+.exp-group--larger {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
 
 /* --- Experience detail (pushed view) -------------------------------------- */
+
+/* Draft-location badge — never present unverified geometry as fact. */
+.exp-draft {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: var(--paper-2);
+  border: 1px dashed var(--line-strong);
+}
+/* View-on-map action row on the detail. */
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.detail-actions .btn {
+  flex: 1;
+}
+/* Optional (medium) provenance disclosure. */
+.exp-source {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.exp-source > summary {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  cursor: pointer;
+  list-style: none;
+}
+.exp-source > summary::-webkit-details-marker {
+  display: none;
+}
+.exp-source .exp-verified {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: 0;
+}
 
 .exp-detail__top {
   min-height: 44px;

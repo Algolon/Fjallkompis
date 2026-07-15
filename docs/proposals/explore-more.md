@@ -12,6 +12,34 @@ Scope: Abisko ↔ Nikkaluokta, built to scale
 
 ---
 
+## 0b. Refinement pass (PR #59, 2nd iteration)
+
+Layered onto the MVP slice, keeping the core architecture:
+- **Typed spatial model** (`ExperienceLocation`): `kind` (point/segment-portion/area/vista/route) ×
+  `access` (on-trail/beside/visible/short-detour/side-route/basecamp-trip) × canonical `segmentProgress`
+  × `spatialConfidence` (verified/approx/draft). `access` is a SEPARATE dimension from `planningFit`
+  (time) — "Directly on route" is no longer overloaded to mean geometry.
+- **GPX asset contract** (`ExperienceRouteAsset` + `src/data/experienceRoutes.ts`): experiences link a
+  stable asset `id`, not a filename; `gpxRefErrors` validates both directions at import. Kebnekaise ships
+  a **draft** placeholder track; Abiskojåkka canyon is a point (no GPX). No GPX for all.
+- **Stage order = physical journey** (not commitment): linear items ordered by direction-aware
+  `segmentProgress` (reversing flips order, no duplication); basecamp trips separated into a trailing
+  "Larger options" group; positional headers (Near the start / Along the stage / Near the end) only when
+  a linear list exceeds 3. Commitment grouping stays available for the future Explore Index.
+- **Inline vs detail = content depth** (one tested rule `needsDetailView`), not scale.
+- **Progressive provenance** (`provenanceLevel`): hidden on small sights, optional (collapsible) on
+  medium, shown on major/safety/time-sensitive/draft.
+- **Density**: on-trail sights show a quiet muted access word (no chip); difficulty pips only where a
+  detour makes effort a real choice; one "View on map" action.
+- **Map slice**: point-based "View on map" deep-link (payload → `focusPoint` handle → transient `focus`
+  source/layer; `coordAtStageProgress` interpolates on the real line). No persistent experience layer;
+  route-draw + Stage map-toggle deferred/prototyped.
+
+Verified live (375×832): positional order forward & reverse, reduced density, inline vs detail, draft
+badge, shown provenance, View-on-map deep-link. `npm test` (359), `tsc`, `npm run build` all clean.
+
+---
+
 ## 0. Implementation status (MVP slice — draft PR off `main`)
 
 Isolated on branch `claude/along-the-way-mvp` (cut from `origin/main`, **no packing-list changes**):
