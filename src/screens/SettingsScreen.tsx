@@ -13,6 +13,7 @@ import type { RouteDirection } from '../types';
 import { ScreenHeader } from '../components/ui';
 import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
+import { clearWalletData } from '../wallet/walletStore.mjs';
 import { todayIso } from '../utils/format';
 import {
   CONTOURS_ARCHIVE,
@@ -411,14 +412,27 @@ export function SettingsScreen() {
     });
   };
 
-  const doReset = () => {
+  const doReset = async () => {
     if (
-      confirm(
-        'Reset all local data? This clears your packing list, stop notes, journal and current stage. Export a backup first if unsure.',
+      !confirm(
+        'Reset all local data? This clears your packing list, stop notes, journal and current stage, and permanently removes the Trail Wallet documents stored on this device. Export a backup first if unsure — Trail Wallet documents are not part of the JSON backup.',
       )
     ) {
-      resetAll();
+      return;
+    }
+    // Trip data (localStorage) and Trail Wallet documents (IndexedDB) are
+    // cleared independently; a wallet failure must not be reported as a
+    // clean reset.
+    resetAll();
+    try {
+      await clearWalletData();
       setNotice({ kind: 'ok', text: 'Local data reset to defaults.' });
+    } catch (err) {
+      console.warn('Fjällkompis: could not clear Trail Wallet storage.', err);
+      setNotice({
+        kind: 'err',
+        text: 'Trip data was reset, but the Trail Wallet documents could not be removed. Try again, or clear the site data in your browser settings.',
+      });
     }
   };
 
@@ -506,7 +520,8 @@ export function SettingsScreen() {
           <span className="card-title">Backup & restore</span>
           <p className="card-sub" style={{ marginTop: 4 }}>
             Export before trips and OS updates. Import merges nothing — it replaces
-            current data with the file’s contents.
+            current data with the file’s contents. Trail Wallet documents are stored
+            separately on this device and are not included in this backup file.
           </p>
 
           <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={doExport}>

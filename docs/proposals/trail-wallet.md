@@ -1,6 +1,25 @@
 # Trail Wallet — Stage 1: architectural audit & implementation proposal
 
-Status: **proposed — awaiting approval, no code changed**
+Status: **approved & implemented (v0.21.0)** — all §8 decision points were
+approved as recommended and are reflected in the shipped implementation.
+
+Implementation notes / recorded trade-offs:
+- **PDF opening** uses the progressive fallback from §4.2: the blob is handed
+  to the platform's own viewer via `window.open(objectURL)` (fully offline —
+  the blob never touches the network); when the platform refuses a new
+  window (strict popup handling, some installed-PWA contexts), a copy is
+  downloaded instead and a notice says so, so a stored PDF is never
+  unreachable. **PDF.js was NOT added** — no in-repo audit could justify a
+  large viewer dependency before real-device behaviour is observed; the
+  fallback keeps every platform functional. Actual per-platform behaviour
+  (Android browser/PWA, iOS Safari, iOS standalone) requires the manual
+  phone verification steps listed in the Stage 2 report.
+- **Orphan handling** (a state the spanning transactions should make
+  impossible): metadata without a blob row is omitted from the list
+  non-destructively with a console warning; opening a document whose blob
+  turns out missing shows an honest in-UI notice suggesting delete + re-add.
+- The wallet tab id is `wallet`; the compact tab label is **Wallet**, with
+  "Trail Wallet" used in explanatory copy, as approved.
 Scope: a small, offline-first place under **Lists** for a hiker's important
 documents (memberships, tickets, reservations, insurance, route PDFs).
 Deliberately narrow — not a file manager, not cloud storage.

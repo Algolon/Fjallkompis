@@ -3010,6 +3010,120 @@ button.stop-fac:focus-visible {
   align-items: center;
 }
 
+/* --- Trail Wallet (Lists → Wallet) ----------------------------------------- */
+/* Compact document cards on the existing card surface. The whole content
+   region is ONE open button (large primary target); the edit pencil is a
+   separate sibling control (the Packing-row pattern) — never nested
+   interactive elements. Pinned state is signalled by SHAPE + TEXT (the pin
+   glyph and a "Pinned" word in the sub-line), never colour alone. */
+
+.wallet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wallet-list > .card + .card {
+  margin-top: 0; /* the list gap owns the rhythm, like .stack */
+}
+.wallet-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 6px 14px;
+}
+.wallet-card__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px; /* ≥ 44px touch target with breathing room */
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.wallet-card__icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--spruce);
+}
+.wallet-card__main {
+  flex: 1;
+  min-width: 0;
+}
+.wallet-card__title {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.wallet-card__pin {
+  color: var(--spruce);
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+.wallet-card__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.wallet-card__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+.wallet-card__edit {
+  align-self: center;
+}
+
+/* Informational only — must not compete with the actions above it. */
+.wallet-summary {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* Inline validation/save errors inside the editor sheet (role="alert") —
+   the .banner-warn treatment, kept as its own hook for sheet spacing. */
+.wallet-form-error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px solid #dcc4b8;
+  border-radius: var(--r-sm);
+  background: var(--danger-soft);
+  color: #6e4536;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Image viewer: the image scrolls inside the sheet body with native
+   behaviour; never wider than the sheet. */
+.wallet-viewer__frame {
+  margin-top: 12px;
+  overflow: auto;
+}
+.wallet-viewer__frame img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+}
+
 /* --- Context help (info trigger → accessible sheet/dialog) ---------------- */
 /* Quiet, secondary to the heading, but a full 44×44 touch target. */
 .ctx-help {

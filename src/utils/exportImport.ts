@@ -17,13 +17,8 @@ export function buildExport(state: PersistentState): ExportEnvelope {
   };
 }
 
-/** Trigger a text-file download in the browser. */
-export function downloadTextFile(
-  filename: string,
-  text: string,
-  mimeType: string,
-): void {
-  const blob = new Blob([text], { type: mimeType });
+/** Trigger a download of an in-memory Blob (used for Trail Wallet exports). */
+export function downloadBlobFile(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -32,6 +27,15 @@ export function downloadTextFile(
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Trigger a text-file download in the browser. */
+export function downloadTextFile(
+  filename: string,
+  text: string,
+  mimeType: string,
+): void {
+  downloadBlobFile(filename, new Blob([text], { type: mimeType }));
 }
 
 /** Trigger a JSON file download in the browser. */

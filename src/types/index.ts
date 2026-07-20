@@ -605,6 +605,68 @@ export interface RouteExperience {
   confidence: 'high' | 'medium' | 'low';
 }
 
+// ---- Trail Wallet -------------------------------------------------------------
+
+/**
+ * Trail Wallet document categories (Lists → Wallet). Stable ids — display
+ * titles live in WALLET_CATEGORIES (src/wallet/walletModel.mjs).
+ */
+export type WalletCategory =
+  | 'membership'
+  | 'transport'
+  | 'booking'
+  | 'insurance-emergency'
+  | 'route-reference'
+  | 'other';
+
+/** The four supported wallet file formats — nothing else is ever stored. */
+export type WalletMimeType =
+  | 'application/pdf'
+  | 'image/jpeg'
+  | 'image/png'
+  | 'image/webp';
+
+/**
+ * One Trail Wallet document's METADATA. The file itself is a Blob stored
+ * beside it in the same IndexedDB database ('fjallkompis-wallet'), keyed by
+ * the same id — deliberately OUTSIDE PersistentState/localStorage (see
+ * docs/proposals/trail-wallet.md §2): wallet data is self-contained, and the
+ * JSON backup neither carries nor implies carrying these files.
+ *
+ * Future associations (a stop, a physical stage segment, a travel day) are
+ * planned as ADDITIVE optional fields — IndexedDB stores plain objects, and
+ * read-time normalisation preserves unknown fields, so extending this shape
+ * never needs a breaking storage migration. Not implemented or exposed yet.
+ */
+export interface WalletDocument {
+  id: string;
+  title: string;
+  category: WalletCategory;
+  /** Optional ISO date (yyyy-mm-dd) — departure, validity, check-in. Drives sorting. */
+  date?: string;
+  note?: string;
+  pinned: boolean;
+  /** ms epoch. */
+  createdAt: number;
+  /** ms epoch — also the merge key for any future optional sync layer. */
+  updatedAt: number;
+  /** Original filename, kept for re-export. */
+  fileName: string;
+  mimeType: WalletMimeType;
+  sizeBytes: number;
+}
+
+export interface WalletCategoryInfo {
+  id: WalletCategory;
+  title: string;
+}
+
+/** Typed result of validating a candidate file (name/type/size). */
+export type WalletFileValidation =
+  | { ok: true; mimeType: WalletMimeType }
+  | { ok: false; reason: 'unsupported-type' }
+  | { ok: false; reason: 'too-large'; sizeBytes: number; maxBytes: number };
+
 // ---- Packing list -------------------------------------------------------------
 
 export type PackingStatus = 'needed' | 'ready' | 'packed';
