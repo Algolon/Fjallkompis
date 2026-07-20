@@ -79,11 +79,13 @@ export function WalletView() {
 
   /**
    * PDFs, progressive fallback (docs/proposals/trail-wallet.md §4.2):
-   * 1. hand the blob to the platform's own viewer in a new context — fully
-   *    offline, the blob never touches the network;
-   * 2. where the platform refuses a new window (strict popup handling, some
-   *    installed-PWA contexts), download a copy instead so the document is
-   *    NEVER unreachable — and say so.
+   * 1. ATTEMPT to hand the blob to the platform's own viewer in a new
+   *    context — fully offline, the blob never touches the network;
+   * 2. where the browser refuses a new window (strict popup handling, some
+   *    installed-PWA contexts), download a copy automatically — and say so.
+   * A returned window does not guarantee the platform renders the blob PDF;
+   * the edit sheet's separate "Download a copy" action stays available as
+   * the viewer-independent path to the file.
    */
   const openPdf = (doc: WalletDocument, blob: Blob) => {
     const url = URL.createObjectURL(blob);

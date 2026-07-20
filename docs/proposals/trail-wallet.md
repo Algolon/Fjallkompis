@@ -4,16 +4,18 @@ Status: **approved & implemented (v0.21.0)** — all §8 decision points were
 approved as recommended and are reflected in the shipped implementation.
 
 Implementation notes / recorded trade-offs:
-- **PDF opening** uses the progressive fallback from §4.2: the blob is handed
-  to the platform's own viewer via `window.open(objectURL)` (fully offline —
-  the blob never touches the network); when the platform refuses a new
-  window (strict popup handling, some installed-PWA contexts), a copy is
-  downloaded instead and a notice says so, so a stored PDF is never
-  unreachable. **PDF.js was NOT added** — no in-repo audit could justify a
-  large viewer dependency before real-device behaviour is observed; the
-  fallback keeps every platform functional. Actual per-platform behaviour
-  (Android browser/PWA, iOS Safari, iOS standalone) requires the manual
-  phone verification steps listed in the Stage 2 report.
+- **PDF opening** uses the progressive fallback from §4.2: Fjällkompis
+  ATTEMPTS to open the locally stored PDF in the platform viewer via
+  `window.open(objectURL)` (fully offline — the blob never touches the
+  network); when the browser refuses to open a new window, a copy is
+  downloaded automatically and a notice says so. A returned window is not
+  itself a guarantee that every platform renders the blob PDF — which is
+  exactly why the separate **Download a copy** action in the edit sheet
+  remains available as the constant, viewer-independent path to the file.
+  **PDF.js was NOT added** — no in-repo audit could justify a large viewer
+  dependency before real-device behaviour is observed. Actual per-platform
+  behaviour (Android browser/PWA, iOS Safari, iOS standalone) requires the
+  manual phone verification steps listed in the Stage 2 report.
 - **Orphan handling** (a state the spanning transactions should make
   impossible): metadata without a blob row is omitted from the list
   non-destructively with a console warning; opening a document whose blob
@@ -373,9 +375,12 @@ Honest limitations that cannot reasonably be engineered away:
   transparently converted to JPEG, but a HEIC picked from the Files app is
   rejected (unsupported type) with a clear message naming the supported
   formats.
-- **PDF opening on iOS standalone PWAs** lands in an in-app viewer sheet
-  rather than a tab — acceptable, but the "back to app" affordance is
-  iOS's, not ours.
+- **PDF opening on iOS standalone PWAs** is the least predictable flow:
+  the app attempts the platform/browser viewer via a new window and falls
+  back to downloading a copy when the window is refused; how iOS presents
+  the opened blob (and its "back to app" affordance) is iOS's behaviour,
+  not ours, and must be confirmed on a real device. There is no in-app PDF
+  viewer — the in-app viewer sheet exists for images only.
 - **Private browsing:** IndexedDB may be unavailable or ephemeral — probed
   up front, degrades to a notice instead of a broken screen.
 - **Quota exhaustion** on save is caught and surfaced (the origin quota is
