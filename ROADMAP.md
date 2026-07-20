@@ -33,7 +33,10 @@ guide, a packing list (the Daily checklist is archived —
 docs/archived-features/daily-checklist.md), offline shop-info and transport
 reference in Lists (STF cabin-shop assortments with 2025 reference prices;
 route buses, boats and the train as validity-bound 2026 planning snapshots —
-never live), install/update UX, opt-in
+never live), a Trail Wallet in Lists for keeping a few important hiking
+documents (tickets, bookings, memberships, route PDFs) available offline on
+the device (stored in IndexedDB, outside the JSON backup —
+docs/proposals/trail-wallet.md), install/update UX, opt-in
 foreground live tracking (beta) on the Map screen, and local backup/restore. Fjällkompis is one adaptive
 experience: the same URL works on phones (the protected baseline experience,
 portrait-only by design — landscape shows a rotate-to-portrait prompt),

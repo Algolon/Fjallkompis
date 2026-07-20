@@ -517,6 +517,19 @@ by `tests/state-migration.test.mjs` — v3 drops the archived Daily checklist's
 data while preserving everything else, see
 [archived-features/daily-checklist.md](archived-features/daily-checklist.md)).
 
+**Trail Wallet documents** (Lists → Wallet) are the one deliberate exception:
+metadata AND file blobs live together in a dedicated IndexedDB database
+(`fjallkompis-wallet`, two object stores — `documents` and `files` — every
+mutation in one transaction spanning both; `src/wallet/walletStore.mjs`
+behind the pure model `src/wallet/walletModel.mjs`). The wallet is
+self-contained by design: nothing wallet-related enters `PersistentState`,
+the localStorage schema or the JSON backup (binary blobs don't belong in a
+JSON text export, and metadata without its files would import as ghost
+documents on another device — the Settings Backup copy states this).
+Behaviour is tested against real IndexedDB semantics with `fake-indexeddb`
+(`tests/wallet-store.test.mjs`); Settings → Reset local data clears this
+database too. See [proposals/trail-wallet.md](proposals/trail-wallet.md).
+
 ## Stage day-guide data
 
 The Stages screen expands each day into a **curated editorial guide**

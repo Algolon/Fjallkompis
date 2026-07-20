@@ -10,6 +10,29 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-07-20
+
+### Added
+
+- **Trail Wallet** — a new fourth section under **Lists** (Packing / Shops /
+  Transport / **Wallet**) for keeping a small number of important hiking
+  documents available offline during the journey: bus and train tickets, hut
+  bookings, STF membership, insurance references, route PDFs and timetables.
+  Add a PDF, JPG, PNG or WebP file (up to 20 MB each), give it a title,
+  category, optional date and note, pin the ones you need at hand, open it
+  offline (images in an in-app viewer, PDFs in the platform viewer with a
+  download fallback), replace or rename it later, download a copy again, or
+  delete it. Documents sort by usefulness on the trail: pinned first, then
+  upcoming dates (soonest first), undated, and finally expired ones. A quiet
+  footer shows how many documents and how much space they take.
+
+  Documents are stored **locally on this device** in the browser's IndexedDB
+  (never in the cloud, no account, no network) and are deliberately **not
+  part of the JSON backup** — the Backup & restore section and the wallet's
+  own intro say so explicitly. Clearing browser/app data removes them.
+  **Reset local data** in Settings now also removes Trail Wallet documents
+  and says so in its confirmation.
+
 ## [0.20.4] - 2026-07-14
 
 ### Changed

@@ -5,12 +5,13 @@ import { ScreenHeader } from '../components/ui';
 import { IconCheck } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
 import { TransportView, TransportHelp } from '../components/TransportView';
+import { WalletView } from '../components/WalletView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
 import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
 
-/** Lists sub-sections: the packing list plus the two offline reference
- *  sections (Shop info, Transport). */
-export type ListsSection = 'packing' | 'shops' | 'transport';
+/** Lists sub-sections: the packing list plus the offline reference sections
+ *  (Shop info, Transport) and the Trail Wallet document pocket. */
+export type ListsSection = 'packing' | 'shops' | 'transport' | 'wallet';
 
 /**
  * One-shot deep-link into a Lists sub-section (from a Stop's Shop / transport
@@ -413,10 +414,15 @@ function PackingView() {
 
 // ------------------------------------------------------------------- Screen
 
+// Wallet is deliberately LAST: Packing dominates pre-trip preparation, Shops
+// and Transport are the high-frequency on-trail references, and Trail Wallet
+// moments (bus boarding, hut check-in) are discrete and predictable. The
+// compact tab label is "Wallet"; the full "Trail Wallet" name lives in copy.
 const LISTS_TABS: { id: ListsSection; label: string }[] = [
   { id: 'packing', label: 'Packing' },
   { id: 'shops', label: 'Shops' },
   { id: 'transport', label: 'Transport' },
+  { id: 'wallet', label: 'Wallet' },
 ];
 
 const LISTS_HEADER: Record<ListsSection, string> = {
@@ -426,6 +432,8 @@ const LISTS_HEADER: Record<ListsSection, string> = {
     'Compare the shop types relevant to this route and see what STF Large and Small cabin shops normally carry. Assortments and prices are planning references, not live stock.',
   transport:
     'Buses, boats and the train for this route — static 2026 planning snapshots, always confirmed against the official source.',
+  wallet:
+    'Trail Wallet keeps your tickets, bookings and other hiking documents stored locally on this device and available offline. Clearing the browser’s or app’s data also removes these documents.',
 };
 
 /** Which section a one-shot deep link opens (defaults to Packing). */
@@ -477,6 +485,7 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
           initialContext={deepLink?.transportContext}
         />
       ) : null}
+      {mode === 'wallet' ? <WalletView /> : null}
     </div>
   );
 }
