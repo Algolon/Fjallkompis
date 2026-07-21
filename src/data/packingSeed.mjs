@@ -37,7 +37,7 @@ const item = (categoryId, slug, label, opts = {}) => ({
 
 export const SEED_PACKING_ITEMS = [
   // Backpack & carrying
-  item('backpack', 'backpack', 'Backpack 50–65 l', { essential: true }),
+  item('backpack', 'backpack', 'Backpack (37–42 L)', { essential: true }),
   item('backpack', 'rain-cover', 'Backpack rain cover', { essential: true }),
   item('backpack', 'dry-bags', 'Dry bags / pack liners', { quantity: 3 }),
   item('backpack', 'daypack', 'Packable daypack (Kebnekaise day)'),
@@ -51,10 +51,10 @@ export const SEED_PACKING_ITEMS = [
   // Clothing
   item('clothing', 'base-layers', 'Base layers (top + bottom)', { quantity: 2, essential: true }),
   item('clothing', 'hiking-trousers', 'Hiking trousers', { essential: true }),
-  item('clothing', 'hiking-shirts', 'Hiking shirts', { quantity: 2 }),
+  item('clothing', 'hiking-shirts', 'Hiking shirts', { quantity: 3 }),
   item('clothing', 'fleece', 'Fleece / midlayer', { essential: true }),
-  item('clothing', 'underwear', 'Underwear', { quantity: 4 }),
-  item('clothing', 'hiking-socks', 'Hiking socks', { quantity: 3, essential: true }),
+  item('clothing', 'underwear', 'Underwear', { quantity: 7 }),
+  item('clothing', 'hiking-socks', 'Hiking socks', { quantity: 5, essential: true }),
   item('clothing', 'warm-hat', 'Warm hat', { essential: true }),
   item('clothing', 'gloves', 'Gloves', { essential: true }),
   item('clothing', 'buff', 'Buff / neck gaiter'),
@@ -66,7 +66,6 @@ export const SEED_PACKING_ITEMS = [
 
   // Footwear
   item('footwear', 'boots', 'Hiking boots (broken in)', { essential: true }),
-  item('footwear', 'gaiters', 'Gaiters'),
   item('footwear', 'blister-tape', 'Blister tape / plasters', { essential: true }),
 
   // Navigation & safety
@@ -79,7 +78,8 @@ export const SEED_PACKING_ITEMS = [
   item('navigation-safety', 'knife', 'Knife / multitool'),
 
   // Food & water
-  item('food-water', 'water-bottles', 'Water bottles / bladder (≥1.5 l)', { essential: true }),
+  item('food-water', 'water-bottles', 'Water bottle (1 L)', { essential: true }),
+  item('food-water', 'freeze-dried-meals', 'Freeze-dried meals', { quantity: 6 }),
   item('food-water', 'trail-snacks', 'Trail snacks (per day)', { quantity: 7, essential: true }),
   item('food-water', 'emergency-food', 'Emergency food (1 day)', { essential: true }),
   item('food-water', 'lunch-food', 'Lunch food between shops', { quantity: 3 }),
@@ -109,7 +109,7 @@ export const SEED_PACKING_ITEMS = [
 
   // Optional comfort
   item('comfort', 'trekking-poles', 'Trekking poles'),
-  item('comfort', 'sit-pad', 'Sit pad'),
+  item('comfort', 'compact-chair', 'Compact chair'),
   item('comfort', 'book-cards', 'Book / cards for hut evenings'),
   item('comfort', 'sauna-swimwear', 'Swimwear (saunas & lakes)'),
 ];

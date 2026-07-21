@@ -10,6 +10,25 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-07-21
+
+### Changed
+
+- Default packing list tuned for a typical hut-to-hut Kungsleden hike:
+  backpack sized down to 37–42 L, more hiking shirts (×3), underwear (×7)
+  and hiking socks (×5), a 1 L water bottle instead of bottles/bladder
+  (≥1.5 l), and a compact chair instead of the sit pad. Your own statuses,
+  quantities and weights are kept.
+
+### Added
+
+- **Freeze-dried meals ×6** under Food & water.
+
+### Removed
+
+- **Gaiters** — with high hiking boots they add weight without enough
+  benefit to be part of the default kit.
+
 ## [0.21.0] - 2026-07-20
 
 ### Added
