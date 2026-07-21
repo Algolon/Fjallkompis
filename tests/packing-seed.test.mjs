@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   PACKING_CATEGORIES,
   PACKING_TEMPLATE_VERSION,
+  RETIRED_SEED_IDS,
   SEED_ID_REPLACEMENTS,
   SEED_PACKING_ITEMS,
 } from '../src/data/packingSeed.mjs';
@@ -62,15 +63,16 @@ const V2_ADDITIONS = [
   ['pack.navigation-safety.spare-shoelace', 'Spare shoelace', false, 1],
   ['pack.navigation-safety.spare-buckle', 'Compatible spare backpack buckle', false, 1],
   ['pack.food-water.gas-stove', 'Compact screw-on gas stove', false, 1],
-  ['pack.food-water.stove-adapter', 'Compatible stove adapter / connector', false, 1],
+  ['pack.food-water.stove-adapter', 'Stove adapter / connector (only if required)', false, 1],
   ['pack.food-water.gas-canister', 'EN417 gas canister (100–110 g)', false, 1],
   ['pack.food-water.cook-pot', 'Cook pot with lid (750–900 ml)', false, 1],
   ['pack.food-water.long-spoon', 'Long-handled spoon / spork', false, 1],
   ['pack.food-water.lighter', 'Small lighter', false, 1],
   ['pack.food-water.cleaning-cloth', 'Small cleaning cloth', false, 1],
   ['pack.food-water.waste-bags', 'Waste bags', true, 3],
-  ['pack.hygiene-first-aid.personal-medication', 'Personal medication + reserve', true, 1],
-  ['pack.hygiene-first-aid.first-aid-refill', 'Walking first-aid refill kit', true, 1],
+  // Conditional default: needing medication is a personal medical fact, so
+  // the generic template must not open with an impossible essential warning.
+  ['pack.hygiene-first-aid.personal-medication', 'Personal medication + reserve (if applicable)', false, 1],
   ['pack.hygiene-first-aid.tweezers-tick-remover', 'Tweezers + tick remover', false, 1],
 ];
 
@@ -92,8 +94,28 @@ test('label updates: gloves include the dry spare pair (×2), first aid kit rena
   assert.equal(gloves.quantity, 2, 'one active pair + one dry spare pair');
   assert.equal(gloves.essential, true);
   const firstAid = byId.get('pack.navigation-safety.first-aid');
-  assert.equal(firstAid.label, 'Walking first aid kit');
+  assert.equal(firstAid.label, 'Walking first aid kit (complete and replenished)');
   assert.equal(firstAid.essential, true);
+});
+
+test('exactly ONE first-aid kit concept: the refill item is retired', () => {
+  assert.ok(!byId.has('pack.hygiene-first-aid.first-aid-refill'));
+  assert.ok(RETIRED_SEED_IDS.includes('pack.hygiene-first-aid.first-aid-refill'));
+  const kitLabels = SEED_PACKING_ITEMS.filter((i) =>
+    i.label.toLowerCase().includes('first aid') || i.label.toLowerCase().includes('first-aid'),
+  );
+  assert.equal(kitLabels.length, 1, 'only one first-aid kit item in the template');
+});
+
+test('no retired id also exists in the seed or as a replacement source/target', () => {
+  for (const id of RETIRED_SEED_IDS) {
+    assert.ok(!byId.has(id), `retired id ${id} must not remain in the seed`);
+    assert.ok(!(id in SEED_ID_REPLACEMENTS), `retired id ${id} must not be a replacement source`);
+    assert.ok(
+      !Object.values(SEED_ID_REPLACEMENTS).includes(id),
+      `retired id ${id} must not be a replacement target`,
+    );
+  }
 });
 
 test('kept items still exist once — no duplicated concepts were added', () => {

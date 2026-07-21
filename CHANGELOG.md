@@ -15,16 +15,17 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 ### Added
 
 - **Cooking, emergency and repair gear in the default packing list.** New
-  defaults for the stove kit (compact screw-on gas stove, adapter, EN417
-  canister 100–110 g — bought in Sweden, canisters can't fly — cook pot with
-  lid, long spoon, lighter, cleaning cloth, waste bags), a small repair kit
-  (repair tape, gear patches, zip ties ×4, utility cord, needle + thread,
-  spare shoelace, spare buckle), safer navigation extras (emergency bivvy /
-  survival bag replacing the emergency blanket, waterproof map case, backup
-  flashlight) and first-aid completions (personal medication + reserve,
-  walking first-aid refill kit, tweezers + tick remover). Existing users
-  receive each new item exactly once; blanket progress carries onto the
-  bivvy.
+  defaults for the stove kit (compact screw-on gas stove, adapter — "only if
+  required", EN417 canister 100–110 g — bought in Sweden, canisters can't
+  fly — cook pot with lid, long spoon, lighter, cleaning cloth, waste bags),
+  a small repair kit (repair tape, gear patches, zip ties ×4, utility cord,
+  needle + thread, spare shoelace, spare buckle), safer navigation extras
+  (emergency bivvy / survival bag replacing the emergency blanket,
+  waterproof map case, backup flashlight) and first-aid completions
+  (personal medication + reserve "if applicable", tweezers + tick remover).
+  Existing users receive each new item exactly once; blanket progress
+  (status and quantity — not its entered weight, the bivvy is a different
+  product) carries onto the bivvy.
 
 ### Changed
 
@@ -41,7 +42,8 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 - Deleting a packing item now confirms through the app's accessible dialog
   (naming the exact item) instead of the browser's native popup.
 - `Gloves` is now `Gloves + dry spare pair` (×2) and the first aid kit is
-  labelled `Walking first aid kit`.
+  labelled `Walking first aid kit (complete and replenished)` — one item to
+  pack and top up, never two competing kits.
 
 ## [0.21.1] - 2026-07-21
 

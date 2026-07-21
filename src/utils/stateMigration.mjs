@@ -35,7 +35,8 @@
  *     was last reconciled with. Payloads WITHOUT it (every pre-v5 user) run
  *     the legacy seed-merge exactly once against the current template — that
  *     is how existing users receive the template-v2 additions — and retired
- *     ids listed in SEED_ID_REPLACEMENTS carry their status/quantity/weight
+ *     ids listed in SEED_ID_REPLACEMENTS carry their user progress (status,
+ *     quantity — never the entered weight, the physical product changed)
  *     onto their replacement (emergency blanket → emergency bivvy), never
  *     leaving both behind. Payloads WITH it are user-owned and are never
  *     re-merged, so a deleted seed item stays deleted.
@@ -45,6 +46,7 @@
  */
 import {
   PACKING_TEMPLATE_VERSION,
+  RETIRED_SEED_IDS,
   SEED_ID_REPLACEMENTS,
   SEED_PACKING_ITEMS,
 } from '../data/packingSeed.mjs';
@@ -113,11 +115,15 @@ function ownedTemplateVersion(raw) {
  */
 function normalizeOwnedPacking(raw) {
   if (!Array.isArray(raw)) return seedPackingItems();
+  const retired = new Set(RETIRED_SEED_IDS);
   const out = [];
   const seen = new Set();
   for (const entry of raw) {
     if (!isObject(entry) || typeof entry.id !== 'string' || entry.id === '') continue;
     if (seen.has(entry.id)) continue;
+    // Ids withdrawn before their template ever shipped (development-only
+    // snapshots) are cleaned up here; user-created items are never touched.
+    if (retired.has(entry.id) && entry.custom !== true) continue;
     const label = typeof entry.label === 'string' ? entry.label.trim() : '';
     if (label === '') continue;
     seen.add(entry.id);
@@ -152,9 +158,10 @@ function normalizeOwnedPacking(raw) {
  *     come from the seed (final wording propagation), status/quantity/weight
  *     from the persisted item when valid. This is also how an existing user
  *     receives the template-v2 additions.
- *   - Retired ids in SEED_ID_REPLACEMENTS hand their status/quantity/weight
- *     to their replacement item, so emergency-blanket progress survives on
- *     the emergency bivvy without a duplicate.
+ *   - Retired ids in SEED_ID_REPLACEMENTS hand their status and quantity to
+ *     their replacement item (never the entered weight — the replacement is
+ *     a different physical product), so emergency-blanket progress survives
+ *     on the emergency bivvy without a duplicate.
  *   - Custom items are kept when well-formed; unknown categories fall back to
  *     'comfort'. Other unknown non-custom ids are retired seed items → drop.
  * Malformed entries are silently dropped — never a crash.
@@ -167,10 +174,16 @@ function migrateLegacyPacking(raw) {
     }
   }
 
-  const carryTo = new Map(); // replacement id → persisted entry of the retired id
+  // Replacement id → the retired item's USER PROGRESS only (status, and
+  // quantity — which this merge treats as user data). weightGrams is
+  // deliberately NOT carried: a replacement means a materially different
+  // physical product (blanket → bivvy), so the old item's entered weight
+  // would be wrong data, and an absent weight correctly keeps the "weight is
+  // incomplete" accounting honest.
+  const carryTo = new Map();
   for (const [oldId, newId] of Object.entries(SEED_ID_REPLACEMENTS)) {
     const old = persisted.get(oldId);
-    if (old) carryTo.set(newId, old);
+    if (old) carryTo.set(newId, { status: old.status, quantity: old.quantity });
   }
 
   const out = seedPackingItems().map((seed) => {

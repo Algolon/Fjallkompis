@@ -18,13 +18,32 @@
  */
 
 /**
- * Template generation. Bump when the default template changes in a way that
- * existing users should receive (new items, replacements); pair every bump
- * with a migration step in src/utils/stateMigration.mjs.
+ * Template generation.
+ *
+ * MAINTENANCE CONTRACT — read before touching the seed:
+ *  - Bumping PACKING_TEMPLATE_VERSION alone does NOT update existing users:
+ *    their snapshot is user-owned and is never re-merged with this seed.
+ *    Every template change that should reach existing users needs an
+ *    explicit, idempotent migration step in src/utils/stateMigration.mjs,
+ *    keyed on this version (add new ids once, map replacements once).
+ *  - Purely editorial wording tweaks to seed labels should normally NOT be
+ *    pushed to existing users at all — their (possibly renamed) labels are
+ *    personal data. Wording tweaks reach fresh installs and "Restore default
+ *    list" only.
+ *
  *  v1 — the original seed-merge era (packing rebuilt from the seed on load).
  *  v2 — user-owned packing snapshot + cooking/emergency/repair expansion.
  */
 export const PACKING_TEMPLATE_VERSION = 2;
+
+/**
+ * Seed ids that briefly existed in UNPUBLISHED revisions of a template and
+ * were withdrawn before release (e.g. the separate first-aid refill kit that
+ * was folded into the main first aid kit during review). Owned snapshots
+ * created from those revisions drop these on load; released-template
+ * retirements with user progress use SEED_ID_REPLACEMENTS instead.
+ */
+export const RETIRED_SEED_IDS = ['pack.hygiene-first-aid.first-aid-refill'];
 
 /**
  * Retired seed id → replacement seed id. A replacement means the *meaning*
@@ -101,7 +120,7 @@ export const SEED_PACKING_ITEMS = [
   // Navigation & safety
   item('navigation-safety', 'paper-map', 'Paper map (Abisko–Kebnekaise)', { essential: true }),
   item('navigation-safety', 'compass', 'Compass', { essential: true }),
-  item('navigation-safety', 'first-aid', 'Walking first aid kit', { essential: true }),
+  item('navigation-safety', 'first-aid', 'Walking first aid kit (complete and replenished)', { essential: true }),
   item('navigation-safety', 'whistle', 'Emergency whistle', { essential: true }),
   item('navigation-safety', 'headlamp', 'Headlamp'),
   // Replaces the v1 emergency blanket (see SEED_ID_REPLACEMENTS).
@@ -131,7 +150,7 @@ export const SEED_PACKING_ITEMS = [
   // top-mounted canister. The adapter only matters when the chosen stove
   // needs one — test the combination before the trip.
   item('food-water', 'gas-stove', 'Compact screw-on gas stove'),
-  item('food-water', 'stove-adapter', 'Compatible stove adapter / connector'),
+  item('food-water', 'stove-adapter', 'Stove adapter / connector (only if required)'),
   item('food-water', 'gas-canister', 'EN417 gas canister (100–110 g)'),
   item('food-water', 'cook-pot', 'Cook pot with lid (750–900 ml)'),
   item('food-water', 'long-spoon', 'Long-handled spoon / spork'),
@@ -147,10 +166,9 @@ export const SEED_PACKING_ITEMS = [
   item('hygiene-first-aid', 'soap', 'Biodegradable soap'),
   item('hygiene-first-aid', 'toilet-paper', 'Toilet paper + trowel'),
   item('hygiene-first-aid', 'painkillers', 'Painkillers'),
-  item('hygiene-first-aid', 'personal-medication', 'Personal medication + reserve', { essential: true }),
-  // One refill kit, deliberately not itemised: wound dressings, non-stick
-  // pads, wound cleaning, elastic bandage and nitrile gloves.
-  item('hygiene-first-aid', 'first-aid-refill', 'Walking first-aid refill kit', { essential: true }),
+  // Conditional default: essential is a personal medical fact, so the generic
+  // template must not start every user with an impossible essential warning.
+  item('hygiene-first-aid', 'personal-medication', 'Personal medication + reserve (if applicable)'),
   item('hygiene-first-aid', 'tweezers-tick-remover', 'Tweezers + tick remover'),
 
   // Electronics

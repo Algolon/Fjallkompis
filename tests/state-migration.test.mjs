@@ -289,13 +289,17 @@ test('legacy payload (no template version): new template items arrive exactly on
   assert.equal(s.packing.find((i) => i.id === 'pack.clothing.fleece').status, 'ready');
 });
 
-test('legacy payload: emergency blanket state carries onto the bivvy, no duplicate', () => {
+test('legacy payload: blanket progress carries onto the bivvy — but never its weight', () => {
+  // The fixture's blanket carries an entered weight (60 g). The bivvy is a
+  // materially different physical product, so only user PROGRESS transfers:
+  // status and quantity survive, the weight must NOT — the bivvy starts with
+  // no weight so the "weight is incomplete" accounting stays honest.
   const s = normalizeState(legacyStateWithBlanket());
   const bivvy = s.packing.find((i) => i.id === BIVVY_ID);
   assert.ok(bivvy, 'bivvy exists after migration');
   assert.equal(bivvy.status, 'packed', 'blanket status carried over');
-  assert.equal(bivvy.quantity, 1);
-  assert.equal(bivvy.weightGrams, 60, 'user-entered blanket weight carried over');
+  assert.equal(bivvy.quantity, 1, 'blanket quantity carried over');
+  assert.ok(!('weightGrams' in bivvy), 'blanket weight is NOT carried onto the bivvy');
   assert.equal(bivvy.essential, true, 'bivvy keeps its seed essential flag');
   assert.ok(!s.packing.some((i) => i.id === BLANKET_ID), 'old blanket id is gone');
 });
@@ -384,6 +388,27 @@ test('a template version from the future clamps; items are kept as-is', () => {
   });
   assert.equal(out.packingTemplateVersion, PACKING_TEMPLATE_VERSION);
   assert.ok(out.packing.some((i) => i.id === 'pack.future.widget'));
+});
+
+test('owned payload: withdrawn development-only seed ids are cleaned up', () => {
+  // A snapshot created while an unpublished template revision still carried
+  // the separate first-aid refill item drops it on load — idempotently, and
+  // without touching a user-created item that happens to share the id.
+  const raw = {
+    packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    packing: [
+      { id: 'pack.hygiene-first-aid.first-aid-refill', label: 'Walking first-aid refill kit', categoryId: 'hygiene-first-aid', quantity: 1, status: 'packed', essential: true, custom: false },
+      { id: 'pack.navigation-safety.first-aid', label: 'Walking first aid kit', categoryId: 'navigation-safety', quantity: 1, status: 'ready', essential: true, custom: false },
+    ],
+  };
+  const once = normalizeState(raw);
+  assert.ok(
+    !once.packing.some((i) => i.id === 'pack.hygiene-first-aid.first-aid-refill'),
+    'retired dev-only id removed',
+  );
+  assert.equal(once.packing.find((i) => i.id === 'pack.navigation-safety.first-aid').status, 'ready');
+  const twice = normalizeState(JSON.parse(JSON.stringify(once)));
+  assert.deepEqual(twice, once, 'cleanup is idempotent');
 });
 
 test('invalid template version values take the legacy path', () => {

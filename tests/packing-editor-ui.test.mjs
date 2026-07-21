@@ -82,10 +82,30 @@ test('the ambiguous "Reset packing list" action is gone; two distinct actions ex
 test('the shared ConfirmDialog is accessible and reused by Settings', () => {
   assert.match(confirmDialog, /role="dialog"/);
   assert.match(confirmDialog, /aria-modal="true"/);
-  assert.match(confirmDialog, /aria-labelledby="confirm-title"/);
+  // Unique per-instance ids via useId — never fixed global id strings.
+  assert.match(confirmDialog, /useId\(\)/);
+  assert.match(confirmDialog, /aria-labelledby=\{titleId\}/);
+  assert.match(confirmDialog, /aria-describedby=\{bodyId\}/);
   assert.match(confirmDialog, /destructive \? 'btn-danger' : 'btn-primary'/);
   assert.match(settings, /import \{ ConfirmDialog \} from '\.\.\/components\/ConfirmDialog'/);
   assert.ok(!/function ConfirmDialog/.test(settings), 'Settings no longer defines its own copy');
+});
+
+test('ConfirmDialog manages focus: capture, trap, and restore on close', () => {
+  // Remembers the opener element and restores focus in the effect cleanup.
+  assert.match(confirmDialog, /document\.activeElement instanceof HTMLElement/);
+  assert.match(confirmDialog, /opener\?\.focus\(\)/);
+  // Initial focus lands on the primary action; Escape cancels.
+  assert.match(confirmDialog, /confirmRef\.current\?\.focus\(\)/);
+  assert.match(confirmDialog, /e\.key === 'Escape'/);
+  // A local Tab/Shift+Tab trap keeps keyboard focus inside the dialog.
+  assert.match(confirmDialog, /e\.key !== 'Tab'/);
+  assert.match(confirmDialog, /e\.shiftKey/);
+  assert.match(confirmDialog, /last\.focus\(\)/);
+  assert.match(confirmDialog, /first\.focus\(\)/);
+  // Backdrop cancels; clicks inside the dialog never bubble to the backdrop.
+  assert.match(confirmDialog, /className="confirm-backdrop" onClick/);
+  assert.match(confirmDialog, /stopPropagation/);
 });
 
 test('store contract: delete works for every item; helpers come from packingModel', () => {
