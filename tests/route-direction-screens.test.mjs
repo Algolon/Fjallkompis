@@ -77,8 +77,12 @@ test('Settings confirms a consequential direction change and never the active on
   assert.match(settings, /Change route direction\?/);
   assert.match(settings, /packing list, journal and stop notes will stay unchanged/);
   assert.match(settings, /primaryLabel="Change direction"/);
-  assert.match(settings, /role="dialog"/);
-  assert.match(settings, /aria-modal="true"/);
+  // The dialog itself is the shared accessible ConfirmDialog component
+  // (extracted so the packing editor can reuse it).
+  assert.match(settings, /import \{ ConfirmDialog \} from '\.\.\/components\/ConfirmDialog'/);
+  const dialog = readFileSync(join(root, 'src/components/ConfirmDialog.tsx'), 'utf8');
+  assert.match(dialog, /role="dialog"/);
+  assert.match(dialog, /aria-modal="true"/);
 });
 
 // ---- Screens consume the active itinerary -----------------------------------

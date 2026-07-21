@@ -6,8 +6,36 @@
  * through Vite exactly the same way.
  *
  * IDs are stable slugs: persisted status/quantity/weight is keyed by id and
- * must survive label tweaks. If an item's *meaning* changes, give it a new id.
+ * must survive label tweaks. If an item's *meaning* changes, give it a new id
+ * and record the old→new mapping in SEED_ID_REPLACEMENTS so an existing
+ * user's progress carries over exactly once during migration.
+ *
+ * PACKING_TEMPLATE_VERSION marks the generation of this template. Since v2
+ * the persisted packing array is a fully user-owned snapshot (renames,
+ * category moves and deletions of seed items all stick); template changes
+ * reach existing users only through an explicit migration step keyed on this
+ * version — never by re-merging the seed on load.
  */
+
+/**
+ * Template generation. Bump when the default template changes in a way that
+ * existing users should receive (new items, replacements); pair every bump
+ * with a migration step in src/utils/stateMigration.mjs.
+ *  v1 — the original seed-merge era (packing rebuilt from the seed on load).
+ *  v2 — user-owned packing snapshot + cooking/emergency/repair expansion.
+ */
+export const PACKING_TEMPLATE_VERSION = 2;
+
+/**
+ * Retired seed id → replacement seed id. A replacement means the *meaning*
+ * changed (per the id contract above); migration carries the user's
+ * status/quantity/weight from the old item onto the new one exactly once and
+ * never leaves both behind.
+ */
+export const SEED_ID_REPLACEMENTS = {
+  // v2: the emergency blanket became a proper emergency bivvy / survival bag.
+  'pack.navigation-safety.emergency-blanket': 'pack.navigation-safety.emergency-bivvy',
+};
 
 export const PACKING_CATEGORIES = [
   { id: 'backpack', title: 'Backpack & carrying' },
@@ -56,7 +84,9 @@ export const SEED_PACKING_ITEMS = [
   item('clothing', 'underwear', 'Underwear', { quantity: 7 }),
   item('clothing', 'hiking-socks', 'Hiking socks', { quantity: 5, essential: true }),
   item('clothing', 'warm-hat', 'Warm hat', { essential: true }),
-  item('clothing', 'gloves', 'Gloves', { essential: true }),
+  // quantity 2 = one active pair + one dry spare pair; an entered weight is
+  // per pair, so the weight total (weight × quantity) stays honest.
+  item('clothing', 'gloves', 'Gloves + dry spare pair', { quantity: 2, essential: true }),
   item('clothing', 'buff', 'Buff / neck gaiter'),
 
   // Rain & insulation
@@ -71,11 +101,23 @@ export const SEED_PACKING_ITEMS = [
   // Navigation & safety
   item('navigation-safety', 'paper-map', 'Paper map (Abisko–Kebnekaise)', { essential: true }),
   item('navigation-safety', 'compass', 'Compass', { essential: true }),
-  item('navigation-safety', 'first-aid', 'First aid kit', { essential: true }),
+  item('navigation-safety', 'first-aid', 'Walking first aid kit', { essential: true }),
   item('navigation-safety', 'whistle', 'Emergency whistle', { essential: true }),
   item('navigation-safety', 'headlamp', 'Headlamp'),
-  item('navigation-safety', 'emergency-blanket', 'Emergency blanket'),
+  // Replaces the v1 emergency blanket (see SEED_ID_REPLACEMENTS).
+  item('navigation-safety', 'emergency-bivvy', 'Emergency bivvy / survival bag', { essential: true }),
+  item('navigation-safety', 'map-case', 'Waterproof map case', { essential: true }),
+  item('navigation-safety', 'backup-flashlight', 'Backup flashlight (100–200 lm)'),
   item('navigation-safety', 'knife', 'Knife / multitool'),
+  // Repair kit — deliberately small: tape, patches, plain plastic zip ties,
+  // needle/thread and the two failure-prone spares (lace, buckle).
+  item('navigation-safety', 'repair-tape', 'Repair tape', { essential: true }),
+  item('navigation-safety', 'gear-patches', 'Self-adhesive gear patches'),
+  item('navigation-safety', 'zip-ties', 'Tiewraps / zip ties', { quantity: 4 }),
+  item('navigation-safety', 'utility-cord', 'Utility cord (4–6 m, 2–3 mm)'),
+  item('navigation-safety', 'needle-thread', 'Needle + strong thread'),
+  item('navigation-safety', 'spare-shoelace', 'Spare shoelace'),
+  item('navigation-safety', 'spare-buckle', 'Compatible spare backpack buckle'),
 
   // Food & water
   item('food-water', 'water-bottles', 'Water bottle (1 L)', { essential: true }),
@@ -84,6 +126,18 @@ export const SEED_PACKING_ITEMS = [
   item('food-water', 'emergency-food', 'Emergency food (1 day)', { essential: true }),
   item('food-water', 'lunch-food', 'Lunch food between shops', { quantity: 3 }),
   item('food-water', 'thermos', 'Thermos'),
+  // Cooking set — EN417 screw-on stove; the canister is bought in Sweden
+  // (canisters cannot fly). No windscreen: one could dangerously enclose a
+  // top-mounted canister. The adapter only matters when the chosen stove
+  // needs one — test the combination before the trip.
+  item('food-water', 'gas-stove', 'Compact screw-on gas stove'),
+  item('food-water', 'stove-adapter', 'Compatible stove adapter / connector'),
+  item('food-water', 'gas-canister', 'EN417 gas canister (100–110 g)'),
+  item('food-water', 'cook-pot', 'Cook pot with lid (750–900 ml)'),
+  item('food-water', 'long-spoon', 'Long-handled spoon / spork'),
+  item('food-water', 'lighter', 'Small lighter'),
+  item('food-water', 'cleaning-cloth', 'Small cleaning cloth'),
+  item('food-water', 'waste-bags', 'Waste bags', { quantity: 3, essential: true }),
 
   // Hygiene & first aid
   item('hygiene-first-aid', 'toothbrush', 'Toothbrush + paste', { essential: true }),
@@ -93,6 +147,11 @@ export const SEED_PACKING_ITEMS = [
   item('hygiene-first-aid', 'soap', 'Biodegradable soap'),
   item('hygiene-first-aid', 'toilet-paper', 'Toilet paper + trowel'),
   item('hygiene-first-aid', 'painkillers', 'Painkillers'),
+  item('hygiene-first-aid', 'personal-medication', 'Personal medication + reserve', { essential: true }),
+  // One refill kit, deliberately not itemised: wound dressings, non-stick
+  // pads, wound cleaning, elastic bandage and nitrile gloves.
+  item('hygiene-first-aid', 'first-aid-refill', 'Walking first-aid refill kit', { essential: true }),
+  item('hygiene-first-aid', 'tweezers-tick-remover', 'Tweezers + tick remover'),
 
   // Electronics
   item('electronics', 'phone', 'Phone (offline maps installed)', { essential: true }),

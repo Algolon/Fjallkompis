@@ -10,6 +10,39 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-07-22
+
+### Added
+
+- **Cooking, emergency and repair gear in the default packing list.** New
+  defaults for the stove kit (compact screw-on gas stove, adapter, EN417
+  canister 100–110 g — bought in Sweden, canisters can't fly — cook pot with
+  lid, long spoon, lighter, cleaning cloth, waste bags), a small repair kit
+  (repair tape, gear patches, zip ties ×4, utility cord, needle + thread,
+  spare shoelace, spare buckle), safer navigation extras (emergency bivvy /
+  survival bag replacing the emergency blanket, waterproof map case, backup
+  flashlight) and first-aid completions (personal medication + reserve,
+  walking first-aid refill kit, tweezers + tick remover). Existing users
+  receive each new item exactly once; blanket progress carries onto the
+  bivvy.
+
+### Changed
+
+- **Every packing item is now yours to edit.** The packing list is a fully
+  personal copy: any item — default or custom — can be renamed, moved to
+  another category, re-weighted, marked essential and deleted, from the same
+  inline editor. Renames and deletions of default items now survive reload
+  (persisted schema v5 with a packing template version; existing statuses,
+  quantities, weights and custom items are preserved on upgrade).
+- The single "Reset packing list" action is split into two clear actions:
+  **Reset progress** (all statuses back to "Needed", every item and edit
+  kept) and **Restore default list** (destructive: back to the default
+  template, with a stronger confirmation).
+- Deleting a packing item now confirms through the app's accessible dialog
+  (naming the exact item) instead of the browser's native popup.
+- `Gloves` is now `Gloves + dry spare pair` (×2) and the first aid kit is
+  labelled `Walking first aid kit`.
+
 ## [0.21.1] - 2026-07-21
 
 ### Changed
