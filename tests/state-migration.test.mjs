@@ -15,7 +15,11 @@ import {
   normalizeState,
   seedPackingItems,
 } from '../src/utils/stateMigration.mjs';
-import { PACKING_CATEGORIES, SEED_PACKING_ITEMS } from '../src/data/packingSeed.mjs';
+import {
+  PACKING_CATEGORIES,
+  PACKING_TEMPLATE_VERSION,
+  SEED_PACKING_ITEMS,
+} from '../src/data/packingSeed.mjs';
 
 /** A realistic schema v1 blob, as the old app persisted it. */
 const V1_STATE = {
@@ -43,13 +47,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 4', () => {
-  assert.equal(SCHEMA_VERSION, 4);
+test('schema version is 5', () => {
+  assert.equal(SCHEMA_VERSION, 5);
 });
 
-test('v1 → v4: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v5: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 4);
+  assert.equal(s.schemaVersion, 5);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -182,7 +186,7 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 4);
+    assert.equal(s.schemaVersion, 5);
     assert.equal(s.currentStageId, 'd1');
     assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
@@ -197,7 +201,7 @@ test('v3 → v4: older state without routeDirection defaults to forward', () => 
   // A realistic v3 payload never carried a direction field.
   const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
   const s = normalizeState(v3);
-  assert.equal(s.schemaVersion, 4);
+  assert.equal(s.schemaVersion, 5);
   assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
   // Unrelated data survives untouched.
   assert.equal(s.currentStageId, 'd5');
@@ -234,6 +238,188 @@ test('non-custom unknown packing ids (retired seed items) are dropped', () => {
     packing: [{ id: 'pack.retired.item', status: 'packed', custom: false }],
   });
   assert.ok(!s.packing.some((i) => i.id === 'pack.retired.item'));
+});
+
+// ---- Packing template v2: user-owned snapshot (v4 → v5) ---------------------
+
+const BIVVY_ID = 'pack.navigation-safety.emergency-bivvy';
+const BLANKET_ID = 'pack.navigation-safety.emergency-blanket';
+
+/** A realistic pre-v5 payload: no packingTemplateVersion, old blanket state. */
+function legacyStateWithBlanket() {
+  return {
+    schemaVersion: 4,
+    currentStageId: 'd2',
+    hutData: {},
+    journal: [],
+    packing: [
+      { id: BLANKET_ID, status: 'packed', quantity: 1, weightGrams: 60, custom: false },
+      { id: 'pack.clothing.fleece', status: 'ready', quantity: 1, custom: false },
+      {
+        id: 'custom_rod',
+        label: 'Fishing rod',
+        categoryId: 'comfort',
+        quantity: 1,
+        status: 'needed',
+        essential: false,
+        custom: true,
+      },
+    ],
+  };
+}
+
+test('defaultState records the current packing template version', () => {
+  assert.equal(defaultState('d1').packingTemplateVersion, PACKING_TEMPLATE_VERSION);
+  assert.ok(PACKING_TEMPLATE_VERSION >= 2);
+});
+
+test('legacy payload (no template version): new template items arrive exactly once', () => {
+  const s = normalizeState(legacyStateWithBlanket());
+  assert.equal(s.packingTemplateVersion, PACKING_TEMPLATE_VERSION);
+  for (const seed of SEED_PACKING_ITEMS) {
+    assert.equal(
+      s.packing.filter((i) => i.id === seed.id).length,
+      1,
+      `seed item ${seed.id} present exactly once`,
+    );
+  }
+  // Custom item rides along untouched.
+  assert.ok(s.packing.some((i) => i.id === 'custom_rod'));
+  // Existing statuses survive the merge.
+  assert.equal(s.packing.find((i) => i.id === 'pack.clothing.fleece').status, 'ready');
+});
+
+test('legacy payload: blanket progress carries onto the bivvy — but never its weight', () => {
+  // The fixture's blanket carries an entered weight (60 g). The bivvy is a
+  // materially different physical product, so only user PROGRESS transfers:
+  // status and quantity survive, the weight must NOT — the bivvy starts with
+  // no weight so the "weight is incomplete" accounting stays honest.
+  const s = normalizeState(legacyStateWithBlanket());
+  const bivvy = s.packing.find((i) => i.id === BIVVY_ID);
+  assert.ok(bivvy, 'bivvy exists after migration');
+  assert.equal(bivvy.status, 'packed', 'blanket status carried over');
+  assert.equal(bivvy.quantity, 1, 'blanket quantity carried over');
+  assert.ok(!('weightGrams' in bivvy), 'blanket weight is NOT carried onto the bivvy');
+  assert.equal(bivvy.essential, true, 'bivvy keeps its seed essential flag');
+  assert.ok(!s.packing.some((i) => i.id === BLANKET_ID), 'old blanket id is gone');
+});
+
+test('legacy migration is idempotent (second run takes the owned path)', () => {
+  const once = normalizeState(legacyStateWithBlanket());
+  const twice = normalizeState(JSON.parse(JSON.stringify(once)));
+  assert.deepEqual(twice, once);
+});
+
+test('owned payload: a deleted seed item stays deleted', () => {
+  const s = defaultState('d1');
+  s.packing = s.packing.filter((i) => i.id !== 'pack.clothing.fleece');
+  const out = normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.ok(!out.packing.some((i) => i.id === 'pack.clothing.fleece'));
+  // And it stays deleted on every subsequent load.
+  const again = normalizeState(JSON.parse(JSON.stringify(out)));
+  assert.ok(!again.packing.some((i) => i.id === 'pack.clothing.fleece'));
+});
+
+test('owned payload: renames, category moves and essential edits survive reload', () => {
+  const s = defaultState('d1');
+  s.packing = s.packing.map((i) =>
+    i.id === 'pack.clothing.fleece'
+      ? { ...i, label: 'Wool jumper', categoryId: 'comfort', essential: false }
+      : i,
+  );
+  const out = normalizeState(JSON.parse(JSON.stringify(s)));
+  const fleece = out.packing.find((i) => i.id === 'pack.clothing.fleece');
+  assert.equal(fleece.label, 'Wool jumper');
+  assert.equal(fleece.categoryId, 'comfort');
+  assert.equal(fleece.essential, false);
+  assert.equal(fleece.custom, false, 'provenance is preserved');
+});
+
+test('owned payload: malformed entries drop, others heal, never a crash', () => {
+  const out = normalizeState({
+    packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    packing: [
+      null,
+      42,
+      { id: '' },
+      { id: 'x1', label: '   ' },
+      { id: 'ok1', label: '  Mug  ', categoryId: 'nope', quantity: 0, status: 'huh', custom: true },
+      { id: 'ok1', label: 'Duplicate id', custom: true },
+      { id: 'pack.clothing.fleece', label: 'Fleece', categoryId: 'clothing', quantity: 2, status: 'ready', weightGrams: -5, essential: 'yes', custom: false },
+    ],
+  });
+  assert.equal(out.packing.length, 2);
+  const mug = out.packing.find((i) => i.id === 'ok1');
+  assert.equal(mug.label, 'Mug');
+  assert.equal(mug.categoryId, 'comfort');
+  assert.equal(mug.quantity, 1);
+  assert.equal(mug.status, 'needed');
+  const fleece = out.packing.find((i) => i.id === 'pack.clothing.fleece');
+  assert.equal(fleece.quantity, 2);
+  assert.equal(fleece.status, 'ready');
+  assert.ok(!('weightGrams' in fleece), 'invalid weight becomes absent');
+  assert.equal(fleece.essential, false, 'non-boolean essential heals to false');
+});
+
+test('owned payload: malformed packing container falls back to the full seed', () => {
+  for (const bad of ['garbage', 42, { not: 'an array' }, null]) {
+    const out = normalizeState({
+      packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+      packing: bad,
+    });
+    assert.equal(out.packing.length, SEED_PACKING_ITEMS.length);
+  }
+});
+
+test('owned payload: an empty packing array is respected (user deleted everything)', () => {
+  const out = normalizeState({
+    packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    packing: [],
+  });
+  assert.deepEqual(out.packing, []);
+});
+
+test('a template version from the future clamps; items are kept as-is', () => {
+  const out = normalizeState({
+    packingTemplateVersion: PACKING_TEMPLATE_VERSION + 7,
+    packing: [
+      { id: 'pack.future.widget', label: 'Widget', categoryId: 'comfort', quantity: 1, status: 'needed', essential: false, custom: false },
+    ],
+  });
+  assert.equal(out.packingTemplateVersion, PACKING_TEMPLATE_VERSION);
+  assert.ok(out.packing.some((i) => i.id === 'pack.future.widget'));
+});
+
+test('owned payload: withdrawn development-only seed ids are cleaned up', () => {
+  // A snapshot created while an unpublished template revision still carried
+  // the separate first-aid refill item drops it on load — idempotently, and
+  // without touching a user-created item that happens to share the id.
+  const raw = {
+    packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    packing: [
+      { id: 'pack.hygiene-first-aid.first-aid-refill', label: 'Walking first-aid refill kit', categoryId: 'hygiene-first-aid', quantity: 1, status: 'packed', essential: true, custom: false },
+      { id: 'pack.navigation-safety.first-aid', label: 'Walking first aid kit', categoryId: 'navigation-safety', quantity: 1, status: 'ready', essential: true, custom: false },
+    ],
+  };
+  const once = normalizeState(raw);
+  assert.ok(
+    !once.packing.some((i) => i.id === 'pack.hygiene-first-aid.first-aid-refill'),
+    'retired dev-only id removed',
+  );
+  assert.equal(once.packing.find((i) => i.id === 'pack.navigation-safety.first-aid').status, 'ready');
+  const twice = normalizeState(JSON.parse(JSON.stringify(once)));
+  assert.deepEqual(twice, once, 'cleanup is idempotent');
+});
+
+test('invalid template version values take the legacy path', () => {
+  for (const bad of ['2', 1.5, 0, -3, null, {}, true, 1]) {
+    const out = normalizeState({ packingTemplateVersion: bad, packing: [] });
+    assert.equal(
+      out.packing.length,
+      SEED_PACKING_ITEMS.length,
+      `packingTemplateVersion=${JSON.stringify(bad)} reseeds via the legacy merge`,
+    );
+  }
 });
 
 test('seed integrity: unique ids, known categories, positive quantities', () => {

@@ -740,6 +740,12 @@ a.btn {
 .check .label {
   font-size: 15px;
 }
+/* A .check used as a property toggle (e.g. "Essential item"), not a task:
+   checked means "on", so no done-strikethrough / faded label. */
+.check--setting[aria-pressed='true'] .label {
+  color: var(--ink);
+  text-decoration: none;
+}
 
 /* --- Progress ring ------------------------------------------------------- */
 
@@ -2973,6 +2979,20 @@ button.stop-fac:focus-visible {
 .pack-editor .input,
 .pack-editor .select {
   background: var(--paper-bright);
+}
+/* Destructive zone of the item editor: a hairline separates Delete from the
+   primary Save/Cancel row, so the danger action never sits in the same
+   button row on narrow phones. */
+.pack-editor-danger {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+/* "Restore default list" is a ghost button in the danger colour: quieter than
+   a filled destructive button, but clearly not a neutral action. */
+.pack-restore-btn {
+  margin-top: 8px;
+  color: var(--danger);
 }
 
 /* --- Lists: Shop info & Transport ----------------------------------------- */
