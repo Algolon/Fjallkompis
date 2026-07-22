@@ -18,14 +18,24 @@ import type { WalletDocument } from '../types';
  *
  * Opening reuses the shared wallet behaviour (openWalletDocument): PDFs go
  * to the platform viewer (download fallback), images open in the same
- * TripImageViewer sheet as Lists → Trip. No STF logo asset exists in the
- * repo, so the treatment is the neutral in-app one: IdCard icon + "STF".
+ * TripImageViewer sheet as Lists → Trip.
+ *
+ * The button IS the official STF roundel (owner-provided/approved asset,
+ * public/images/stf-logo.png, PWA-precached): a membership badge is exactly
+ * what the mark communicates, so no container, monogram or extra card icon —
+ * they would say "STF card" twice. The accessible name still carries the
+ * full meaning, and the roundel's own SF lettering is the visible label
+ * (owner-approved deviation from the icon-supports-text rule). Should the
+ * image ever fail to load (edge offline/eviction case), the button falls
+ * back to the previous neutral boxed treatment — never an invisible target.
  */
+const STF_LOGO_SRC = `${import.meta.env.BASE_URL}images/stf-logo.png`;
 export function MembershipQuickAccess() {
   const wallet = useWalletDocuments();
   const doc = useMemo(() => quickAccessMembership(wallet.documents), [wallet.documents]);
   const [availableId, setAvailableId] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ doc: WalletDocument; url: string } | null>(null);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   // Verify the blob actually exists on THIS device before offering the
   // action (metadata can outlive a browser-evicted file).
@@ -59,16 +69,29 @@ export function MembershipQuickAccess() {
 
   return (
     <>
-      <button
-        className="today-action-card today-glass today-glass--light stf-card"
-        onClick={open}
-        aria-label="Open STF membership card"
-      >
-        <IdCard size={22} strokeWidth={1.8} aria-hidden />
-        <span className="stf-card__label" aria-hidden>
-          STF
-        </span>
-      </button>
+      {logoFailed ? (
+        <button
+          className="today-action-card today-glass today-glass--light stf-card stf-card--boxed"
+          onClick={open}
+          aria-label="Open STF membership card"
+        >
+          <IdCard size={22} strokeWidth={1.8} aria-hidden />
+          <span className="stf-card__label" aria-hidden>
+            STF
+          </span>
+        </button>
+      ) : (
+        <button className="stf-card" onClick={open} aria-label="Open STF membership card">
+          {/* The button carries the accessible name; the mark is decorative. */}
+          <img
+            src={STF_LOGO_SRC}
+            alt=""
+            aria-hidden
+            draggable={false}
+            onError={() => setLogoFailed(true)}
+          />
+        </button>
+      )}
       {viewer ? (
         <TripImageViewer
           doc={viewer.doc}

@@ -15,7 +15,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import 'fake-indexeddb/auto';
@@ -248,10 +248,22 @@ test('the Today card verifies local availability and omits itself otherwise', ()
   assert.match(quickAccess, /openWalletDocument\(doc, wallet\.getFile\)/);
   assert.match(quickAccess, /<TripImageViewer/);
   assert.match(quickAccess, /URL\.revokeObjectURL\(viewer\.url\)/);
-  // Neutral in-app treatment (no logo asset in the repo): icon + STF text.
-  assert.match(quickAccess, /IdCard/);
-  assert.match(quickAccess, />\s*STF\s*</);
   // No nested interactive elements inside the quick-access button.
   const btn = quickAccess.slice(quickAccess.indexOf('<button'), quickAccess.indexOf('</button>'));
   assert.ok(!btn.slice(7).includes('<button'), 'single button, nothing nested');
+});
+
+test('the button is the owner-approved STF roundel, offline-safe, with a fallback', () => {
+  // The asset ships in the repo and resolves under the Pages base path.
+  assert.match(quickAccess, /import\.meta\.env\.BASE_URL\}images\/stf-logo\.png/);
+  assert.ok(existsSync(join(root, 'public/images/stf-logo.png')), 'logo asset committed');
+  // Decorative mark — the button itself carries the accessible name.
+  assert.match(quickAccess, /<img[\s\S]*?alt=""[\s\S]*?aria-hidden/);
+  assert.match(quickAccess, /aria-label="Open STF membership card"/);
+  // A failed image load falls back to the neutral boxed treatment (IdCard +
+  // STF monogram) — never an invisible touch target.
+  assert.match(quickAccess, /onError=\{\(\) => setLogoFailed\(true\)\}/);
+  assert.match(quickAccess, /logoFailed \?/);
+  assert.match(quickAccess, /IdCard/);
+  assert.match(quickAccess, />\s*STF\s*</);
 });

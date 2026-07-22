@@ -105,9 +105,17 @@ only after verifying the blob exists locally — a missing file OMITS the
 action (Tonight keeps full width); the honest missing-file notice stays in
 Lists → Trip where the document is managed. Opening reuses the shared
 `openWalletDocument` helper and the exported TripImageViewer — no new
-viewer. No STF logo asset exists in the repo, so the treatment is the
-neutral IdCard icon + "STF" monogram, accessible name "Open STF membership
-card".
+viewer.
+
+The button IS the official STF roundel (owner provided and approved the
+asset on 2026-07-22; `public/images/stf-logo.png`, PWA-precached via the
+png glob): a circular 64px badge (56px ≤340px) with button-grade
+affordances — lift shadow, pressed scale, circular focus ring — and the
+accessible name "Open STF membership card". No container, monogram or
+extra card icon: the mark itself is the visible label (owner-approved
+deviation from the icon-supports-text rule). If the image ever fails to
+load, the button falls back to the previous neutral boxed IdCard + "STF"
+treatment — never an invisible target.
 
 ## Content contracts
 

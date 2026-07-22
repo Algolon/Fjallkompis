@@ -3127,9 +3127,50 @@ button.stop-fac:focus-visible {
 .tonight-row .stf-card {
   flex: 0 0 auto;
 }
+/* The STF quick access IS the official roundel (owner-approved asset): a
+   circular button, no visible container. Affordances stay button-grade —
+   ≥44px target, lift shadow, pressed scale, circular focus ring. */
 .stf-card {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+.stf-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  /* Same two-layer lift as the glass cards, so the badge reads tappable. */
+  box-shadow: var(--glass-shadow);
+}
+.stf-card:active {
+  transform: scale(0.94);
+}
+@media (hover: hover) {
+  .stf-card:hover {
+    filter: brightness(1.05);
+  }
+}
+.stf-card:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 3px;
+}
+
+/* Fallback treatment when the logo asset cannot load: the previous neutral
+   boxed card (IdCard icon + STF monogram) — never an invisible target. */
+.stf-card--boxed {
   width: 72px;
+  height: auto;
   min-height: 64px;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3139,6 +3180,9 @@ button.stop-fac:focus-visible {
   border-radius: var(--r-md);
   color: var(--spruce);
 }
+.stf-card--boxed:focus-visible {
+  outline-offset: 2px;
+}
 .stf-card__label {
   font-size: 12px;
   font-weight: 700;
@@ -3147,7 +3191,12 @@ button.stop-fac:focus-visible {
 }
 @media (max-width: 340px) {
   .stf-card {
+    width: 56px;
+    height: 56px;
+  }
+  .stf-card--boxed {
     width: 64px;
+    height: auto;
   }
   /* When the STF card shares the row on the narrowest phones, the stop NAME
      outranks the elevation chip — the value stays in the button's
