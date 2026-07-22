@@ -1,5 +1,13 @@
 import { useMemo } from 'react';
-import { ChevronRight } from 'lucide-react';
+import {
+  Backpack,
+  BedDouble,
+  BusFront,
+  CheckCircle2,
+  ChevronRight,
+  Mountain,
+  Route,
+} from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { useTrailReadiness } from '../hooks/useTrailReadiness';
 import { packingSummary } from '../utils/packingModel.mjs';
@@ -14,9 +22,10 @@ type Navigate = (t: TabId, payload?: NavPayload) => void;
 /**
  * Today — Prepare: the pre-departure dashboard. Read-only summaries over the
  * existing single sources of truth (packing state, trip items, the shared
- * trail-readiness aggregate); every card is ONE button that navigates to the
- * screen where the data is actually managed. No editing here, no task lists,
- * no recommendations, no percentages that the underlying models don't define.
+ * trail-readiness aggregate). The Route hero carries two explicit actions
+ * (Map, Stages); every summary card below is ONE button that navigates to
+ * the screen where the data is managed. No editing here, no task lists, no
+ * recommendations, no percentages the underlying models don't define.
  *
  * Lives in its own module (not TodayScreen.tsx) so the archived-checklist
  * fence on TodayScreen keeps guarding that file's copy while this view may
@@ -42,30 +51,56 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
       ? 'Ready'
       : 'Setup needed';
 
+  // Pack weight, Lists convention EXACTLY: "≥" marks a lower bound while any
+  // item still has no entered weight; nothing shown at 0. The accessible
+  // label spells the ≥ out ("at least … from entered weights"). "≥ x known"
+  // was considered and dropped — it wraps at 320px and diverges from Lists.
+  const weightText =
+    packing.weightedGrams > 0
+      ? `${packing.weightMissing > 0 ? '≥ ' : ''}${formatGrams(packing.weightedGrams)}`
+      : null;
+
   return (
     <div className="prepare-stack">
-      {/* Route — identifies the journey being prepared. Static route facts
-          only; readiness and task status live in the cards below. */}
-      <button
-        className="today-action-card today-glass today-glass--light prepare-card"
-        onClick={() => onNavigate('stages')}
-        aria-label={`Route: Kungsleden, ${startName} to ${endName}, ${stages.length} stages, ${totalKm}. Opens Stages.`}
+      {/* Route hero — identifies the journey being prepared (spruce anchor,
+          compact cousin of the On route day hero). The wrapper itself is NOT
+          interactive: Map and Stages are the two explicit sibling actions
+          (spatial → glacier, information depth → cloudberry — the same
+          semantic pairing as the day hero's View Route / Stage Guide). */}
+      <section
+        className="prepare-hero"
+        aria-label={`Route: Kungsleden, ${startName} to ${endName}, ${stages.length} stages, ${totalKm}.`}
       >
-        <span className="today-action-card__body">
-          <span className="today-action-card__label">Route</span>
-          <span className="today-action-card__title">
-            {startName} <span aria-hidden>→</span> {endName}
-          </span>
-          <span className="prepare-card__meta tnum" aria-hidden>
-            {stages.length} stages · {totalKm}
-          </span>
-        </span>
-        <ChevronRight className="today-action-card__chevron" size={18} strokeWidth={2} aria-hidden />
-      </button>
+        <span className="hero-day">Route</span>
+        <h2 className="prepare-hero__title">
+          {startName} <span aria-hidden>→</span> {endName}
+        </h2>
+        <div className="hero-stats tnum">
+          <span>{stages.length} stages</span>
+          <span aria-hidden>·</span>
+          <span>{totalKm}</span>
+        </div>
+        <div className="hero-actions">
+          <button
+            className="hero-action"
+            onClick={() => onNavigate('map')}
+            aria-label="Map — view the route on the offline map"
+          >
+            <Route size={15} strokeWidth={2} aria-hidden /> Map
+          </button>
+          <button
+            className="hero-action hero-action--primary"
+            onClick={() => onNavigate('stages')}
+            aria-label="Stages — open the stage list and day guides"
+          >
+            <Mountain size={15} strokeWidth={2} aria-hidden /> Stages
+          </button>
+        </div>
+      </section>
 
       {/* Packing list — counts of item rows, same aggregate the Lists header
-          reads. Weight matches the Lists convention: "≥" marks a lower bound
-          while any item still has no entered weight; nothing shown at 0. */}
+          reads. Unpacked essentials are NORMAL before departure, so the line
+          stays calm secondary ink here; urgency styling belongs to Lists. */}
       <button
         className="today-action-card today-glass today-glass--light prepare-card"
         onClick={() => onNavigate('checklist', { lists: { section: 'packing' } })}
@@ -74,16 +109,18 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
             ? 'Packing list: no items yet. Opens Lists, Packing.'
             : `Packing list: ${packing.needed} needed, ${packing.ready} ready, ${packing.packed} packed.` +
               (packing.essentialNotPacked > 0
-                ? ` ${packing.essentialNotPacked} essential not packed.`
+                ? ` ${packing.essentialNotPacked} essentials still to pack.`
                 : ' All essentials packed.') +
-              (packing.weightedGrams > 0
-                ? ` Pack weight ${packing.weightMissing > 0 ? 'at least ' : ''}${formatGrams(packing.weightedGrams)}.`
+              (weightText
+                ? ` Pack weight ${packing.weightMissing > 0 ? 'at least ' : ''}${formatGrams(packing.weightedGrams)}${packing.weightMissing > 0 ? ' from entered weights' : ''}.`
                 : '') +
               ' Opens Lists, Packing.'
         }
       >
         <span className="today-action-card__body">
-          <span className="today-action-card__label">Packing list</span>
+          <span className="today-action-card__label">
+            <Backpack size={14} strokeWidth={2.1} aria-hidden /> Packing list
+          </span>
           {packing.total === 0 ? (
             <span className="today-action-card__title">No items yet</span>
           ) : (
@@ -97,19 +134,11 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
               </span>
               <span className="prepare-card__meta tnum" aria-hidden>
                 {packing.essentialNotPacked > 0 ? (
-                  <span className="prepare-card__warn">
-                    {packing.essentialNotPacked} essential not packed
-                  </span>
+                  <span>{packing.essentialNotPacked} essentials still to pack</span>
                 ) : (
                   <span>All essentials packed</span>
                 )}
-                {packing.weightedGrams > 0 ? (
-                  <span>
-                    {' · '}
-                    {packing.weightMissing > 0 ? '≥ ' : ''}
-                    {formatGrams(packing.weightedGrams)}
-                  </span>
-                ) : null}
+                {weightText ? <span> · {weightText}</span> : null}
               </span>
             </>
           )}
@@ -119,7 +148,8 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
 
       <div className="prepare-grid">
         {/* Travel & stays — trip items only (transport + stay); standalone
-            documents are excluded by tripPlanSummary itself. */}
+            documents are excluded by tripPlanSummary itself. The count icons
+            reuse the Trip add-menu pair (BusFront / BedDouble). */}
         <button
           className="today-action-card today-glass today-glass--light prepare-card prepare-card--tile"
           onClick={() => onNavigate('checklist', { lists: { section: 'trip' } })}
@@ -140,8 +170,15 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
                   <span className="prepare-count">{trip.planned} Planned</span>
                   <span className="prepare-count">{trip.confirmed} Confirmed</span>
                 </span>
-                <span className="prepare-card__meta tnum" aria-hidden>
-                  {trip.travelCount} travel · {trip.stayCount} {trip.stayCount === 1 ? 'stay' : 'stays'}
+                <span className="prepare-card__meta prepare-card__meta--icons tnum" aria-hidden>
+                  <span className="prepare-pair">
+                    <BusFront size={14} strokeWidth={2} aria-hidden /> {trip.travelCount} travel
+                  </span>
+                  <span className="prepare-count__sep" aria-hidden>·</span>
+                  <span className="prepare-pair">
+                    <BedDouble size={14} strokeWidth={2} aria-hidden /> {trip.stayCount}{' '}
+                    {trip.stayCount === 1 ? 'stay' : 'stays'}
+                  </span>
                 </span>
               </>
             )}
@@ -159,7 +196,9 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
           }. Opens Settings, Trail readiness.`}
         >
           <span className="today-action-card__body">
-            <span className="today-action-card__label">Trail readiness</span>
+            <span className="today-action-card__label">
+              <CheckCircle2 size={14} strokeWidth={2.1} aria-hidden /> Trail readiness
+            </span>
             <span className="today-action-card__title tnum" aria-hidden>
               {readiness.passed} / {readiness.required} ready
             </span>

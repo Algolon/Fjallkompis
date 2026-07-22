@@ -236,16 +236,23 @@ h3 {
   align-items: center;
   gap: 8px;
   margin-top: 2px;
+  /* Fixed rhythm: the row is always as tall as the tallest allowed accessory
+     (44px help trigger / mode control), so screens WITH an accessory and
+     screens WITHOUT one share identical eyebrow→title→subtitle spacing. */
+  min-height: 44px;
 }
 .screen-head-row h1 {
   min-width: 0;
 }
-/* The header help action stays quiet and secondary to the title; it never
-   pushes the title out of alignment (sits directly after it, not floated). */
+/* The trailing accessory stays quiet and secondary to the title; it sits in
+   flow after the title (never floated/absolute) and pushes to the row's end.
+   It must never exceed the row's 44px rhythm height. */
 .screen-head-action {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
+  margin-left: auto;
+  max-height: 44px;
 }
 .screen-head h1 {
   font-size: 26px;
@@ -2705,15 +2712,6 @@ button.stop-fac:focus-visible {
   background-repeat: no-repeat;
 }
 
-.today-eyebrow {
-  /* Same eyebrow treatment as .screen-head .eyebrow (this one sits in the
-     topline row, outside .screen-head, so it needs the typography here). */
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--glacier-700);
-}
 
 /* Liquid-glass surfaces (Today only). Gradient-free, layered material:
      1. base element  — translucent fill + backdrop blur/saturate/brightness
@@ -2900,41 +2898,89 @@ button.stop-fac:focus-visible {
 }
 
 /* --- Today: Prepare mode ----------------------------------------------------------
-   The Prepare | On route selector plus the compact preparation dashboard.
-   Built on the same systems as the rest of Today: the .seg tablist (Lists),
-   .today-action-card whole-card buttons and the glass surfaces. The whole
-   Prepare view is height-budgeted to fit the smallest supported portrait
-   viewport without scrolling (docs/proposals/today-prepare.md). */
+   The compact Prepare | On route header control plus the preparation
+   dashboard. Built on the same systems as the rest of Today: semantic tabs,
+   the hero surface, .today-action-card whole-card buttons and the glass
+   surfaces. The whole Prepare view is height-budgeted to fit the smallest
+   supported portrait viewport without scrolling
+   (docs/proposals/today-prepare.md). */
 
-/* Mode selector: the shared .seg sits on paper elsewhere; on Today's contour
-   backdrop it needs the opaque pane fill for contrast, and roomier buttons
-   for a comfortable touch target. */
-.today-seg {
-  margin-bottom: 14px;
+/* Mode control: a compact capsule of semantic tabs living in the header's
+   title row (the ScreenHeader accessory slot) — badge-sized, never a
+   separate content row. Selected = spruce fill + near-white text (the app's
+   shared selected-tab treatment); unselected stays quiet ink on the opaque
+   pane so it reads on the contour backdrop. */
+.today-mode {
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 999px;
   background: var(--glass-fill-opaque);
-  border: 0;
   box-shadow: var(--glass-shadow);
 }
-.today-seg .seg-btn {
+.today-mode__tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 44px;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
   color: var(--ink-soft);
 }
-.today-seg .seg-btn[aria-selected='true'] {
-  /* Re-assert the shared selected treatment (spruce fill, near-white text):
-     the unselected colour above would otherwise win the cascade tie. */
+.today-mode__tab[aria-selected='true'] {
+  background: var(--spruce);
   color: #f4f8f5;
+  box-shadow: var(--shadow);
 }
-.today-seg .seg-btn:focus-visible {
+.today-mode__tab:focus-visible {
   outline: 2px solid var(--glacier-700);
-  outline-offset: -2px; /* inside the pane so the ring is never clipped */
+  outline-offset: -2px; /* inside the capsule so the ring is never clipped */
 }
-.today-seg .seg-btn svg {
-  flex: 0 0 auto;
-  opacity: 0.85;
+@media (max-width: 340px) {
+  .today-mode__tab {
+    padding: 0 10px;
+  }
+}
+
+/* Route hero (Prepare): compact spruce cousin of the On route day hero —
+   identifies the journey and carries the two explicit actions. The section
+   wrapper is NOT interactive; Map and Stages are sibling buttons reusing the
+   day hero's .hero-action system (glacier spatial / cloudberry primary). */
+.prepare-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: linear-gradient(150deg, var(--spruce) 0%, var(--spruce-700) 78%);
+  color: #f4f8f5;
+  box-shadow: var(--shadow);
+  padding: 12px 16px;
+}
+.prepare-hero__title {
+  color: inherit;
+  margin-top: 4px;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.prepare-hero .hero-stats {
+  margin-top: 2px;
+}
+.prepare-hero .hero-actions {
+  margin-top: 10px;
+}
+@media (max-width: 360px) {
+  .prepare-hero {
+    padding: 10px 12px;
+  }
+  .prepare-hero__title {
+    font-size: 19px;
+  }
 }
 
 /* The Prepare stack owns its vertical rhythm (cards have no self margins). */
@@ -2958,19 +3004,52 @@ button.stop-fac:focus-visible {
   padding: 12px;
   gap: 6px;
 }
-@media (max-width: 340px) {
+/* Compact phones (≤360px): the half-width tiles are where the height budget
+   is decided. Dropping their chevron column (~26px) lets the tile label and
+   the icon count row hold ONE line each; the cards stay whole-card buttons
+   (pressed state + accessible "Opens …" names carry the affordance).
+   Full-width cards keep their chevrons down to 341px. */
+@media (max-width: 360px) {
   .prepare-card--tile {
-    padding: 10px;
+    padding: 9px 10px;
     gap: 4px;
   }
-  /* Smallest phones: one step tighter rhythm (12 → 10) so the stack keeps
-     clear tolerance against the 568px-tall viewport when labels wrap. */
+  .prepare-card--tile .today-action-card__chevron {
+    display: none;
+  }
+  /* Inside a tile the two icon pairs stack as clean rows; the separator dot
+     between them is a wide-layout nicety that costs the second line here. */
+  .prepare-card--tile .prepare-card__meta--icons .prepare-count__sep {
+    display: none;
+  }
+}
+@media (max-width: 340px) {
+  /* Narrowest phones: the full-width cards give up their chevrons too, and
+     the hero actions tighten one step (still comfortably above the ~34px
+     touch floor; these are full-width-half buttons). */
+  .prepare-card .today-action-card__chevron {
+    display: none;
+  }
+  .prepare-hero .hero-actions {
+    margin-top: 8px;
+  }
+  .prepare-hero .hero-action {
+    min-height: 38px;
+  }
+  /* Smallest phones: one step tighter rhythm (12 → 8) and slightly smaller
+     count type (15 → 14, an existing scale step; line-height eased) so the
+     status rows stay legible while the stack clears the 568px viewport. */
   .prepare-stack,
   .prepare-grid {
-    gap: 10px;
+    gap: 8px;
   }
-  .today-seg {
-    margin-bottom: 12px;
+  .prepare-counts {
+    font-size: 14px;
+    gap: 2px 5px;
+    line-height: 1.25;
+  }
+  .prepare-card__meta--icons {
+    row-gap: 2px;
   }
 }
 
@@ -2999,8 +3078,77 @@ button.stop-fac:focus-visible {
   line-height: 1.35;
   color: #3f4f45; /* secondary ink on glass, same as .today-glass .card-sub */
 }
-.prepare-card__warn {
-  color: var(--danger);
+/* Count rows that pair an icon with their text (travel/stay counts). */
+.prepare-card__meta--icons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.prepare-card__meta--icons svg {
+  flex: 0 0 auto;
+  color: var(--spruce);
+}
+/* An icon and its count wrap as ONE unit — an icon never strands at a line
+   end away from the text that gives it meaning. */
+.prepare-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+/* Card label icons sit inline before the label text (decorative). */
+.prepare-card .today-action-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.prepare-card .today-action-card__label svg {
+  flex: 0 0 auto;
+  color: var(--spruce);
+  opacity: 0.85;
+}
+
+/* Tonight row (On route): Tonight stays the flexible primary card; the STF
+   quick access is a compact fixed-width sibling action. When no membership
+   is marked for Today the row has a single child and Tonight keeps the full
+   width unchanged. */
+.tonight-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 14px;
+}
+.tonight-row .today-action-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
+}
+.tonight-row .stf-card {
+  flex: 0 0 auto;
+}
+.stf-card {
+  width: 72px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px;
+  border-radius: var(--r-md);
+  color: var(--spruce);
+}
+.stf-card__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+@media (max-width: 340px) {
+  .stf-card {
+    width: 64px;
+  }
 }
 
 /* --- Packing list ------------------------------------------------------------------ */
@@ -4101,23 +4249,33 @@ span.trip-attach-open {
     align-content: start;
     align-items: start;
   }
-  .today-screen > .today-topline,
-  .today-screen > .screen-head,
-  .today-screen > .hero,
-  .today-screen > .empty {
+  .today-screen > .screen-head {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+  /* Both mode panels span the full width and lay their own content out on
+     the same two-column grid the pre-mode Today used. */
+  .today-screen > [role='tabpanel'] {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 16px;
+    align-content: start;
+    align-items: start;
+  }
+  .today-screen [role='tabpanel'] > .hero,
+  .today-screen [role='tabpanel'] > .empty,
+  .today-screen [role='tabpanel'] > .prepare-stack {
     grid-column: 1 / -1;
   }
-  .today-screen > .screen-head {
+  .today-screen [role='tabpanel'] > .hero {
     margin-bottom: 0;
   }
-  .today-screen > .hero {
-    margin-bottom: 0;
-  }
-  .today-screen > section.card {
+  .today-screen [role='tabpanel'] > section.card {
     grid-column: 1;
     grid-row: span 2;
   }
-  .today-screen > .today-action-card {
+  .today-screen [role='tabpanel'] > .tonight-row {
     grid-column: 2;
     margin: 0;
   }

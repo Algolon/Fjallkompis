@@ -30,6 +30,8 @@ import {
   walletSummaryText,
 } from '../wallet/walletModel.mjs';
 import { useWalletDocuments } from '../hooks/useWalletDocuments';
+import { enforceMembershipQuickAccess } from '../wallet/walletStore.mjs';
+import { openWalletDocument } from '../wallet/documentOpening';
 import { useStore } from '../store/AppStore';
 import { WalletEditorSheet, type WalletEditorFields } from './WalletEditorSheet';
 import {
@@ -141,47 +143,24 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
 
   // ---- Document opening (fully offline — the blob never touches the network)
 
+  // PDF/image/missing behaviour lives in the shared openWalletDocument helper
+  // (also used by the Today membership quick-access) — only the notices and
+  // the viewer state are view-local here.
   const openDocument = async (doc: WalletDocument) => {
     setNotice(null);
-    let blob: Blob | null = null;
-    try {
-      blob = await wallet.getFile(doc.id);
-    } catch (err) {
-      console.warn('Fjällkompis: could not read the stored file.', err);
-    }
-    if (!blob) {
+    const result = await openWalletDocument(doc, wallet.getFile);
+    if (result.kind === 'missing') {
       setNotice(
         `The file for “${doc.title}” is missing from local storage on this device. ` +
           'It may have been removed by the browser — delete the entry and add the document again.',
       );
-      return;
+    } else if (result.kind === 'pdf-downloaded') {
+      setNotice(
+        'This browser could not open the PDF viewer directly, so a copy was downloaded instead.',
+      );
+    } else if (result.kind === 'image') {
+      setViewer({ doc, url: result.url });
     }
-    if (doc.mimeType === 'application/pdf') {
-      openPdf(doc, blob);
-    } else {
-      setViewer({ doc, url: URL.createObjectURL(blob) });
-    }
-  };
-
-  /**
-   * PDFs, progressive fallback (docs/proposals/trail-wallet.md §4.2):
-   * 1. ATTEMPT to hand the blob to the platform's own viewer in a new
-   *    context — fully offline;
-   * 2. where the browser refuses a new window, download a copy automatically
-   *    — and say so.
-   */
-  const openPdf = (doc: WalletDocument, blob: Blob) => {
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (win) {
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      return;
-    }
-    URL.revokeObjectURL(url);
-    downloadBlobFile(doc.fileName || `${doc.title}.pdf`, blob);
-    setNotice(
-      'This browser could not open the PDF viewer directly, so a copy was downloaded instead.',
-    );
   };
 
   const exportDocument = async (doc: WalletDocument) => {
@@ -250,26 +229,44 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
       if (!mimeType) throw new Error(`Unsupported file: ${f.name}`);
       return { fileName: f.name, mimeType, sizeBytes: f.size };
     };
+    // Membership metadata is only ever meaningful on an STF membership doc —
+    // strip it here too (normalize would drop it on read anyway) so a
+    // category change can never leave a stale quick-access flag in storage.
+    const stripStaleMembership = (doc: WalletDocument) => {
+      if (doc.category !== 'membership' || !doc.membershipProvider) {
+        delete doc.membershipProvider;
+      }
+      if (doc.membershipProvider !== 'stf' || doc.showOnToday !== true) {
+        delete doc.showOnToday;
+      }
+      return doc;
+    };
     if (editor?.mode === 'doc-edit') {
-      const next: WalletDocument = {
+      const next: WalletDocument = stripStaleMembership({
         ...editor.doc,
         ...fields,
         updatedAt: now,
         ...(file ? fileMeta(file) : {}),
-      };
+      });
       if (!fields.date) delete next.date;
       if (!fields.note) delete next.note;
       await wallet.update(next, file);
+      // Explicit uniqueness: making THIS document the Today quick access
+      // clears the flag on every other record in one transaction.
+      if (next.showOnToday) await enforceMembershipQuickAccess(next.id);
+      await wallet.refresh();
     } else {
       if (!file) return;
-      const doc: WalletDocument = {
+      const doc: WalletDocument = stripStaleMembership({
         id: newWalletDocumentId(),
         ...fields,
         createdAt: now,
         updatedAt: now,
         ...fileMeta(file),
-      };
+      });
       await wallet.add(doc, file);
+      if (doc.showOnToday) await enforceMembershipQuickAccess(doc.id);
+      await wallet.refresh();
     }
   };
 
@@ -627,9 +624,10 @@ function AddItemChooser({
 
 /**
  * In-app image viewer — the same native `.sheet` <dialog> surface as every
- * other modal. The object URL is revoked by the parent on close.
+ * other modal. The object URL is revoked by the parent on close. Exported:
+ * the Today membership quick-access opens images through this exact viewer.
  */
-function TripImageViewer({
+export function TripImageViewer({
   doc,
   url,
   onClose,

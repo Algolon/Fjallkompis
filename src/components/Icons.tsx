@@ -80,17 +80,3 @@ export const IconLocate = (p: P) => (
   </svg>
 );
 
-export const IconWifi = (p: P) => (
-  <svg {...base} width={16} height={16} className={p.className} aria-hidden>
-    <path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0" />
-    <circle cx="12" cy="19" r="0.6" fill="currentColor" />
-  </svg>
-);
-
-export const IconWifiOff = (p: P) => (
-  <svg {...base} width={16} height={16} className={p.className} aria-hidden>
-    <path d="M2 8.5a15 15 0 0 1 6-3.8M22 8.5a15 15 0 0 0-3-2.2M8.5 15.5a5 5 0 0 1 6-0.6" />
-    <path d="m2 2 20 20" />
-    <circle cx="12" cy="19" r="0.6" fill="currentColor" />
-  </svg>
-);

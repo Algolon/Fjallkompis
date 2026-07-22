@@ -1,14 +1,15 @@
 /**
- * Today — Prepare mode: the manual Prepare | On route selector and the
- * compact preparation dashboard (docs/proposals/today-prepare.md).
+ * Today — Prepare mode: the compact header Prepare | On route control, the
+ * preparation dashboard with its Route hero, and the shared screen-header
+ * rhythm (docs/proposals/today-prepare.md).
  *
  * Two layers, matching the repo's testing style:
  *   - pure-logic tests over the node-runnable modules (todayMode.mjs,
  *     packingModel.mjs packingSummary);
  *   - source-text contracts over the React surfaces (TodayScreen.tsx,
- *     TodayPrepare.tsx) pinning the accessibility semantics, the deep-link
- *     payloads, the single-source aggregates and the owner decisions
- *     (manual switching only, no date logic, no schema bump).
+ *     TodayPrepare.tsx, ui.tsx) pinning the accessibility semantics, the
+ *     deep-link payloads, the single-source aggregates and the owner
+ *     decisions (manual switching only, no date logic, no schema bump).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,6 +31,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const todayScreen = readFileSync(join(root, 'src/screens/TodayScreen.tsx'), 'utf8');
 const prepare = readFileSync(join(root, 'src/components/TodayPrepare.tsx'), 'utf8');
 const appTsx = readFileSync(join(root, 'src/App.tsx'), 'utf8');
+const uiTsx = readFileSync(join(root, 'src/components/ui.tsx'), 'utf8');
+const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
 
 // ---- Mode persistence (device UI preference, not schema state) --------------
 
@@ -131,31 +134,48 @@ test('packingSummary: empty list is honest zeros (never “ready”)', () => {
   });
 });
 
-// ---- Mode selector: semantics and owner decisions ---------------------------
+// ---- Compact header mode control --------------------------------------------
 
-test('Today has a semantic Prepare | On route tablist with visible labels', () => {
-  assert.match(todayScreen, /role="tablist"/);
+test('the mode control is the header accessory — no separate selector row', () => {
+  // Semantic tabs live inside the ScreenHeader action slot…
+  assert.match(
+    todayScreen,
+    /<ScreenHeader[\s\S]*?action=\{\s*<div\s+className="today-mode"\s+role="tablist"/,
+    'tablist renders as the header accessory',
+  );
   assert.match(todayScreen, /aria-label="Today view"/);
-  assert.match(todayScreen, /role="tab"/);
   assert.match(todayScreen, /aria-selected=\{mode === t\.id\}/);
-  // Visible text labels; icons are decorative supplements.
+  // …and the old full-width selector row is gone everywhere.
+  assert.ok(!todayScreen.includes('today-seg'), 'full-width selector removed');
+  assert.ok(!css.includes('today-seg'), 'full-width selector CSS removed');
+  assert.ok(!todayScreen.includes('today-topline'), 'the old topline row is gone');
+});
+
+test('the control keeps full visible labels and stays text-only', () => {
   assert.match(todayScreen, /label: 'Prepare'/);
   assert.match(todayScreen, /label: 'On route'/);
-  assert.match(todayScreen, /<ModeIcon size=\{15\} strokeWidth=\{2\} aria-hidden \/>/);
-  // Roving tabindex + arrow keys (selection follows focus).
-  assert.match(todayScreen, /tabIndex=\{mode === t\.id \? 0 : -1\}/);
+  // No icons inside the compact tabs — they would force a wider control.
+  const tablist = todayScreen.slice(
+    todayScreen.indexOf('className="today-mode"'),
+    todayScreen.indexOf('</ScreenHeader>'),
+  );
+  assert.ok(!/size=\{1[0-9]\}/.test(tablist), 'no icon components inside the tabs');
+});
+
+test('keyboard behaviour and remembered mode are unchanged', () => {
+  assert.match(todayScreen, /tabIndex=\{mode === t\.id \? 0 : -1\}/, 'roving tabindex');
   assert.match(todayScreen, /ArrowRight/);
   assert.match(todayScreen, /ArrowLeft/);
-  // Panels are associated with their tabs.
+  assert.match(todayScreen, /'Home'/);
+  assert.match(todayScreen, /'End'/);
+  assert.match(todayScreen, /readTodayMode\(window\.localStorage\)/);
+  assert.match(todayScreen, /saveTodayMode\(window\.localStorage, next\)/);
   assert.match(todayScreen, /role="tabpanel"/);
   assert.match(todayScreen, /aria-labelledby="today-tab-prepare"/);
   assert.match(todayScreen, /aria-labelledby="today-tab-onroute"/);
 });
 
-test('switching is manual and remembered — never automatic', () => {
-  assert.match(todayScreen, /readTodayMode\(window\.localStorage\)/);
-  assert.match(todayScreen, /saveTodayMode\(window\.localStorage, next\)/);
-  // No date/GPS/phase input may pick the mode.
+test('switching is manual — never automatic', () => {
   for (const source of [todayScreen, prepare]) {
     assert.ok(!source.includes('Date.now'), 'no clock input');
     assert.ok(!source.includes('new Date'), 'no date input');
@@ -163,17 +183,48 @@ test('switching is manual and remembered — never automatic', () => {
   }
 });
 
-test('On route stays reachable and its content untouched inside its panel', () => {
-  // The pre-existing On route blocks all still render (their own contracts
-  // live in stage-highlights/route-direction tests; this pins presence).
-  for (const marker of [
-    'className="hero"',
-    'aria-label="Journey progress"',
-    'today-action-card__label">Tonight',
-    'Choose a stage',
-  ]) {
-    assert.ok(todayScreen.includes(marker), `On route keeps ${marker}`);
+// ---- Shared screen-header rhythm --------------------------------------------
+
+test('ScreenHeader owns the accessory slot and the fixed rhythm', () => {
+  assert.match(uiTsx, /action\s*\?\s*<div className="screen-head-action">/);
+  assert.match(css, /\.screen-head-row\s*\{[^}]*min-height:\s*44px/,
+    'the title row has a fixed min-height so accessories never move the subtitle');
+  assert.match(css, /\.screen-head-action\s*\{[^}]*max-height:\s*44px/,
+    'accessories may not exceed the row rhythm');
+});
+
+test('every primary screen uses the shared header (Today includes its eyebrow)', () => {
+  for (const screen of ['TodayScreen', 'MapScreen', 'StagesScreen', 'StopsScreen', 'ListsScreen', 'SettingsScreen']) {
+    const src = readFileSync(join(root, `src/screens/${screen}.tsx`), 'utf8');
+    assert.ok(src.includes('<ScreenHeader'), `${screen} renders ScreenHeader`);
   }
+  assert.match(todayScreen, /eyebrow="Kungsleden"/, 'the trail eyebrow uses the standard slot');
+  assert.ok(!todayScreen.includes('OnlineBadge'), 'the permanent Online badge is gone from Today');
+  const srcFiles = ['src/components/ui.tsx', 'src/screens/TodayScreen.tsx'];
+  for (const f of srcFiles) {
+    assert.ok(!readFileSync(join(root, f), 'utf8').includes('useOnlineStatus'),
+      `${f} no longer reads raw connectivity`);
+  }
+});
+
+// ---- Route hero -------------------------------------------------------------
+
+test('the Route hero has two explicit actions and no third click target', () => {
+  const hero = prepare.slice(
+    prepare.indexOf('className="prepare-hero"'),
+    prepare.indexOf('</section>'),
+  );
+  assert.ok(prepare.includes('<section'), 'hero wrapper is a section, not a button');
+  assert.match(hero, /onClick=\{\(\) => onNavigate\('map'\)\}/, 'Map action navigates to Map');
+  assert.match(hero, /onClick=\{\(\) => onNavigate\('stages'\)\}/, 'Stages action navigates to Stages');
+  assert.match(hero, /<Route size=\{15\}/, 'Map action reuses the route icon');
+  assert.match(hero, /<Mountain size=\{15\}/, 'Stages action reuses the mountain icon');
+  const buttons = (hero.match(/<button/g) ?? []).length;
+  assert.equal(buttons, 2, 'exactly two interactive targets inside the hero');
+  // Direction-aware title + stats from the itinerary (single source).
+  assert.match(prepare, /itinerary\.startStopId/);
+  assert.match(prepare, /itinerary\.statistics\.distanceKm/);
+  assert.match(prepare, /\{stages\.length\} stages/);
 });
 
 // ---- Prepare dashboard: single sources, honest aggregation ------------------
@@ -182,14 +233,11 @@ test('Prepare reads only the shared aggregates — no duplicate models', () => {
   assert.match(prepare, /packingSummary\(state\.packing\)/);
   assert.match(prepare, /tripPlanSummary\(state\.trip\)/);
   assert.match(prepare, /useTrailReadiness\(\)/);
-  // No private re-derivations of status counts.
   assert.ok(!prepare.includes('.filter((i)'), 'no ad-hoc filtering over packing/trip items');
-  // Read-only: the view must not import any store mutators.
   assert.ok(!/setPackingStatus|updateTripItem|addTripItem|deleteTripItem|updatePackingItem/.test(prepare));
 });
 
 test('Trip documents never enter the Travel & stays counts', () => {
-  // tripPlanSummary itself excludes non transport/stay records…
   const summary = tripPlanSummary([
     { kind: 'transport', status: 'needed' },
     { kind: 'stay', status: 'confirmed' },
@@ -199,17 +247,16 @@ test('Trip documents never enter the Travel & stays counts', () => {
     { total: summary.total, travel: summary.travelCount, stays: summary.stayCount },
     { total: 2, travel: 1, stays: 1 },
   );
-  // …and the card must not read wallet/document state at all.
   assert.ok(
     !/from '\.\.\/wallet|useWalletDocuments|attachmentIds|state\.wallet/.test(prepare),
     'Prepare never touches document state',
   );
 });
 
-test('every Prepare card is one button with a chevron and no nested controls', () => {
-  const body = prepare.slice(prepare.indexOf('return ('));
-  const buttons = body.split('<button').slice(1);
-  assert.equal(buttons.length, 4, 'route, packing, travel & stays, readiness');
+test('every summary card is one button with a chevron and no nested controls', () => {
+  const stack = prepare.slice(prepare.indexOf('</section>'));
+  const buttons = stack.split('<button').slice(1);
+  assert.equal(buttons.length, 3, 'packing, travel & stays, readiness');
   for (const b of buttons) {
     const inner = b.slice(0, b.indexOf('</button>'));
     assert.ok(!inner.includes('<button'), 'no nested interactive elements');
@@ -219,7 +266,6 @@ test('every Prepare card is one button with a chevron and no nested controls', (
 });
 
 test('Prepare cards deep-link to the existing destinations', () => {
-  assert.ok(prepare.includes("onNavigate('stages')"), 'Route → Stages');
   assert.ok(
     prepare.includes("onNavigate('checklist', { lists: { section: 'packing' } })"),
     'Packing → Lists → Packing',
@@ -232,15 +278,57 @@ test('Prepare cards deep-link to the existing destinations', () => {
     prepare.includes("onNavigate('settings', { settings: { section: 'readiness' } })"),
     'Readiness → Settings, readiness section',
   );
-  // App routes the one-shot settings payload (same pattern as the others).
   assert.match(appTsx, /initialSection=\{nav\.payload\?\.settings\?\.section \?\? null\}/);
 });
+
+// ---- Iconography ------------------------------------------------------------
+
+test('card icons supplement visible labels, never replace them', () => {
+  assert.match(prepare, /<Backpack size=\{14\}[^/]*aria-hidden \/> Packing list/);
+  assert.match(prepare, /<CheckCircle2 size=\{14\}[^/]*aria-hidden \/> Trail readiness/);
+  // Travel/stay counts reuse the Trip add-menu icon pair, text kept.
+  assert.match(prepare, /<BusFront size=\{14\}[^/]*aria-hidden \/> \{trip\.travelCount\} travel/);
+  assert.match(prepare, /<BedDouble size=\{14\}[^/]*aria-hidden \/> \{trip\.stayCount\}/);
+  // Every icon in the Prepare view is decorative.
+  const iconTags = prepare.match(/<[A-Z][A-Za-z]+ size=\{\d+\}[^>]*\/>/g) ?? [];
+  for (const tag of iconTags) {
+    assert.ok(tag.includes('aria-hidden'), `decorative icon: ${tag}`);
+  }
+});
+
+// ---- Copy & honest aggregation ----------------------------------------------
 
 test('empty and partial states are explicit and honest', () => {
   assert.ok(prepare.includes('No travel or stays added'));
   assert.ok(prepare.includes('No items yet'));
-  // Partial pack weight is a lower bound (Lists convention), never bare 0 kg.
+  assert.ok(prepare.includes('essentials still to pack'), 'calm pre-departure wording');
+  // Partial pack weight is a lower bound — the exact Lists pill convention;
+  // the accessible label spells the ≥ out.
   assert.match(prepare, /weightMissing > 0 \? '≥ ' : ''/);
-  assert.match(prepare, /weightedGrams > 0/);
+  assert.match(prepare, /at least/, 'aria label explains the lower bound');
+  assert.match(prepare, /packing\.weightedGrams > 0/, 'no weight line at 0');
   assert.ok(prepare.includes('Setup needed'), 'incomplete readiness is calm, not alarmist');
+});
+
+// ---- On route regressions ---------------------------------------------------
+
+test('On route keeps its content, and Tonight pairs with the STF quick access', () => {
+  for (const marker of [
+    'className="hero"',
+    'aria-label="Journey progress"',
+    'today-action-card__label">Tonight',
+    'Choose a stage',
+  ]) {
+    assert.ok(todayScreen.includes(marker), `On route keeps ${marker}`);
+  }
+  // Tonight and the membership quick access are SIBLINGS in one row wrapper.
+  assert.match(todayScreen, /className="tonight-row"/);
+  assert.match(todayScreen, /<MembershipQuickAccess \/>/);
+  const row = todayScreen.slice(
+    todayScreen.indexOf('className="tonight-row"'),
+    todayScreen.indexOf('<MembershipQuickAccess />'),
+  );
+  const opens = (row.match(/<button/g) ?? []).length;
+  const closes = (row.match(/<\/button>/g) ?? []).length;
+  assert.equal(opens, closes, 'the Tonight button closes before the quick access starts — no nesting');
 });

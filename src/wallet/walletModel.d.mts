@@ -30,6 +30,9 @@ export declare function sortWalletDocuments(
   documents: WalletDocument[],
   todayIso: string,
 ): WalletDocument[];
+export declare function quickAccessMembership(
+  documents: WalletDocument[],
+): WalletDocument | null;
 export declare function walletSummaryText(count: number, formattedSize: string): string;
 
 /** Category id union re-exported for convenience in UI code. */

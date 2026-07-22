@@ -214,7 +214,45 @@ export function normalizeWalletDocument(raw) {
   };
   if (!(typeof raw.date === 'string' && DATE_RE.test(raw.date))) delete doc.date;
   if (!(typeof raw.note === 'string' && raw.note !== '')) delete doc.note;
+  // Membership-only metadata (explicit editor choices, never inferred from
+  // filenames/titles/notes). Both fields are dropped the moment they stop
+  // being meaningful — wrong provider value, non-membership category, or a
+  // quick-access flag without an STF provider — so a recategorised document
+  // can never keep a stale Today card.
+  if (
+    !(
+      doc.category === 'membership' &&
+      (raw.membershipProvider === 'stf' || raw.membershipProvider === 'other')
+    )
+  ) {
+    delete doc.membershipProvider;
+  }
+  if (!(doc.membershipProvider === 'stf' && raw.showOnToday === true)) {
+    delete doc.showOnToday;
+  }
   return doc;
+}
+
+// ---- Today quick access -----------------------------------------------------
+
+/**
+ * The single membership document the Today (On route) quick-access card
+ * shows, or null. Eligibility is fully explicit: category 'membership',
+ * organisation STF, and the user-set showOnToday flag. The store keeps the
+ * flag unique (enforceMembershipQuickAccess); should legacy data ever carry
+ * two, the pick is still deterministic — pinned first, then most recently
+ * updated, then id.
+ */
+export function quickAccessMembership(documents) {
+  const eligible = documents.filter(
+    (d) => d.category === 'membership' && d.membershipProvider === 'stf' && d.showOnToday === true,
+  );
+  if (eligible.length === 0) return null;
+  return [...eligible].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    if (a.updatedAt !== b.updatedAt) return b.updatedAt - a.updatedAt;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  })[0];
 }
 
 // ---- Sorting ----------------------------------------------------------------
