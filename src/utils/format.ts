@@ -7,6 +7,12 @@ export function formatDistanceKm(km: number): string {
   return `${km.toFixed(1)} km`;
 }
 
+/** Whole grams -> "980 g" / "9.40 kg" / "12.3 kg" (shared by Lists Packing
+ *  and the Today Prepare card so pack weight always reads the same). */
+export function formatGrams(g: number): string {
+  return g >= 1000 ? `${(g / 1000).toFixed(g >= 10000 ? 1 : 2)} kg` : `${g} g`;
+}
+
 /** Decimal hours -> "5 h 30 min". */
 export function formatHours(hours: number): string {
   if (!isFinite(hours) || hours <= 0) return '—';

@@ -10,3 +10,14 @@ export declare function applyPackingPatch(
   patch: Partial<PackingItem>,
 ): PackingItem[];
 export declare function resetPackingProgress(items: PackingItem[]): PackingItem[];
+
+export interface PackingSummary {
+  total: number;
+  needed: number;
+  ready: number;
+  packed: number;
+  essentialNotPacked: number;
+  weightedGrams: number;
+  weightMissing: number;
+}
+export declare function packingSummary(items: PackingItem[]): PackingSummary;

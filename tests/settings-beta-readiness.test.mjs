@@ -42,11 +42,19 @@ test('the readiness accordion uses button + aria-expanded + aria-controls + a la
   assert.match(accordion, /aria-labelledby=\{buttonId\}/);
 });
 
-test('Trail readiness is collapsed by default', () => {
+test('Trail readiness is collapsed by default (unless deep-linked)', () => {
+  // Plain tab navigation carries no payload (initialSection defaults to
+  // null), so the accordion still starts collapsed; only the one-shot
+  // Today-Prepare deep link opens it on arrival.
   assert.match(
     settings,
-    /const \[readinessOpen, setReadinessOpen\] = useState\(false\)/,
-    'readiness open state defaults to false (collapsed)',
+    /const \[readinessOpen, setReadinessOpen\] = useState\(initialSection === 'readiness'\)/,
+    'readiness open state derives only from the one-shot deep link',
+  );
+  assert.match(
+    settings,
+    /initialSection = null/,
+    'without a payload the deep-link target defaults to null (collapsed)',
   );
   assert.match(
     settings,
@@ -63,7 +71,7 @@ test('the readiness score sits in the collapsed header, so it stays visible whil
   // The score node is computed from the live checks and handed to the header
   // via `aside` — outside the accordion's children (which only render when open).
   assert.match(trail, /const score = \(\s*<span className="readiness-score">/);
-  assert.match(trail, /<strong>\{passed\}\/\{requiredChecks\.length\}<\/strong>/);
+  assert.match(trail, /<strong>\{passed\}\/\{required\}<\/strong>/);
   assert.match(trail, /aside=\{score\}/);
   // and the score markup is NOT duplicated inside the panel body.
   const asideIdx = trail.indexOf('aside={score}');
@@ -74,16 +82,24 @@ test('the readiness score sits in the collapsed header, so it stays visible whil
   );
 });
 
-test('live readiness checks are preserved', () => {
+test('live readiness checks are preserved (shared hook, one aggregate)', () => {
+  // The criteria/scoring moved to the shared useTrailReadiness hook so the
+  // Today Prepare card and Settings can never disagree; the card must read
+  // that hook, and the hook must still run the live checks.
   const trail = settings.slice(settings.indexOf('function TrailReadinessCard'));
+  assert.ok(trail.includes('useTrailReadiness()'), 'the card reads the shared aggregate');
+  const hookSource = readFileSync(
+    join(root, 'src/hooks/useTrailReadiness.ts'),
+    'utf8',
+  );
   for (const hook of [
     'useInstallPrompt()',
     'useServiceWorkerControlled()',
     'useCombinedArchiveStatus([VECTOR_ARCHIVE])',
   ]) {
-    assert.ok(trail.includes(hook), `readiness still runs ${hook}`);
+    assert.ok(hookSource.includes(hook), `readiness still runs ${hook}`);
   }
-  assert.match(trail, /const passed = requiredChecks\.filter\(Boolean\)\.length/);
+  assert.match(hookSource, /const passed = requiredChecks\.filter\(Boolean\)\.length/);
 });
 
 test('page copy no longer claims Trail readiness stays visible/expanded', () => {

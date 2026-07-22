@@ -8,6 +8,8 @@ import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
 import { TransportView, TransportHelp } from '../components/TransportView';
 import { TripView, type TripLaunch } from '../components/TripView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
+import { packingSummary } from '../utils/packingModel.mjs';
+import { formatGrams } from '../utils/format';
 import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
 
 /** Lists sub-sections: the packing list, the offline reference sections
@@ -42,9 +44,6 @@ const STATUS_LABEL: Record<PackingStatus, string> = {
 
 type Filter = 'all' | PackingStatus;
 
-function formatGrams(g: number): string {
-  return g >= 1000 ? `${(g / 1000).toFixed(g >= 10000 ? 1 : 2)} kg` : `${g} g`;
-}
 
 /**
  * Inline editor for ANY packing item — seeded or custom. Every field except
@@ -287,19 +286,14 @@ function PackingView() {
 
   const items = state.packing;
 
+  // Shared read-only aggregate (also read by the Today Prepare card) so the
+  // two surfaces can never disagree; only the percent is view-local.
   const stats = useMemo(() => {
-    const total = items.length;
-    const packed = items.filter((i) => i.status === 'packed').length;
-    const essentialLeft = items.filter((i) => i.essential && i.status !== 'packed').length;
-    const withWeight = items.filter((i) => i.weightGrams != null);
-    const totalWeight = withWeight.reduce((s, i) => s + (i.weightGrams ?? 0) * i.quantity, 0);
+    const summary = packingSummary(items);
     return {
-      total,
-      packed,
-      percent: total === 0 ? 0 : Math.round((packed / total) * 100),
-      essentialLeft,
-      totalWeight,
-      missingWeight: total - withWeight.length,
+      ...summary,
+      percent:
+        summary.total === 0 ? 0 : Math.round((summary.packed / summary.total) * 100),
     };
   }, [items]);
 
@@ -324,26 +318,26 @@ function PackingView() {
           <div className="meter-fill" style={{ width: `${stats.percent}%` }} />
         </div>
         <div className="row" style={{ marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
-          {stats.essentialLeft > 0 ? (
+          {stats.essentialNotPacked > 0 ? (
             <span className="pill pill-warn">
               <TriangleAlert size={12} strokeWidth={2.2} aria-hidden />
-              {stats.essentialLeft} essential not packed
+              {stats.essentialNotPacked} essential not packed
             </span>
           ) : (
             <span className="pill pill-good">All essentials packed</span>
           )}
-          {stats.totalWeight > 0 ? (
+          {stats.weightedGrams > 0 ? (
             <span className="pill tnum" title="Sum of items with an entered weight × quantity">
               <Scale size={12} strokeWidth={2} aria-hidden />
-              {stats.missingWeight > 0 ? '≥ ' : ''}
-              {formatGrams(stats.totalWeight)}
+              {stats.weightMissing > 0 ? '≥ ' : ''}
+              {formatGrams(stats.weightedGrams)}
             </span>
           ) : null}
         </div>
-        {stats.missingWeight > 0 && stats.totalWeight > 0 ? (
+        {stats.weightMissing > 0 && stats.weightedGrams > 0 ? (
           <p className="card-sub" style={{ marginTop: 6 }}>
-            Weight is incomplete — {stats.missingWeight} item
-            {stats.missingWeight === 1 ? ' has' : 's have'} no weight entered.
+            Weight is incomplete — {stats.weightMissing} item
+            {stats.weightMissing === 1 ? ' has' : 's have'} no weight entered.
           </p>
         ) : null}
       </div>

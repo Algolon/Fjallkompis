@@ -71,7 +71,9 @@ function Screens({
       // links into Shops/Transport from a Stop's chips.
       return <ListsScreen deepLink={nav.payload?.lists} />;
     case 'settings':
-      return <SettingsScreen />;
+      // Today Prepare's readiness card deep-links to the Trail readiness
+      // section (same one-shot payload pattern as Stops/Stages/Lists).
+      return <SettingsScreen initialSection={nav.payload?.settings?.section ?? null} />;
   }
 }
 

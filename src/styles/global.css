@@ -2898,6 +2898,111 @@ button.stop-fac:focus-visible {
   flex: 0 0 auto;
   color: var(--ink-soft);
 }
+
+/* --- Today: Prepare mode ----------------------------------------------------------
+   The Prepare | On route selector plus the compact preparation dashboard.
+   Built on the same systems as the rest of Today: the .seg tablist (Lists),
+   .today-action-card whole-card buttons and the glass surfaces. The whole
+   Prepare view is height-budgeted to fit the smallest supported portrait
+   viewport without scrolling (docs/proposals/today-prepare.md). */
+
+/* Mode selector: the shared .seg sits on paper elsewhere; on Today's contour
+   backdrop it needs the opaque pane fill for contrast, and roomier buttons
+   for a comfortable touch target. */
+.today-seg {
+  margin-bottom: 14px;
+  background: var(--glass-fill-opaque);
+  border: 0;
+  box-shadow: var(--glass-shadow);
+}
+.today-seg .seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--ink-soft);
+}
+.today-seg .seg-btn[aria-selected='true'] {
+  /* Re-assert the shared selected treatment (spruce fill, near-white text):
+     the unselected colour above would otherwise win the cascade tie. */
+  color: #f4f8f5;
+}
+.today-seg .seg-btn:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: -2px; /* inside the pane so the ring is never clipped */
+}
+.today-seg .seg-btn svg {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+/* The Prepare stack owns its vertical rhythm (cards have no self margins). */
+.prepare-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.prepare-stack .today-action-card {
+  margin-top: 0;
+}
+.prepare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Tiles (the two-up bottom row): same whole-card button anatomy, tighter
+   chrome so labels and wrapped status tokens stay readable at half width. */
+.prepare-card--tile {
+  padding: 12px;
+  gap: 6px;
+}
+@media (max-width: 340px) {
+  .prepare-card--tile {
+    padding: 10px;
+    gap: 4px;
+  }
+  /* Smallest phones: one step tighter rhythm (12 → 10) so the stack keeps
+     clear tolerance against the 568px-tall viewport when labels wrap. */
+  .prepare-stack,
+  .prepare-grid {
+    gap: 10px;
+  }
+  .today-seg {
+    margin-bottom: 12px;
+  }
+}
+
+/* Status counts: visible words, never bare codes. Numbers use tnum via the
+   markup class; tokens never break internally, the row wraps instead. */
+.prepare-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.prepare-count {
+  white-space: nowrap;
+}
+.prepare-count__sep {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.prepare-card__meta {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #3f4f45; /* secondary ink on glass, same as .today-glass .card-sub */
+}
+.prepare-card__warn {
+  color: var(--danger);
+}
+
 /* --- Packing list ------------------------------------------------------------------ */
 
 .pack-row-wrap {
