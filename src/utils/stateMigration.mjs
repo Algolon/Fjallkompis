@@ -41,6 +41,17 @@
  *     leaving both behind. Payloads WITH it are user-owned and are never
  *     re-merged, so a deleted seed item stays deleted.
  *
+ * v5 → v6 (Trip plan):
+ *   - `trip` is added: the personal Trip plan's structured Travel and Stay
+ *     items (src/trip/tripModel.mjs). Payloads without it — every existing
+ *     user, whichever schema they come from — normalise to an empty trip
+ *     plan; nothing is fabricated from existing documents. Document metadata
+ *     and file blobs stay in the dedicated IndexedDB database and are NOT
+ *     part of this blob; trip items only reference document ids. The packing
+ *     fields and their v5 semantics pass through unchanged — the packing
+ *     path keys off `packingTemplateVersion` presence and the trip path off
+ *     the `trip` field, so the two migrations compose independently.
+ *
  * Normalisation is idempotent and never throws: malformed fields fall back to
  * defaults instead of wiping the app.
  */
@@ -57,8 +68,9 @@ import {
   normalizeWeightGrams,
 } from './packingModel.mjs';
 import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
+import { normalizeTripItems } from '../trip/tripModel.mjs';
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** Fresh seed packing items (deep-ish copy so callers can't mutate the seed). */
 export function seedPackingItems() {
@@ -74,6 +86,7 @@ export function defaultState(defaultStageId) {
     journal: [],
     packing: seedPackingItems(),
     packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    trip: [],
   };
 }
 
@@ -225,7 +238,7 @@ function migrateLegacyPacking(raw) {
 
 /**
  * Validate + normalise an unknown blob into the current schema. Accepts v1
- * through v4 payloads (and anything malformed in between). Unknown/missing
+ * through v5 payloads (and anything malformed in between). Unknown/missing
  * fields fall back to defaults rather than throwing, so a partially-corrupt
  * or older payload still loads instead of wiping the app. Retired fields
  * (v1 shopOverride, v2 checklist) are ignored, never a parse failure.
@@ -252,5 +265,6 @@ export function normalizeState(raw, defaultStageId) {
         ? migrateLegacyPacking(raw.packing)
         : normalizeOwnedPacking(raw.packing),
     packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    trip: normalizeTripItems(raw.trip),
   };
 }

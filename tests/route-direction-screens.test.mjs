@@ -112,7 +112,7 @@ test('Stages uses the itinerary for order, geometry, guides and header', () => {
 });
 
 test('Stops renders itinerary order with start-relative distances', () => {
-  assert.match(stops, /const \{ itinerary \} = useStore\(\)/);
+  assert.match(stops, /const \{ itinerary, state \} = useStore\(\)/);
   assert.match(stops, /const stops = itinerary\.orderedStops/);
   assert.match(stops, /routeKm=\{itinerary\.stopDistanceKm\[stop\.id\] \?\? 0\}/);
   // The first stop shows "Start"; others show recomputed "x km in".

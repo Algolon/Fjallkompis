@@ -103,6 +103,8 @@ function StopCard({
   onHeaderKeyDown,
   onOpenShop,
   onOpenTransport,
+  stayTracked,
+  onTrackStay,
 }: {
   stop: TrailStop;
   /** Cumulative km from the selected itinerary start (0 at the start stop). */
@@ -113,6 +115,10 @@ function StopCard({
   onHeaderKeyDown: (e: React.KeyboardEvent) => void;
   onOpenShop: (shopType: ShopCategory) => void;
   onOpenTransport: (link: StopTransportLink) => void;
+  /** True when a personal Stay item already links this stop. */
+  stayTracked: boolean;
+  /** Track a stay here in the Trip plan (or open the existing one). */
+  onTrackStay: () => void;
 }) {
   const waypoint = WAYPOINT_BY_ID[HUT_TO_WAYPOINT[stop.id]];
   const elevation = waypoint?.elevation != null ? Math.round(waypoint.elevation) : null;
@@ -284,6 +290,24 @@ function StopCard({
           </button>
         ) : null}
 
+        {/* Trip-plan integration: track a personal stay at this stop (or open
+            the one already tracked). Prefills verified stop facts only —
+            dates, booking status and notes stay personal. */}
+        <button
+          type="button"
+          className="stop-action-chip"
+          onClick={onTrackStay}
+          aria-label={
+            stayTracked
+              ? `Open your tracked stay at ${shortName} in the Trip plan`
+              : `Track a stay at ${shortName} in the Trip plan`
+          }
+        >
+          <BedDouble size={15} strokeWidth={1.9} aria-hidden />
+          <span>{stayTracked ? 'View stay in Trip' : 'Track stay'}</span>
+          <ChevronRight className="stop-fac-go" size={15} strokeWidth={2} aria-hidden />
+        </button>
+
         <div className="stop-facts">
           {stop.summerOpening2026 ? (
             <span className="stop-fact-row">
@@ -334,7 +358,7 @@ export function StopsScreen({
 }) {
   // Stops in the ACTIVE itinerary's walking order, with route-km measured from
   // the selected start (facilities/notes stay tied to the STABLE stop id).
-  const { itinerary } = useStore();
+  const { itinerary, state } = useStore();
   const stops = itinerary.orderedStops;
   const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
   const endStop = itinerary.endStopId ? STOPS_BY_ID[itinerary.endStopId] : null;
@@ -346,6 +370,18 @@ export function StopsScreen({
     onNavigate('checklist', {
       lists: link.entryId ? { transportId: link.entryId } : { transportContext: link.context },
     });
+
+  // Trip-plan integration: one personal Stay per stop is the common case —
+  // when one exists the chip opens it instead of creating an accidental
+  // duplicate (more instances can still be added inside the Trip section).
+  const trackStay = (stop: TrailStop) => {
+    const linked = state.trip.find((i) => i.kind === 'stay' && i.linkedStopId === stop.id);
+    onNavigate('checklist', {
+      lists: linked
+        ? { section: 'trip', tripItemId: linked.id }
+        : { section: 'trip', trackStayStopId: stop.id },
+    });
+  };
 
   // Only one accordion open at a time (deliberate on mobile — keeps the
   // list scannable and the scroll position predictable).
@@ -425,6 +461,10 @@ export function StopsScreen({
             onHeaderKeyDown={onHeaderKeyDown(i)}
             onOpenShop={openShop}
             onOpenTransport={openTransport}
+            stayTracked={state.trip.some(
+              (it) => it.kind === 'stay' && it.linkedStopId === stop.id,
+            )}
+            onTrackStay={() => trackStay(stop)}
           />
         ))}
       </div>

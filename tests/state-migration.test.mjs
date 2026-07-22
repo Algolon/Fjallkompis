@@ -47,13 +47,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 5', () => {
-  assert.equal(SCHEMA_VERSION, 5);
+test('schema version is 6', () => {
+  assert.equal(SCHEMA_VERSION, 6);
 });
 
-test('v1 → v5: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v6: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 5);
+  assert.equal(s.schemaVersion, 6);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -186,12 +186,13 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 5);
+    assert.equal(s.schemaVersion, 6);
     assert.equal(s.currentStageId, 'd1');
     assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
     assert.deepEqual(s.journal, []);
     assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
+    assert.deepEqual(s.trip, []);
   }
 });
 
@@ -201,7 +202,7 @@ test('v3 → v4: older state without routeDirection defaults to forward', () => 
   // A realistic v3 payload never carried a direction field.
   const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
   const s = normalizeState(v3);
-  assert.equal(s.schemaVersion, 5);
+  assert.equal(s.schemaVersion, 6);
   assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
   // Unrelated data survives untouched.
   assert.equal(s.currentStageId, 'd5');
@@ -440,4 +441,163 @@ test('seedPackingItems returns fresh copies (no shared mutable state)', () => {
   a[0].status = 'packed';
   const b = seedPackingItems();
   assert.equal(b[0].status, 'needed');
+});
+
+// ---- Trip plan (v5 → v6) ----------------------------------------------------
+
+/** A realistic PR#64-era v5 payload: owned, personalised packing, no trip. */
+function ownedV5State() {
+  return {
+    schemaVersion: 5,
+    currentStageId: 'd2',
+    routeDirection: 'nikkaluokta-to-abisko',
+    hutData: { salka: { notes: 'Sauna coins!' } },
+    journal: [],
+    packing: [
+      // A renamed + moved seed item, a deletion (most seeds absent), a custom.
+      {
+        id: 'pack.clothing.fleece',
+        label: 'My renamed fleece',
+        categoryId: 'comfort',
+        quantity: 2,
+        status: 'packed',
+        weightGrams: 310,
+        essential: true,
+        custom: false,
+      },
+      {
+        id: 'custom_rod',
+        label: 'Fishing rod',
+        categoryId: 'comfort',
+        quantity: 1,
+        status: 'ready',
+        essential: false,
+        custom: true,
+      },
+    ],
+    packingTemplateVersion: 2,
+  };
+}
+
+test('v5 → v6: an owned packing payload gains an empty trip plan, nothing else changes', () => {
+  const v5 = ownedV5State();
+  const s = normalizeState(v5);
+  assert.equal(s.schemaVersion, 6);
+  assert.deepEqual(s.trip, [], 'no trip items are fabricated');
+  // The owned snapshot survives byte-for-byte: no re-run of the seed merge,
+  // no restored deletions, no reset progress.
+  assert.deepEqual(s.packing, v5.packing);
+  assert.equal(s.packingTemplateVersion, 2);
+  assert.equal(s.currentStageId, 'd2');
+  assert.equal(s.routeDirection, 'nikkaluokta-to-abisko');
+});
+
+test('v6 roundtrip: travel and stay items persist verbatim beside owned packing', () => {
+  const trip = [
+    {
+      id: 'trip_a',
+      kind: 'transport',
+      title: 'Bus to Nikkaluokta',
+      status: 'confirmed',
+      mode: 'bus',
+      from: 'Kebnekaise',
+      to: 'Nikkaluokta',
+      date: '2026-08-30',
+      departureTime: '14:30',
+      provider: 'Nikkaluoktaexpressen',
+      bookingReference: 'ABC123',
+      attachmentIds: ['doc_1'],
+      linkedTransportId: 'nikkaluoktaexpressen',
+      createdAt: 1751400000000,
+      updatedAt: 1751400001000,
+    },
+    {
+      id: 'trip_b',
+      kind: 'stay',
+      title: 'STF Abisko',
+      status: 'planned',
+      stayType: 'mountain-station',
+      checkInDate: '2026-08-22',
+      checkOutDate: '2026-08-23',
+      attachmentIds: [],
+      linkedStopId: 'abisko',
+      createdAt: 1751400000000,
+      updatedAt: 1751400000000,
+    },
+  ];
+  const v6 = { ...ownedV5State(), schemaVersion: 6, trip };
+  const out = normalizeState(v6);
+  assert.deepEqual(out.trip, trip);
+  assert.deepEqual(out.packing, v6.packing, 'packing untouched beside trip data');
+});
+
+test('a PR#65-era development payload (trip but NO template version) heals both ways', () => {
+  // Such a payload only ever existed on a development branch: it carries trip
+  // items but its packing predates the owned model. The packing side takes
+  // the one-time legacy merge (template items arrive); the trip side is kept.
+  const dev = {
+    schemaVersion: 5,
+    packing: [{ id: 'pack.clothing.fleece', status: 'packed', quantity: 1 }],
+    trip: [
+      {
+        id: 'trip_dev',
+        kind: 'stay',
+        title: 'Sälka',
+        status: 'planned',
+        stayType: 'mountain-hut',
+        attachmentIds: [],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ],
+  };
+  const s = normalizeState(dev);
+  assert.equal(s.trip.length, 1);
+  assert.equal(s.trip[0].id, 'trip_dev');
+  assert.equal(s.packing.length, SEED_PACKING_ITEMS.length, 'legacy merge ran once');
+  assert.equal(
+    s.packing.find((i) => i.id === 'pack.clothing.fleece').status,
+    'packed',
+    'progress preserved through the legacy merge',
+  );
+  // A second normalisation takes the owned path and changes nothing.
+  assert.deepEqual(normalizeState(s), s);
+});
+
+test('malformed trip data never crashes and valid sibling fields survive', () => {
+  for (const bad of [undefined, null, 'garbage', 42, { not: 'an array' }]) {
+    const s = normalizeState({ ...ownedV5State(), trip: bad });
+    assert.deepEqual(s.trip, [], `trip=${JSON.stringify(bad)}`);
+    assert.equal(s.packing.length, 2, 'owned packing unaffected by bad trip data');
+  }
+  const s = normalizeState({
+    ...ownedV5State(),
+    trip: [
+      null,
+      { id: '', kind: 'transport', title: 'x' },
+      { id: 'trip_ok', kind: 'stay', title: '  Salka  ', status: 'BOOKED', stayType: 'igloo' },
+      { id: 'trip_ok', kind: 'stay', title: 'duplicate id' },
+      { id: 'trip_x', kind: 'teleport', title: 'nope' },
+    ],
+  });
+  assert.equal(s.trip.length, 1);
+  assert.equal(s.trip[0].title, 'Salka', 'title is trimmed');
+  assert.equal(s.trip[0].status, 'needed', 'unknown status falls back');
+  assert.equal(s.trip[0].stayType, 'other', 'unknown stay type falls back');
+});
+
+test('combined migration is idempotent and never mutates its input', () => {
+  const v5 = ownedV5State();
+  const frozen = JSON.stringify(v5);
+  const once = normalizeState(v5);
+  const twice = normalizeState(once);
+  assert.deepEqual(twice, once);
+  assert.equal(JSON.stringify(v5), frozen, 'input object untouched');
+});
+
+test('fresh defaultState carries the current template, its version and an empty trip', () => {
+  const s = defaultState('d1');
+  assert.equal(s.schemaVersion, 6);
+  assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
+  assert.deepEqual(s.trip, []);
 });

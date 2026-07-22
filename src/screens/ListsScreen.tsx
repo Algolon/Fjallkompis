@@ -6,17 +6,18 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { IconCheck } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
 import { TransportView, TransportHelp } from '../components/TransportView';
-import { WalletView } from '../components/WalletView';
+import { TripView, type TripLaunch } from '../components/TripView';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
 import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
 
-/** Lists sub-sections: the packing list plus the offline reference sections
- *  (Shop info, Transport) and the Trail Wallet document pocket. */
-export type ListsSection = 'packing' | 'shops' | 'transport' | 'wallet';
+/** Lists sub-sections: the packing list, the offline reference sections
+ *  (Shop info, Transport) and the personal Trip plan. */
+export type ListsSection = 'packing' | 'shops' | 'transport' | 'trip';
 
 /**
  * One-shot deep-link into a Lists sub-section (from a Stop's Shop / transport
- * chips). In-memory only — a fresh visit or refresh opens the default section.
+ * chips, or a stop's Track stay action). In-memory only — a fresh visit or
+ * refresh opens the default section.
  */
 export interface ListsDeepLink {
   section?: ListsSection;
@@ -24,6 +25,10 @@ export interface ListsDeepLink {
   shopType?: ShopCategory;
   transportId?: string;
   transportContext?: TransportContext;
+  /** Trip opens this item's editor (from a stop's View stay action). */
+  tripItemId?: string;
+  /** Trip opens a prefilled Stay form for this stop (Track stay). */
+  trackStayStopId?: string;
 }
 
 // --------------------------------------------------------------- Packing view
@@ -483,15 +488,16 @@ function PackingView() {
 
 // ------------------------------------------------------------------- Screen
 
-// Wallet is deliberately LAST: Packing dominates pre-trip preparation, Shops
-// and Transport are the high-frequency on-trail references, and Trail Wallet
-// moments (bus boarding, hut check-in) are discrete and predictable. The
-// compact tab label is "Wallet"; the full "Trail Wallet" name lives in copy.
+// Trip is deliberately LAST: Packing dominates pre-trip preparation, Shops
+// and Transport are the high-frequency on-trail references, and Trip plan
+// moments (booking, bus boarding, hut check-in) are discrete and
+// predictable. The compact tab label is "Trip"; "Trip plan" is the full
+// section title used in copy.
 const LISTS_TABS: { id: ListsSection; label: string }[] = [
   { id: 'packing', label: 'Packing' },
   { id: 'shops', label: 'Shops' },
   { id: 'transport', label: 'Transport' },
-  { id: 'wallet', label: 'Wallet' },
+  { id: 'trip', label: 'Trip' },
 ];
 
 const LISTS_HEADER: Record<ListsSection, string> = {
@@ -501,8 +507,8 @@ const LISTS_HEADER: Record<ListsSection, string> = {
     'Compare the shop types relevant to this route and see what STF Large and Small cabin shops normally carry. Assortments and prices are planning references, not live stock.',
   transport:
     'Buses, boats and the train for this route — static 2026 planning snapshots, always confirmed against the official source.',
-  wallet:
-    'Trail Wallet keeps your tickets, bookings and other hiking documents stored locally on this device and available offline. Clearing the browser’s or app’s data also removes these documents.',
+  trip:
+    'Trip plan — keep your travel, stays, bookings and important documents together and available offline. Documents are stored locally on this device; clearing the browser’s or app’s data also removes them.',
 };
 
 /** Which section a one-shot deep link opens (defaults to Packing). */
@@ -510,13 +516,42 @@ function initialSectionFor(link?: ListsDeepLink): ListsSection {
   if (!link) return 'packing';
   if (link.shopType) return 'shops';
   if (link.transportId || link.transportContext) return 'transport';
+  if (link.tripItemId || link.trackStayStopId) return 'trip';
   return link.section ?? 'packing';
+}
+
+/** The one-shot Trip launch a deep link carries, if any. */
+function initialTripLaunchFor(link?: ListsDeepLink): TripLaunch | null {
+  if (link?.tripItemId) return { kind: 'item', itemId: link.tripItemId };
+  if (link?.trackStayStopId) return { kind: 'add-stay', stopId: link.trackStayStopId };
+  return null;
 }
 
 export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
   // One-shot: the initial section is decided at mount; switching tabs
   // afterwards is ordinary local state, and a refresh (no payload) is Packing.
   const [mode, setMode] = useState<ListsSection>(() => initialSectionFor(deepLink));
+  // One-shot Trip launch (a deep link, or Transport's Add to Trip). Cleared
+  // whenever a tab is chosen by hand so it can never re-fire later.
+  const [tripLaunch, setTripLaunch] = useState<TripLaunch | null>(() =>
+    initialTripLaunchFor(deepLink),
+  );
+
+  const selectTab = (section: ListsSection) => {
+    setTripLaunch(null);
+    setMode(section);
+  };
+
+  // Transport → Trip integration: "Add to Trip" opens the Trip section with a
+  // prefilled personal transport form; "View in Trip" opens the linked item.
+  const addTransportToTrip = (entryId: string) => {
+    setTripLaunch({ kind: 'add-transport', entryId });
+    setMode('trip');
+  };
+  const viewTripItem = (itemId: string) => {
+    setTripLaunch({ kind: 'item', itemId });
+    setMode('trip');
+  };
 
   const headerAction =
     mode === 'shops' ? <ShopInfoHelp /> : mode === 'transport' ? <TransportHelp /> : undefined;
@@ -532,7 +567,7 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
             role="tab"
             aria-selected={mode === t.id}
             className="seg-btn"
-            onClick={() => setMode(t.id)}
+            onClick={() => selectTab(t.id)}
           >
             {t.label}
           </button>
@@ -552,9 +587,11 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
         <TransportView
           initialEntryId={deepLink?.transportId}
           initialContext={deepLink?.transportContext}
+          onAddToTrip={addTransportToTrip}
+          onViewInTrip={viewTripItem}
         />
       ) : null}
-      {mode === 'wallet' ? <WalletView /> : null}
+      {mode === 'trip' ? <TripView launch={tripLaunch} /> : null}
     </div>
   );
 }

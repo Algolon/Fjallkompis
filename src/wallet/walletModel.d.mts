@@ -10,6 +10,7 @@ export declare const WALLET_SCHEMA_VERSION: number;
 export declare const WALLET_META_ID: string;
 export declare const MAX_WALLET_FILE_BYTES: number;
 export declare const WALLET_CATEGORIES: WalletCategoryInfo[];
+export declare const LEGACY_WALLET_CATEGORIES: WalletCategoryInfo[];
 export declare const WALLET_FILE_ACCEPT: string;
 
 export declare function walletCategoryTitle(id: string): string;

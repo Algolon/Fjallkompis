@@ -6,6 +6,7 @@ import {
   Footprints,
   Info,
   Link2,
+  Luggage,
   Ship,
   TrainFront,
   TriangleAlert,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ListDisclosure } from './ListDisclosure';
 import { ContextHelp } from './ContextHelp';
+import { useStore } from '../store/AppStore';
 import {
   TRANSPORT_ENTRIES,
   TRANSPORT_SECTIONS,
@@ -90,13 +92,25 @@ function TransportCard({
   open,
   onToggle,
   headingLevel,
+  onAddToTrip,
+  onViewInTrip,
 }: {
   entry: TransportEntry;
   today: string;
   open: boolean;
   onToggle: () => void;
   headingLevel: 'h2' | 'h3';
+  onAddToTrip?: (entryId: string) => void;
+  onViewInTrip?: (itemId: string) => void;
 }) {
+  // Personal Trip items already linked to this reference entry. Linking is
+  // never globally unique (the same bus can be used on different dates) —
+  // this only reshapes the action so an ACCIDENTAL duplicate takes a
+  // deliberate second tap.
+  const { state } = useStore();
+  const linkedItem = state.trip.find(
+    (i) => i.kind === 'transport' && i.linkedTransportId === entry.id,
+  );
   const status = timetableStatus(entry, today);
   const validity =
     entry.live ? 'Live times' : entry.validityText ?? (entry.validFrom ? '' : 'Check source');
@@ -247,6 +261,43 @@ function TransportCard({
         </p>
       ) : null}
 
+      {/* Personal Trip integration — creates a personal transport item with
+          only verified source facts prefilled; the user supplies their own
+          date, times and booking status. Never shown without the callbacks
+          (the reference view stays purely informational elsewhere). */}
+      {onAddToTrip ? (
+        <div className="row" style={{ marginTop: 14 }}>
+          {linkedItem && onViewInTrip ? (
+            <>
+              <button
+                type="button"
+                className="btn"
+                style={{ flex: 1 }}
+                onClick={() => onViewInTrip(linkedItem.id)}
+              >
+                <Luggage size={15} strokeWidth={1.9} aria-hidden /> View in Trip
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ flex: 1 }}
+                onClick={() => onAddToTrip(entry.id)}
+              >
+                Add to Trip again
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-block"
+              onClick={() => onAddToTrip(entry.id)}
+            >
+              <Luggage size={15} strokeWidth={1.9} aria-hidden /> Add to Trip
+            </button>
+          )}
+        </div>
+      ) : null}
+
       {/* Source + official links */}
       <div className="stop-source">
         <p>
@@ -300,9 +351,14 @@ export function TransportHelp() {
 export function TransportView({
   initialEntryId,
   initialContext,
+  onAddToTrip,
+  onViewInTrip,
 }: {
   initialEntryId?: string;
   initialContext?: TransportContext;
+  /** Present when the personal Trip integration is available (Lists). */
+  onAddToTrip?: (entryId: string) => void;
+  onViewInTrip?: (itemId: string) => void;
 } = {}) {
   const today = useMemo(() => todayIso(), []);
   const validEntry = initialEntryId && TRANSPORT_ENTRIES.some((e) => e.id === initialEntryId)
@@ -359,6 +415,8 @@ export function TransportView({
                   open={open.has(entry.id)}
                   onToggle={() => toggle(entry.id)}
                   headingLevel={i === 0 ? 'h2' : 'h3'}
+                  onAddToTrip={onAddToTrip}
+                  onViewInTrip={onViewInTrip}
                 />
               ))}
             </div>

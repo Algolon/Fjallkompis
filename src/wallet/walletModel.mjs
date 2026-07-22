@@ -32,22 +32,41 @@ export const WALLET_META_ID = '__meta__';
  */
 export const MAX_WALLET_FILE_BYTES = 20 * 1024 * 1024;
 
-/** The six document categories, in display order. */
+/**
+ * The six standalone-document categories offered for NEW documents, in
+ * display order. Since the Trip plan iteration a personal ticket or booking
+ * confirmation belongs on a Travel or Stay item (with the file attached), so
+ * the standalone categories cover reference material only.
+ */
 export const WALLET_CATEGORIES = [
-  { id: 'membership', title: 'Memberships' },
-  { id: 'transport', title: 'Transport' },
-  { id: 'booking', title: 'Bookings' },
+  { id: 'membership', title: 'Membership' },
   { id: 'insurance-emergency', title: 'Insurance & emergency' },
-  { id: 'route-reference', title: 'Route references' },
+  { id: 'identity', title: 'Identity' },
+  { id: 'route-reference', title: 'Route reference' },
+  { id: 'timetable', title: 'Timetable' },
   { id: 'other', title: 'Other' },
 ];
 
-const CATEGORY_IDS = new Set(WALLET_CATEGORIES.map((c) => c.id));
+/**
+ * Historical Trail Wallet categories. Existing records keep these ids
+ * VERBATIM (no data loss, no silent reclassification — normalisation stays
+ * idempotent) and they still resolve to their historical titles; they are
+ * simply no longer offered for new documents.
+ */
+export const LEGACY_WALLET_CATEGORIES = [
+  { id: 'transport', title: 'Transport' },
+  { id: 'booking', title: 'Bookings' },
+];
+
+const CATEGORY_IDS = new Set(
+  [...WALLET_CATEGORIES, ...LEGACY_WALLET_CATEGORIES].map((c) => c.id),
+);
 
 /** Display title for a category id ('Other' for unknown ids — never throws). */
 export function walletCategoryTitle(id) {
   return (
     WALLET_CATEGORIES.find((c) => c.id === id)?.title ??
+    LEGACY_WALLET_CATEGORIES.find((c) => c.id === id)?.title ??
     WALLET_CATEGORIES.find((c) => c.id === 'other').title
   );
 }

@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Download, FileUp, Trash2, X } from 'lucide-react';
 import type { WalletCategory, WalletDocument } from '../types';
 import {
+  LEGACY_WALLET_CATEGORIES,
   MAX_WALLET_FILE_BYTES,
   WALLET_CATEGORIES,
   WALLET_FILE_ACCEPT,
@@ -60,6 +61,15 @@ export function WalletEditorSheet({
   const [pinned, setPinned] = useState(doc?.pinned ?? false);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // New documents choose from the current six categories. A record that still
+  // carries a legacy Trail Wallet category ('transport', 'booking') keeps it —
+  // the option is offered ONLY on that record, so nothing is reclassified
+  // silently and nothing legacy is offered for new documents.
+  const categoryOptions = useMemo(() => {
+    const legacy = LEGACY_WALLET_CATEGORIES.find((c) => c.id === doc?.category);
+    return legacy ? [...WALLET_CATEGORIES, legacy] : WALLET_CATEGORIES;
+  }, [doc]);
 
   // The sheet mounts only while open: show the modal once, and return focus
   // to wherever the user was when it closes (native restoration can be lost
@@ -208,7 +218,7 @@ export function WalletEditorSheet({
             value={category}
             onChange={(e) => setCategory(e.target.value as WalletCategory)}
           >
-            {WALLET_CATEGORIES.map((c) => (
+            {categoryOptions.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
               </option>
