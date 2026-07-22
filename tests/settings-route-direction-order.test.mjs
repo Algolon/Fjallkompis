@@ -47,7 +47,12 @@ test('every section starts collapsed on load, Route direction included', () => {
   // Route direction is collapsed by default like the rest — no default-open,
   // visually dominant section.
   assert.match(settings, /const \[directionOpen, setDirectionOpen\] = useState\(false\)/);
-  assert.match(settings, /const \[readinessOpen, setReadinessOpen\] = useState\(false\)/);
+  // Collapsed unless the one-shot Today-Prepare deep link targets it; plain
+  // navigation passes no payload, so initialSection is null → collapsed.
+  assert.match(
+    settings,
+    /const \[readinessOpen, setReadinessOpen\] = useState\(initialSection === 'readiness'\)/,
+  );
   assert.match(
     settings,
     /const \[openSection, setOpenSection\] = useState<SettingsSection \| null>\(null\)/,
@@ -143,7 +148,12 @@ test('the Trail-readiness manual-reminder note and its CSS are removed', () => {
 
 test('Trail readiness stays a foldout: accordion, collapsed by default, score in header', () => {
   assert.match(settings, /<SettingsAccordion[\s\S]*?title="Trail readiness"[\s\S]*?aside=\{score\}/);
-  assert.match(settings, /const \[readinessOpen, setReadinessOpen\] = useState\(false\)/);
+  // Collapsed unless the one-shot Today-Prepare deep link targets it; plain
+  // navigation passes no payload, so initialSection is null → collapsed.
+  assert.match(
+    settings,
+    /const \[readinessOpen, setReadinessOpen\] = useState\(initialSection === 'readiness'\)/,
+  );
   assert.match(settings, /const score = \(\s*<span className="readiness-score">/);
 });
 

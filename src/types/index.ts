@@ -770,7 +770,24 @@ export interface WalletDocument {
   fileName: string;
   mimeType: WalletMimeType;
   sizeBytes: number;
+  /**
+   * Membership documents only: the issuing organisation, chosen EXPLICITLY
+   * in the editor — never inferred from filenames, titles or notes. Additive
+   * optional field (see the shape comment above): absent on every legacy and
+   * non-membership record, no storage migration involved.
+   */
+  membershipProvider?: MembershipProvider;
+  /**
+   * Membership + STF only: surface the Today (On route) quick-access card.
+   * At most one document carries this flag — saving a new choice clears the
+   * previous holder in the same transaction (walletStore
+   * enforceMembershipQuickAccess); quickAccessMembership() reads it.
+   */
+  showOnToday?: boolean;
 }
+
+/** Issuing organisation of a Membership document (explicit user choice). */
+export type MembershipProvider = 'stf' | 'other';
 
 export interface WalletCategoryInfo {
   id: WalletCategory;

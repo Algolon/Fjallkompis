@@ -234,12 +234,19 @@ test('the document editor offers the six categories plus a record’s own legacy
 // ---- Object URL hygiene -------------------------------------------------------
 
 test('every created object URL has a matching revoke path', () => {
-  const creates = (tripView.match(/URL\.createObjectURL/g) ?? []).length;
+  // URL creation moved to the shared opener (also used by the Today
+  // membership quick access); TripView keeps the viewer-close revoke.
+  const opener = readFileSync(join(root, 'src/wallet/documentOpening.ts'), 'utf8');
+  const creates = (opener.match(/URL\.createObjectURL/g) ?? []).length;
   assert.ok(creates >= 2, 'PDF open and image viewer both create URLs');
   assert.ok(
-    (tripView.match(/URL\.revokeObjectURL/g) ?? []).length >= creates - 1,
-    'revocation paths exist (viewer revokes on close; PDF revokes delayed/failed)',
+    (opener.match(/URL\.revokeObjectURL/g) ?? []).length >= creates - 1,
+    'revocation paths exist in the opener (PDF revokes delayed/failed)',
   );
+  assert.match(tripView, /URL\.revokeObjectURL\(viewer\.url\)/,
+    'the image viewer URL is revoked on close');
+  assert.match(opener, /kind: 'image'; url: string/,
+    'image URLs are handed to the caller, which owns the revoke');
 });
 
 // ---- Settings integration -----------------------------------------------------

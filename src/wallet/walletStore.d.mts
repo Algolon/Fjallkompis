@@ -13,6 +13,7 @@ export declare function updateWalletDocument(
   doc: WalletDocument,
   blob?: Blob | null,
 ): Promise<void>;
+export declare function enforceMembershipQuickAccess(keepId: string): Promise<void>;
 export declare function deleteWalletDocument(id: string): Promise<void>;
 export declare function clearWalletData(): Promise<void>;
 export declare function requestPersistentStorage(): Promise<boolean | null>;

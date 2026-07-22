@@ -17,26 +17,19 @@ import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { clearWalletData } from '../wallet/walletStore.mjs';
 import { todayIso } from '../utils/format';
 import {
-  CONTOURS_ARCHIVE,
   OfflineMapCard,
-  SATELLITE_ARCHIVE,
   SatelliteMapCard,
-  TERRAIN_ARCHIVE,
   TerrainReliefCard,
-  VECTOR_ARCHIVE,
   formatBytes,
-  useCombinedArchiveStatus,
 } from '../components/OfflineMapCard';
 import { CreditsSheet } from '../components/CreditsSheet';
-import {
-  InstallCard,
-  installStatusText,
-  useServiceWorkerControlled,
-} from '../components/InstallCard';
-import { useInstallPrompt } from '../hooks/useInstallPrompt';
+import { InstallCard, installStatusText } from '../components/InstallCard';
+import { useTrailReadiness } from '../hooks/useTrailReadiness';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 type SettingsSection = 'install' | 'maps' | 'backup' | 'sources';
+/** One-shot deep-link targets (NavPayload.settings) — readiness only for now. */
+export type SettingsDeepLinkSection = 'readiness';
 
 const BETA_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSdKmFYZ4uRrfcqc5dPlF1VgxFcggMjtFVl8WQyLtebGokUllg/viewform';
@@ -78,35 +71,32 @@ function ReadinessRow({
 }
 
 function TrailReadinessCard({
-  storageOk,
   open,
   onToggle,
 }: {
-  storageOk: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
-  const { installed } = useInstallPrompt();
-  const swControlled = useServiceWorkerControlled();
-  const basemap = useCombinedArchiveStatus([VECTOR_ARCHIVE]);
-  const terrain = useCombinedArchiveStatus([TERRAIN_ARCHIVE, CONTOURS_ARCHIVE]);
-  const satellite = useCombinedArchiveStatus([SATELLITE_ARCHIVE]);
-
-  const requiredChecks = [
+  // The shared aggregate (also read by the Today Prepare card) — criteria and
+  // scoring live in useTrailReadiness so the surfaces can never disagree.
+  const {
+    passed,
+    required,
+    ready,
+    pending,
     installed,
-    storageOk,
     swControlled,
-    basemap.downloaded,
-  ];
-  const passed = requiredChecks.filter(Boolean).length;
-  const pending = basemap.checking || terrain.checking || satellite.checking;
-  const ready = passed === requiredChecks.length;
+    storageOk,
+    basemap,
+    terrain,
+    satellite,
+  } = useTrailReadiness();
 
   // The score lives in the collapsed header, so the readiness status stays
   // visible without expanding the panel — computed once, shown in both places.
   const score = (
     <span className="readiness-score">
-      <strong>{passed}/{requiredChecks.length}</strong>
+      <strong>{passed}/{required}</strong>
       <span>{pending ? 'Checking' : ready ? 'Ready' : 'Setup'}</span>
     </span>
   );
@@ -319,17 +309,24 @@ function BetaFeedbackCard() {
   );
 }
 
-export function SettingsScreen() {
-  const { state, storageOk, replaceState, resetAll, routeDirection } = useStore();
+export function SettingsScreen({
+  initialSection = null,
+}: {
+  /** One-shot deep link (e.g. Today Prepare's readiness card): open this
+   *  section on arrival. Plain tab navigation keeps everything collapsed. */
+  initialSection?: SettingsDeepLinkSection | null;
+}) {
+  const { state, replaceState, resetAll, routeDirection } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
   // Every Settings section starts collapsed for a consistent, scannable list
   // (Route direction is still first; its collapsed summary shows the current
   // choice). Route direction and Trail readiness each own an independent
   // boolean; the grouped foldouts below share a single-open group — same
-  // shared SettingsAccordion behaviour, no section is open on load.
+  // shared SettingsAccordion behaviour, no section is open on load unless a
+  // one-shot deep link asked for it.
   const [directionOpen, setDirectionOpen] = useState(false);
-  const [readinessOpen, setReadinessOpen] = useState(false);
+  const [readinessOpen, setReadinessOpen] = useState(initialSection === 'readiness');
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -419,7 +416,6 @@ export function SettingsScreen() {
       </SettingsAccordion>
 
       <TrailReadinessCard
-        storageOk={storageOk}
         open={readinessOpen}
         onToggle={() => setReadinessOpen((current) => !current)}
       />

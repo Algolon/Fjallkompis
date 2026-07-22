@@ -207,6 +207,29 @@ export async function updateWalletDocument(doc, blob = null) {
   });
 }
 
+/**
+ * Make `keepId` the ONLY document carrying the Today quick-access flag.
+ * One readwrite transaction: every other record with showOnToday loses the
+ * flag before commit, so at most one membership card can ever be surfaced
+ * (explicit uniqueness — no hidden pick-a-winner heuristics at read time).
+ * Run right after saving a document whose showOnToday is true.
+ */
+export async function enforceMembershipQuickAccess(keepId) {
+  await inBothStores((tx) => {
+    const store = tx.objectStore(DOCUMENTS);
+    store.getAll().onsuccess = (event) => {
+      for (const record of event.target.result) {
+        if (!record || record.id === WALLET_META_ID || record.id === keepId) continue;
+        if (record.showOnToday !== undefined) {
+          const next = { ...record };
+          delete next.showOnToday;
+          store.put(next);
+        }
+      }
+    };
+  });
+}
+
 /** Delete a document — metadata and blob leave together, atomically. */
 export async function deleteWalletDocument(id) {
   await inBothStores((tx) => {

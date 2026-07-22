@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Download, FileUp, Trash2, X } from 'lucide-react';
-import type { WalletCategory, WalletDocument } from '../types';
+import type { MembershipProvider, WalletCategory, WalletDocument } from '../types';
 import {
   LEGACY_WALLET_CATEGORIES,
   MAX_WALLET_FILE_BYTES,
@@ -19,6 +19,10 @@ export interface WalletEditorFields {
   date?: string;
   note?: string;
   pinned: boolean;
+  /** Membership only: explicit issuing organisation (never inferred). */
+  membershipProvider?: MembershipProvider;
+  /** Membership + STF only: surface the Today quick-access card. */
+  showOnToday?: boolean;
 }
 
 /**
@@ -59,6 +63,12 @@ export function WalletEditorSheet({
   const [date, setDate] = useState(doc?.date ?? '');
   const [note, setNote] = useState(doc?.note ?? '');
   const [pinned, setPinned] = useState(doc?.pinned ?? false);
+  // Membership metadata: '' = not set (nothing written). Selecting STF turns
+  // the Today quick access ON as a sensible default — the user can untick it.
+  const [provider, setProvider] = useState<MembershipProvider | ''>(
+    doc?.membershipProvider ?? '',
+  );
+  const [showOnToday, setShowOnToday] = useState(doc?.showOnToday === true);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -116,6 +126,12 @@ export function WalletEditorSheet({
           ...(date ? { date } : {}),
           ...(note.trim() ? { note: note.trim() } : {}),
           pinned,
+          // Only meaningful on a Membership document; the save handler and
+          // read-time normalisation both drop anything stale.
+          ...(category === 'membership' && provider ? { membershipProvider: provider } : {}),
+          ...(category === 'membership' && provider === 'stf' && showOnToday
+            ? { showOnToday: true }
+            : {}),
         },
         file,
       );
@@ -225,6 +241,44 @@ export function WalletEditorSheet({
             ))}
           </select>
         </label>
+
+        {category === 'membership' ? (
+          <>
+            {/* Explicit organisation choice — quick access is never inferred
+                from filenames, titles or notes. */}
+            <label className="field">
+              <span>Organisation</span>
+              <select
+                className="select"
+                value={provider}
+                onChange={(e) => {
+                  const next = e.target.value as MembershipProvider | '';
+                  // Choosing STF defaults the Today quick access ON (the
+                  // checkbox below stays fully editable).
+                  if (next === 'stf' && provider !== 'stf') setShowOnToday(true);
+                  setProvider(next);
+                }}
+              >
+                <option value="">Not set</option>
+                <option value="stf">STF — Svenska Turistföreningen</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            {provider === 'stf' ? (
+              <button
+                type="button"
+                className="check"
+                aria-pressed={showOnToday}
+                onClick={() => setShowOnToday((v) => !v)}
+              >
+                <span className="box">
+                  <IconCheck />
+                </span>
+                <span className="label">Show quick access on Today (On route)</span>
+              </button>
+            ) : null}
+          </>
+        ) : null}
 
         <label className="field">
           <span>Date (optional)</span>

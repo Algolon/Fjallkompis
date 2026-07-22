@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import {
   BookOpen,
   ChevronRight,
@@ -19,8 +19,12 @@ import {
   Wind,
 } from 'lucide-react';
 import { useStore } from '../store/AppStore';
-import { ScreenHeader, OnlineBadge } from '../components/ui';
+import { ScreenHeader } from '../components/ui';
 import { FacilityIcon } from '../components/FacilityIcon';
+import { TodayPrepare } from '../components/TodayPrepare';
+import { MembershipQuickAccess } from '../components/MembershipQuickAccess';
+import { readTodayMode, saveTodayMode } from '../utils/todayMode.mjs';
+import type { TodayMode } from '../utils/todayMode.mjs';
 import {
   STOPS_BY_ID,
   collapsedFacilities,
@@ -35,6 +39,7 @@ import type { ElevationSample } from '../route/types';
 import type { TabId } from '../components/TabBar';
 import type { LatLng } from '../types';
 import type { ListsDeepLink } from './ListsScreen';
+import type { SettingsDeepLinkSection } from './SettingsScreen';
 
 export interface NavPayload {
   stopId?: string;
@@ -43,6 +48,8 @@ export interface NavPayload {
   guideStageId?: string;
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
+  /** Settings: one-shot deep link opening a section (Prepare's readiness card). */
+  settings?: { section: SettingsDeepLinkSection };
   /**
    * Map: one-shot "View on map" focus for an experience (from Stages). Geometry
    * comes only from VERIFIED sources — a point, an owner GPX detour route, or the
@@ -133,8 +140,44 @@ function HeroSilhouette({ profile }: { profile: ElevationSample[] }) {
   );
 }
 
+/**
+ * The two Today contexts. Prepare first (it precedes the hike), On route
+ * second — the pre-existing day view and the default when nothing is
+ * remembered. The compact header control carries full visible labels
+ * (measured to fit beside the title at 320px); no icons — they would force
+ * a wider control without adding meaning the words don't already carry.
+ */
+const MODE_TABS: { id: TodayMode; label: string }[] = [
+  { id: 'prepare', label: 'Prepare' },
+  { id: 'onroute', label: 'On route' },
+];
+
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   const { currentStage, stages, routeDirection } = useStore();
+
+  // Manual mode only — remembered per device (non-versioned UI preference,
+  // see utils/todayMode.mjs), never switched by dates, GPS or trip phase.
+  const [mode, setMode] = useState<TodayMode>(() => readTodayMode(window.localStorage));
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const selectMode = (next: TodayMode) => {
+    setMode(next);
+    saveTodayMode(window.localStorage, next);
+  };
+  // Horizontal tablist keyboard support: arrows move focus AND selection
+  // (selection follows focus — the standard segmented-tabs pattern), with a
+  // roving tabindex so the control is one Tab stop.
+  const onTablistKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const current = MODE_TABS.findIndex((t) => t.id === mode);
+    let next: number | null = null;
+    if (e.key === 'ArrowRight') next = (current + 1) % MODE_TABS.length;
+    else if (e.key === 'ArrowLeft') next = (current - 1 + MODE_TABS.length) % MODE_TABS.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = MODE_TABS.length - 1;
+    if (next === null || next === current) return;
+    e.preventDefault();
+    selectMode(MODE_TABS[next].id);
+    tabRefs.current[next]?.focus();
+  };
 
   // Static, priority-capped stage metadata (max four) — deterministic and
   // offline; no GPS, network or time-of-day input. Direction-aware: the
@@ -176,16 +219,59 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
         style={{ '--today-bg-image': `url("${TODAY_BG_SRC}")` } as CSSProperties}
       />
 
-      <div className="row-between today-topline" style={{ marginBottom: 8 }}>
-        <span className="eyebrow today-eyebrow">KUNGSLEDEN</span>
-        <OnlineBadge />
-      </div>
-
-      <ScreenHeader eyebrow="" title="Today">
-        Your day at a glance. Everything here works offline.
+      {/* Prepare | On route lives IN the title row as the header accessory —
+          a compact capsule of semantic tabs (never an on/off switch). Both
+          modes stay available at all times; no separate selector row. */}
+      <ScreenHeader
+        eyebrow="Kungsleden"
+        title="Today"
+        action={
+          <div
+            className="today-mode"
+            role="tablist"
+            aria-label="Today view"
+            onKeyDown={onTablistKeyDown}
+          >
+            {MODE_TABS.map((t, i) => (
+              <button
+                key={t.id}
+                id={`today-tab-${t.id}`}
+                role="tab"
+                aria-selected={mode === t.id}
+                aria-controls={`today-panel-${t.id}`}
+                tabIndex={mode === t.id ? 0 : -1}
+                ref={(el) => {
+                  tabRefs.current[i] = el;
+                }}
+                className="today-mode__tab"
+                onClick={() => selectMode(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        {mode === 'prepare'
+          ? 'Your trip preparation at a glance.'
+          : 'Your day at a glance. Everything here works offline.'}
       </ScreenHeader>
 
-      {currentStage && from && to ? (
+      {mode === 'prepare' ? (
+        <div
+          role="tabpanel"
+          id="today-panel-prepare"
+          aria-labelledby="today-tab-prepare"
+        >
+          <TodayPrepare onNavigate={onNavigate} />
+        </div>
+      ) : (
+        <div
+          role="tabpanel"
+          id="today-panel-onroute"
+          aria-labelledby="today-tab-onroute"
+        >
+          {currentStage && from && to ? (
         <>
           {/* A. Hero: the stage block (spruce anchor). Fixed responsibility
               (docs/design-reviews/2026-07-v0.18-today-stage-block-direction.md):
@@ -290,8 +376,13 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
             </div>
           </section>
 
-          {/* C. Tonight's stop — compact navigation card */}
+          {/* C. Tonight's stop — compact navigation card. When an STF
+              membership document is explicitly marked for Today (and its file
+              is locally available), a compact quick-access action shares this
+              row; otherwise Tonight keeps the full width on its own. Two
+              SIBLING interactive cards — never nested. */}
           {nextStop ? (
+            <div className="tonight-row">
             <button
               className="today-action-card today-glass today-glass--light"
               onClick={() => onNavigate('huts', { stopId: nextStop.id })}
@@ -335,6 +426,8 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
                 aria-hidden
               />
             </button>
+            <MembershipQuickAccess />
+            </div>
           ) : null}
 
         </>
@@ -352,6 +445,8 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
           >
             Choose a stage
           </button>
+        </div>
+      )}
         </div>
       )}
     </div>

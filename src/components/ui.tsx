@@ -1,7 +1,16 @@
 import type { ReactNode } from 'react';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { IconWifi, IconWifiOff } from './Icons';
 
+/**
+ * Shared screen-header anatomy — the ONLY header pattern primary screens use:
+ *   1. optional eyebrow (short uppercase context line);
+ *   2. title row: h1 + optional trailing accessory (help trigger, mode
+ *      control) — the row has a fixed min-height sized for the tallest
+ *      allowed accessory, so accessories NEVER change the title/subtitle
+ *      rhythm between screens;
+ *   3. optional subtitle (children), wrapping naturally;
+ *   4. the header owns the gap to the content below.
+ * No screen adds its own spacing around these pieces.
+ */
 export function ScreenHeader({
   eyebrow,
   title,
@@ -10,7 +19,7 @@ export function ScreenHeader({
 }: {
   eyebrow?: string;
   title: string;
-  /** Optional quiet action beside the title (e.g. a ContextHelp trigger). */
+  /** Optional trailing accessory in the title row (help trigger, mode tabs). */
   action?: ReactNode;
   children?: ReactNode;
 }) {
@@ -66,12 +75,3 @@ export function ProgressRing({
   );
 }
 
-export function OnlineBadge() {
-  const online = useOnlineStatus();
-  return (
-    <span className={`pill ${online ? 'pill-glacier' : 'pill-good'}`}>
-      {online ? <IconWifi /> : <IconWifiOff />}
-      {online ? 'Online' : 'Offline · all set'}
-    </span>
-  );
-}

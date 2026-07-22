@@ -87,3 +87,42 @@ export function applyPackingPatch(items, itemId, patch) {
 export function resetPackingProgress(items) {
   return items.map((i) => (i.status === 'needed' ? i : { ...i, status: 'needed' }));
 }
+
+/**
+ * Read-only aggregate over the personal packing list — the selector both the
+ * Lists → Packing header and the Today "Prepare" summary card read, so the
+ * two surfaces can never disagree (same pattern as tripPlanSummary).
+ *
+ * Counting semantics:
+ *   - total/needed/ready/packed count item ROWS, not quantities — matching
+ *     the Lists progress header ("16 / 56 packed" means rows).
+ *   - essentialNotPacked counts essential rows whose status is not 'packed'
+ *     (same definition as the Lists "essential not packed" pill).
+ *   - weightedGrams multiplies weightGrams × quantity over rows that HAVE a
+ *     weight; weightMissing counts rows without one. Weights are optional
+ *     (the seed template ships none), so consumers must treat a non-zero
+ *     weightMissing as "total weight unknown" — never show a partial sum as
+ *     the pack weight.
+ * Deleted items never appear here: deletion removes the row from state.
+ */
+export function packingSummary(items) {
+  const summary = {
+    total: 0,
+    needed: 0,
+    ready: 0,
+    packed: 0,
+    essentialNotPacked: 0,
+    weightedGrams: 0,
+    weightMissing: 0,
+  };
+  for (const item of items) {
+    summary.total += 1;
+    if (item.status === 'packed') summary.packed += 1;
+    else if (item.status === 'ready') summary.ready += 1;
+    else summary.needed += 1;
+    if (item.essential && item.status !== 'packed') summary.essentialNotPacked += 1;
+    if (item.weightGrams != null) summary.weightedGrams += item.weightGrams * item.quantity;
+    else summary.weightMissing += 1;
+  }
+  return summary;
+}
