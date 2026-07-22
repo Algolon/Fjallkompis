@@ -13,6 +13,7 @@ import type {
   PackingStatus,
   PersistentState,
   RouteDirection,
+  TripItem,
 } from '../types';
 import {
   loadState,
@@ -21,6 +22,7 @@ import {
   storageAvailable,
 } from '../utils/storage';
 import { seedPackingItems } from '../utils/stateMigration.mjs';
+import { newTripItemId, normalizeTripItem } from '../trip/tripModel.mjs';
 import { normalizeDirection } from '../route/direction.mjs';
 import { getActiveItinerary } from '../route/activeItinerary';
 import type { ActiveItinerary, ItineraryStage } from '../route/activeItinerary';
@@ -61,6 +63,23 @@ interface AppStore {
   updatePackingItem: (itemId: string, patch: Partial<PackingItem>) => void;
   deletePackingItem: (itemId: string) => void;
   resetPacking: () => void;
+
+  // Trip plan (structured Travel and Stay items — documents live in the
+  // wallet IndexedDB and are only referenced by id from `attachmentIds`)
+  /** Create a Travel/Stay item; returns the new item's id. */
+  addTripItem: (item: Omit<TripItem, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  /**
+   * Patch an item's editable fields. `id`, `kind`, `createdAt` and the linked
+   * source ids are immutable through this path — attachment changes go
+   * through the dedicated attachment actions or an explicit patch of
+   * `attachmentIds`. The result is re-normalised so invalid values never
+   * enter persisted state.
+   */
+  updateTripItem: (itemId: string, patch: Partial<TripItem>) => void;
+  /** Remove an item. Its referenced documents are deliberately NOT touched. */
+  deleteTripItem: (itemId: string) => void;
+  /** Strip a deleted document's id from every item's attachments. */
+  removeTripAttachmentReferences: (docId: string) => void;
 
   // Journal
   upsertJournalEntry: (entry: JournalEntry) => void;
@@ -156,6 +175,65 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, packing: seedPackingItems() }));
   }, []);
 
+  const addTripItem = useCallback(
+    (item: Omit<TripItem, 'id' | 'createdAt' | 'updatedAt'>): string => {
+      const now = Date.now();
+      const candidate = { ...item, id: newTripItemId(), createdAt: now, updatedAt: now };
+      // The normaliser is the single validity gate: trimmed title, known
+      // enums, valid dates/times, deduplicated attachment ids.
+      const next = normalizeTripItem(candidate);
+      if (!next) return '';
+      setState((s) => ({ ...s, trip: [...s.trip, next] }));
+      return next.id;
+    },
+    [],
+  );
+
+  const updateTripItem = useCallback((itemId: string, patch: Partial<TripItem>) => {
+    setState((s) => ({
+      ...s,
+      trip: s.trip.map((i) => {
+        if (i.id !== itemId) return i;
+        const merged = {
+          ...i,
+          ...patch,
+          // Immutable through ordinary field patching: identity, provenance
+          // and creation time. The linked source ids can only change when the
+          // UI explicitly changes the link (no such UI exists yet).
+          id: i.id,
+          kind: i.kind,
+          createdAt: i.createdAt,
+          linkedStopId: i.linkedStopId,
+          linkedTransportId: i.linkedTransportId,
+          updatedAt: Date.now(),
+        };
+        return normalizeTripItem(merged) ?? i;
+      }),
+    }));
+  }, []);
+
+  const deleteTripItem = useCallback((itemId: string) => {
+    setState((s) => ({ ...s, trip: s.trip.filter((i) => i.id !== itemId) }));
+  }, []);
+
+  const removeTripAttachmentReferences = useCallback((docId: string) => {
+    setState((s) => {
+      if (!s.trip.some((i) => i.attachmentIds.includes(docId))) return s;
+      return {
+        ...s,
+        trip: s.trip.map((i) =>
+          i.attachmentIds.includes(docId)
+            ? {
+                ...i,
+                attachmentIds: i.attachmentIds.filter((id) => id !== docId),
+                updatedAt: Date.now(),
+              }
+            : i,
+        ),
+      };
+    });
+  }, []);
+
   const upsertJournalEntry = useCallback((entry: JournalEntry) => {
     setState((s) => {
       const idx = s.journal.findIndex((e) => e.id === entry.id);
@@ -224,6 +302,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     updatePackingItem,
     deletePackingItem,
     resetPacking,
+    addTripItem,
+    updateTripItem,
+    deleteTripItem,
+    removeTripAttachmentReferences,
     upsertJournalEntry,
     deleteJournalEntry,
     latestJournalEntry,

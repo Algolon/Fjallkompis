@@ -28,13 +28,22 @@
  *     derived directional itinerary is rebuilt at runtime. Everything else
  *     passes through unchanged.
  *
+ * v4 → v5:
+ *   - `trip` is added: the personal Trip plan's structured Travel and Stay
+ *     items (src/trip/tripModel.mjs). Payloads without it — every existing
+ *     user — normalise to an empty trip plan; nothing is fabricated from
+ *     existing documents. Document metadata and file blobs stay in the
+ *     dedicated IndexedDB database and are NOT part of this blob; trip items
+ *     only reference document ids. Everything else passes through unchanged.
+ *
  * Normalisation is idempotent and never throws: malformed fields fall back to
  * defaults instead of wiping the app.
  */
 import { PACKING_CATEGORIES, SEED_PACKING_ITEMS } from '../data/packingSeed.mjs';
 import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
+import { normalizeTripItems } from '../trip/tripModel.mjs';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const PACKING_STATUSES = new Set(['needed', 'ready', 'packed']);
 const CATEGORY_IDS = new Set(PACKING_CATEGORIES.map((c) => c.id));
@@ -52,6 +61,7 @@ export function defaultState(defaultStageId) {
     hutData: {},
     journal: [],
     packing: seedPackingItems(),
+    trip: [],
   };
 }
 
@@ -160,5 +170,6 @@ export function normalizeState(raw, defaultStageId) {
     hutData: normalizeHutData(raw.hutData),
     journal: Array.isArray(raw.journal) ? raw.journal.filter(isJournalish) : [],
     packing: normalizePacking(raw.packing),
+    trip: normalizeTripItems(raw.trip),
   };
 }

@@ -54,6 +54,40 @@ function populatedState() {
     essential: false,
     custom: true,
   });
+  // Trip plan items — including one whose attached document exists only on
+  // the ORIGINAL device (the file blob never rides the JSON backup).
+  s.trip = [
+    {
+      id: 'trip_bus',
+      kind: 'transport',
+      title: 'Bus 91 to Abisko',
+      status: 'confirmed',
+      mode: 'bus',
+      from: 'Kiruna',
+      to: 'Abisko Turiststation',
+      date: '2026-08-22',
+      departureTime: '08:20',
+      provider: 'Länstrafiken Norrbotten',
+      bookingReference: 'LTN-778',
+      attachmentIds: ['doc_ticket'],
+      linkedTransportId: 'line-91',
+      createdAt: 1751400000000,
+      updatedAt: 1751400001000,
+    },
+    {
+      id: 'trip_salka',
+      kind: 'stay',
+      title: 'Sälka hut',
+      status: 'planned',
+      stayType: 'mountain-hut',
+      checkInDate: '2026-08-25',
+      checkOutDate: '2026-08-26',
+      attachmentIds: [],
+      linkedStopId: 'salka',
+      createdAt: 1751400000000,
+      updatedAt: 1751400000000,
+    },
+  ];
   return s;
 }
 
@@ -143,5 +177,37 @@ test('an older export without a direction imports as the canonical default', () 
   delete legacy.routeDirection;
   const restored = exportImportRoundTrip(legacy);
   assert.equal(restored.routeDirection, 'abisko-to-nikkaluokta');
+  assert.ok(restored.packing.some((i) => i.id === 'custom_abc'), 'personal data survives');
+});
+
+// ---- Trip plan (schema v5) --------------------------------------------------
+
+test('full-state transfer preserves travel and stay items verbatim', () => {
+  const original = populatedState();
+  const restored = exportImportRoundTrip(original);
+  assert.deepEqual(restored.trip, original.trip);
+  const bus = restored.trip.find((i) => i.id === 'trip_bus');
+  assert.equal(bus.status, 'confirmed');
+  assert.equal(bus.bookingReference, 'LTN-778');
+  assert.equal(bus.linkedTransportId, 'line-91');
+  const salka = restored.trip.find((i) => i.id === 'trip_salka');
+  assert.equal(salka.linkedStopId, 'salka');
+  assert.equal(salka.checkInDate, '2026-08-25');
+});
+
+test('attachment REFERENCES ride the backup; the restored item keeps them so the UI can flag the missing file honestly', () => {
+  // The document blob itself lives in IndexedDB and never rides the JSON
+  // export. On the new device the reference must survive as data — the Trip
+  // UI then shows "not available on this device" and offers removing the
+  // stale link or re-attaching, instead of dropping or faking the file.
+  const restored = exportImportRoundTrip(populatedState());
+  assert.deepEqual(restored.trip.find((i) => i.id === 'trip_bus').attachmentIds, ['doc_ticket']);
+});
+
+test('an older export without trip data imports as an empty trip plan', () => {
+  const legacy = { ...populatedState(), schemaVersion: 4 };
+  delete legacy.trip;
+  const restored = exportImportRoundTrip(legacy);
+  assert.deepEqual(restored.trip, [], 'nothing is fabricated');
   assert.ok(restored.packing.some((i) => i.id === 'custom_abc'), 'personal data survives');
 });

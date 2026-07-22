@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  LEGACY_WALLET_CATEGORIES,
   MAX_WALLET_FILE_BYTES,
   WALLET_CATEGORIES,
   WALLET_FILE_ACCEPT,
@@ -22,19 +23,38 @@ import {
 
 // ---- Categories -------------------------------------------------------------
 
-test('the six approved categories exist, in display order, with stable ids', () => {
+test('the six standalone-document categories exist, in display order, with stable ids', () => {
   assert.deepEqual(
     WALLET_CATEGORIES.map((c) => c.id),
-    ['membership', 'transport', 'booking', 'insurance-emergency', 'route-reference', 'other'],
+    ['membership', 'insurance-emergency', 'identity', 'route-reference', 'timetable', 'other'],
   );
   assert.deepEqual(
     WALLET_CATEGORIES.map((c) => c.title),
-    ['Memberships', 'Transport', 'Bookings', 'Insurance & emergency', 'Route references', 'Other'],
+    ['Membership', 'Insurance & emergency', 'Identity', 'Route reference', 'Timetable', 'Other'],
   );
 });
 
-test('unknown category ids resolve to the Other title, never a crash', () => {
+test('legacy Trail Wallet categories stay valid on existing records — no data loss', () => {
+  assert.deepEqual(
+    LEGACY_WALLET_CATEGORIES.map((c) => c.id),
+    ['transport', 'booking'],
+  );
+  // Titles still resolve for legacy records…
+  assert.equal(walletCategoryTitle('transport'), 'Transport');
   assert.equal(walletCategoryTitle('booking'), 'Bookings');
+  // …and normalisation preserves the stored value verbatim (idempotent).
+  const doc = normalizeWalletDocument({
+    id: 'doc_legacy',
+    title: 'Bus ticket',
+    category: 'booking',
+    mimeType: 'application/pdf',
+    fileName: 'ticket.pdf',
+  });
+  assert.equal(doc.category, 'booking');
+  assert.deepEqual(normalizeWalletDocument(doc), doc);
+});
+
+test('unknown category ids resolve to the Other title, never a crash', () => {
   assert.equal(walletCategoryTitle('no-such-category'), 'Other');
 });
 

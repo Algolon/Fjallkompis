@@ -605,19 +605,135 @@ export interface RouteExperience {
   confidence: 'high' | 'medium' | 'low';
 }
 
-// ---- Trail Wallet -------------------------------------------------------------
+// ---- Trip plan ---------------------------------------------------------------
 
 /**
- * Trail Wallet document categories (Lists → Wallet). Stable ids — display
- * titles live in WALLET_CATEGORIES (src/wallet/walletModel.mjs).
+ * Personal arrangement status of a Travel or Stay item. Deliberately three
+ * values in the first version (no completed/cancelled), and deliberately
+ * DISTINCT from the packing statuses:
+ *  - needed:    required or intended, not yet properly arranged;
+ *  - planned:   selected or scheduled, not yet fully confirmed;
+ *  - confirmed: definitively booked or otherwise settled. A document is not
+ *    required for confirmed status, and status is never inferred from
+ *    attachment presence in either direction.
+ */
+export type TripItemStatus = 'needed' | 'planned' | 'confirmed';
+
+/** Personal transport modes (a superset of the reference TransportMode). */
+export type TripTransportMode =
+  | 'flight'
+  | 'train'
+  | 'bus'
+  | 'boat'
+  | 'taxi-shuttle'
+  | 'other';
+
+export type TripStayType = 'hotel-hostel' | 'mountain-station' | 'mountain-hut' | 'other';
+
+/**
+ * Shared shape of a personal Trip item. The item is the PRIMARY object; a
+ * ticket or booking confirmation is supporting material referenced by
+ * document id — an item is fully valid without any attachment.
+ *
+ * Items live in PersistentState so they ride the JSON backup and device
+ * transfer; the referenced documents (metadata + blobs) stay in the dedicated
+ * IndexedDB database and deliberately do not. A referenced document can
+ * therefore be missing on this device — the UI states that honestly instead
+ * of crashing or pretending.
+ */
+export interface TripItemBase {
+  id: string;
+  /** Immutable after creation. */
+  kind: 'transport' | 'stay';
+  title: string;
+  status: TripItemStatus;
+  notes?: string;
+  bookingReference?: string;
+  /** Wallet document ids — references only, never blobs. */
+  attachmentIds: string[];
+  /** Stable route-stop id (physical, direction-safe) — provenance, not owned. */
+  linkedStopId?: string;
+  /** Stable Transport reference entry id — provenance, not owned. */
+  linkedTransportId?: string;
+  /** ms epoch — immutable after creation. */
+  createdAt: number;
+  /** ms epoch — changes on every edit. */
+  updatedAt: number;
+}
+
+export interface TransportTripItem extends TripItemBase {
+  kind: 'transport';
+  mode: TripTransportMode;
+  from?: string;
+  to?: string;
+  /** Personal travel date (yyyy-mm-dd) — never copied from a timetable. */
+  date?: string;
+  /** "HH:MM" 24h. */
+  departureTime?: string;
+  arrivalTime?: string;
+  provider?: string;
+}
+
+export interface StayTripItem extends TripItemBase {
+  kind: 'stay';
+  stayType: TripStayType;
+  location?: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+}
+
+export type TripItem = TransportTripItem | StayTripItem;
+
+export interface TripStatusInfo {
+  id: TripItemStatus;
+  title: string;
+}
+
+export interface TripTransportModeInfo {
+  id: TripTransportMode;
+  title: string;
+}
+
+export interface TripStayTypeInfo {
+  id: TripStayType;
+  title: string;
+}
+
+/**
+ * Deterministic status summary over structured Travel and Stay items — the
+ * selector a future Today "Prepare" view will read. Standalone documents are
+ * never counted.
+ */
+export interface TripPlanSummary {
+  total: number;
+  travelCount: number;
+  stayCount: number;
+  needed: number;
+  planned: number;
+  confirmed: number;
+}
+
+// ---- Trail Wallet (Trip plan documents) ----------------------------------------
+
+/**
+ * Standalone document categories (Lists → Trip → Documents). Stable ids —
+ * display titles live in WALLET_CATEGORIES (src/wallet/walletModel.mjs).
+ * 'transport' and 'booking' are LEGACY ids from the document-first Trail
+ * Wallet era: existing records keep them verbatim (no data loss) and they
+ * still resolve to their historical titles, but new documents choose from
+ * the current six — a personal ticket or booking now belongs on a Travel or
+ * Stay item, with the file attached.
  */
 export type WalletCategory =
   | 'membership'
-  | 'transport'
-  | 'booking'
   | 'insurance-emergency'
+  | 'identity'
   | 'route-reference'
-  | 'other';
+  | 'timetable'
+  | 'other'
+  // Legacy Trail Wallet categories, preserved verbatim on existing records.
+  | 'transport'
+  | 'booking';
 
 /** The four supported wallet file formats — nothing else is ever stored. */
 export type WalletMimeType =
@@ -723,6 +839,8 @@ export interface HutUserData {
  * normalisation — see src/utils/stateMigration.mjs).
  * Schema v4 added `routeDirection`; older payloads default to the canonical
  * 'abisko-to-nikkaluokta'.
+ * Schema v5 added `trip` (personal Travel and Stay items); older payloads
+ * normalise to an empty trip plan.
  */
 export interface PersistentState {
   schemaVersion: number;
@@ -739,4 +857,11 @@ export interface PersistentState {
   journal: JournalEntry[];
   /** Persistent packing list: seed items (statuses merged) + custom items. */
   packing: PackingItem[];
+  /**
+   * Personal Trip plan: structured Travel and Stay items (documents are NOT
+   * here — their metadata and blobs stay in the dedicated IndexedDB database;
+   * items only reference document ids via `attachmentIds`). Rides the JSON
+   * backup and device transfer like every other PersistentState field.
+   */
+  trip: TripItem[];
 }

@@ -10,7 +10,39 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
-## [0.21.1] - 2026-07-21
+## [0.23.0] - 2026-07-22
+
+### Changed
+
+- The Lists **Wallet** tab is now **Trip** — a structured, offline-first Trip
+  plan. It is trip-item-first: personal **Travel** movements (flight, train,
+  bus, boat, taxi/shuttle, other) and **Stays** (hotel/hostel, mountain
+  station, mountain hut, other) are the primary objects, each with a
+  Needed / Planned / Confirmed status, and tickets or booking confirmations
+  attach to them as supporting documents. All existing Wallet documents are
+  preserved and remain available under **Documents**, with their files,
+  titles, notes, dates and pinned state untouched.
+- Standalone document categories are now Membership, Insurance & emergency,
+  Identity, Route reference, Timetable and Other. Documents saved under the
+  historical Transport or Bookings categories keep them unchanged.
+- The JSON backup now carries the Trip plan's travel and stay items
+  (persisted state schema v5). Document files still stay on the device; after
+  a restore elsewhere, items show missing attachments honestly and links can
+  be removed or re-attached.
+
+### Added
+
+- **Add to Trip** on the Transport reference timetables: creates a personal
+  transport item prefilled with verified source facts only (mode, endpoints,
+  operator) — the travel date, times and booking status stay yours. Already
+  linked entries offer **View in Trip** instead, with a deliberate
+  "Add to Trip again" for legitimate repeats.
+- **Track stay** on every hut and station in Huts & Stations: creates a
+  linked Stay item prefilled from the verified stop record (or opens the
+  stay you already track there).
+- Attachments on Travel/Stay items: attach a new file, link an existing
+  document, open it offline, or remove the link (the file itself always
+  stays under Documents; deleting a trip item never deletes documents).
 
 ### Changed
 

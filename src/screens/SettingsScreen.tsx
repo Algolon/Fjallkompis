@@ -415,23 +415,23 @@ export function SettingsScreen() {
   const doReset = async () => {
     if (
       !confirm(
-        'Reset all local data? This clears your packing list, stop notes, journal and current stage, and permanently removes the Trail Wallet documents stored on this device. Export a backup first if unsure — Trail Wallet documents are not part of the JSON backup.',
+        'Reset all local data? This clears your packing list, trip plan, stop notes, journal and current stage, and permanently removes the documents stored on this device. Export a backup first if unsure — stored document files are not part of the JSON backup.',
       )
     ) {
       return;
     }
-    // Trip data (localStorage) and Trail Wallet documents (IndexedDB) are
-    // cleared independently; a wallet failure must not be reported as a
-    // clean reset.
+    // The state blob (localStorage) and stored documents (IndexedDB) are
+    // cleared independently; a document-storage failure must not be reported
+    // as a clean reset.
     resetAll();
     try {
       await clearWalletData();
       setNotice({ kind: 'ok', text: 'Local data reset to defaults.' });
     } catch (err) {
-      console.warn('Fjällkompis: could not clear Trail Wallet storage.', err);
+      console.warn('Fjällkompis: could not clear document storage.', err);
       setNotice({
         kind: 'err',
-        text: 'Trip data was reset, but the Trail Wallet documents could not be removed. Try again, or clear the site data in your browser settings.',
+        text: 'Trip data was reset, but the stored documents could not be removed. Try again, or clear the site data in your browser settings.',
       });
     }
   };
@@ -520,8 +520,11 @@ export function SettingsScreen() {
           <span className="card-title">Backup & restore</span>
           <p className="card-sub" style={{ marginTop: 4 }}>
             Export before trips and OS updates. Import merges nothing — it replaces
-            current data with the file’s contents. Trail Wallet documents are stored
-            separately on this device and are not included in this backup file.
+            current data with the file’s contents. The backup includes your Trip plan’s
+            travel and stay items; the document FILES are stored
+            separately on this device and are not included in this backup file. After a
+            restore on another device, items list any missing documents honestly so you
+            can re-attach them there.
           </p>
 
           <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={doExport}>

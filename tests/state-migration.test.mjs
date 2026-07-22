@@ -43,13 +43,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 4', () => {
-  assert.equal(SCHEMA_VERSION, 4);
+test('schema version is 5', () => {
+  assert.equal(SCHEMA_VERSION, 5);
 });
 
-test('v1 → v4: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v5: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 4);
+  assert.equal(s.schemaVersion, 5);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -182,7 +182,8 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 4);
+    assert.equal(s.schemaVersion, 5);
+    assert.deepEqual(s.trip, []);
     assert.equal(s.currentStageId, 'd1');
     assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
@@ -197,10 +198,97 @@ test('v3 → v4: older state without routeDirection defaults to forward', () => 
   // A realistic v3 payload never carried a direction field.
   const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
   const s = normalizeState(v3);
-  assert.equal(s.schemaVersion, 4);
+  assert.equal(s.schemaVersion, 5);
   assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
   // Unrelated data survives untouched.
   assert.equal(s.currentStageId, 'd5');
+});
+
+// ---- Trip plan (v4 → v5) ----------------------------------------------------
+
+test('v4 → v5: older state without trip items normalises to an empty trip plan', () => {
+  const v4 = {
+    schemaVersion: 4,
+    currentStageId: 'd2',
+    routeDirection: 'nikkaluokta-to-abisko',
+    hutData: {},
+    journal: [],
+    packing: [],
+  };
+  const s = normalizeState(v4);
+  assert.equal(s.schemaVersion, 5);
+  assert.deepEqual(s.trip, [], 'no trip items are fabricated');
+  assert.equal(s.currentStageId, 'd2');
+  assert.equal(s.routeDirection, 'nikkaluokta-to-abisko');
+});
+
+test('v5 roundtrip: travel and stay items persist verbatim', () => {
+  const trip = [
+    {
+      id: 'trip_a',
+      kind: 'transport',
+      title: 'Bus to Nikkaluokta',
+      status: 'confirmed',
+      mode: 'bus',
+      from: 'Kebnekaise',
+      to: 'Nikkaluokta',
+      date: '2026-08-30',
+      departureTime: '14:30',
+      provider: 'Nikkaluoktaexpressen',
+      bookingReference: 'ABC123',
+      attachmentIds: ['doc_1'],
+      linkedTransportId: 'nikkaluoktaexpressen',
+      createdAt: 1751400000000,
+      updatedAt: 1751400001000,
+    },
+    {
+      id: 'trip_b',
+      kind: 'stay',
+      title: 'STF Abisko',
+      status: 'planned',
+      stayType: 'mountain-station',
+      checkInDate: '2026-08-22',
+      checkOutDate: '2026-08-23',
+      attachmentIds: [],
+      linkedStopId: 'abisko',
+      createdAt: 1751400000000,
+      updatedAt: 1751400000000,
+    },
+  ];
+  const out = normalizeState({ ...V1_STATE, trip });
+  assert.deepEqual(out.trip, trip);
+});
+
+test('malformed trip data never crashes and heals safely', () => {
+  for (const bad of [undefined, null, 'garbage', 42, { not: 'an array' }]) {
+    const s = normalizeState({ ...V1_STATE, trip: bad });
+    assert.deepEqual(s.trip, [], `trip=${JSON.stringify(bad)}`);
+  }
+  const s = normalizeState({
+    ...V1_STATE,
+    trip: [
+      null,
+      42,
+      { id: '', kind: 'transport', title: 'x' },
+      { id: 'trip_ok', kind: 'stay', title: '  Salka  ', status: 'BOOKED', stayType: 'igloo' },
+      { id: 'trip_ok', kind: 'stay', title: 'duplicate id' },
+      { id: 'trip_x', kind: 'teleport', title: 'nope' },
+    ],
+  });
+  assert.equal(s.trip.length, 1);
+  assert.equal(s.trip[0].id, 'trip_ok');
+  assert.equal(s.trip[0].title, 'Salka', 'title is trimmed');
+  assert.equal(s.trip[0].status, 'needed', 'unknown status falls back');
+  assert.equal(s.trip[0].stayType, 'other', 'unknown stay type falls back');
+});
+
+test('trip normalisation is idempotent inside the state migration', () => {
+  const once = normalizeState({
+    ...V1_STATE,
+    trip: [{ id: 'trip_i', kind: 'transport', title: ' Train ', mode: 'maglev', date: 'nope' }],
+  });
+  const twice = normalizeState(once);
+  assert.deepEqual(twice, once);
 });
 
 test('a valid routeDirection persists through normalisation', () => {

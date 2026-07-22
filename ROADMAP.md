@@ -33,10 +33,12 @@ guide, a packing list (the Daily checklist is archived —
 docs/archived-features/daily-checklist.md), offline shop-info and transport
 reference in Lists (STF cabin-shop assortments with 2025 reference prices;
 route buses, boats and the train as validity-bound 2026 planning snapshots —
-never live), a Trail Wallet in Lists for keeping a few important hiking
-documents (tickets, bookings, memberships, route PDFs) available offline on
-the device (stored in IndexedDB, outside the JSON backup —
-docs/proposals/trail-wallet.md), install/update UX, opt-in
+never live), a personal Trip plan in Lists — structured travel and stay
+items with Needed / Planned / Confirmed statuses that ride the JSON backup,
+with tickets/bookings attachable to them and standalone important documents
+kept available offline on the device (document files stored in IndexedDB,
+outside the JSON backup — docs/proposals/trail-wallet.md and
+docs/proposals/trip-plan.md), install/update UX, opt-in
 foreground live tracking (beta) on the Map screen, and local backup/restore. Fjällkompis is one adaptive
 experience: the same URL works on phones (the protected baseline experience,
 portrait-only by design — landscape shows a rotate-to-portrait prompt),
@@ -127,6 +129,18 @@ cross-device synchronization is deliberately far down this roadmap.
   until its imagery actually ships.
 
 ## Completed
+
+- **Personal Trip plan (v0.23.0)**: the Lists Wallet tab became **Trip** — a
+  trip-item-first plan of personal Travel movements and Stays with
+  Needed / Planned / Confirmed statuses, optional attached documents, and
+  standalone documents preserved from the Trail Wallet era. Structured items
+  live in the persisted state (schema v5) and ride the JSON backup; document
+  files stay in IndexedDB on the device, and missing attachments after a
+  device transfer are shown honestly. Transport reference entries gained
+  "Add to Trip" (verified facts only) and every stop gained "Track stay",
+  both linking by stable source ids. Decision record:
+  docs/proposals/trip-plan.md. A future Today "Prepare" view will read the
+  pure trip summary selectors; it is deliberately not built yet.
 
 - **Reversible route direction (v0.20.0)**: the route can be walked
   Abisko → Nikkaluokta (default) or Nikkaluokta → Abisko, chosen in Settings.
