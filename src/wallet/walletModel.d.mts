@@ -33,6 +33,10 @@ export declare function sortWalletDocuments(
 export declare function quickAccessMembership(
   documents: WalletDocument[],
 ): WalletDocument | null;
+export declare function applyMembershipMetadata(
+  doc: WalletDocument,
+  fields: { membershipProvider?: 'stf' | 'other'; showOnToday?: boolean },
+): WalletDocument;
 export declare function walletSummaryText(count: number, formattedSize: string): string;
 
 /** Category id union re-exported for convenience in UI code. */

@@ -236,6 +236,35 @@ export function normalizeWalletDocument(raw) {
 // ---- Today quick access -----------------------------------------------------
 
 /**
+ * Apply the document editor's membership choices to a merged draft. The
+ * submitted fields are AUTHORITATIVE: both membership fields are removed
+ * from the draft first and re-added only when the submission carries valid
+ * values. This is what makes clearing work — the editor deliberately OMITS
+ * the fields when the organisation is unset or the Today toggle is off, and
+ * a plain `{ ...doc, ...fields }` merge would let the document's previous
+ * metadata survive that omission.
+ *
+ * Pure and side-effect free (returns a new object) so every transition —
+ * toggle off, STF → Other, STF → Not set, category change — is directly
+ * unit-testable. Never inferred from filenames/titles/notes.
+ */
+export function applyMembershipMetadata(doc, fields) {
+  const next = { ...doc };
+  delete next.membershipProvider;
+  delete next.showOnToday;
+  if (
+    next.category === 'membership' &&
+    (fields.membershipProvider === 'stf' || fields.membershipProvider === 'other')
+  ) {
+    next.membershipProvider = fields.membershipProvider;
+    if (fields.membershipProvider === 'stf' && fields.showOnToday === true) {
+      next.showOnToday = true;
+    }
+  }
+  return next;
+}
+
+/**
  * The single membership document the Today (On route) quick-access card
  * shows, or null. Eligibility is fully explicit: category 'membership',
  * organisation STF, and the user-set showOnToday flag. The store keeps the

@@ -22,6 +22,7 @@ import {
   tripStatusTitle,
 } from '../trip/tripModel.mjs';
 import {
+  applyMembershipMetadata,
   defaultTitleFromFilename,
   newWalletDocumentId,
   resolveWalletMimeType,
@@ -229,43 +230,56 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
       if (!mimeType) throw new Error(`Unsupported file: ${f.name}`);
       return { fileName: f.name, mimeType, sizeBytes: f.size };
     };
-    // Membership metadata is only ever meaningful on an STF membership doc —
-    // strip it here too (normalize would drop it on read anyway) so a
-    // category change can never leave a stale quick-access flag in storage.
-    const stripStaleMembership = (doc: WalletDocument) => {
-      if (doc.category !== 'membership' || !doc.membershipProvider) {
-        delete doc.membershipProvider;
+    // Membership metadata: the editor's submitted fields are AUTHORITATIVE.
+    // applyMembershipMetadata clears both fields from the merged draft and
+    // re-adds only what the submission carries — the editor omits the keys
+    // when the organisation is unset or the toggle is off, so a plain
+    // spread merge would let the document's previous values survive.
+    //
+    // Uniqueness is a SECOND transaction after the save (the store keeps
+    // per-document writes simple). If it were ever to fail, the save itself
+    // has still succeeded — so it must not reject into the editor's
+    // "nothing was changed" error copy; quickAccessMembership stays
+    // deterministic regardless, and the next flagged save re-enforces.
+    const makeUnique = async (id: string) => {
+      try {
+        await enforceMembershipQuickAccess(id);
+      } catch (err) {
+        console.warn(
+          'Fjällkompis: could not clear the previous Today quick-access flag; the newest choice still wins deterministically.',
+          err,
+        );
       }
-      if (doc.membershipProvider !== 'stf' || doc.showOnToday !== true) {
-        delete doc.showOnToday;
-      }
-      return doc;
     };
     if (editor?.mode === 'doc-edit') {
-      const next: WalletDocument = stripStaleMembership({
-        ...editor.doc,
-        ...fields,
-        updatedAt: now,
-        ...(file ? fileMeta(file) : {}),
-      });
+      const next: WalletDocument = applyMembershipMetadata(
+        {
+          ...editor.doc,
+          ...fields,
+          updatedAt: now,
+          ...(file ? fileMeta(file) : {}),
+        },
+        fields,
+      );
       if (!fields.date) delete next.date;
       if (!fields.note) delete next.note;
       await wallet.update(next, file);
-      // Explicit uniqueness: making THIS document the Today quick access
-      // clears the flag on every other record in one transaction.
-      if (next.showOnToday) await enforceMembershipQuickAccess(next.id);
+      if (next.showOnToday) await makeUnique(next.id);
       await wallet.refresh();
     } else {
       if (!file) return;
-      const doc: WalletDocument = stripStaleMembership({
-        id: newWalletDocumentId(),
-        ...fields,
-        createdAt: now,
-        updatedAt: now,
-        ...fileMeta(file),
-      });
+      const doc: WalletDocument = applyMembershipMetadata(
+        {
+          id: newWalletDocumentId(),
+          ...fields,
+          createdAt: now,
+          updatedAt: now,
+          ...fileMeta(file),
+        },
+        fields,
+      );
       await wallet.add(doc, file);
-      if (doc.showOnToday) await enforceMembershipQuickAccess(doc.id);
+      if (doc.showOnToday) await makeUnique(doc.id);
       await wallet.refresh();
     }
   };

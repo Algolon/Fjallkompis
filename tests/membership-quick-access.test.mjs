@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import 'fake-indexeddb/auto';
 import {
+  applyMembershipMetadata,
   normalizeWalletDocument,
   quickAccessMembership,
 } from '../src/wallet/walletModel.mjs';
@@ -82,6 +83,73 @@ test('malformed or stale metadata normalises away safely', () => {
   assert.ok(!('showOnToday' in other));
   // Truthy-but-not-true flags are not flags.
   assert.ok(!('showOnToday' in normalizeWalletDocument(doc({ membershipProvider: 'stf', showOnToday: 1 }))));
+});
+
+// ---- Editing an existing flagged membership (the edit-state regression) -----
+//
+// The editor OMITS membershipProvider/showOnToday from its submitted fields
+// when they are unset/off, so a plain `{ ...doc, ...fields }` merge would let
+// the previous metadata survive. applyMembershipMetadata treats the
+// submission as authoritative; these tests drive the exact user transitions.
+
+/** The saved flagged document every transition starts from. */
+const flaggedStf = () => doc({ membershipProvider: 'stf', showOnToday: true });
+
+/** Simulate the save path: merge the sheet's fields, then apply membership. */
+const editSave = (existing, fields) =>
+  applyMembershipMetadata({ ...existing, ...fields, updatedAt: 99 }, fields);
+
+test('toggle off: STF stays, the flag goes, Today has no card', () => {
+  // Sheet submission with the toggle off: provider present, showOnToday OMITTED.
+  const next = editSave(flaggedStf(), { category: 'membership', membershipProvider: 'stf' });
+  assert.equal(next.membershipProvider, 'stf');
+  assert.ok(!('showOnToday' in next), 'unchecking removes the flag');
+  assert.equal(quickAccessMembership([next]), null, 'no other flagged doc → no Today card');
+});
+
+test('STF → Not set: both fields removed', () => {
+  // Provider cleared: the sheet omits BOTH keys.
+  const next = editSave(flaggedStf(), { category: 'membership' });
+  assert.ok(!('membershipProvider' in next));
+  assert.ok(!('showOnToday' in next));
+  assert.equal(quickAccessMembership([next]), null);
+});
+
+test('STF → Other: provider becomes other, flag removed', () => {
+  const next = editSave(flaggedStf(), { category: 'membership', membershipProvider: 'other' });
+  assert.equal(next.membershipProvider, 'other');
+  assert.ok(!('showOnToday' in next), 'quick access is STF-only');
+  assert.equal(quickAccessMembership([next]), null);
+});
+
+test('category change away from Membership: both fields removed', () => {
+  // Recategorised: the sheet omits the membership keys for other categories.
+  const next = editSave(flaggedStf(), { category: 'route-reference' });
+  assert.equal(next.category, 'route-reference');
+  assert.ok(!('membershipProvider' in next));
+  assert.ok(!('showOnToday' in next));
+});
+
+test('toggle back on: the document becomes eligible again', () => {
+  const off = editSave(flaggedStf(), { category: 'membership', membershipProvider: 'stf' });
+  const on = editSave(off, {
+    category: 'membership',
+    membershipProvider: 'stf',
+    showOnToday: true,
+  });
+  assert.equal(on.showOnToday, true);
+  assert.equal(quickAccessMembership([on])?.id, on.id);
+});
+
+test('the merge never touches other metadata', () => {
+  const existing = flaggedStf();
+  existing.note = 'renewed 2026';
+  existing.pinned = true;
+  const next = editSave(existing, { category: 'membership' });
+  assert.equal(next.note, 'renewed 2026');
+  assert.equal(next.pinned, true);
+  assert.equal(next.fileName, 'card.pdf');
+  assert.equal(next.mimeType, 'application/pdf');
 });
 
 // ---- Selection --------------------------------------------------------------
@@ -158,8 +226,17 @@ test('the editor makes the organisation and quick access explicit choices', () =
 });
 
 test('saving a flagged document enforces uniqueness through the store', () => {
-  assert.match(tripView, /enforceMembershipQuickAccess\(next\.id\)/);
-  assert.match(tripView, /enforceMembershipQuickAccess\(doc\.id\)/);
+  // Save then enforce are TWO transactions (documented, not pretended
+  // atomic): a uniqueness failure must not reject an already-succeeded save
+  // into the editor's "nothing was changed" copy — it warns and relies on
+  // the deterministic selector until the next flagged save re-enforces.
+  assert.match(tripView, /if \(next\.showOnToday\) await makeUnique\(next\.id\)/);
+  assert.match(tripView, /if \(doc\.showOnToday\) await makeUnique\(doc\.id\)/);
+  assert.match(tripView, /await enforceMembershipQuickAccess\(id\)/);
+  assert.match(tripView, /catch \(err\)/);
+  // The editor's submission is authoritative on every save path.
+  const saves = tripView.match(/applyMembershipMetadata\(/g) ?? [];
+  assert.ok(saves.length >= 2, 'both add and edit run the authoritative merge');
 });
 
 test('the Today card verifies local availability and omits itself otherwise', () => {
