@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   Check,
   CheckCircle2,
@@ -11,6 +11,7 @@ import { ROUTE_DIRECTIONS } from '../route/direction.mjs';
 import { getActiveItinerary } from '../route/activeItinerary';
 import type { RouteDirection } from '../types';
 import { ScreenHeader } from '../components/ui';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { APP_VERSION } from '../constants';
 import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
 import { clearWalletData } from '../wallet/walletStore.mjs';
@@ -219,66 +220,6 @@ function SettingsAccordion({
         </div>
       ) : null}
     </section>
-  );
-}
-
-/**
- * Compact, accessible confirmation dialog for a direction change. Focus is
- * moved to the primary action on open; Escape and the backdrop cancel. No new
- * design language — reuses the app's button and card classes.
- */
-function ConfirmDialog({
-  title,
-  body,
-  primaryLabel,
-  onConfirm,
-  onCancel,
-}: {
-  title: string;
-  body: string;
-  primaryLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    confirmRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
-
-  return (
-    <div className="confirm-backdrop" onClick={onCancel}>
-      <div
-        className="card confirm-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
-        aria-describedby="confirm-body"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <span id="confirm-title" className="card-title">{title}</span>
-        <p id="confirm-body" className="card-sub" style={{ marginTop: 6 }}>
-          {body}
-        </p>
-        <div className="row" style={{ marginTop: 14, gap: 10 }}>
-          <button
-            ref={confirmRef}
-            className="btn btn-primary"
-            style={{ flex: 1 }}
-            onClick={onConfirm}
-          >
-            {primaryLabel}
-          </button>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onCancel}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

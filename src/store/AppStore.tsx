@@ -22,6 +22,10 @@ import {
   storageAvailable,
 } from '../utils/storage';
 import { seedPackingItems } from '../utils/stateMigration.mjs';
+import {
+  applyPackingPatch,
+  resetPackingProgress as resetPackingProgressItems,
+} from '../utils/packingModel.mjs';
 import { newTripItemId, normalizeTripItem } from '../trip/tripModel.mjs';
 import { normalizeDirection } from '../route/direction.mjs';
 import { getActiveItinerary } from '../route/activeItinerary';
@@ -55,14 +59,18 @@ interface AppStore {
   getStopNote: (stopId: string) => string;
   setStopNote: (stopId: string, notes: string) => void;
 
-  // Packing list
+  // Packing list — every item (seeded or custom) is editable and deletable;
+  // `id` and the `custom` provenance flag are immutable through a patch.
   setPackingStatus: (itemId: string, status: PackingStatus) => void;
   addPackingItem: (
     item: Omit<PackingItem, 'id' | 'custom' | 'status'>,
   ) => void;
   updatePackingItem: (itemId: string, patch: Partial<PackingItem>) => void;
   deletePackingItem: (itemId: string) => void;
-  resetPacking: () => void;
+  /** Set every item's status back to 'needed'; items and edits are untouched. */
+  resetPackingProgress: () => void;
+  /** Destructive: replace the personalised list with the default template. */
+  restorePackingDefaults: () => void;
 
   // Trip plan (structured Travel and Stay items — documents live in the
   // wallet IndexedDB and are only referenced by id from `attachmentIds`)
@@ -143,23 +151,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const updatePackingItem = useCallback(
     (itemId: string, patch: Partial<PackingItem>) => {
-      setState((s) => ({
-        ...s,
-        packing: s.packing.map((i) =>
-          // id/custom are immutable; label & category edits only for custom items.
-          i.id === itemId
-            ? {
-                ...i,
-                ...patch,
-                id: i.id,
-                custom: i.custom,
-                label: i.custom && patch.label != null ? patch.label : i.label,
-                categoryId:
-                  i.custom && patch.categoryId != null ? patch.categoryId : i.categoryId,
-              }
-            : i,
-        ),
-      }));
+      // Field-by-field validation (immutable id/custom, trimmed non-empty
+      // label, known category, clamped quantity, weight-or-absent) lives in
+      // applyPackingPatch so the store and tests share one rule set.
+      setState((s) => ({ ...s, packing: applyPackingPatch(s.packing, itemId, patch) }));
     },
     [],
   );
@@ -167,11 +162,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const deletePackingItem = useCallback((itemId: string) => {
     setState((s) => ({
       ...s,
-      packing: s.packing.filter((i) => !(i.id === itemId && i.custom)),
+      packing: s.packing.filter((i) => i.id !== itemId),
     }));
   }, []);
 
-  const resetPacking = useCallback(() => {
+  const resetPackingProgress = useCallback(() => {
+    setState((s) => ({ ...s, packing: resetPackingProgressItems(s.packing) }));
+  }, []);
+
+  const restorePackingDefaults = useCallback(() => {
     setState((s) => ({ ...s, packing: seedPackingItems() }));
   }, []);
 
@@ -301,7 +300,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     addPackingItem,
     updatePackingItem,
     deletePackingItem,
-    resetPacking,
+    resetPackingProgress,
+    restorePackingDefaults,
     addTripItem,
     updateTripItem,
     deleteTripItem,

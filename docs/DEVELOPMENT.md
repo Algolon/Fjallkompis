@@ -512,10 +512,14 @@ one, cards render a generated route-silhouette fallback.
 
 Personal data stays separate: per-stop **trip notes** and the **packing
 list** live in one versioned `localStorage` blob
-(`src/utils/stateMigration.mjs`, schema v3; defensive v1/v2 migration covered
-by `tests/state-migration.test.mjs` — v3 drops the archived Daily checklist's
-data while preserving everything else, see
-[archived-features/daily-checklist.md](archived-features/daily-checklist.md)).
+(`src/utils/stateMigration.mjs`, schema v5; defensive migration of every
+older payload covered by `tests/state-migration.test.mjs` — v3 drops the
+archived Daily checklist's data while preserving everything else (see
+[archived-features/daily-checklist.md](archived-features/daily-checklist.md)),
+v4 adds `routeDirection`, and v5 makes the packing list a fully user-owned
+snapshot behind `packingTemplateVersion`: seed items can be renamed, moved,
+and deleted, and template additions reach existing users through an explicit
+one-time migration, never a re-merge on load).
 
 **Trail Wallet documents** (Lists → Wallet) are the one deliberate exception:
 metadata AND file blobs live together in a dedicated IndexedDB database

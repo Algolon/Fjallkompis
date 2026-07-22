@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Plus, RotateCcw, Scale, TriangleAlert } from 'lucide-react';
+import { Pencil, Plus, RotateCcw, Scale, Trash2, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { IconCheck } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
 import { TransportView, TransportHelp } from '../components/TransportView';
@@ -45,6 +46,13 @@ function formatGrams(g: number): string {
   return g >= 1000 ? `${(g / 1000).toFixed(g >= 10000 ? 1 : 2)} kg` : `${g} g`;
 }
 
+/**
+ * Inline editor for ANY packing item — seeded or custom. Every field except
+ * the stable id and the `custom` provenance flag is editable; the store
+ * validates each change (trimmed non-empty title, known category, clamped
+ * quantity, weight-or-absent). Delete confirms via the shared ConfirmDialog
+ * (never native confirm()) and is visually separated from Save/Cancel.
+ */
 function ItemEditor({
   item,
   onClose,
@@ -57,50 +65,57 @@ function ItemEditor({
   const [categoryId, setCategoryId] = useState(item.categoryId);
   const [quantity, setQuantity] = useState(String(item.quantity));
   const [weight, setWeight] = useState(item.weightGrams != null ? String(item.weightGrams) : '');
+  const [essential, setEssential] = useState(item.essential);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const canSave = label.trim() !== '';
 
   const save = () => {
+    if (!canSave) return;
     const qty = Math.min(99, Math.max(1, Math.round(Number(quantity) || 1)));
     const w = Number(weight);
     updatePackingItem(item.id, {
-      ...(item.custom ? { label: label.trim() || item.label, categoryId } : {}),
+      label: label.trim(),
+      categoryId,
       quantity: qty,
-      weightGrams: Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
+      // Blank/invalid weight clears the field (weightGrams becomes absent).
+      weightGrams: weight.trim() !== '' && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
+      essential,
     });
     onClose();
   };
 
-  const doDelete = () => {
-    if (confirm(`Delete “${item.label}” from the packing list?`)) {
-      deletePackingItem(item.id);
-      onClose();
-    }
-  };
-
   return (
     <div className="pack-editor">
-      {item.custom ? (
-        <>
-          <label className="field" style={{ marginTop: 0 }}>
-            <span>Item name</span>
-            <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Category</span>
-            <select
-              className="select"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              {PACKING_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
-      ) : null}
-      <div className="row" style={{ marginTop: item.custom ? 12 : 0 }}>
+      <label className="field" style={{ marginTop: 0 }}>
+        <span>Item name</span>
+        <input
+          className="input"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && canSave) {
+              e.preventDefault();
+              save();
+            }
+          }}
+        />
+      </label>
+      <label className="field">
+        <span>Category</span>
+        <select
+          className="select"
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+        >
+          {PACKING_CATEGORIES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="row" style={{ marginTop: 12 }}>
         <label className="field" style={{ marginTop: 0, flex: 1 }}>
           <span>Quantity</span>
           <input
@@ -126,19 +141,44 @@ function ItemEditor({
           />
         </label>
       </div>
+      <button
+        className="check check--setting"
+        aria-pressed={essential}
+        onClick={() => setEssential((v) => !v)}
+        style={{ marginTop: 4 }}
+      >
+        <span className="box">
+          <IconCheck />
+        </span>
+        <span className="label">Essential item</span>
+      </button>
       <div className="row" style={{ marginTop: 10 }}>
-        <button className="btn btn-primary" style={{ flex: 1 }} onClick={save}>
+        <button className="btn btn-primary" style={{ flex: 1 }} onClick={save} disabled={!canSave}>
           Save
         </button>
         <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>
           Cancel
         </button>
-        {item.custom ? (
-          <button className="btn btn-danger" onClick={doDelete}>
-            Delete
-          </button>
-        ) : null}
       </div>
+      <div className="pack-editor-danger">
+        <button className="btn btn-danger btn-block" onClick={() => setConfirmingDelete(true)}>
+          <Trash2 size={15} strokeWidth={1.8} aria-hidden /> Delete item
+        </button>
+      </div>
+      {confirmingDelete ? (
+        <ConfirmDialog
+          title={`Delete “${item.label}”?`}
+          body="The item is removed from your packing list. Restore default list brings back deleted default items; custom items are gone for good."
+          primaryLabel="Delete item"
+          destructive
+          onConfirm={() => {
+            deletePackingItem(item.id);
+            setConfirmingDelete(false);
+            onClose();
+          }}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -214,7 +254,7 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
         </label>
       </div>
       <button
-        className="check"
+        className="check check--setting"
         aria-pressed={essential}
         onClick={() => setEssential((v) => !v)}
         style={{ marginTop: 4 }}
@@ -237,10 +277,13 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
 }
 
 function PackingView() {
-  const { state, setPackingStatus, resetPacking } = useStore();
+  const { state, setPackingStatus, resetPackingProgress, restorePackingDefaults } = useStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  // The old single reset action conflated two intentions; they are now
+  // separate actions with separate confirmations (see the footer buttons).
+  const [confirming, setConfirming] = useState<'progress' | 'restore' | null>(null);
 
   const items = state.packing;
 
@@ -261,17 +304,6 @@ function PackingView() {
   }, [items]);
 
   const visible = filter === 'all' ? items : items.filter((i) => i.status === filter);
-
-  const doReset = () => {
-    if (
-      confirm(
-        'Reset the packing list? Custom items will be removed and all statuses return to “Needed”.',
-      )
-    ) {
-      resetPacking();
-      setEditingId(null);
-    }
-  };
 
   const cycleStatus = (item: PackingItem) => {
     const next = STATUS_ORDER[(STATUS_ORDER.indexOf(item.status) + 1) % STATUS_ORDER.length];
@@ -410,9 +442,46 @@ function PackingView() {
         )}
       </div>
 
-      <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={doReset}>
-        <RotateCcw size={15} strokeWidth={1.8} aria-hidden /> Reset packing list
+      <button
+        className="btn btn-ghost btn-block"
+        style={{ marginTop: 10 }}
+        onClick={() => setConfirming('progress')}
+      >
+        <RotateCcw size={15} strokeWidth={1.8} aria-hidden /> Reset progress
       </button>
+      <button
+        className="btn btn-ghost btn-block pack-restore-btn"
+        onClick={() => setConfirming('restore')}
+      >
+        <Trash2 size={15} strokeWidth={1.8} aria-hidden /> Restore default list
+      </button>
+
+      {confirming === 'progress' ? (
+        <ConfirmDialog
+          title="Reset packing progress?"
+          body="Every item goes back to “Needed”. Your items and edits stay exactly as they are — custom items, renamed items, categories, quantities, weights and deletions are all kept."
+          primaryLabel="Reset progress"
+          onConfirm={() => {
+            resetPackingProgress();
+            setConfirming(null);
+          }}
+          onCancel={() => setConfirming(null)}
+        />
+      ) : null}
+      {confirming === 'restore' ? (
+        <ConfirmDialog
+          title="Restore the default packing list?"
+          body="This replaces your entire personalised list with the default template. Custom items are removed, deleted default items come back, and every rename, category change, quantity, weight and status is lost. This cannot be undone."
+          primaryLabel="Restore defaults"
+          destructive
+          onConfirm={() => {
+            restorePackingDefaults();
+            setEditingId(null);
+            setConfirming(null);
+          }}
+          onCancel={() => setConfirming(null)}
+        />
+      ) : null}
     </>
   );
 }

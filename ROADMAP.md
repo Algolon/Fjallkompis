@@ -134,7 +134,8 @@ cross-device synchronization is deliberately far down this roadmap.
   trip-item-first plan of personal Travel movements and Stays with
   Needed / Planned / Confirmed statuses, optional attached documents, and
   standalone documents preserved from the Trail Wallet era. Structured items
-  live in the persisted state (schema v5) and ride the JSON backup; document
+  live in the persisted state (schema v6, on top of the personal packing
+  list's v5) and ride the JSON backup; document
   files stay in IndexedDB on the device, and missing attachments after a
   device transfer are shown honestly. Transport reference entries gained
   "Add to Trip" (verified facts only) and every stop gained "Track stay",

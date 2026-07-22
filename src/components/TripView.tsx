@@ -233,16 +233,14 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
     }
   };
 
-  /** Deleting an item always keeps its documents (stated in the confirm copy). */
+  /**
+   * Deleting an item always keeps its documents. Confirmation happens in the
+   * item sheet through the shared accessible ConfirmDialog (which states the
+   * documents-are-kept rule); by the time this runs the user has confirmed.
+   */
   const deleteItem = (item: TripItem) => {
-    const suffix =
-      item.attachmentIds.length > 0
-        ? ' Its linked documents are kept and stay available under Documents.'
-        : '';
-    if (confirm(`Delete “${item.title}” from your trip plan?${suffix}`)) {
-      deleteTripItem(item.id);
-      setEditor(null);
-    }
+    deleteTripItem(item.id);
+    setEditor(null);
   };
 
   const saveDocumentEditor = async (fields: WalletEditorFields, file: File | null) => {

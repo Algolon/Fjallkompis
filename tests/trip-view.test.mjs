@@ -157,8 +157,16 @@ test('the item form uses native date/time inputs and the model accept-list for f
 // ---- Integrity rules ----------------------------------------------------------
 
 test('deleting a trip item keeps its documents, and the confirmation says so', () => {
-  assert.match(tripView, /Delete .\$\{item\.title\}. from your trip plan\?/);
-  assert.match(tripView, /Its linked documents are kept/);
+  // Confirmation goes through the shared accessible ConfirmDialog (the
+  // PR#64 component), rendered inside the sheet's modal top layer — never
+  // the native browser confirm().
+  assert.match(itemSheet, /import \{ ConfirmDialog \} from '\.\/ConfirmDialog'/);
+  assert.match(itemSheet, /Delete .\$\{item\.title\}.\?/);
+  assert.match(itemSheet, /Its linked documents are kept/);
+  assert.match(itemSheet, /destructive/, 'delete uses the danger treatment');
+  assert.ok(!/confirm\(/.test(tripView), 'no native confirm() left in TripView');
+  // Escape while the confirmation is up cancels IT, not the whole sheet.
+  assert.match(itemSheet, /if \(confirmingDelete\) e\.preventDefault\(\)/);
   assert.match(store, /documents are deliberately NOT touched/i);
 });
 

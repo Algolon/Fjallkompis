@@ -795,7 +795,11 @@ export interface PackingItem {
   status: PackingStatus;
   weightGrams?: number;
   essential: boolean;
-  /** True for user-added items (editable/deletable); seed items are fixed. */
+  /**
+   * Provenance only: true for user-added items, false for items that came
+   * from the seed template. NOT an authorization flag — every item can be
+   * renamed, moved, re-weighted and deleted regardless of origin.
+   */
   custom: boolean;
 }
 
@@ -839,7 +843,10 @@ export interface HutUserData {
  * normalisation — see src/utils/stateMigration.mjs).
  * Schema v4 added `routeDirection`; older payloads default to the canonical
  * 'abisko-to-nikkaluokta'.
- * Schema v5 added `trip` (personal Travel and Stay items); older payloads
+ * Schema v5 made `packing` a fully user-owned snapshot and added
+ * `packingTemplateVersion`; pre-v5 payloads run a one-time seed merge (see
+ * src/utils/stateMigration.mjs).
+ * Schema v6 added `trip` (personal Travel and Stay items); older payloads
  * normalise to an empty trip plan.
  */
 export interface PersistentState {
@@ -855,8 +862,19 @@ export interface PersistentState {
   /** stopId -> personal trip notes (legacy key name kept from v1). */
   hutData: Record<string, HutUserData>;
   journal: JournalEntry[];
-  /** Persistent packing list: seed items (statuses merged) + custom items. */
+  /**
+   * The user's packing list — a fully owned snapshot since schema v5. Every
+   * item (seeded or custom) carries its own label/category/quantity/weight/
+   * essential/status here; seed items are never re-merged on load, so
+   * renames, moves and deletions stick.
+   */
   packing: PackingItem[];
+  /**
+   * Packing template generation this snapshot was last reconciled with (see
+   * PACKING_TEMPLATE_VERSION in src/data/packingSeed.mjs). Missing on pre-v5
+   * payloads, which triggers the one-time legacy seed merge.
+   */
+  packingTemplateVersion: number;
   /**
    * Personal Trip plan: structured Travel and Stay items (documents are NOT
    * here — their metadata and blobs stay in the dedicated IndexedDB database;

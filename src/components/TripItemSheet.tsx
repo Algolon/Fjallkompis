@@ -38,6 +38,7 @@ import {
 import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
 import { STOPS } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
+import { ConfirmDialog } from './ConfirmDialog';
 import type { WalletStatus } from '../hooks/useWalletDocuments';
 
 /** Mode icon — always paired with a text label; never meaning by icon alone. */
@@ -146,7 +147,11 @@ export function TripItemSheet({
   walletStatus: WalletStatus;
   /** Persist the draft (+ newly picked files to store & link). May reject. */
   onSave: (draft: TripItemDraft, pendingFiles: File[]) => Promise<void>;
-  /** Edit mode: delete the item (documents are kept — confirmed here). */
+  /**
+   * Edit mode: delete the item. Confirmation happens HERE (the shared
+   * accessible ConfirmDialog, rendered inside this sheet's top layer);
+   * the callback performs the actual removal. Documents are always kept.
+   */
   onDelete?: () => void;
   /** Open a linked document offline (image viewer / PDF handoff). */
   onOpenDocument: (doc: WalletDocument) => void;
@@ -191,6 +196,7 @@ export function TripItemSheet({
   const [fileError, setFileError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -308,8 +314,13 @@ export function TripItemSheet({
       className="sheet"
       aria-labelledby={headingId}
       onClose={onClose}
+      onCancel={(e) => {
+        // While the delete confirmation is up, Escape belongs to IT (the
+        // ConfirmDialog's own key handling) — the sheet must stay open.
+        if (confirmingDelete) e.preventDefault();
+      }}
       onClick={(e) => {
-        if (e.target === dialogRef.current) onClose();
+        if (e.target === dialogRef.current && !confirmingDelete) onClose();
       }}
     >
       <div className="sheet-body">
@@ -631,11 +642,36 @@ export function TripItemSheet({
 
         {mode === 'edit' && onDelete ? (
           <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn btn-danger" style={{ flex: 1 }} onClick={onDelete} disabled={busy}>
+            <button
+              className="btn btn-danger"
+              style={{ flex: 1 }}
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy}
+            >
               <Trash2 size={15} strokeWidth={1.8} aria-hidden />
               {kind === 'transport' ? 'Delete transport item' : 'Delete stay'}
             </button>
           </div>
+        ) : null}
+
+        {/* Rendered INSIDE the sheet's <dialog> so it stays interactive in
+            the modal top layer. Deleting always keeps documents — said here. */}
+        {confirmingDelete && item && onDelete ? (
+          <ConfirmDialog
+            title={`Delete “${item.title}”?`}
+            body={
+              item.attachmentIds.length > 0
+                ? 'It will be removed from your trip plan. Its linked documents are kept and stay available under Documents.'
+                : 'It will be removed from your trip plan.'
+            }
+            primaryLabel="Delete"
+            destructive
+            onConfirm={() => {
+              setConfirmingDelete(false);
+              onDelete();
+            }}
+            onCancel={() => setConfirmingDelete(false)}
+          />
         ) : null}
       </div>
     </dialog>

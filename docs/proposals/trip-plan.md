@@ -31,7 +31,7 @@ presence in either direction).
 
 | Data | Store | Rides JSON backup? |
 |---|---|---|
-| Travel/Stay items (structured JSON) | `PersistentState` (localStorage blob, schema **v5**, `trip` array) | **Yes** |
+| Travel/Stay items (structured JSON) | `PersistentState` (localStorage blob, schema **v6**, `trip` array) | **Yes** |
 | Document metadata | IndexedDB `fjallkompis-wallet` → `documents` (unchanged, IDB v1) | No |
 | Document blobs | IndexedDB `fjallkompis-wallet` → `files` (unchanged) | No |
 
@@ -74,7 +74,8 @@ file there. Settings → Backup & restore copy states exactly this.
 
 ## Migration
 
-- Persisted schema v4 → v5: additive `trip` field; payloads without it get
+- Persisted schema v5 → v6 (v5 is the personal packing list, 0.22.0):
+  additive `trip` field; payloads without it get
   `[]`. Nothing is fabricated from existing documents (no filename
   heuristics, no OCR, no auto-conversion of transport/booking documents into
   items). Idempotent, covered by fixtures.
@@ -119,7 +120,9 @@ established one-shot in-memory payload — no router, `#/lists` unchanged.
   branching delete dialog.
 - Attachments added inside the item sheet default to category `other`; the
   document editor can recategorise later.
-- Delete confirmations use `window.confirm` (the established Packing/Wallet
-  pattern).
+- Trip-item deletion confirms through the shared accessible `ConfirmDialog`
+  (the 0.22.0 component), rendered inside the item sheet's modal top layer;
+  document deletion inside the document editor still uses the pre-existing
+  Trail Wallet `window.confirm` flow (untouched by this iteration).
 - No Completed/Cancelled statuses, no readiness percentages, no automatic
   status inference, no Today Prepare UI yet.
