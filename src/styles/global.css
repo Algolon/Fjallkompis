@@ -3149,6 +3149,12 @@ button.stop-fac:focus-visible {
   .stf-card {
     width: 64px;
   }
+  /* When the STF card shares the row on the narrowest phones, the stop NAME
+     outranks the elevation chip — the value stays in the button's
+     aria-label, and returns whenever Tonight has the row to itself. */
+  .tonight-row:has(.stf-card) .today-action-card__side {
+    display: none;
+  }
 }
 
 /* --- Packing list ------------------------------------------------------------------ */
