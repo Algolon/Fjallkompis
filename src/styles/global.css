@@ -108,6 +108,20 @@ button {
   cursor: pointer;
 }
 
+/* Pressed feedback is drawn by the components themselves (:active scale /
+   brightness rules throughout), clipped to each control's own rounded
+   silhouette. The browser's DEFAULT tap highlight would flash a blue
+   RECTANGLE over that silhouette on Android/Chrome, so it is disabled for
+   every button and link — deliberately app-wide: the audit found custom
+   pressed states on all interactive controls, so nothing loses its touch
+   affordance. Keyboard affordance is untouched: every control keeps its
+   :focus-visible ring. Text inputs and selects are NOT included — they
+   keep native form affordances. */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
 input,
 textarea,
 select {
@@ -845,7 +859,6 @@ a.btn {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 .map-hut__badge {
   /* PREVIEW: bare hut glyph, no paper container. The 25px box remains
@@ -1881,6 +1894,10 @@ button.map-status-pill {
   font-weight: 600;
   font-size: 14px;
   color: var(--ink-soft);
+  transition: transform 0.08s ease;
+}
+.seg-btn:active {
+  transform: scale(0.97);
 }
 .seg-btn[aria-selected='true'] {
   background: var(--spruce);
@@ -1987,10 +2004,9 @@ button.map-status-pill {
   /* Tight vertical padding so the 56px row (see --tabbar-h) reads lean, not
      stretched; the whole full-width × 56px cell stays the touch target. */
   padding: 3px 2px;
-  /* Kill the browser's default (blue-ish) tap highlight that would flash over
-     the entire full-height cell. Press feedback is drawn on the pill instead so
+  /* Tap highlight is off globally (see the shared button/a rule). Press and
+     focus feedback are drawn on the pill instead of this full-height cell so
      the visible click target matches the chip the user actually sees. */
-  -webkit-tap-highlight-color: transparent;
   outline: none;
 }
 .tab .ic {
@@ -2931,6 +2947,10 @@ button.stop-fac:focus-visible {
   font-weight: 600;
   white-space: nowrap;
   color: var(--ink-soft);
+  transition: transform 0.08s ease;
+}
+.today-mode__tab:active {
+  transform: scale(0.97);
 }
 .today-mode__tab[aria-selected='true'] {
   background: var(--spruce);
@@ -3204,6 +3224,60 @@ button.stop-fac:focus-visible {
   .tonight-row:has(.stf-card) .today-action-card__side {
     display: none;
   }
+}
+
+/* --- STF membership credential viewer (Today quick access) ----------------
+   A CENTRED quick viewer, deliberately distinct from the .sheet bottom
+   sheet: at an STF hut the card should appear front-and-centre in one beat,
+   not slide up as if a form were about to open. Width follows the Today
+   content column (16px .screen gutters, the sheet's 560px ceiling), so the
+   modal visually aligns with the hero/cards behind it. Native <dialog>
+   carries the modal contract (focus trap, Escape, ::backdrop). */
+.credential-viewer {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(calc(100vh - 40px), calc(100dvh - 40px));
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 12px 40px rgba(27, 42, 39, 0.28);
+  padding: 0;
+}
+.credential-viewer::backdrop {
+  background: rgba(27, 42, 39, 0.45);
+}
+/* Appears FROM THE CENTRE: a short scale/fade, no slide. The global
+   prefers-reduced-motion rule disables the animation wholesale. */
+.credential-viewer[open] {
+  animation: credential-pop 0.16s ease;
+}
+@keyframes credential-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.credential-viewer__body {
+  padding: 14px 16px 16px;
+}
+/* The credential is shown WHOLE — scaled down to fit, never cropped. The
+   height budget leaves room for the title row inside the dialog's own
+   max-height (which already respects the viewport and safe areas). */
+.credential-viewer__img {
+  display: block;
+  margin: 12px auto 0;
+  max-width: 100%;
+  max-height: min(62vh, 62dvh);
+  object-fit: contain;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
 }
 
 /* --- Packing list ------------------------------------------------------------------ */
@@ -3590,7 +3664,6 @@ span.trip-attach-open {
   background: transparent;
   color: var(--ink-faint);
   border-radius: 999px;
-  -webkit-tap-highlight-color: transparent;
   transition: color 0.15s ease, background 0.15s ease;
 }
 .ctx-help--inline {

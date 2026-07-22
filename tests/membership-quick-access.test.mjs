@@ -244,9 +244,10 @@ test('the Today card verifies local availability and omits itself otherwise', ()
   assert.match(quickAccess, /wallet\s*\.getFile\(doc\.id\)/, 'blob existence checked before offering');
   assert.match(quickAccess, /if \(!doc \|\| availableId !== doc\.id\) return null/);
   assert.match(quickAccess, /aria-label="Open STF membership card"/);
-  // Opening reuses the shared wallet behaviour and viewer — no new viewer.
+  // Opening reuses the shared wallet behaviour (documentOpening.ts); images
+  // present in the CENTRED credential viewer, not the Trip bottom sheet.
   assert.match(quickAccess, /openWalletDocument\(doc, wallet\.getFile\)/);
-  assert.match(quickAccess, /<TripImageViewer/);
+  assert.match(quickAccess, /<MembershipCardViewer/);
   assert.match(quickAccess, /URL\.revokeObjectURL\(viewer\.url\)/);
   // No nested interactive elements inside the quick-access button.
   const btn = quickAccess.slice(quickAccess.indexOf('<button'), quickAccess.indexOf('</button>'));

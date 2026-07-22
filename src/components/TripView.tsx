@@ -638,8 +638,9 @@ function AddItemChooser({
 
 /**
  * In-app image viewer — the same native `.sheet` <dialog> surface as every
- * other modal. The object URL is revoked by the parent on close. Exported:
- * the Today membership quick-access opens images through this exact viewer.
+ * other modal. The object URL is revoked by the parent on close. (The Today
+ * membership quick-access uses its own centred MembershipCardViewer — a
+ * credential view, not this generic document sheet.)
  */
 export function TripImageViewer({
   doc,

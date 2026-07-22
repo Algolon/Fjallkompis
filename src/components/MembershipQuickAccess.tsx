@@ -3,7 +3,7 @@ import { IdCard } from 'lucide-react';
 import { useWalletDocuments } from '../hooks/useWalletDocuments';
 import { quickAccessMembership } from '../wallet/walletModel.mjs';
 import { openWalletDocument } from '../wallet/documentOpening';
-import { TripImageViewer } from './TripView';
+import { MembershipCardViewer } from './MembershipCardViewer';
 import type { WalletDocument } from '../types';
 
 /**
@@ -17,8 +17,10 @@ import type { WalletDocument } from '../types';
  * nothing and Tonight keeps its full width.
  *
  * Opening reuses the shared wallet behaviour (openWalletDocument): PDFs go
- * to the platform viewer (download fallback), images open in the same
- * TripImageViewer sheet as Lists → Trip.
+ * to the platform viewer (download fallback), images open in the CENTRED
+ * MembershipCardViewer — a quick credential view, deliberately distinct
+ * from the Lists → Trip bottom-sheet viewer (showing a card at a hut
+ * reception, not editing a document).
  *
  * The button IS the official STF roundel (owner-provided/approved asset,
  * public/images/stf-logo.png, PWA-precached): a membership badge is exactly
@@ -93,7 +95,7 @@ export function MembershipQuickAccess() {
         </button>
       )}
       {viewer ? (
-        <TripImageViewer
+        <MembershipCardViewer
           doc={viewer.doc}
           url={viewer.url}
           onClose={() => {
