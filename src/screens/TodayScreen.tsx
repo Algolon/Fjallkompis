@@ -144,8 +144,10 @@ function HeroSilhouette({ profile }: { profile: ElevationSample[] }) {
  * The two Today contexts. Prepare first (it precedes the hike), On route
  * second — the pre-existing day view and the default when nothing is
  * remembered. The compact header control carries full visible labels
- * (measured to fit beside the title at 320px); no icons — they would force
- * a wider control without adding meaning the words don't already carry.
+ * (measured to fit beside the title at 320px); no icons — re-evaluated for
+ * the 36px glass capsule and rejected again: 14px glyphs + gaps add ~36px
+ * of width for meaning the words already carry, and at this size icons
+ * compete with the title instead of quieting the control.
  */
 const MODE_TABS: { id: TodayMode; label: string }[] = [
   { id: 'prepare', label: 'Prepare' },

@@ -6,6 +6,13 @@
    =========================================================================== */
 
 :root {
+  /* Light-only app: mirrors the color-scheme meta in index.html so native
+     form controls and (where the browser honours it) the Android date/time
+     picker dialogs render in their light theme. The dialogs' internal
+     layout, radius and colours remain OS/browser territory — deliberately
+     not touched. */
+  color-scheme: light;
+
   /* Surfaces */
   --stone-bg: #dce4d8;
   --paper: #e6ede3; /* cards, buttons — matches the Today panes' tone */
@@ -2923,31 +2930,71 @@ button.stop-fac:focus-visible {
 
 /* Mode control: a compact capsule of semantic tabs living in the header's
    title row (the ScreenHeader accessory slot) — badge-sized, never a
-   separate content row. Selected = spruce fill + near-white text (the app's
-   shared selected-tab treatment); unselected stays quiet ink on the opaque
-   pane so it reads on the contour backdrop. */
+   separate content row. The capsule is a small-scale liquid-glass pane:
+   the same translucent fill + backdrop lift as the Journey/Tonight cards
+   and the same hairline rim + top catch-light (via its own ::before — the
+   card-scale inner shade is deliberately omitted: at 36px tall it would
+   read as dirt, not depth). Shadows are control-scale, softer and tighter
+   than --glass-shadow, so the capsule sits lightly beside the title
+   instead of floating like a card. Selected = spruce fill + near-white
+   text (the app's shared selected-tab treatment); unselected uses the
+   darkened-on-glass ink (#3f4f45, same step as .today-glass .card-sub)
+   because the translucent pane is brighter than the old opaque fill. */
 .today-mode {
+  position: relative;
   display: flex;
   padding: 2px;
   gap: 2px;
   border-radius: 999px;
-  background: var(--glass-fill-opaque);
-  box-shadow: var(--glass-shadow);
+  background: var(--glass-fill-light);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
+    brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  box-shadow:
+    0 1px 2px rgba(12, 24, 20, 0.08),
+    0 5px 14px rgba(12, 24, 20, 0.12);
+}
+.today-mode::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 var(--glass-rim-w) var(--glass-rim),
+    inset 0 1px 0 var(--glass-highlight);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  /* No blur available: same nearly opaque paper fallback as .today-glass. */
+  .today-mode {
+    background: rgba(246, 248, 243, 0.96);
+  }
 }
 .today-mode__tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0 13px;
+  min-height: 32px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.01em;
   white-space: nowrap;
-  color: var(--ink-soft);
+  color: #3f4f45;
   transition: transform 0.08s ease;
+}
+/* The capsule is 36px tall visually, but each tab keeps a ~44px touch
+   target: an invisible vertical hit-area extension (vertical only — the
+   horizontal boundary between the two tabs must stay exact). */
+.today-mode__tab::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
 .today-mode__tab:active {
   transform: scale(0.97);
@@ -2955,7 +3002,7 @@ button.stop-fac:focus-visible {
 .today-mode__tab[aria-selected='true'] {
   background: var(--spruce);
   color: #f4f8f5;
-  box-shadow: var(--shadow);
+  box-shadow: 0 1px 2px rgba(12, 24, 20, 0.22);
 }
 .today-mode__tab:focus-visible {
   outline: 2px solid var(--glacier-700);
