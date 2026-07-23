@@ -39,6 +39,8 @@ import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
 import { STOPS } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
 import { ConfirmDialog } from './ConfirmDialog';
+import { DateField } from './DateField';
+import { TimeField } from './TimeField';
 import type { WalletStatus } from '../hooks/useWalletDocuments';
 
 /** Mode icon — always paired with a text label; never meaning by icon alone. */
@@ -402,34 +404,30 @@ export function TripItemSheet({
                 <input className="input" value={to} onChange={(e) => setTo(e.target.value)} />
               </label>
             </div>
-            <label className="field">
-              <span>Date (optional)</span>
-              <input
-                className="input"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
+            {/* App-owned pickers (Stage 1 pilot — the transport fields the
+                broken Android popup hit hardest). Stay and Documents dates
+                stay native until this behaviour is device-approved. */}
+            <DateField
+              label="Date (optional)"
+              dialogTitle="Travel date"
+              value={date}
+              onChange={setDate}
+            />
             <div className="row" style={{ marginTop: 0 }}>
-              <label className="field" style={{ flex: 1 }}>
-                <span>Departure (optional)</span>
-                <input
-                  className="input"
-                  type="time"
-                  value={departureTime}
-                  onChange={(e) => setDepartureTime(e.target.value)}
-                />
-              </label>
-              <label className="field" style={{ flex: 1 }}>
-                <span>Arrival (optional)</span>
-                <input
-                  className="input"
-                  type="time"
-                  value={arrivalTime}
-                  onChange={(e) => setArrivalTime(e.target.value)}
-                />
-              </label>
+              <TimeField
+                label="Departure (optional)"
+                dialogTitle="Departure"
+                value={departureTime}
+                onChange={setDepartureTime}
+                style={{ flex: 1 }}
+              />
+              <TimeField
+                label="Arrival (optional)"
+                dialogTitle="Arrival"
+                value={arrivalTime}
+                onChange={setArrivalTime}
+                style={{ flex: 1 }}
+              />
             </div>
             <label className="field">
               <span>Provider / operator (optional)</span>

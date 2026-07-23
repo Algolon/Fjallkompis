@@ -1,24 +1,28 @@
 /**
- * Native date/time picker policy (owner decision, 2026-07-23).
+ * Date/time picker policy (owner decision, 2026-07-23 — supersedes the
+ * 2026-07-23 morning keep-native policy from PR #68).
  *
- * The Android popup overflow Omar photographed (the time dialog's
+ * PR #68 root-caused the Android popup overflow (the time dialog's
  * Wissen | Annuleren | Instellen action row running past the screen edge)
- * happens INSIDE the OS/browser-rendered dialog. Page CSS, viewport meta
- * and wrappers cannot reach that layout — it is a Samsung/Chrome UI bug
- * with long localized labels at large display/font scale, and the dialog
- * offers its own keyboard-entry fallback. The app therefore:
+ * as an OS/browser-dialog layout bug that page CSS cannot reach, and shipped
+ * `color-scheme: light` as the only safe lever while keeping the fields
+ * native. This branch is the deliberate next step the owner commissioned:
+ * an APP-OWNED picker system (DateField calendar dialog + TimeField digital
+ * 24-hour dialog) piloted on the transport fields — the ones the broken
+ * popup hit hardest. The new policy:
  *
- *   1. keeps the date/time fields NATIVE — no custom picker, no wrapper
- *      library; reliability and OS accessibility outrank cosmetics;
- *   2. declares `color-scheme: light` (page + meta) — the one
- *      standards-based lever a page has over those dialogs: browsers that
- *      honour it render the picker in its light theme so it stops
- *      appearing as a dark OS panel over the light app;
- *   3. styles only what the page owns: the closed field (.input) and the
- *      surrounding sheet.
- *
- * These tests fence that policy so a future "quick restyle" doesn't
- * silently replace the native controls or drop the color-scheme hint.
+ *   1. transport date/departure/arrival use the app-owned DateField and
+ *      TimeField dialogs — self-rendered, so the broken OS action row is
+ *      out of the loop entirely;
+ *   2. stay check-in/check-out and the Documents date stay NATIVE until the
+ *      pilot passes the owner's real-device check (the native path also
+ *      remains the proven fallback shape in code);
+ *   3. `color-scheme: light` (page + meta) stays — it still governs the
+ *      remaining native pickers and every other UA surface;
+ *   4. still no third-party picker library, and no styling of native popup
+ *      internals — the custom dialogs are fully page-rendered instead;
+ *   5. stored values remain exactly 'YYYY-MM-DD' / 'HH:mm' — no schema
+ *      change rides this feature.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,22 +41,28 @@ test('the app declares a light color-scheme for UA surfaces (meta + CSS)', () =>
   assert.match(css, /:root \{[^}]*color-scheme: light/, ':root carries the same declaration');
 });
 
-test('date and time fields stay native inputs with the shared field skin', () => {
-  // Trip editor: one date + two times (transport), two dates (stay).
-  assert.equal((tripSheet.match(/type="date"/g) ?? []).length, 3, 'trip sheet date inputs');
-  assert.equal((tripSheet.match(/type="time"/g) ?? []).length, 2, 'trip sheet time inputs');
-  assert.match(walletSheet, /type="date"/, 'wallet expiry input stays native');
-  for (const source of [tripSheet, walletSheet]) {
-    assert.ok(!/react-datepicker|react-day-picker|flatpickr|Datepicker|TimePicker/i.test(source),
-      'no custom picker library or component');
+test('transport fields use the app-owned pickers; stay and wallet stay native', () => {
+  assert.match(tripSheet, /<DateField\b/, 'transport date uses DateField');
+  assert.equal((tripSheet.match(/<TimeField\b/g) ?? []).length, 2, 'departure + arrival use TimeField');
+  // Native inputs remaining: exactly the two stay dates, zero time inputs.
+  assert.equal((tripSheet.match(/type="date"/g) ?? []).length, 2, 'stay check-in/check-out stay native for now');
+  assert.equal((tripSheet.match(/type="time"/g) ?? []).length, 0, 'no native time inputs remain');
+  assert.match(walletSheet, /type="date"/, 'wallet document date stays native for now');
+});
+
+test('no third-party picker library — the pickers are app-owned components', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
+  for (const d of deps) {
+    assert.ok(!/datepicker|day-picker|flatpickr|timepicker/i.test(d), `no picker dependency (${d})`);
   }
 });
 
-test('the page never tries to restyle the popup internals', () => {
+test('the page never tries to restyle native popup internals', () => {
   // ::-webkit-datetime-* / ::-webkit-calendar-picker-indicator hacks are the
   // classic "half-themed" trap: fragile across Android browsers and often
-  // the cause of clipped popup layouts. The closed field is styled via
-  // .input only.
+  // the cause of clipped popup layouts. The remaining native fields keep
+  // the .input skin only; the custom dialogs render their own internals.
   assert.ok(!css.includes('-webkit-datetime'), 'no shadow-part datetime styling');
   assert.ok(!css.includes('calendar-picker-indicator'), 'no indicator hacks');
 });

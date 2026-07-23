@@ -4943,3 +4943,226 @@ span.trip-attach-open {
   max-width: 360px;
   box-shadow: 0 8px 40px rgba(27, 42, 39, 0.28);
 }
+
+/* --- App-owned date & time picker dialogs (Stage 1 prototype) ------------- */
+/* Replaces the native Android date/time popups whose OS-rendered action row
+   (Wissen | Annuleren | Instellen) overflows on the owner's device. A CENTRED
+   native <dialog> at every size (the credential-viewer presentation), on a
+   deep spruce credential-like surface so the picker reads as a deliberate
+   Fjällkompis moment, not a skinned browser control. The action row wraps —
+   it must never rely on fitting one line. */
+
+.picker-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  color: var(--ink);
+}
+.picker-field svg {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+.picker-field__empty {
+  color: var(--ink-faint);
+}
+
+.picker-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(392px, calc(100vw - 32px));
+  max-height: min(calc(100vh - 40px), calc(100dvh - 40px));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--r-lg);
+  background: var(--spruce-700);
+  color: #eef3ec;
+  box-shadow: 0 12px 40px rgba(27, 42, 39, 0.4);
+  padding: 0;
+}
+.picker-dialog::backdrop {
+  background: rgba(27, 42, 39, 0.45);
+}
+.picker-dialog[open] {
+  animation: credential-pop 0.16s ease;
+}
+.picker-dialog--time {
+  width: min(340px, calc(100vw - 32px));
+}
+.picker-body {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: inherit;
+}
+.picker-eyebrow {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(238, 243, 236, 0.55);
+}
+.picker-title {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #eef3ec;
+}
+
+/* Shared 44px square control: month paging + time steppers. */
+.picker-nav-btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--r-sm);
+  color: #eef3ec;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.picker-nav-btn:active {
+  transform: scale(0.96);
+}
+
+.picker-cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.picker-cal-month {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The grid bleeds 6px into the body padding on each side so day cells keep
+   usable widths on 320–360px screens; cells are gapless (the whole tile is
+   the hit area) and 44px tall everywhere. */
+.picker-cal {
+  margin: 10px -6px 0;
+}
+.picker-cal__row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.picker-cal__weekday {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(238, 243, 236, 0.5);
+}
+.picker-cal__blank {
+  height: 44px;
+}
+.picker-cal__day {
+  appearance: none;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  color: #eef3ec;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.picker-cal__day:active {
+  transform: scale(0.94);
+}
+.picker-cal__day.is-today {
+  box-shadow: inset 0 0 0 1.5px var(--glacier);
+}
+.picker-cal__day.is-selected {
+  background: var(--cloudberry);
+  color: #fff;
+  font-weight: 700;
+}
+
+.picker-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.picker-time__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.picker-time__input {
+  width: 84px;
+  height: 60px;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #eef3ec;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--r-sm);
+}
+.picker-time__input::placeholder {
+  color: rgba(238, 243, 236, 0.35);
+}
+.picker-time__colon {
+  font-size: 28px;
+  font-weight: 700;
+  color: rgba(238, 243, 236, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+.picker-error {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--danger-soft);
+  text-align: center;
+}
+
+/* Long localized labels wrap onto more lines or extra rows — the one thing
+   the broken native popup could not do. Never a fixed single-line row. */
+.picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.picker-actions .btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+}
+.picker-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #eef3ec;
+}
+.picker-btn-set {
+  background: var(--cloudberry);
+  border-color: var(--cloudberry);
+  color: #fff;
+}
+.picker-btn-set:disabled {
+  opacity: 0.45;
+}
+
+/* Focus rings on the dark surface: the app's glacier ring family, in the
+   light tint that stays visible on spruce. */
+.picker-nav-btn:focus-visible,
+.picker-cal__day:focus-visible,
+.picker-time__input:focus,
+.picker-actions .btn:focus-visible {
+  outline: 2px solid var(--glacier-soft);
+  outline-offset: 2px;
+}
