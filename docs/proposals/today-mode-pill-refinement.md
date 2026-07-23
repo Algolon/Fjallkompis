@@ -14,7 +14,7 @@ Tonight feel like glass (hairline rim, top catch-light, backdrop lift).
 
 | Property | Before | After |
 | --- | --- | --- |
-| Total height | 44px (40px tabs + 2px padding) | 36px (32px tabs + 2px padding) |
+| Total height | 44px (40px tabs + 2px padding) | 34px (30px tabs + 2px padding) |
 | Label | 13px / 600 | 12px / 600, +0.01em tracking |
 | Tab padding | 0 13px (0 10px ≤340px) | 0 12px (0 10px ≤340px) |
 | Fill | opaque pane, no blur | `--glass-fill-light` + blur/saturate/brightness backdrop lift |
@@ -28,10 +28,17 @@ Deliberately NOT copied from the cards: the lower-edge inner shade
 murk at 36px — and the card radius/shadow geometry. The pill is a control,
 not a content pane; it borrows the material, not the body.
 
-Touch safety: each tab keeps a ~44px vertical hit target via an invisible
-`::after` extension (`inset: -6px 0` — vertical only, so the boundary
-between the two tabs stays exact). The header row's 44px rhythm is
-unchanged; the smaller capsule centers inside it.
+Touch safety: each tab keeps a 44px vertical hit target via an invisible
+`::after` extension (`inset: -7px 0` — vertical only, so the boundary
+between the two tabs stays exact; 30px tab + 2×7px = 44px). The header
+row's 44px rhythm is unchanged; the smaller capsule centers inside it.
+
+Density correction (owner device feedback, same iteration): 36px still
+read slightly tall next to the title on-device; the capsule dropped to
+34px (tabs 32→30px, vertical only — typography, horizontal padding and
+all glass layers untouched). Compared side by side at 320/360/390: the
+2px sits the control closer to badge weight without thinning the labels'
+breathing room (9px above/below the 12px line vs 10px before).
 
 ## 2. Icon decision — text-only stands
 

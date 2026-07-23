@@ -2933,7 +2933,7 @@ button.stop-fac:focus-visible {
    separate content row. The capsule is a small-scale liquid-glass pane:
    the same translucent fill + backdrop lift as the Journey/Tonight cards
    and the same hairline rim + top catch-light (via its own ::before — the
-   card-scale inner shade is deliberately omitted: at 36px tall it would
+   card-scale inner shade is deliberately omitted: at 34px tall it would
    read as dirt, not depth). Shadows are control-scale, softer and tighter
    than --glass-shadow, so the capsule sits lightly beside the title
    instead of floating like a card. Selected = spruce fill + near-white
@@ -2976,7 +2976,7 @@ button.stop-fac:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
+  min-height: 30px;
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
@@ -2988,13 +2988,14 @@ button.stop-fac:focus-visible {
   color: #3f4f45;
   transition: transform 0.08s ease;
 }
-/* The capsule is 36px tall visually, but each tab keeps a ~44px touch
+/* The capsule is 34px tall visually, but each tab keeps a 44px touch
    target: an invisible vertical hit-area extension (vertical only — the
-   horizontal boundary between the two tabs must stay exact). */
+   horizontal boundary between the two tabs must stay exact; 30px tab
+   + 2×7px = 44px). */
 .today-mode__tab::after {
   content: '';
   position: absolute;
-  inset: -6px 0;
+  inset: -7px 0;
 }
 .today-mode__tab:active {
   transform: scale(0.97);

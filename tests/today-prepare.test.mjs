@@ -179,12 +179,12 @@ test('the capsule is compact liquid glass, not a flat opaque badge', () => {
 
 test('compact tab geometry keeps a safe touch target', () => {
   const tab = css.slice(css.indexOf('.today-mode__tab {'), css.indexOf('.today-mode__tab:active'));
-  assert.match(tab, /min-height: 32px/, 'visual height is capsule-compact');
+  assert.match(tab, /min-height: 30px/, 'visual height is capsule-compact');
   assert.match(tab, /font-size: 12px/, 'label size steps down with the capsule');
-  // The visual capsule is 36px tall; each tab extends its hit area
+  // The visual capsule is 34px tall; each tab extends its hit area
   // vertically (never horizontally — the boundary between the two tabs
-  // must stay exact) back to ~44px.
-  assert.match(css, /\.today-mode__tab::after \{[^}]*inset: -6px 0/,
+  // must stay exact) back to 44px (30 + 2×7).
+  assert.match(css, /\.today-mode__tab::after \{[^}]*inset: -7px 0/,
     'invisible vertical hit-area extension');
 });
 
