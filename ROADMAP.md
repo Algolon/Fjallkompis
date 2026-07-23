@@ -130,6 +130,19 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Today Prepare (v0.24.0)**: Today gained a manual Prepare | On route
+  mode — a compact liquid-glass tablist in the header (remembered per
+  device, never switched automatically) in front of a preparation
+  dashboard: route overview with Map/Stages actions, packing progress,
+  Travel & stays status (the Trip plan's summary selectors, now consumed),
+  and Trail readiness deep-linking into its Settings panel. Alongside it:
+  STF membership quick access on Today (roundel button → centred offline
+  card viewer, single-holder toggle in the document editor), app-wide
+  pressed-state feedback replacing Android's blue tap flash, and a
+  `color-scheme: light` hint for native controls. The Android/Samsung
+  date/time dialog overflow was investigated and confirmed to live outside
+  the app-controlled DOM/CSS; the decision to keep native pickers native is
+  recorded in docs/proposals/today-mode-pill-refinement.md.
 - **Personal Trip plan (v0.23.0)**: the Lists Wallet tab became **Trip** — a
   trip-item-first plan of personal Travel movements and Stays with
   Needed / Planned / Confirmed statuses, optional attached documents, and
@@ -140,8 +153,8 @@ cross-device synchronization is deliberately far down this roadmap.
   device transfer are shown honestly. Transport reference entries gained
   "Add to Trip" (verified facts only) and every stop gained "Track stay",
   both linking by stable source ids. Decision record:
-  docs/proposals/trip-plan.md. A future Today "Prepare" view will read the
-  pure trip summary selectors; it is deliberately not built yet.
+  docs/proposals/trip-plan.md. The Today "Prepare" view reading the pure
+  trip summary selectors was deliberately deferred and landed in v0.24.0.
 
 - **Reversible route direction (v0.20.0)**: the route can be walked
   Abisko → Nikkaluokta (default) or Nikkaluokta → Abisko, chosen in Settings.

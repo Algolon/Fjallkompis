@@ -10,6 +10,45 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-07-23
+
+### Added
+
+- **Today now has two views: Prepare and On route.** A compact
+  Prepare | On route control in the Today header switches between the
+  familiar day view and a new preparation dashboard: the route at a glance
+  (endpoints, stages, distance, with Map and Stages actions), packing
+  progress, Travel & stays status from the Trip plan, and Trail readiness
+  with a direct path to its Settings panel. The choice is remembered on the
+  device; nothing switches automatically.
+- **STF membership quick access.** A membership document marked
+  "Show on Today" appears as the official STF roundel beside Tonight's stop
+  and opens a centred, full-size membership card viewer — offline, one tap,
+  without leaving Today. Only one document can hold the spot; the toggle
+  lives in the document editor.
+
+### Changed
+
+- The Prepare | On route control is a smaller liquid-glass capsule (34px,
+  down from its first 44px iteration) matching the material of the Journey
+  and Tonight panes, while each tab keeps a full 44px touch target.
+- Buttons across the app now give consistent pressed-state feedback, and
+  the stray blue tap flash on Android is gone.
+- Native date and time fields now ask the browser for light-theme controls
+  (`color-scheme: light`), so on browsers that honour it the Android
+  date/time dialogs render light to match the app. The dialogs themselves
+  remain native: their internal layout is outside the app's control (the
+  known Samsung action-row overflow is documented, not fixed — see
+  docs/proposals/today-mode-pill-refinement.md).
+
+### Fixed
+
+- Editing a membership document now reliably clears its quick-access
+  metadata when the toggle is switched off — the editor's state is
+  authoritative.
+- At 320px, Tonight's stop name no longer truncates beside the membership
+  roundel (the elevation chip yields instead).
+
 ## [0.23.0] - 2026-07-22
 
 ### Changed
