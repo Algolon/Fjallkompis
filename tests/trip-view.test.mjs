@@ -147,9 +147,13 @@ test('the item form validates inline: empty titles blocked, check-out ordering f
   assert.match(itemSheet, /role="alert"/);
 });
 
-test('the item form uses native date/time inputs and the model accept-list for files', () => {
-  assert.match(itemSheet, /type="date"/);
-  assert.match(itemSheet, /type="time"/);
+test('the item form date/time fields follow the picker policy and use the model accept-list', () => {
+  // Transport uses the app-owned pickers; stay keeps native date inputs for
+  // now. The full policy (and its owner decision record) is fenced in
+  // tests/native-picker-policy.test.mjs.
+  assert.match(itemSheet, /<DateField\b/);
+  assert.match(itemSheet, /<TimeField\b/);
+  assert.match(itemSheet, /type="date"/, 'stay check-in/check-out stay native in Stage 1');
   assert.match(itemSheet, /accept=\{WALLET_FILE_ACCEPT\}/);
   assert.ok(!/accept="/.test(itemSheet), 'no literal accept attribute');
 });
