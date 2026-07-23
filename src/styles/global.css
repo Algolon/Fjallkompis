@@ -4994,6 +4994,24 @@ span.trip-attach-open {
   flex: 0 0 auto;
   color: var(--ink-faint);
 }
+/* The closed field's value never wraps to a second line — a wrapped date
+   makes side-by-side fields (stay Check-in/Check-out) uneven. Ellipsis is
+   the fallback; the stacking rule below removes the need for it at the
+   widths where the full label wouldn't fit. */
+.picker-field > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* On very narrow phones (≤340px — the app's established compact step) the
+   stay date pair stacks vertically so full date labels keep one line. */
+@media (max-width: 340px) {
+  .trip-daterow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
 .picker-field__empty {
   color: var(--ink-faint);
 }

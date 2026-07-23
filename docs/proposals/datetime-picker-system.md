@@ -329,6 +329,12 @@ Dutch action labels wrap inside the dialog (§5).
 2. **Second:** stay Check-in/Check-out (same `DateField`; keep the existing
    pair-order validation exactly where it is — it lives on the draft, not in
    the picker) and the Documents date in `WalletEditorSheet`.
+   *Status 2026-07-23: stay Check-in/Check-out **adopted** (owner-approved
+   after the transport pilot; branch `claude/stay-date-picker`). The
+   date-order rule stayed on the draft; `DateField` gained optional
+   `invalid`/`describedBy` props so the closed field carries the same
+   `aria-invalid` + error association the native input had. The Documents
+   date remains native — the last native date input, by design.*
 3. **Fallback posture:** no runtime native fallback control. The native
    `<input type="date">` shape remains the documented fallback (trivially
    restorable per field), and `color-scheme: light` stays for any UA surface.

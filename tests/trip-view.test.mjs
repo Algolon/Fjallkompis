@@ -142,18 +142,20 @@ test('the item form validates inline: empty titles blocked, check-out ordering f
   assert.match(itemSheet, /title\.trim\(\) !== ''/);
   assert.match(itemSheet, /isStayDateOrderValid/);
   assert.match(itemSheet, /Check-out can.t be before check-in/);
-  assert.match(itemSheet, /aria-invalid=\{!stayOrderOk\}/);
-  assert.match(itemSheet, /aria-describedby=\{!stayOrderOk \? checkOutErrorId : undefined\}/);
+  // The order rule surfaces on the check-out DateField exactly as it did on
+  // the native input: invalid state + association with the error text.
+  assert.match(itemSheet, /invalid=\{!stayOrderOk\}/);
+  assert.match(itemSheet, /describedBy=\{checkOutErrorId\}/);
   assert.match(itemSheet, /role="alert"/);
 });
 
 test('the item form date/time fields follow the picker policy and use the model accept-list', () => {
-  // Transport uses the app-owned pickers; stay keeps native date inputs for
-  // now. The full policy (and its owner decision record) is fenced in
+  // Transport AND stay use the app-owned pickers (stay adopted in rollout
+  // step 2). The full policy (and its owner decision record) is fenced in
   // tests/native-picker-policy.test.mjs.
   assert.match(itemSheet, /<DateField\b/);
   assert.match(itemSheet, /<TimeField\b/);
-  assert.match(itemSheet, /type="date"/, 'stay check-in/check-out stay native in Stage 1');
+  assert.ok(!/type="date"/.test(itemSheet), 'no native date inputs remain in the trip sheet');
   assert.match(itemSheet, /accept=\{WALLET_FILE_ACCEPT\}/);
   assert.ok(!/accept="/.test(itemSheet), 'no literal accept attribute');
 });
