@@ -162,6 +162,32 @@ test('the control keeps full visible labels and stays text-only', () => {
   assert.ok(!/size=\{1[0-9]\}/.test(tablist), 'no icon components inside the tabs');
 });
 
+test('the capsule is compact liquid glass, not a flat opaque badge', () => {
+  const capsule = css.slice(css.indexOf('.today-mode {'), css.indexOf('.today-mode__tab {'));
+  // Same material system as the Journey/Tonight panes: translucent fill +
+  // backdrop lift + hairline rim + top catch-light…
+  assert.match(capsule, /background: var\(--glass-fill-light\)/, 'translucent glass fill');
+  assert.match(capsule, /backdrop-filter: blur\(var\(--glass-blur\)\)/, 'backdrop lift');
+  assert.match(capsule, /inset 0 0 0 var\(--glass-rim-w\) var\(--glass-rim\)/, 'hairline rim');
+  assert.match(capsule, /inset 0 1px 0 var\(--glass-highlight\)/, 'top catch-light');
+  // …but with control-scale shadows: the card-scale --glass-shadow (16px/40px
+  // drop) would make a 36px control float like a card.
+  assert.ok(!capsule.includes('var(--glass-shadow)'), 'no card-scale shadow on the capsule');
+  assert.match(css, /@supports not \(backdrop-filter: blur\(1px\)\)[\s\S]{0,400}\.today-mode \{/,
+    'no-blur fallback keeps the capsule readable');
+});
+
+test('compact tab geometry keeps a safe touch target', () => {
+  const tab = css.slice(css.indexOf('.today-mode__tab {'), css.indexOf('.today-mode__tab:active'));
+  assert.match(tab, /min-height: 30px/, 'visual height is capsule-compact');
+  assert.match(tab, /font-size: 12px/, 'label size steps down with the capsule');
+  // The visual capsule is 34px tall; each tab extends its hit area
+  // vertically (never horizontally — the boundary between the two tabs
+  // must stay exact) back to 44px (30 + 2×7).
+  assert.match(css, /\.today-mode__tab::after \{[^}]*inset: -7px 0/,
+    'invisible vertical hit-area extension');
+});
+
 test('keyboard behaviour and remembered mode are unchanged', () => {
   assert.match(todayScreen, /tabIndex=\{mode === t\.id \? 0 : -1\}/, 'roving tabindex');
   assert.match(todayScreen, /ArrowRight/);
