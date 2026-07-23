@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Info, X } from 'lucide-react';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /**
  * Compact "info" trigger that opens its explanatory content in an accessible
@@ -44,6 +45,7 @@ export function ContextHelp({
 }) {
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock(open);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
 

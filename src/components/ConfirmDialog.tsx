@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /** Everything reachable by Tab inside the dialog (buttons today, but kept
  *  general so a future field in a dialog stays trapped too). */
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   const titleId = useId();
   const bodyId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
+  useOverlayScrollLock();
   const confirmRef = useRef<HTMLButtonElement>(null);
   // Latest cancel callback behind a stable ref, so the mount effect (focus
   // capture/restore + key handling) runs exactly once per dialog lifetime

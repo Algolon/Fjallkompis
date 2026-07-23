@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import type { WalletDocument } from '../types';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /**
  * Centred quick credential viewer for the Today STF membership quick access.
@@ -28,6 +29,7 @@ export function MembershipCardViewer({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
   const headingId = useId();
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;

@@ -26,12 +26,13 @@ const render = settings.slice(settings.indexOf('export function SettingsScreen')
 test('Route direction is the first configurable section, before Trail readiness', () => {
   const iDir = render.indexOf('id="direction"');
   const iReady = render.indexOf('<TrailReadinessCard');
-  const iBeta = render.indexOf('<BetaFeedbackCard');
   const iGrid = render.indexOf('settings-grid--accordions');
   assert.ok(iDir > 0, 'Route direction accordion is rendered');
   assert.ok(iDir < iReady, 'Route direction renders before Trail readiness');
-  assert.ok(iReady < iBeta, 'Trail readiness renders before Beta feedback');
-  assert.ok(iBeta < iGrid, 'Beta feedback renders before the grouped foldouts');
+  // The Beta feedback card that used to sit between readiness and the grid
+  // is retired (see settings-beta-readiness.test.mjs) — readiness now hands
+  // over directly to the grouped foldouts.
+  assert.ok(iReady < iGrid, 'Trail readiness renders before the grouped foldouts');
 });
 
 test('Route direction lives in the accordion/card system and is not duplicated', () => {
@@ -157,11 +158,9 @@ test('Trail readiness stays a foldout: accordion, collapsed by default, score in
   assert.match(settings, /const score = \(\s*<span className="readiness-score">/);
 });
 
-test('beta feedback is the no-login form only — GitHub route and diagnostics gone', () => {
-  assert.match(settings, /href=\{BETA_FORM_URL\}/);
-  assert.match(settings, /docs\.google\.com\/forms/);
-  // The GitHub issue feedback route (link, template URL and its import) is
-  // retired; the form is the single entry point here.
+test('the beta feedback entry is retired entirely — no form, GitHub route or diagnostics', () => {
+  assert.ok(!/BETA_FORM_URL/.test(settings), 'form URL constant removed');
+  assert.ok(!/docs\.google\.com\/forms/.test(settings), 'no Google Forms URL');
   assert.ok(!/issues\/new\?template=beta-feedback\.yml/.test(settings), 'GitHub feedback link removed');
   assert.ok(!/GitHub feedback/.test(settings), 'GitHub feedback label removed');
   assert.ok(!/REPOSITORY_URL/.test(settings), 'now-unused REPOSITORY_URL import removed');

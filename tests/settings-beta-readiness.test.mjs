@@ -1,11 +1,12 @@
 /**
- * Settings screen: Trail-readiness foldout + simplified beta feedback.
+ * Settings screen: Trail-readiness foldout + retired beta-feedback entry.
  *
  * Source-text contracts (matching the repo's other guard tests). They pin:
  *   - Trail readiness is an accessible accordion, collapsed by default, with a
  *     live score in the collapsed header;
- *   - the beta section exposes only the Google Forms button and the GitHub
- *     button, and the diagnostics feature is gone (not merely hidden);
+ *   - the beta-feedback phase is FINISHED: the "Report beta feedback" card,
+ *     its Google Forms URL and the diagnostics feature are gone from Settings
+ *     (removed, not merely hidden);
  *   - the readiness rows sit symmetrically inside the card (no leaked
  *     left-indent from the old Today `.readiness-list` collision).
  */
@@ -18,9 +19,6 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const settings = readFileSync(join(root, 'src/screens/SettingsScreen.tsx'), 'utf8');
 const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
-
-const BETA_FORM_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSdKmFYZ4uRrfcqc5dPlF1VgxFcggMjtFVl8WQyLtebGokUllg/viewform';
 
 // ---- Trail readiness foldout ------------------------------------------------
 
@@ -126,37 +124,29 @@ test('the Settings readiness list carries no asymmetric horizontal indent', () =
   assert.match(block, /padding:\s*0/, 'list padding is reset to zero on both sides');
 });
 
-// ---- Google Forms feedback button ------------------------------------------
+// ---- Beta feedback retired --------------------------------------------------
 
-test('BETA_FORM_URL is the exact requested Google Forms URL', () => {
-  assert.ok(
-    settings.includes(`'${BETA_FORM_URL}'`),
-    'BETA_FORM_URL constant holds the exact form URL',
-  );
+test('the "Report beta feedback" entry is gone from Settings', () => {
+  assert.ok(!/Report beta feedback/.test(settings), 'no feedback button label');
+  assert.ok(!/BetaFeedbackCard/.test(settings), 'the card component is removed, not hidden');
+  assert.ok(!/Beta testing/.test(settings), 'no orphaned "Beta testing" heading');
 });
 
-test('the primary beta button is a full-width new-tab link to the form', () => {
-  const beta = settings.slice(settings.indexOf('function BetaFeedbackCard'));
+test('the external form URL and its constant are fully removed', () => {
+  assert.ok(!/BETA_FORM_URL/.test(settings), 'dead constant removed');
+  assert.ok(!/docs\.google\.com\/forms/.test(settings), 'no Google Forms URL anywhere in Settings');
+});
+
+test('no empty section or dead styling remains after the removal', () => {
+  assert.ok(!/\.beta-card\s*\{/.test(css), 'the .beta-card rule is gone');
+  assert.ok(!/ExternalLink/.test(settings), 'the icon existed only for the feedback link');
+  // The readiness card hands over directly to the accordion grid — the
+  // surrounding section order is unchanged.
   assert.match(
-    beta,
-    /className="btn btn-primary btn-block"[\s\S]*?href=\{BETA_FORM_URL\}[\s\S]*?target="_blank"[\s\S]*?rel="noopener noreferrer"[\s\S]*?Report beta feedback/,
-    'full-width primary button opens the form safely in a new tab',
+    settings,
+    /<TrailReadinessCard[\s\S]*?\/>\s*<div className="settings-grid settings-grid--accordions">/,
+    'readiness is immediately followed by the accordion grid',
   );
-});
-
-test('the placeholder "waiting on the final Google Forms URL" warning is gone', () => {
-  assert.ok(!/waiting on the final Google Forms URL/.test(settings));
-  assert.ok(!/beta-card__pending/.test(settings), 'placeholder warning markup removed');
-  assert.ok(!/beta-card__pending/.test(css), 'placeholder warning style removed');
-});
-
-test('the GitHub feedback route is retired — the form is the only entry point', () => {
-  const beta = settings.slice(settings.indexOf('function BetaFeedbackCard'));
-  assert.ok(!/issues\/new\?template=beta-feedback\.yml/.test(beta), 'no GitHub issue link');
-  assert.ok(!/GitHub feedback/.test(beta), 'no GitHub feedback button');
-  // Exactly one feedback link remains in the card (the no-login form).
-  const links = (beta.match(/<a\b/g) ?? []).length;
-  assert.equal(links, 1, 'a single feedback entry point in Beta testing');
 });
 
 // ---- Diagnostics removed (not hidden) --------------------------------------
@@ -178,10 +168,4 @@ test('diagnostics generation logic and its dead imports are removed', () => {
   assert.ok(!/\bClipboard\b/.test(settings), 'unused Clipboard icon import removed');
   assert.ok(!/useOnlineStatus/.test(settings), 'unused online hook removed');
   assert.ok(!/\buseMemo\b/.test(settings), 'unused useMemo import removed');
-});
-
-test('the beta description no longer claims safe diagnostics are included', () => {
-  const beta = settings.slice(settings.indexOf('function BetaFeedbackCard'), settings.indexOf('function SettingsScreen'));
-  assert.ok(!/diagnostics/i.test(beta), 'description drops the diagnostics claim');
-  assert.match(beta, /no-login feedback form opens in your browser/);
 });

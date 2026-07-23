@@ -42,6 +42,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { DateField } from './DateField';
 import { TimeField } from './TimeField';
 import type { WalletStatus } from '../hooks/useWalletDocuments';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /** Mode icon — always paired with a text label; never meaning by icon alone. */
 export function TripModeIcon({ mode, size = 16 }: { mode: TripTransportMode; size?: number }) {
@@ -161,6 +162,7 @@ export function TripItemSheet({
 }) {
   const mode = item ? 'edit' : 'add';
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
   const fileRef = useRef<HTMLInputElement>(null);
   const headingId = useId();
   const checkOutErrorId = useId();

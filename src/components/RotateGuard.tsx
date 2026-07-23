@@ -22,6 +22,7 @@
  * the user resumes exactly where they were (never bounced to Today).
  */
 import { useEffect, useRef, type RefObject } from 'react';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 export function RotateGuard({
   active,
@@ -32,6 +33,7 @@ export function RotateGuard({
   shellRef: RefObject<HTMLElement>;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock(active);
   const lastFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
