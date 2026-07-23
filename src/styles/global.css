@@ -124,6 +124,21 @@ dialog img {
   -webkit-touch-callout: default;
 }
 
+/* While ANY overlay holds the shared lock (src/utils/overlayLock.mjs sets
+   this attribute, reference-counted for nested overlays), the viewport's
+   root scroller is frozen and its overscroll effects — Android
+   pull-to-refresh above all — are disabled. Top-layer surfaces chain touch
+   scrolling straight to the root, skipping <main>'s containment, so a drag
+   on an open sheet could otherwise reload the page over an unsaved draft.
+   `overscroll-behavior` must sit on html: the viewport does NOT take it
+   from body (which is why the body rule above never guarded refresh).
+   Unlocked pages keep normal behaviour, including deliberate refresh. */
+html[data-overlay-locked],
+html[data-overlay-locked] body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -582,9 +597,6 @@ a.btn {
   font-weight: 650;
   line-height: 1.25;
   text-align: right;
-}
-.beta-card {
-  margin-top: 14px;
 }
 .settings-grid--accordions {
   margin-top: 10px;
@@ -4136,6 +4148,9 @@ span.trip-attach-open {
 .sheet-body {
   padding: 18px 18px calc(18px + var(--safe-bottom));
   overflow-y: auto;
+  /* A long form scrolls HERE; reaching its top/bottom must not chain the
+     gesture onward (top-layer chaining goes straight to the viewport). */
+  overscroll-behavior: contain;
   max-height: inherit;
 }
 .sheet-head h2 {
@@ -5028,6 +5043,7 @@ span.trip-attach-open {
 .picker-body {
   padding: 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   max-height: inherit;
 }
 .picker-eyebrow {

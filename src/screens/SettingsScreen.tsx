@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
-  ExternalLink,
 } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ROUTE_DIRECTIONS } from '../route/direction.mjs';
@@ -30,9 +29,6 @@ type Notice = { kind: 'ok' | 'err'; text: string } | null;
 type SettingsSection = 'install' | 'maps' | 'backup' | 'sources';
 /** One-shot deep-link targets (NavPayload.settings) — readiness only for now. */
 export type SettingsDeepLinkSection = 'readiness';
-
-const BETA_FORM_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSdKmFYZ4uRrfcqc5dPlF1VgxFcggMjtFVl8WQyLtebGokUllg/viewform';
 
 /** Human label for a direction, sourced from its itinerary (single source). */
 function directionLabel(direction: RouteDirection): string {
@@ -287,28 +283,6 @@ function RouteDirectionCard() {
   );
 }
 
-function BetaFeedbackCard() {
-  return (
-    <div className="card beta-card">
-      <span className="card-title">Beta testing</span>
-      <p className="card-sub" style={{ marginTop: 4 }}>
-        Send confusing moments, wrong facts, GPS oddities and readiness gaps. The
-        no-login feedback form opens in your browser.
-      </p>
-
-      <a
-        className="btn btn-primary btn-block"
-        style={{ marginTop: 12, textDecoration: 'none' }}
-        href={BETA_FORM_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <ExternalLink size={16} aria-hidden /> Report beta feedback
-      </a>
-    </div>
-  );
-}
-
 export function SettingsScreen({
   initialSection = null,
 }: {
@@ -419,8 +393,6 @@ export function SettingsScreen({
         open={readinessOpen}
         onToggle={() => setReadinessOpen((current) => !current)}
       />
-
-      <BetaFeedbackCard />
 
       <div className="settings-grid settings-grid--accordions">
         <SettingsAccordion

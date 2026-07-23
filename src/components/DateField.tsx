@@ -16,6 +16,7 @@ import {
 } from '../utils/dateTimeField.mjs';
 import type { DateParts } from '../utils/dateTimeField.mjs';
 import { todayIso } from '../utils/format';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /**
  * App-owned date field: a closed field that opens a one-month calendar
@@ -98,6 +99,7 @@ export function DateFieldDialog({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
   const gridRef = useRef<HTMLDivElement>(null);
   const headingId = useId();
   const monthId = useId();

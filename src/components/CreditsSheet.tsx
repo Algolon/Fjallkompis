@@ -15,9 +15,11 @@ import {
   REPOSITORY_URL,
 } from '../data/attribution';
 import { APP_VERSION } from '../constants';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 export function CreditsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock(open);
 
   useEffect(() => {
     const dialog = ref.current;

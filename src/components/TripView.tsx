@@ -47,6 +47,7 @@ import { STOPS_BY_ID } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
 import { downloadBlobFile } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /** "2 Aug 2026" — unambiguous across season boundaries, still compact. */
 function formatTripDate(iso: string): string {
@@ -593,6 +594,7 @@ function AddItemChooser({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
   const headingId = useId();
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -652,6 +654,7 @@ export function TripImageViewer({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.showModal();

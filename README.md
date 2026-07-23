@@ -57,7 +57,7 @@ starts empty; use Settings → Export/Import to move your data across (see below
   distances, and the Map. It's the same physical route and the same offline
   maps — just presented in the direction you're walking.
 - **Settings** — route direction, trail-readiness checks, offline map
-  downloads, feedback, backup/restore of your data, sources and credits.
+  downloads, backup/restore of your data, sources and credits.
 
 Everything you enter stays on your phone. No account, no server, no tracking —
 Fjällkompis does not have a backend.
@@ -97,14 +97,6 @@ Fjällkompis does not have a backend.
 - **Battery discipline beats everything**: flight mode + screen mostly off
   is the difference between a phone that lasts a week of huts and one that
   dies on day two.
-
-## Beta testers wanted 🎒
-
-Fjällkompis is still under active development and improves through real use —
-on the Kungsleden or anywhere you want to test its offline hiking workflow. If
-something is confusing, wrong or missing, use **Settings → Beta testing** in
-Fjällkompis to open the short no-login feedback form. Please never include exact
-GPS coordinates in public feedback.
 
 ## For developers
 

@@ -11,6 +11,7 @@ import {
 } from '../wallet/walletModel.mjs';
 import { formatBytes } from '../map/offlineMap';
 import { IconCheck } from './Icons';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /** The editable metadata the sheet returns on save. */
 export interface WalletEditorFields {
@@ -52,6 +53,7 @@ export function WalletEditorSheet({
 }) {
   const mode = doc ? 'edit' : 'add';
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
   const fileRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
 

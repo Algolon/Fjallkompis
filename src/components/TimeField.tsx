@@ -10,6 +10,7 @@ import {
   stepMinute,
   toIsoTime,
 } from '../utils/dateTimeField.mjs';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /**
  * App-owned time field: a closed field opening a digital 24-hour HH:mm
@@ -81,6 +82,7 @@ export function TimeFieldDialog({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
   const hourRef = useRef<HTMLInputElement>(null);
   const headingId = useId();
   const errorId = useId();
