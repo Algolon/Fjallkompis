@@ -450,27 +450,28 @@ export function TripItemSheet({
                 onChange={(e) => setLocation(e.target.value)}
               />
             </label>
-            <div className="row" style={{ marginTop: 0 }}>
-              <label className="field" style={{ flex: 1 }}>
-                <span>Check-in (optional)</span>
-                <input
-                  className="input"
-                  type="date"
-                  value={checkInDate}
-                  onChange={(e) => setCheckInDate(e.target.value)}
-                />
-              </label>
-              <label className="field" style={{ flex: 1 }}>
-                <span>Check-out (optional)</span>
-                <input
-                  className="input"
-                  type="date"
-                  value={checkOutDate}
-                  aria-invalid={!stayOrderOk}
-                  aria-describedby={!stayOrderOk ? checkOutErrorId : undefined}
-                  onChange={(e) => setCheckOutDate(e.target.value)}
-                />
-              </label>
+            {/* Stay rollout of the app-owned picker (step 2 of the plan in
+                docs/proposals/datetime-picker-system.md §12, after the
+                owner's device pass on the transport pilot). The date-order
+                rule stays on the draft exactly as before — the pickers
+                only read/write the same '' | 'YYYY-MM-DD' strings. */}
+            <div className="row trip-daterow" style={{ marginTop: 0 }}>
+              <DateField
+                label="Check-in (optional)"
+                dialogTitle="Check-in"
+                value={checkInDate}
+                onChange={setCheckInDate}
+                style={{ flex: 1 }}
+              />
+              <DateField
+                label="Check-out (optional)"
+                dialogTitle="Check-out"
+                value={checkOutDate}
+                onChange={setCheckOutDate}
+                style={{ flex: 1 }}
+                invalid={!stayOrderOk}
+                describedBy={checkOutErrorId}
+              />
             </div>
             {!stayOrderOk ? (
               <p className="wallet-form-error" id={checkOutErrorId} role="alert">

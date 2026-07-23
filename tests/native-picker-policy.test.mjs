@@ -14,9 +14,10 @@
  *   1. transport date/departure/arrival use the app-owned DateField and
  *      TimeField dialogs — self-rendered, so the broken OS action row is
  *      out of the loop entirely;
- *   2. stay check-in/check-out and the Documents date stay NATIVE until the
- *      pilot passes the owner's real-device check (the native path also
- *      remains the proven fallback shape in code);
+ *   2. stay check-in/check-out ALSO use DateField (rollout step 2, adopted
+ *      2026-07-23 after the owner approved the transport pilot); the
+ *      Documents date stays NATIVE for now (the native path remains the
+ *      proven fallback shape in code);
  *   3. `color-scheme: light` (page + meta) stays — it still governs the
  *      remaining native pickers and every other UA surface;
  *   4. still no third-party picker library, and no styling of native popup
@@ -41,11 +42,12 @@ test('the app declares a light color-scheme for UA surfaces (meta + CSS)', () =>
   assert.match(css, /:root \{[^}]*color-scheme: light/, ':root carries the same declaration');
 });
 
-test('transport fields use the app-owned pickers; stay and wallet stay native', () => {
-  assert.match(tripSheet, /<DateField\b/, 'transport date uses DateField');
+test('trip fields use the app-owned pickers; only the wallet date stays native', () => {
+  // Transport date + stay check-in + stay check-out = three DateFields.
+  assert.equal((tripSheet.match(/<DateField\b/g) ?? []).length, 3, 'transport + both stay dates use DateField');
   assert.equal((tripSheet.match(/<TimeField\b/g) ?? []).length, 2, 'departure + arrival use TimeField');
-  // Native inputs remaining: exactly the two stay dates, zero time inputs.
-  assert.equal((tripSheet.match(/type="date"/g) ?? []).length, 2, 'stay check-in/check-out stay native for now');
+  // No native date/time inputs remain anywhere in the trip sheet.
+  assert.equal((tripSheet.match(/type="date"/g) ?? []).length, 0, 'stay dates no longer use native inputs');
   assert.equal((tripSheet.match(/type="time"/g) ?? []).length, 0, 'no native time inputs remain');
   assert.match(walletSheet, /type="date"/, 'wallet document date stays native for now');
 });

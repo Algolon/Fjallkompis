@@ -36,6 +36,8 @@ export function DateField({
   value,
   onChange,
   style,
+  invalid,
+  describedBy,
 }: {
   /** Visible field label ("Date (optional)"). */
   label: string;
@@ -45,6 +47,11 @@ export function DateField({
   value: string;
   onChange: (next: string) => void;
   style?: CSSProperties;
+  /** Caller-owned validation state (e.g. the stay date-order rule) —
+      surfaces on the closed field exactly as it did on the native input. */
+  invalid?: boolean;
+  /** id of the caller's error text, associated while `invalid`. */
+  describedBy?: string;
 }) {
   const [open, setOpen] = useState(false);
   const display = formatDateFieldLabel(value);
@@ -59,6 +66,8 @@ export function DateField({
           type="button"
           className="input picker-field"
           aria-haspopup="dialog"
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? describedBy : undefined}
           onClick={() => setOpen(true)}
         >
           <span className={display ? undefined : 'picker-field__empty'}>

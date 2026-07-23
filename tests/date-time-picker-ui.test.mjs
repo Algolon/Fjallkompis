@@ -95,6 +95,39 @@ test('trip sheet: transport uses the pickers; values stay plain strings on the d
   assert.match(tripModel, /const TIME_RE = \/\^\(\[01\]\\d\|2\[0-3\]\):\[0-5\]\\d\$\//);
 });
 
+test('trip sheet: stay dates use DateField wired to the same draft state (rollout step 2)', () => {
+  // Each stay field binds to ITS OWN draft variable — check-in and
+  // check-out stay independent, and editing an existing stay initialises
+  // both from the stored item exactly as the native inputs did.
+  assert.match(
+    tripSheet,
+    /<DateField[\s\S]*?dialogTitle="Check-in"[\s\S]*?value=\{checkInDate\}[\s\S]*?onChange=\{setCheckInDate\}/,
+    'check-in wired to its draft variable',
+  );
+  assert.match(
+    tripSheet,
+    /<DateField[\s\S]*?dialogTitle="Check-out"[\s\S]*?value=\{checkOutDate\}[\s\S]*?onChange=\{setCheckOutDate\}/,
+    'check-out wired to its draft variable',
+  );
+  assert.match(tripSheet, /useState\(stay\?\.checkInDate \?\? ''\)/, 'edit mode loads the stored check-in');
+  assert.match(tripSheet, /useState\(stay\?\.checkOutDate \?\? ''\)/, 'edit mode loads the stored check-out');
+  // The pre-existing chronological rule survives the swap: it still gates
+  // Save on the draft and surfaces on the check-out field.
+  assert.match(tripSheet, /isStayDateOrderValid\(checkInDate \|\| undefined, checkOutDate \|\| undefined\)/);
+  assert.match(tripSheet, /invalid=\{!stayOrderOk\}/);
+  assert.match(tripSheet, /describedBy=\{checkOutErrorId\}/);
+  // DateField passes the caller's validation state through to the closed
+  // field (the a11y association the native input used to carry).
+  const dateFieldSrc = dateField;
+  assert.match(dateFieldSrc, /aria-invalid=\{invalid \|\| undefined\}/);
+  assert.match(dateFieldSrc, /aria-describedby=\{invalid \? describedBy : undefined\}/);
+  // Narrow phones: the date pair stacks (≤340px, the app's compact step)
+  // and the closed-field value never wraps to a second line.
+  assert.match(tripSheet, /className="row trip-daterow"/);
+  assert.match(css, /@media \(max-width: 340px\) \{\s*\.trip-daterow \{\s*flex-direction: column;\s*align-items: stretch;/);
+  assert.match(css, /\.picker-field > span \{[^}]*white-space: nowrap/s);
+});
+
 test('no persisted-schema change rides this feature', () => {
   assert.match(migration, /export const SCHEMA_VERSION = 6;/, 'schema stays at v6');
 });
