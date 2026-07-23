@@ -1,6 +1,8 @@
 # App-owned date & time picker system — Stage 1
 
-**Status:** Stage 1 prototype in review (draft PR, not merged, no release).
+**Status:** Stage 1 prototype in review (draft PR #69, not merged, no
+release). Refinement pass 1 (2026-07-23, owner preview feedback) applied —
+see the addendum at the end of this document.
 **Owner decision context:** PR #68 root-caused the Android/Samsung time-picker
 overflow (the OS dialog's `Wissen | Annuleren | Instellen` action row running
 off screen) as an OS/browser-dialog layout bug that page CSS cannot reach, and
@@ -367,3 +369,97 @@ return to trigger, validation errors, Dutch-label wrap, and viewport fits
 were all exercised live in the preview harness; environmental throttling of
 the hidden pane was distinguished from app behaviour by instrumented probes —
 which is how the React close-re-bubbling bug (§8) was caught and fixed.*
+
+---
+
+## Addendum — refinement pass 1 (2026-07-23, after owner preview approval)
+
+The owner approved the overall look and behaviour in the Claude preview and
+requested two focused corrections before the real-device test.
+
+### A. Text-selection policy
+
+**Audit finding:** the app has had the desired policy since 2026-07-12 —
+`html { user-select: none; -webkit-touch-callout: none }` with an
+`input, textarea, [contenteditable]` restore — but it never reached any
+native `<dialog>`: top-layer elements do not take the propagated used
+`user-select` value from the document, so inside a modal dialog `auto`
+resolves to `text` again (measured in Chromium: every element in both the
+trip sheet and the pickers computed `text` while identical content outside
+dialogs computed `none`). The problem was therefore **systemic to every
+dialog surface** (sheets, Add-item chooser, credential viewer, image viewer,
+RotateGuard, both pickers) — the new pickers merely made it visible.
+
+**Policy (one central rule, no scattered opt-outs):**
+
+- default: `html, dialog` → `user-select: none` (+ `-webkit-`),
+  `-webkit-touch-callout: none`;
+- editable restore (unchanged, declared after the default): `input`,
+  `textarea`, `[contenteditable]` → `user-select: text`, callout default —
+  typing, copy/paste and Shift+Arrow selection keep working everywhere,
+  including inside dialogs;
+- one deliberate extra exception: `dialog img` keeps the platform
+  long-press callout — saving/sharing your own stored ticket or STF card
+  from the viewers is a feature, and the viewers are dialogs.
+
+**Copyable-content audit:** trip notes and booking references are never
+rendered as static text — they are only visible inside the edit sheet's
+inputs, which are selectable; the copy path is the editor. Links are
+tappable, not copy-targets. So no `.selectable` utility exists yet; the
+fence documents that it should be introduced the day static user-authored
+text appears. Fenced by `tests/text-selection-policy.test.mjs` (central
+rule, editable restore order, image exception, no scattered rules, no
+inline `userSelect` in components).
+
+**Verified:** computed styles across dialog chrome = `none`, inputs =
+`text`; a real pointer drag across the whole calendar selects nothing;
+input range selection works. Real long-press cannot be produced by the
+browser tooling — computed-style + drag evidence stand in; the long-press
+feel check belongs to the Samsung pass.
+
+### B. Stable-top calendar positioning
+
+**Why whole-dialog centring was rejected:** months span 4–6 grid rows
+(February 2027 = 4, September 2026 = 5, August 2026 = 6). A vertically
+centred dialog re-centres on every month change, so the title, month
+navigation and weekday header all jump by half the height delta — repeated
+navigation feels spatially unstable (owner's screenshots).
+
+**Decision — Option A, top anchor:** the date dialog keeps horizontal
+centring but anchors its top edge at
+`--picker-top: clamp(20px, env(safe-area-inset-top) + 8dvh, 88px)`
+(vh fallback line for browsers without dvh), growing downward for longer
+months; `max-height: calc(100dvh − --picker-top − 16px)` with the existing
+internal body scroll keeps short viewports usable. Option B (fixed six-row
+body) was not needed: measured whitespace on 4-row months would be ~88px of
+dead grid, visibly worse than a stable header with a naturally shorter
+card.
+
+**The TimeField stays fully centred, deliberately:** its height never
+varies, so centring is already stable there and calmer for a small dialog —
+the top anchor exists to absorb variable height, which the time dialog does
+not have. Recorded in the CSS next to the override and fenced.
+
+**Measured stability (375×667, real next-month taps + keyboard PageDown):**
+
+| Month | Rows | Dialog top | Title top | Prev/next top | Weekday top | Action row top | Height |
+|---|---|---|---|---|---|---|---|
+| February 2027 | 4 | 53.4 | 85.9 | 119.4 | 173.4 | 393.4 | 403 |
+| July 2026 | 5 | 53.4 | 85.9 | 119.4 | 173.4 | 437.4 | 447 |
+| September 2026 | 5 | 53.4 | 85.9 | 119.4 | 173.4 | 437.4 | 447 |
+| August 2026 | 6 | 53.4 | 85.9 | 119.4 | 173.4 | 481.4 | 491 |
+
+Header/navigation/weekday coordinates are identical to the decimal; only
+the action row and total height move, downward only. Top offsets at other
+sizes: 320×568 → 45px, 660×360 (short landscape) → 29px with internal
+scroll and the action row reachable, 1280×800 → 64px; the page behind never
+scrolls.
+
+### C. Backdrop consistency (unchanged, re-confirmed)
+
+Backdrop click still cancels (no commit), inside-clicks never close, focus
+returns to the field trigger, and the nested-close stop-propagation guard
+(§8) is untouched — all still fenced. Positioning contract added to
+`tests/date-time-picker-ui.test.mjs` (top-anchor variables, no full
+centring for the date dialog, the time dialog's documented centring
+exception, no fixed calendar height, internal scroll present).

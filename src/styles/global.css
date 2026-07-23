@@ -95,8 +95,16 @@ body {
 /* App-like interaction: a long-press must never start native text selection
    or the platform lookup/share sheet — Fjällkompis behaves like an app, not
    a document. Editable fields keep full selection below (typing, copying a
-   trip note or journal entry must still work). */
-html {
+   trip note or journal entry must still work).
+
+   `dialog` is listed alongside `html` because top-layer elements do NOT
+   take the propagated used `user-select` value from the document — inside
+   a modal <dialog>, `auto` resolves to `text` again (observed in Chromium),
+   which made every sheet, viewer and picker surface selectable while the
+   rest of the app was not. One rule here covers all current and future
+   dialogs; do not add per-component user-select rules. */
+html,
+dialog {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -106,6 +114,13 @@ textarea,
 [contenteditable] {
   -webkit-user-select: text;
   user-select: text;
+  -webkit-touch-callout: default;
+}
+/* Stored document/credential images (the viewers are dialogs) keep the
+   platform long-press actions — saving or sharing your own ticket or STF
+   card is a feature, not chrome. Text selection stays off; only the image
+   callout is restored. */
+dialog img {
   -webkit-touch-callout: default;
 }
 
@@ -4970,10 +4985,22 @@ span.trip-attach-open {
 
 .picker-dialog {
   position: fixed;
-  inset: 0;
-  margin: auto;
+  /* STABLE TOP ANCHOR (owner decision, refinement pass 1): months span 4–6
+     calendar rows, so a fully-centred dialog re-centres on every month
+     change — title, month controls and weekday header all jump. Anchoring
+     the top edge keeps the header and navigation at identical coordinates
+     while the dialog grows downward for longer months. The offset is
+     safe-area-aware and viewport-relative, clamped to a sensible gutter
+     range; the vh line is the fallback where dvh is unsupported. */
+  --picker-top: clamp(20px, calc(env(safe-area-inset-top, 0px) + 8vh), 88px);
+  --picker-top: clamp(20px, calc(env(safe-area-inset-top, 0px) + 8dvh), 88px);
+  inset: var(--picker-top) 0 auto 0;
+  margin: 0 auto;
   width: min(392px, calc(100vw - 32px));
-  max-height: min(calc(100vh - 40px), calc(100dvh - 40px));
+  /* Never past the safe viewport bottom: short screens scroll the body
+     inside the dialog instead (overflow-y on .picker-body). */
+  max-height: calc(100vh - var(--picker-top) - 16px);
+  max-height: calc(100dvh - var(--picker-top) - 16px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--r-lg);
   background: var(--spruce-700);
@@ -4989,6 +5016,14 @@ span.trip-attach-open {
 }
 .picker-dialog--time {
   width: min(340px, calc(100vw - 32px));
+  /* The time dialog keeps whole-viewport centring: its height never varies
+     (no row-count changes), so centring is stable there and visually calmer
+     for a small dialog. Deliberately NOT unified with the date picker's
+     top anchor — that anchor exists to absorb variable height, which this
+     dialog doesn't have. */
+  inset: 0;
+  margin: auto;
+  max-height: min(calc(100vh - 40px), calc(100dvh - 40px));
 }
 .picker-body {
   padding: 16px;

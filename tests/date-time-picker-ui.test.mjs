@@ -121,3 +121,43 @@ test('touch targets: 44px day rows, 44px steppers and paging controls', () => {
   assert.match(css, /\.picker-cal__day \{[^}]*height: 44px/s);
   assert.match(css, /\.picker-nav-btn \{[^}]*width: 44px;\n\s*height: 44px/s);
 });
+
+// --- Positioning contract (refinement pass 1) --------------------------------
+// Months span 4–6 calendar rows; a fully-centred dialog re-centres on every
+// month change, so the header and month navigation jump. The date dialog is
+// TOP-ANCHORED (stable header, grows downward); the time dialog stays
+// centred because its height never varies.
+
+test('date dialog: stable safe-area-aware top anchor, not full centring', () => {
+  const block = css.slice(css.indexOf('.picker-dialog {'), css.indexOf('.picker-dialog::backdrop'));
+  assert.match(
+    block,
+    /--picker-top: clamp\(20px, calc\(env\(safe-area-inset-top, 0px\) \+ 8dvh\), 88px\)/,
+    'clamped safe-area + dvh offset',
+  );
+  assert.match(
+    block,
+    /--picker-top: clamp\(20px, calc\(env\(safe-area-inset-top, 0px\) \+ 8vh\), 88px\)/,
+    'vh fallback where dvh is unsupported',
+  );
+  assert.match(block, /inset: var\(--picker-top\) 0 auto 0/, 'top anchored, bottom free');
+  assert.match(block, /margin: 0 auto/, 'horizontal centring only');
+  assert.ok(!/margin: auto;/.test(block), 'no whole-viewport vertical centring');
+  assert.match(block, /max-height: calc\(100dvh - var\(--picker-top\) - 16px\)/,
+    'never past the safe viewport bottom');
+});
+
+test('time dialog: stays centred — a documented exception, height never varies', () => {
+  const block = css.slice(css.indexOf('.picker-dialog--time {'), css.indexOf('.picker-body {'));
+  assert.match(block, /inset: 0/);
+  assert.match(block, /margin: auto/);
+  assert.match(block, /height never varies/, 'the reason is recorded next to the override');
+});
+
+test('variable month heights stay supported; short screens scroll inside', () => {
+  const cal = css.slice(css.indexOf('.picker-cal {'), css.indexOf('.picker-cal__row'));
+  assert.ok(!/\bheight:|min-height:/.test(cal), 'no fixed calendar height — 4, 5 and 6 rows all render');
+  const body = css.slice(css.indexOf('.picker-body {'), css.indexOf('.picker-eyebrow'));
+  assert.match(body, /overflow-y: auto/, 'action row reachable by internal scroll at short heights');
+  assert.match(body, /max-height: inherit/);
+});
