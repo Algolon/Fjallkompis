@@ -130,6 +130,22 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **App-owned date/time pickers (v0.25.0)**: the Trip plan's date and time
+  fields moved off the broken native Android dialogs onto Fjällkompis's own
+  picker system — a Monday-first calendar dialog and a digital 24-hour time
+  dialog on the spruce credential surface, with wrap-safe Clear / Cancel /
+  Set actions, the APG grid keyboard pattern, stable-top positioning across
+  4/5/6-row months, and unchanged ISO storage (schema stays v6). Rolled out
+  to Transport (date, departure, arrival) and Stay (check-in/check-out,
+  with the check-out calendar opening on the check-in's month); the
+  Documents date deliberately remains native as the proven fallback shape.
+  Alongside it: the text-selection policy now reaches inside dialogs
+  (top-layer surfaces had missed the app-wide rule), a shared
+  reference-counted overlay scroll lock stops background scrolling and
+  pull-to-refresh under every sheet/dialog/picker, and the finished
+  Settings beta-feedback card was removed. This supersedes v0.24.0's
+  keep-native picker decision. Design record:
+  docs/proposals/datetime-picker-system.md.
 - **Today Prepare (v0.24.0)**: Today gained a manual Prepare | On route
   mode — a compact liquid-glass tablist in the header (remembered per
   device, never switched automatically) in front of a preparation
@@ -142,7 +158,8 @@ cross-device synchronization is deliberately far down this roadmap.
   `color-scheme: light` hint for native controls. The Android/Samsung
   date/time dialog overflow was investigated and confirmed to live outside
   the app-controlled DOM/CSS; the decision to keep native pickers native is
-  recorded in docs/proposals/today-mode-pill-refinement.md.
+  recorded in docs/proposals/today-mode-pill-refinement.md (since
+  superseded by the v0.25.0 app-owned picker system).
 - **Personal Trip plan (v0.23.0)**: the Lists Wallet tab became **Trip** — a
   trip-item-first plan of personal Travel movements and Stays with
   Needed / Planned / Confirmed statuses, optional attached documents, and

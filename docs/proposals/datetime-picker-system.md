@@ -1,8 +1,11 @@
 # App-owned date & time picker system — Stage 1
 
-**Status:** Stage 1 prototype in review (draft PR #69, not merged, no
-release). Refinement pass 1 (2026-07-23, owner preview feedback) applied —
-see the addendum at the end of this document.
+**Status:** SHIPPED in v0.25.0 (owner-approved after live testing). Rolled
+out via PR #69 (transport pilot + refinement pass 1 — see the addendum at
+the end of this document), PR #70 (overlay scroll lock), PR #71 (stay
+dates) and PR #72 (check-out month hint); release bookkeeping finalized
+2026-07-24. The Documents date remains native by design (§12). The rest of
+this document is the Stage 1 record as written.
 **Owner decision context:** PR #68 root-caused the Android/Samsung time-picker
 overflow (the OS dialog's `Wissen | Annuleren | Instellen` action row running
 off screen) as an OS/browser-dialog layout bug that page CSS cannot reach, and
