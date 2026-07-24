@@ -30,6 +30,7 @@ import {
   TRIP_TRANSPORT_MODES,
   isStayDateOrderValid,
 } from '../trip/tripModel.mjs';
+import { checkOutMonthHint } from '../utils/dateTimeField.mjs';
 import {
   MAX_WALLET_FILE_BYTES,
   WALLET_FILE_ACCEPT,
@@ -471,6 +472,7 @@ export function TripItemSheet({
                 style={{ flex: 1 }}
                 invalid={!stayOrderOk}
                 describedBy={checkOutErrorId}
+                openOnMonthOf={checkOutMonthHint(checkInDate) ?? undefined}
               />
             </div>
             {!stayOrderOk ? (

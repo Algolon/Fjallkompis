@@ -28,6 +28,7 @@ export declare function addDays(year: number, month: number, day: number, delta:
 export declare function formatMonthTitle(year: number, month: number): string;
 export declare function formatDateFieldLabel(iso: unknown): string | null;
 export declare function formatDayAria(year: number, month: number, day: number): string;
+export declare function checkOutMonthHint(checkInIso: unknown): string | null;
 
 export declare function parseIsoTime(v: unknown): TimeParts | null;
 export declare function isValidHour(n: number): boolean;

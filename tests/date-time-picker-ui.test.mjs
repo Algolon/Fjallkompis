@@ -121,6 +121,15 @@ test('trip sheet: stay dates use DateField wired to the same draft state (rollou
   const dateFieldSrc = dateField;
   assert.match(dateFieldSrc, /aria-invalid=\{invalid \|\| undefined\}/);
   assert.match(dateFieldSrc, /aria-describedby=\{invalid \? describedBy : undefined\}/);
+  // Check-out OPENS on the check-in's month (next month from its last day)
+  // via the pure hint — a view hint only: it sits behind the field's own
+  // value in the focus fallback chain and never touches the selection.
+  assert.match(tripSheet, /openOnMonthOf=\{checkOutMonthHint\(checkInDate\) \?\? undefined\}/);
+  assert.match(
+    dateField,
+    /parseIsoDate\(value\) \?\?\s*parseIsoDate\(openOnMonthOf \?\? ''\) \?\?\s*today/,
+    'hint is only a fallback for an empty field, never overrides a stored value',
+  );
   // Narrow phones: the date pair stacks (≤340px, the app's compact step)
   // and the closed-field value never wraps to a second line.
   assert.match(tripSheet, /className="row trip-daterow"/);
