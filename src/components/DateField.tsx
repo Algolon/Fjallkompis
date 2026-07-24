@@ -38,6 +38,7 @@ export function DateField({
   style,
   invalid,
   describedBy,
+  openOnMonthOf,
 }: {
   /** Visible field label ("Date (optional)"). */
   label: string;
@@ -52,6 +53,11 @@ export function DateField({
   invalid?: boolean;
   /** id of the caller's error text, associated while `invalid`. */
   describedBy?: string;
+  /** ISO date whose month the dialog OPENS on while this field is still
+      empty (e.g. check-out opening beside a chosen check-in). A view hint
+      only: it never selects a date, and a field with its own value always
+      opens on that value instead. */
+  openOnMonthOf?: string;
 }) {
   const [open, setOpen] = useState(false);
   const display = formatDateFieldLabel(value);
@@ -80,6 +86,7 @@ export function DateField({
         <DateFieldDialog
           title={dialogTitle ?? label}
           value={value}
+          openOnMonthOf={openOnMonthOf}
           onCommit={onChange}
           onClose={() => setOpen(false)}
         />
@@ -98,11 +105,14 @@ export function DateField({
 export function DateFieldDialog({
   title,
   value,
+  openOnMonthOf,
   onCommit,
   onClose,
 }: {
   title: string;
   value: string;
+  /** Initial-view month hint used only while `value` is empty — see DateField. */
+  openOnMonthOf?: string;
   /** Called with 'YYYY-MM-DD' on Set, '' on Clear — never on Cancel. */
   onCommit: (next: string) => void;
   onClose: () => void;
@@ -115,10 +125,15 @@ export function DateFieldDialog({
 
   const today = parseIsoDate(todayIso());
   // A malformed stored value degrades to "no selection", never a crash:
-  // the calendar opens on today's month with nothing selected.
+  // the calendar opens on today's month with nothing selected. An empty
+  // field prefers the caller's view hint (check-out beside a check-in)
+  // over today; the hint never becomes a selection.
   const [sel, setSel] = useState<DateParts | null>(() => parseIsoDate(value));
   const [focus, setFocus] = useState<DateParts>(
-    () => parseIsoDate(value) ?? today ?? { year: 2026, month: 1, day: 1 },
+    () =>
+      parseIsoDate(value) ??
+      parseIsoDate(openOnMonthOf ?? '') ??
+      today ?? { year: 2026, month: 1, day: 1 },
   );
   // Set by keyboard navigation only: mouse month-paging must not steal
   // focus from the nav buttons.

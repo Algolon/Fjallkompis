@@ -128,6 +128,25 @@ export function formatDayAria(year, month, day) {
   return `${WEEKDAYS[weekdayIndex(year, month, day)]} ${day} ${MONTHS[month - 1]} ${year}`;
 }
 
+/**
+ * Where the Check-out calendar should OPEN when it has no value of its own:
+ * the check-in's month — except when check-in is the last calendar day of
+ * its month, where the stay must run into the next month, so that month
+ * opens instead (as its first day). Returns an ISO date to use as the
+ * initial-view hint, or null when check-in is absent/malformed (callers
+ * then keep the default open-on-today behaviour). A view hint only — it
+ * never selects or suggests a check-out date.
+ */
+export function checkOutMonthHint(checkInIso) {
+  const p = parseIsoDate(checkInIso);
+  if (!p) return null;
+  if (p.day === daysInMonth(p.year, p.month)) {
+    const next = addMonths(p.year, p.month, 1);
+    return toIsoDate(next.year, next.month, 1);
+  }
+  return checkInIso;
+}
+
 // --- Time (24-hour 'HH:mm') --------------------------------------------------
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;

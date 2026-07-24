@@ -14,6 +14,7 @@ import {
   addDays,
   addMonths,
   buildMonthGrid,
+  checkOutMonthHint,
   clampDay,
   daysInMonth,
   formatDateFieldLabel,
@@ -171,4 +172,22 @@ test('minute stepper: ±5, direction-snapped from odd values, hour-edge wrap', (
   assert.equal(stepMinute(58, 1), 0, 'snap past the edge wraps too');
   assert.equal(stepMinute(null, 1), 0);
   assert.equal(stepMinute(null, -1), 0);
+});
+
+test('check-out view hint: check-in month, or the next month from its last day', () => {
+  // Mid-month check-ins open the same month.
+  assert.equal(checkOutMonthHint('2026-09-05'), '2026-09-05');
+  assert.equal(checkOutMonthHint('2026-09-18'), '2026-09-18');
+  assert.equal(checkOutMonthHint('2026-09-29'), '2026-09-29');
+  // Last calendar day of the month -> the following month opens.
+  assert.equal(checkOutMonthHint('2026-09-30'), '2026-10-01');
+  assert.equal(checkOutMonthHint('2026-01-31'), '2026-02-01');
+  assert.equal(checkOutMonthHint('2026-02-28'), '2026-03-01', 'non-leap February');
+  assert.equal(checkOutMonthHint('2024-02-29'), '2024-03-01', 'leap February');
+  assert.equal(checkOutMonthHint('2024-02-28'), '2024-02-28', 'not the last day in a leap year');
+  assert.equal(checkOutMonthHint('2026-12-31'), '2027-01-01', 'year boundary');
+  // Absent or malformed check-in -> no hint (default behaviour preserved).
+  assert.equal(checkOutMonthHint(''), null);
+  assert.equal(checkOutMonthHint('2026-02-30'), null);
+  assert.equal(checkOutMonthHint(null), null);
 });
