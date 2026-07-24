@@ -10,6 +10,43 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-07-24
+
+### Added
+
+- **App-owned date and time pickers.** The Trip plan's date and time fields
+  no longer open the native Android dialogs (whose OS-rendered action row
+  could overflow the screen). Transport's travel date and departure/arrival
+  times, and Stay's check-in/check-out, now open Fjällkompis's own
+  dialogs: a one-month, Monday-first calendar with today marked and a
+  clear selected day, and a digital 24-hour time entry with typing and
+  +/− steppers — full keyboard and screen-reader support, Clear / Cancel /
+  Set actions that can never overflow, and the same stored values as
+  before. Only the Documents date still uses the native control.
+- **Check-out opens where the stay is.** With a check-in chosen, an empty
+  check-out calendar opens on the check-in's month — or the next month
+  when check-in is the last day of its month. It only changes the month
+  shown; no date is ever pre-selected.
+
+### Changed
+
+- The calendar dialog keeps a fixed top position while paging through
+  months, so its header and controls never jump between 4-, 5- and 6-row
+  months.
+- Long-pressing app text (dialog titles, calendar labels, buttons) no
+  longer starts text selection anywhere — including inside dialogs, which
+  had missed the app-wide rule. Typing, selecting and copying inside
+  input fields still works everywhere.
+- While a sheet, dialog or picker is open, the page behind it is locked:
+  no background scrolling and no accidental pull-to-refresh mid-form.
+  Closing the last overlay restores the exact scroll position, and normal
+  pull-to-refresh returns.
+
+### Removed
+
+- The "Report beta feedback" card in Settings (the beta feedback phase is
+  over). Version information in Settings is unchanged.
+
 ## [0.24.0] - 2026-07-23
 
 ### Added
