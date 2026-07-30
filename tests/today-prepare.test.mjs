@@ -29,6 +29,9 @@ import { SCHEMA_VERSION, defaultState } from '../src/utils/stateMigration.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const todayScreen = readFileSync(join(root, 'src/screens/TodayScreen.tsx'), 'utf8');
+// The On route content moved into its own module (the split TodayPrepare
+// already uses), so the On route contracts below read it there.
+const todayOnRoute = readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8');
 const prepare = readFileSync(join(root, 'src/components/TodayPrepare.tsx'), 'utf8');
 const appTsx = readFileSync(join(root, 'src/App.tsx'), 'utf8');
 const uiTsx = readFileSync(join(root, 'src/components/ui.tsx'), 'utf8');
@@ -349,14 +352,14 @@ test('On route keeps its content, and Tonight pairs with the STF quick access', 
     'today-action-card__label">Tonight',
     'Choose a stage',
   ]) {
-    assert.ok(todayScreen.includes(marker), `On route keeps ${marker}`);
+    assert.ok(todayOnRoute.includes(marker), `On route keeps ${marker}`);
   }
   // Tonight and the membership quick access are SIBLINGS in one row wrapper.
-  assert.match(todayScreen, /className="tonight-row"/);
-  assert.match(todayScreen, /<MembershipQuickAccess \/>/);
-  const row = todayScreen.slice(
-    todayScreen.indexOf('className="tonight-row"'),
-    todayScreen.indexOf('<MembershipQuickAccess />'),
+  assert.match(todayOnRoute, /className="tonight-row"/);
+  assert.match(todayOnRoute, /<MembershipQuickAccess \/>/);
+  const row = todayOnRoute.slice(
+    todayOnRoute.indexOf('className="tonight-row"'),
+    todayOnRoute.indexOf('<MembershipQuickAccess />'),
   );
   const opens = (row.match(/<button/g) ?? []).length;
   const closes = (row.match(/<\/button>/g) ?? []).length;

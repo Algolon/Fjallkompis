@@ -1,42 +1,10 @@
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
-import {
-  BookOpen,
-  ChevronRight,
-  Droplets,
-  Mountain,
-  MountainSnow,
-  Route,
-  Sailboat,
-  Signpost,
-  Snowflake,
-  TreePine,
-  Trees,
-  TrendingDown,
-  TrendingUp,
-  TriangleAlert,
-  Users,
-  Waves,
-  Wind,
-} from 'lucide-react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
-import { FacilityIcon } from '../components/FacilityIcon';
 import { TodayPrepare } from '../components/TodayPrepare';
-import { MembershipQuickAccess } from '../components/MembershipQuickAccess';
+import { TodayOnRoute } from '../components/TodayOnRoute';
 import { readTodayMode, saveTodayMode } from '../utils/todayMode.mjs';
 import type { TodayMode } from '../utils/todayMode.mjs';
-import {
-  STOPS_BY_ID,
-  collapsedFacilities,
-  importantAbsences,
-  stopShortName,
-} from '../data/stops';
-import { stageHighlights } from '../data/stageHighlights.mjs';
-import type { StageHighlightIcon } from '../data/stageHighlights.mjs';
-import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
-import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
-import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
-import type { ElevationSample } from '../route/types';
 import type { TabId } from '../components/TabBar';
 import type { LatLng } from '../types';
 import type { ListsDeepLink } from './ListsScreen';
@@ -79,69 +47,6 @@ type Navigate = (t: TabId, payload?: NavPayload) => void;
 const TODAY_BG_SRC = `${import.meta.env.BASE_URL}images/today/contours.svg`;
 
 /**
- * Highlight icon key → lucide component (same offline, tree-shaken icon
- * system as FacilityIcon). Every StageHighlightIcon key must appear here —
- * fenced by tests/stage-highlights.test.mjs.
- */
-const HIGHLIGHT_ICONS: Record<StageHighlightIcon, typeof Wind> = {
-  wind: Wind,
-  snowflake: Snowflake,
-  'mountain-snow': MountainSnow,
-  'trending-down': TrendingDown,
-  'trending-up': TrendingUp,
-  mountain: Mountain,
-  trees: Trees,
-  signpost: Signpost,
-  waves: Waves,
-  droplets: Droplets,
-  sailboat: Sailboat,
-  users: Users,
-  'tree-pine': TreePine,
-};
-
-/**
- * Subtle elevation silhouette drawn behind the hero card content. The profile
- * is the ACTIVE stage's oriented elevation profile (0 km at the direction's
- * stage start), so the silhouette follows the direction being walked.
- */
-function HeroSilhouette({ profile }: { profile: ElevationSample[] }) {
-  const path = useMemo(() => {
-    if (!profile || profile.length < 2) return null;
-    const W = 400;
-    const H = 120;
-    const xMax = profile[profile.length - 1].distanceKm;
-    const x0 = profile[0].distanceKm;
-    const eles = profile.map((p) => p.elevationM);
-    const yMin = Math.min(...eles);
-    const yMax = Math.max(...eles);
-    const sx = (d: number) => ((d - x0) / (xMax - x0)) * W;
-    const sy = (e: number) => H - 6 - ((e - yMin) / (yMax - yMin || 1)) * (H - 30);
-    const buckets = 90;
-    const step = profile.length / buckets;
-    const pts: string[] = [];
-    for (let b = 0; b <= buckets; b++) {
-      const i = Math.min(profile.length - 1, Math.floor(b * step));
-      const p = profile[i];
-      pts.push(`${b === 0 ? 'M' : 'L'}${sx(p.distanceKm).toFixed(1)},${sy(p.elevationM).toFixed(1)}`);
-    }
-    return { line: pts.join(''), area: `${pts.join('')}L${W},${H}L0,${H}Z`, W, H };
-  }, [profile]);
-
-  if (!path) return null;
-  return (
-    <svg
-      className="hero-silhouette"
-      viewBox={`0 0 ${path.W} ${path.H}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path d={path.area} fill="rgba(255,255,255,0.10)" />
-      <path d={path.line} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-/**
  * The two Today contexts. Prepare first (it precedes the hike), On route
  * second — the pre-existing day view and the default when nothing is
  * remembered. The compact header control carries full visible labels
@@ -155,24 +60,12 @@ const MODE_TABS: { id: TodayMode; label: string }[] = [
   { id: 'onroute', label: 'On route' },
 ];
 
-/**
- * "Sat 5 Sep" — the hero's compact date, formatted from the PLAN's stored
- * date. Uses the same deterministic, fixed-English helper as the pickers,
- * which builds dates from numeric parts only (ISO-string date parsing is UTC
- * and would shift a calendar day westwards). Nothing here reads the clock:
- * the day shown is the one the user selected, never today's system date. The
- * year is dropped — the full date is available where the plan is configured.
- */
-function formatDayDate(iso: string): string | null {
-  const label = formatDateFieldLabel(iso);
-  return label ? label.split(' ').slice(0, 3).join(' ') : null;
-}
-
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
-  // `plannedDays` is always populated: with no personal plan it is one
-  // canonical stage per planned day with no dates, so this screen has ONE
-  // structural path and the unplanned app behaves exactly as before.
-  const { currentStage, routeDirection, plannedDays, currentPlannedDay } = useStore();
+  // `plannedDays` is EMPTY until the user creates a Day plan. That is the
+  // canonical default state, and On route then renders its original,
+  // date-independent stage view — no dates, no activity indicators, nothing
+  // inferred from trip data or the clock.
+  const { currentStage, routeDirection, plannedDays, currentPlannedDay, state } = useStore();
 
   // Manual mode only — remembered per device (non-versioned UI preference,
   // see utils/todayMode.mjs), never switched by dates, GPS or trip phase.
@@ -197,47 +90,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
     selectMode(MODE_TABS[next].id);
     tabRefs.current[next]?.focus();
   };
-
-  const day = currentPlannedDay;
-  const multiStage = (day?.stages.length ?? 0) > 1;
-
-  // Static, priority-capped stage metadata (max four) — deterministic and
-  // offline; no GPS, network or time-of-day input. Direction-aware: the
-  // climb/descent chips reflect the way this physical segment is walked.
-  // A combined day deliberately shows NO hero chips: merging two capped
-  // lists into one capped list would silently drop half the metadata, so the
-  // chips stay with the stage parts that own them.
-  const highlights =
-    currentStage && !multiStage
-      ? stageHighlights(currentStage.id, undefined, routeDirection)
-      : [];
-  // The day's endpoints — the same stage endpoints when the day holds one
-  // stage, the first stage's start and the LAST stage's end when it holds
-  // several. Intermediate stops are the "via" line, never Tonight.
-  const from = day ? STOPS_BY_ID[day.fromStopId] : null;
-  const to = day ? STOPS_BY_ID[day.toStopId] : null;
-  const nextStop = to;
-  const dayDate = day?.date ? formatDayDate(day.date) : null;
-  const nextStopElevation =
-    nextStop && WAYPOINT_BY_ID[HUT_TO_WAYPOINT[nextStop.id]]?.elevation != null
-      ? Math.round(WAYPOINT_BY_ID[HUT_TO_WAYPOINT[nextStop.id]].elevation as number)
-      : null;
-  const nextStopNoShop = nextStop
-    ? importantAbsences(nextStop).some((f) => f.id === 'shop')
-    : false;
-  // Same source and priority order as the collapsed Stop cards; absences are
-  // already excluded by collapsedFacilities, so "No shop" stays a separate
-  // warning and never appears as a normal facility icon.
-  const nextStopFacilities = nextStop ? collapsedFacilities(nextStop, 5) : [];
-  const facilityLabels = nextStopFacilities.map((f) => f.label);
-  const facilitySentence =
-    facilityLabels.length > 0
-      ? ` Facilities include ${
-          facilityLabels.length > 1
-            ? `${facilityLabels.slice(0, -1).join(', ')} and ${facilityLabels[facilityLabels.length - 1]}`
-            : facilityLabels[0]
-        }.`
-      : '';
 
   return (
     <div className="screen today-screen">
@@ -301,220 +153,14 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
           id="today-panel-onroute"
           aria-labelledby="today-tab-onroute"
         >
-          {currentStage && day && from && to ? (
-        <>
-          {/* A. Hero: the planned hiking day (spruce anchor). Fixed
-              responsibility
-              (docs/design-reviews/2026-07-v0.18-today-stage-block-direction.md):
-              today's walking, its essential characteristics, and the
-              follow-up actions — nothing else grows in here. A day holding
-              one canonical stage renders exactly as it always did. */}
-          <section
-            className="hero"
-            aria-label={`Today: day ${day.number} of ${plannedDays.length}${
-              dayDate ? `, ${dayDate}` : ''
-            }`}
-          >
-            <HeroSilhouette profile={day.elevationProfile} />
-            <div className="hero-content">
-              <span className="hero-day">
-                Day {day.number} of {plannedDays.length}
-                {dayDate ? <span className="hero-day__date"> · {dayDate}</span> : null}
-              </span>
-              <h2 className="hero-title">
-                {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
-              </h2>
-              {multiStage ? (
-                <p className="hero-via">
-                  via {day.viaStopIds.map((id) => stopShortName(STOPS_BY_ID[id])).join(' and ')}
-                </p>
-              ) : null}
-              <div className="hero-stats tnum">
-                <span>{formatDistanceKm(day.distanceKm)}</span>
-                <span aria-hidden>·</span>
-                <span>
-                  ↗ {day.totalAscentM ?? '—'} m · ↘ {day.totalDescentM ?? '—'} m
-                </span>
-                <span aria-hidden>·</span>
-                <span>{formatHoursEstimate(day.estimatedHours)}</span>
-              </div>
-              {highlights.length > 0 ? (
-                // Static stage metadata, not controls (pill = metadata is the
-                // established convention, see the Stages stat pills). No
-                // heading on purpose — deliberate vertical-space decision in
-                // the review direction. Nothing renders when a stage has no
-                // highlights: no empty placeholder row.
-                <ul className="hero-chips" aria-label="Stage characteristics">
-                  {highlights.map((h) => {
-                    const HighlightIcon = HIGHLIGHT_ICONS[h.icon];
-                    return (
-                      <li key={h.id} className="hero-chip">
-                        <HighlightIcon size={13} strokeWidth={2.2} aria-hidden />
-                        {h.label}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-              <div className="hero-actions">
-                {multiStage ? (
-                  // A combined day's hero must not offer an action narrower
-                  // than what it claims: "Stage Guide" or "View Route" would
-                  // each open only ONE of the day's stages. ONE honest action
-                  // instead — Stages lists the day's stages adjacently, each
-                  // with its own guide, highlights and map link.
-                  <button
-                    className="hero-action hero-action--primary"
-                    onClick={() => onNavigate('stages', { guideStageId: day.stages[0].id })}
-                    aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
-                  >
-                    <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
-                  </button>
-                ) : (
-                  <>
-                    {/* Stage Guide = primary information depth; View Route =
-                        the complementary spatial action. The mapStageId
-                        payload is the ONLY thing that overwrites the
-                        remembered in-session Map browse state (see App.tsx). */}
-                    <button
-                      className="hero-action hero-action--primary"
-                      onClick={() => onNavigate('stages', { guideStageId: currentStage.id })}
-                      aria-label="Stage Guide — open today’s full day guide in Stages"
-                    >
-                      <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
-                    </button>
-                    <button
-                      className="hero-action"
-                      onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
-                      aria-label="View Route — show today’s stage on the map"
-                    >
-                      <Route size={15} strokeWidth={2} aria-hidden /> View Route
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* B. Journey progress — one marker per PLANNED hiking day (with no
-              personal plan that is one marker per canonical stage, exactly as
-              before). */}
-          <section className="card today-glass today-glass--light" aria-label="Journey progress">
-            <div className="row-between">
-              <span className="card-title">Journey</span>
-              <span className="card-sub tnum" style={{ marginTop: 0 }}>
-                Day {day.number} of {plannedDays.length}
-              </span>
-            </div>
-            <div className="journey" role="list">
-              {plannedDays.map((d) => {
-                const status =
-                  d.number < day.number
-                    ? 'past'
-                    : d.number === day.number
-                      ? 'current'
-                      : 'future';
-                const dFrom = STOPS_BY_ID[d.fromStopId];
-                const dTo = STOPS_BY_ID[d.toStopId];
-                return (
-                  <button
-                    key={d.number}
-                    role="listitem"
-                    className={`journey-step is-${status}`}
-                    // Opens the Stages screen — changing the current stage
-                    // stays an explicit action there.
-                    onClick={() => onNavigate('stages')}
-                    aria-label={`Day ${d.number}: ${stopShortName(dFrom)} to ${stopShortName(dTo)}${
-                      status === 'current' ? ' (current day)' : ''
-                    }. Opens Stages.`}
-                    aria-current={status === 'current' ? 'step' : undefined}
-                  >
-                    <span className="journey-dot tnum">{d.number}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="journey-legend row-between">
-              <span>{stopShortName(STOPS_BY_ID[plannedDays[0].fromStopId])}</span>
-              <span>
-                {stopShortName(STOPS_BY_ID[plannedDays[plannedDays.length - 1].toStopId])}
-              </span>
-            </div>
-          </section>
-
-          {/* C. Tonight's stop — the planned day's FINAL stop (an
-              intermediate via-stop is never shown here). Compact navigation
-              card. When an STF
-              membership document is explicitly marked for Today (and its file
-              is locally available), a compact quick-access action shares this
-              row; otherwise Tonight keeps the full width on its own. Two
-              SIBLING interactive cards — never nested. */}
-          {nextStop ? (
-            <div className="tonight-row">
-            <button
-              className="today-action-card today-glass today-glass--light"
-              onClick={() => onNavigate('huts', { stopId: nextStop.id })}
-              aria-label={`Tonight: ${stopShortName(nextStop)}${
-                nextStopElevation != null ? `, ${nextStopElevation} metres elevation` : ''
-              }${nextStopNoShop ? ', no shop' : ''}.${facilitySentence} Opens stop details in Stops.`}
-            >
-              <span className="today-action-card__body">
-                <span className="today-action-card__label">Tonight</span>
-                <span className="today-action-card__title">{stopShortName(nextStop)}</span>
-                {nextStopFacilities.length > 0 || nextStopNoShop ? (
-                  // Informational preview only; facilities are announced via
-                  // the button's aria-label, so the row is hidden from SRs to
-                  // avoid repetitive output. Titles remain for pointer users.
-                  <span className="today-stop-facilities" aria-hidden>
-                    {nextStopFacilities.map((f) => (
-                      <span key={f.id} className="today-stop-facility" title={f.label}>
-                        <FacilityIcon id={f.id} size={15} />
-                      </span>
-                    ))}
-                    {nextStopNoShop ? (
-                      <span className="today-stop-warning" title="No shop at this stop">
-                        <TriangleAlert size={12} strokeWidth={2.2} aria-hidden /> No shop
-                      </span>
-                    ) : null}
-                  </span>
-                ) : null}
-              </span>
-              <span className="today-action-card__side">
-                {nextStopElevation != null ? (
-                  <span className="today-action-card__value tnum">
-                    <Mountain size={13} strokeWidth={2} aria-hidden />
-                    {nextStopElevation.toLocaleString('en-US')} m
-                  </span>
-                ) : null}
-              </span>
-              <ChevronRight
-                className="today-action-card__chevron"
-                size={18}
-                strokeWidth={2}
-                aria-hidden
-              />
-            </button>
-            <MembershipQuickAccess />
-            </div>
-          ) : null}
-
-        </>
-      ) : (
-        <div className="card today-glass today-glass--opaque empty">
-          <Mountain size={30} strokeWidth={1.5} aria-hidden style={{ opacity: 0.5 }} />
-          <p>
-            No current stage selected. Head to Stages and tap “Set as current” to
-            light up your day.
-          </p>
-          <button
-            className="btn btn-primary"
-            style={{ marginTop: 14 }}
-            onClick={() => onNavigate('stages')}
-          >
-            Choose a stage
-          </button>
-        </div>
-      )}
+          <TodayOnRoute
+            day={currentPlannedDay}
+            plannedDays={plannedDays}
+            currentStage={currentStage}
+            routeDirection={routeDirection}
+            trip={state.trip}
+            onNavigate={onNavigate}
+          />
         </div>
       )}
     </div>

@@ -203,7 +203,11 @@ test('zero-highlight stages render nothing: the selector returns []', () => {
   assert.deepEqual(stageHighlights('not-a-stage'), []);
   assert.deepEqual(stageHighlights(''), []);
   // And the render is guarded — no empty <ul> placeholder row.
-  const today = readFileSync(join(root, 'src/screens/TodayScreen.tsx'), 'utf8');
+  // The On route hero moved into its own module (the same split as
+// TodayPrepare), so the screen contracts below read it there.
+const today =
+  readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8') +
+  readFileSync(join(root, 'src/components/TodayHero.tsx'), 'utf8');
   assert.match(today, /highlights\.length > 0 \? \(/, 'chip row only renders when non-empty');
 });
 
@@ -219,7 +223,11 @@ test('0–4 displayed highlights are all reachable through the selector', () => 
 
 // ---- Today screen contract ---------------------------------------------------
 
-const today = readFileSync(join(root, 'src/screens/TodayScreen.tsx'), 'utf8');
+// The On route hero moved into its own module (the same split as
+// TodayPrepare), so the screen contracts below read it there.
+const today =
+  readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8') +
+  readFileSync(join(root, 'src/components/TodayHero.tsx'), 'utf8');
 
 test('chips are semantically non-interactive metadata with a labelled list', () => {
   assert.match(today, /<ul className="hero-chips" aria-label="Stage characteristics">/);
@@ -283,14 +291,13 @@ test('the remembered in-session Map context is only overwritten explicitly', () 
 });
 
 test('the block keeps its fixed responsibility — no dashboard creep', () => {
-  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Journey progress'));
-  // The block still offers at most two follow-up actions at a time. Since
-  // Hiking days it has two mutually exclusive branches: a day holding ONE
-  // canonical stage keeps Stage Guide + View Route, and a combined day shows
-  // a single action instead (a lone Stage Guide / View Route would open just
-  // one of the day's stages — an action narrower than the hero's claim).
-  const singleStage = hero.slice(hero.indexOf(') : ('));
-  const combined = hero.slice(hero.indexOf('multiStage ? ('), hero.indexOf(') : ('));
+  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('function PlannedJourney'));
+  // At most two follow-up actions at a time. A single canonical stage keeps
+  // Stage Guide + View Route; a day covering several stages shows ONE action
+  // instead (either alone would open just one of them — narrower than the
+  // hero's claim); a travel or rest day gets its own single action.
+  const combined = hero.slice(hero.indexOf('{hiking && multiStage ? ('), hero.indexOf(') : hiking && currentStage ? ('));
+  const singleStage = hero.slice(hero.indexOf(') : hiking && currentStage ? ('), hero.indexOf('{travel ? ('));
   assert.equal(
     (singleStage.match(/className="hero-action(?: |")/g) ?? []).length,
     2,
@@ -299,7 +306,7 @@ test('the block keeps its fixed responsibility — no dashboard creep', () => {
   assert.equal(
     (combined.match(/className="hero-action(?: |")/g) ?? []).length,
     1,
-    'a combined day offers exactly one, and it points at the stage parts',
+    'a multi-stage day offers exactly one, pointing at Stages',
   );
   assert.match(combined, /Open in Stages/);
   // No separate visible heading above the chips (deliberate review decision).

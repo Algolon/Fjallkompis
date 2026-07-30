@@ -1,0 +1,603 @@
+import { useStore } from '../store/AppStore';
+import {
+  BookOpen,
+  BusFront,
+  ChevronRight,
+  Coffee,
+  Footprints,
+  Mountain,
+  Route,
+  TriangleAlert,
+} from 'lucide-react';
+import { FacilityIcon } from './FacilityIcon';
+import { MembershipQuickAccess } from './MembershipQuickAccess';
+import {
+  STOPS_BY_ID,
+  collapsedFacilities,
+  importantAbsences,
+  stopShortName,
+} from '../data/stops';
+import { stageHighlights } from '../data/stageHighlights.mjs';
+import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
+import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
+import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
+import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
+import type { PlannedDay } from '../plan/plannedDays.mjs';
+import type { ItineraryStage } from '../route/activeItinerary';
+import type { DayActivityKind, RouteDirection, TripItem } from '../types';
+import type { NavPayload } from '../screens/TodayScreen';
+import type { TabId } from './TabBar';
+
+type Navigate = (t: TabId, payload?: NavPayload) => void;
+
+/**
+ * "Sat 5 Sep" — the compact hero date, formatted from the PLAN's stored date.
+ * Uses the deterministic, fixed-English helper the pickers use, which builds
+ * dates from numeric parts only. Nothing here reads the clock: the day shown
+ * is the one the user selected, never today's system date.
+ */
+function formatDayDate(iso: string): string | null {
+  const label = formatDateFieldLabel(iso);
+  return label ? label.split(' ').slice(0, 3).join(' ') : null;
+}
+
+/**
+ * Today — On route. Two top-level shapes:
+ *
+ *   - NO Day plan (the default): the original date-independent stage view.
+ *     Nothing about planning appears — no date, no activity indicator.
+ *   - A Day plan: the active calendar day, in one of four compact variants
+ *     (hiking, travel, rest, hiking + travel).
+ *
+ * Every variant keeps header + hero + Journey + Tonight inside one mobile
+ * viewport at 375x667. Stage detail belongs to Stages, not here.
+ */
+export function TodayOnRoute({
+  day,
+  plannedDays,
+  currentStage,
+  routeDirection,
+  trip,
+  onNavigate,
+}: {
+  day: PlannedDay | null;
+  plannedDays: PlannedDay[];
+  currentStage: ItineraryStage | null;
+  routeDirection: RouteDirection;
+  trip: TripItem[];
+  onNavigate: Navigate;
+}) {
+  const planned = plannedDays.length > 0;
+
+  // ---- Default state: no plan, no dates, no day types ----------------------
+  if (!planned) {
+    if (!currentStage) return <NoStageEmpty onNavigate={onNavigate} />;
+    const from = STOPS_BY_ID[currentStage.fromHutId];
+    const to = STOPS_BY_ID[currentStage.toHutId];
+    if (!from || !to) return <NoStageEmpty onNavigate={onNavigate} />;
+    return (
+      <>
+        <StageHero
+          stage={currentStage}
+          routeDirection={routeDirection}
+          onNavigate={onNavigate}
+        />
+        <StageJourney currentStage={currentStage} onNavigate={onNavigate} />
+        <TonightCard stopId={to.id} onNavigate={onNavigate} />
+      </>
+    );
+  }
+
+  // ---- Planned state -------------------------------------------------------
+  if (!day) return <NoDayEmpty onNavigate={onNavigate} />;
+
+  const overnightStopId =
+    day.overnight.kind === 'stop' ? (day.overnight.stopId ?? null) : null;
+  const overnightStay =
+    day.overnight.kind === 'stay'
+      ? trip.find((i) => i.id === day.overnight.tripItemId) ?? null
+      : null;
+
+  return (
+    <>
+      <PlannedDayHero
+        day={day}
+        dayCount={plannedDays.length}
+        currentStage={currentStage}
+        routeDirection={routeDirection}
+        onNavigate={onNavigate}
+      />
+      <PlannedJourney day={day} plannedDays={plannedDays} onNavigate={onNavigate} />
+      {overnightStopId ? (
+        <TonightCard stopId={overnightStopId} onNavigate={onNavigate} />
+      ) : overnightStay ? (
+        <StayTonightCard title={overnightStay.title} onNavigate={onNavigate} />
+      ) : day.overnight.kind === 'stay' ? (
+        // The referenced stay was deleted in Lists → Trip: say so plainly
+        // rather than render a name that no longer exists.
+        <StayTonightCard title="Stay no longer in your Trip plan" onNavigate={onNavigate} />
+      ) : null}
+    </>
+  );
+}
+
+/** Compact day-type indicator. Icons only; the words ride the hero's label. */
+const ACTIVITY_ICON: Record<DayActivityKind, typeof Footprints> = {
+  hiking: Footprints,
+  travel: BusFront,
+  rest: Coffee,
+};
+const ACTIVITY_WORD: Record<DayActivityKind, string> = {
+  hiking: 'Hiking',
+  travel: 'Travel',
+  rest: 'Rest & explore',
+};
+
+function DayTypeBadge({ kinds }: { kinds: DayActivityKind[] }) {
+  return (
+    <span className="hero-day__type" aria-hidden>
+      {kinds.map((kind) => {
+        const Icon = ACTIVITY_ICON[kind];
+        return <Icon key={kind} size={14} strokeWidth={2.1} />;
+      })}
+    </span>
+  );
+}
+
+/** The hero for a planned calendar day, in its activity-specific variant. */
+function PlannedDayHero({
+  day,
+  dayCount,
+  currentStage,
+  routeDirection,
+  onNavigate,
+}: {
+  day: PlannedDay;
+  dayCount: number;
+  currentStage: ItineraryStage | null;
+  routeDirection: RouteDirection;
+  onNavigate: Navigate;
+}) {
+  const dayDate = day.date ? formatDayDate(day.date) : null;
+  const hiking = day.stages.length > 0;
+  const multiStage = day.stages.length > 1;
+  const travel = day.kinds.includes('travel');
+  const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
+  const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
+  const kindWords = day.kinds.map((k) => ACTIVITY_WORD[k]).join(' and ');
+  // A combined day shows NO chips: two capped lists merged into one capped
+  // list would silently drop half the metadata, and the space is needed.
+  const highlights =
+    hiking && !multiStage && currentStage
+      ? stageHighlights(currentStage.id, undefined, routeDirection)
+      : [];
+  const travelLine = day.travelItems
+    .map((i) => (i.kind === 'transport' ? [i.from, i.to] : [null, null]))
+    .filter(([a, b]) => a || b)
+    .map(([a, b]) => `${a ?? '?'} → ${b ?? '?'}`)
+    .join(', ');
+
+  return (
+    <section
+      className="hero"
+      aria-label={`Today: day ${day.number} of ${dayCount}${
+        dayDate ? `, ${dayDate}` : ''
+      }. ${kindWords}.`}
+    >
+      {hiking ? <HeroSilhouette profile={day.elevationProfile} /> : null}
+      <div className="hero-content">
+        <span className="hero-day">
+          Day {day.number} of {dayCount}
+          {dayDate ? <span className="hero-day__date"> · {dayDate}</span> : null}
+          <DayTypeBadge kinds={day.kinds} />
+        </span>
+
+        {hiking && from && to ? (
+          <h2 className="hero-title">
+            {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
+          </h2>
+        ) : (
+          <h2 className="hero-title">{kindWords}</h2>
+        )}
+
+        {multiStage ? (
+          <p className="hero-via">
+            via {day.viaStopIds.map((id) => stopShortName(STOPS_BY_ID[id])).join(' and ')}
+          </p>
+        ) : null}
+
+        {/* A travel leg on a hiking day is one quiet line, in activity order. */}
+        {travel && hiking && travelLine ? (
+          <p className="hero-via">then travel {travelLine}</p>
+        ) : null}
+        {travel && !hiking ? (
+          travelLine ? (
+            <p className="hero-via">{travelLine}</p>
+          ) : (
+            <p className="hero-via">No travel added yet</p>
+          )
+        ) : null}
+        {!hiking && !travel && day.kinds.includes('rest') ? (
+          <p className="hero-via">
+            {day.overnight.kind === 'stop' && day.overnight.stopId
+              ? `Based at ${stopShortName(STOPS_BY_ID[day.overnight.stopId])}`
+              : 'A day off the trail'}
+          </p>
+        ) : null}
+
+        {hiking ? (
+          <div className="hero-stats tnum">
+            <span>{formatDistanceKm(day.distanceKm)}</span>
+            <span aria-hidden>·</span>
+            <span>
+              ↗ {day.totalAscentM ?? '—'} m · ↘ {day.totalDescentM ?? '—'} m
+            </span>
+            <span aria-hidden>·</span>
+            <span>{formatHoursEstimate(day.estimatedHours)}</span>
+          </div>
+        ) : null}
+
+        {highlights.length > 0 ? (
+          <ul className="hero-chips" aria-label="Stage characteristics">
+            {highlights.map((h) => {
+              const HighlightIcon = HERO_HIGHLIGHT_ICONS[h.icon];
+              return (
+                <li key={h.id} className="hero-chip">
+                  <HighlightIcon size={13} strokeWidth={2.2} aria-hidden />
+                  {h.label}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        <div className="hero-actions">
+          {hiking && multiStage ? (
+            // One honest action: a single Stage Guide or View Route would open
+            // only ONE of the day's stages. Stages lists them adjacently.
+            <button
+              className="hero-action hero-action--primary"
+              onClick={() => onNavigate('stages', { guideStageId: day.stages[0].id })}
+              aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
+            >
+              <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
+            </button>
+          ) : hiking && currentStage ? (
+            <>
+              <button
+                className="hero-action hero-action--primary"
+                onClick={() => onNavigate('stages', { guideStageId: currentStage.id })}
+                aria-label="Stage Guide — open today’s full day guide in Stages"
+              >
+                <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
+              </button>
+              <button
+                className="hero-action"
+                onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
+                aria-label="View Route — show today’s stage on the map"
+              >
+                <Route size={15} strokeWidth={2} aria-hidden /> View Route
+              </button>
+            </>
+          ) : null}
+          {travel ? (
+            <button
+              className={`hero-action${hiking ? '' : ' hero-action--primary'}`}
+              onClick={() => onNavigate('checklist', { lists: { section: 'trip' } })}
+              aria-label="Open in Trip — your travel and tickets for today"
+            >
+              <BusFront size={15} strokeWidth={2} aria-hidden /> Open in Trip
+            </button>
+          ) : null}
+          {!hiking && !travel && day.overnight.kind === 'stop' && day.overnight.stopId ? (
+            <button
+              className="hero-action hero-action--primary"
+              onClick={() => onNavigate('huts', { stopId: day.overnight.stopId })}
+              aria-label="Stop info — what is available where you are based today"
+            >
+              <Mountain size={15} strokeWidth={2} aria-hidden /> Stop info
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Journey rail over the PLANNED calendar days. */
+function PlannedJourney({
+  day,
+  plannedDays,
+  onNavigate,
+}: {
+  day: PlannedDay;
+  plannedDays: PlannedDay[];
+  onNavigate: Navigate;
+}) {
+  const label = (d: PlannedDay) => {
+    if (d.fromStopId && d.toStopId) {
+      return `${stopShortName(STOPS_BY_ID[d.fromStopId])} to ${stopShortName(
+        STOPS_BY_ID[d.toStopId],
+      )}`;
+    }
+    return d.kinds.map((k) => ACTIVITY_WORD[k]).join(' and ');
+  };
+  const first = plannedDays.find((d) => d.fromStopId);
+  const last = [...plannedDays].reverse().find((d) => d.toStopId);
+  return (
+    <section className="card today-glass today-glass--light" aria-label="Journey progress">
+      <div className="row-between">
+        <span className="card-title">Journey</span>
+        <span className="card-sub tnum" style={{ marginTop: 0 }}>
+          Day {day.number} of {plannedDays.length}
+        </span>
+      </div>
+      <div className="journey" role="list">
+        {plannedDays.map((d) => {
+          const status =
+            d.number < day.number ? 'past' : d.number === day.number ? 'current' : 'future';
+          return (
+            <button
+              key={d.id}
+              role="listitem"
+              className={`journey-step is-${status}${d.stages.length === 0 ? ' is-off-trail' : ''}`}
+              onClick={() => onNavigate('stages')}
+              aria-label={`Day ${d.number}: ${label(d)}${
+                status === 'current' ? ' (current day)' : ''
+              }. Opens Stages.`}
+              aria-current={status === 'current' ? 'step' : undefined}
+            >
+              <span className="journey-dot tnum">{d.number}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="journey-legend row-between">
+        <span>{first ? stopShortName(STOPS_BY_ID[first.fromStopId as string]) : ''}</span>
+        <span>{last ? stopShortName(STOPS_BY_ID[last.toStopId as string]) : ''}</span>
+      </div>
+    </section>
+  );
+}
+
+function NoDayEmpty({ onNavigate }: { onNavigate: Navigate }) {
+  return (
+    <div className="card today-glass today-glass--opaque empty">
+      <Mountain size={30} strokeWidth={1.5} aria-hidden style={{ opacity: 0.5 }} />
+      <p>
+        No day selected yet. Open your day plan in Settings and choose the day
+        you are on.
+      </p>
+      <button
+        className="btn btn-primary"
+        style={{ marginTop: 14 }}
+        onClick={() => onNavigate('settings')}
+      >
+        Open day plan
+      </button>
+    </div>
+  );
+}
+
+function NoStageEmpty({ onNavigate }: { onNavigate: Navigate }) {
+  return (
+    <div className="card today-glass today-glass--opaque empty">
+      <Mountain size={30} strokeWidth={1.5} aria-hidden style={{ opacity: 0.5 }} />
+      <p>
+        No current stage selected. Head to Stages and tap “Set as current” to
+        light up your day.
+      </p>
+      <button
+        className="btn btn-primary"
+        style={{ marginTop: 14 }}
+        onClick={() => onNavigate('stages')}
+      >
+        Choose a stage
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The original, date-independent stage hero — what On route shows whenever
+ * there is no Day plan. No date, no activity indicator, nothing planned.
+ */
+function StageHero({
+  stage,
+  routeDirection,
+  onNavigate,
+}: {
+  stage: ItineraryStage;
+  routeDirection: RouteDirection;
+  onNavigate: Navigate;
+}) {
+  const { stages } = useStore();
+  const from = STOPS_BY_ID[stage.fromHutId];
+  const to = STOPS_BY_ID[stage.toHutId];
+  const highlights = stageHighlights(stage.id, undefined, routeDirection);
+  return (
+    <section className="hero" aria-label={`Current stage, day ${stage.day}`}>
+      <HeroSilhouette profile={stage.elevationProfile} />
+      <div className="hero-content">
+        <span className="hero-day">
+          Day {stage.day} of {stages.length}
+        </span>
+        <h2 className="hero-title">
+          {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
+        </h2>
+        <div className="hero-stats tnum">
+          <span>{formatDistanceKm(stage.distanceKm)}</span>
+          <span aria-hidden>·</span>
+          <span>
+            ↗ {stage.totalAscentM ?? '—'} m · ↘ {stage.totalDescentM ?? '—'} m
+          </span>
+          <span aria-hidden>·</span>
+          <span>{formatHoursEstimate(stage.estimatedHours)}</span>
+        </div>
+        {highlights.length > 0 ? (
+          <ul className="hero-chips" aria-label="Stage characteristics">
+            {highlights.map((h) => {
+              const HighlightIcon = HERO_HIGHLIGHT_ICONS[h.icon];
+              return (
+                <li key={h.id} className="hero-chip">
+                  <HighlightIcon size={13} strokeWidth={2.2} aria-hidden />
+                  {h.label}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        <div className="hero-actions">
+          <button
+            className="hero-action hero-action--primary"
+            onClick={() => onNavigate('stages', { guideStageId: stage.id })}
+            aria-label="Stage Guide — open today’s full day guide in Stages"
+          >
+            <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
+          </button>
+          <button
+            className="hero-action"
+            onClick={() => onNavigate('map', { mapStageId: stage.id })}
+            aria-label="View Route — show today’s stage on the map"
+          >
+            <Route size={15} strokeWidth={2} aria-hidden /> View Route
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** The original journey rail: one marker per canonical stage. */
+function StageJourney({
+  currentStage,
+  onNavigate,
+}: {
+  currentStage: ItineraryStage;
+  onNavigate: Navigate;
+}) {
+  const { stages } = useStore();
+  return (
+    <section className="card today-glass today-glass--light" aria-label="Journey progress">
+      <div className="row-between">
+        <span className="card-title">Journey</span>
+        <span className="card-sub tnum" style={{ marginTop: 0 }}>
+          Day {currentStage.day} of {stages.length}
+        </span>
+      </div>
+      <div className="journey" role="list">
+        {stages.map((stage) => {
+          const status =
+            stage.day < currentStage.day
+              ? 'past'
+              : stage.day === currentStage.day
+                ? 'current'
+                : 'future';
+          const sFrom = STOPS_BY_ID[stage.fromHutId];
+          const sTo = STOPS_BY_ID[stage.toHutId];
+          return (
+            <button
+              key={stage.id}
+              role="listitem"
+              className={`journey-step is-${status}`}
+              onClick={() => onNavigate('stages')}
+              aria-label={`Day ${stage.day}: ${stopShortName(sFrom)} to ${stopShortName(sTo)}${
+                status === 'current' ? ' (current stage)' : ''
+              }. Opens Stages.`}
+              aria-current={status === 'current' ? 'step' : undefined}
+            >
+              <span className="journey-dot tnum">{stage.day}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="journey-legend row-between">
+        <span>{stopShortName(STOPS_BY_ID[stages[0].fromHutId])}</span>
+        <span>{stopShortName(STOPS_BY_ID[stages[stages.length - 1].toHutId])}</span>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Tonight at a canonical stop — unchanged behaviour, now driven by the
+ * effective overnight rather than always by the walking endpoint. When there
+ * is no overnight the card is omitted and the space is left alone.
+ */
+function TonightCard({ stopId, onNavigate }: { stopId: string; onNavigate: Navigate }) {
+  const stop = STOPS_BY_ID[stopId];
+  if (!stop) return null;
+  const waypoint = WAYPOINT_BY_ID[HUT_TO_WAYPOINT[stop.id]];
+  const elevation = waypoint?.elevation != null ? Math.round(waypoint.elevation) : null;
+  const noShop = importantAbsences(stop).some((f) => f.id === 'shop');
+  const facilities = collapsedFacilities(stop, 5);
+  const labels = facilities.map((f) => f.label);
+  const facilitySentence =
+    labels.length > 0
+      ? ` Facilities include ${
+          labels.length > 1
+            ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+            : labels[0]
+        }.`
+      : '';
+  return (
+    <div className="tonight-row">
+      <button
+        className="today-action-card today-glass today-glass--light"
+        onClick={() => onNavigate('huts', { stopId: stop.id })}
+        aria-label={`Tonight: ${stopShortName(stop)}${
+          elevation != null ? `, ${elevation} metres elevation` : ''
+        }${noShop ? ', no shop' : ''}.${facilitySentence} Opens stop details in Stops.`}
+      >
+        <span className="today-action-card__body">
+          <span className="today-action-card__label">Tonight</span>
+          <span className="today-action-card__title">{stopShortName(stop)}</span>
+          {facilities.length > 0 || noShop ? (
+            <span className="today-stop-facilities" aria-hidden>
+              {facilities.map((f) => (
+                <span key={f.id} className="today-stop-facility" title={f.label}>
+                  <FacilityIcon id={f.id} size={15} />
+                </span>
+              ))}
+              {noShop ? (
+                <span className="today-stop-warning" title="No shop at this stop">
+                  <TriangleAlert size={12} strokeWidth={2.2} aria-hidden /> No shop
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </span>
+        <span className="today-action-card__side">
+          {elevation != null ? (
+            <span className="today-action-card__value tnum">
+              <Mountain size={13} strokeWidth={2} aria-hidden />
+              {elevation.toLocaleString('en-US')} m
+            </span>
+          ) : null}
+        </span>
+        <ChevronRight className="today-action-card__chevron" size={18} strokeWidth={2} aria-hidden />
+      </button>
+      <MembershipQuickAccess />
+    </div>
+  );
+}
+
+/** Tonight at a personal Trip stay — off-route accommodation the app cannot describe. */
+function StayTonightCard({ title, onNavigate }: { title: string; onNavigate: Navigate }) {
+  return (
+    <div className="tonight-row">
+      <button
+        className="today-action-card today-glass today-glass--light"
+        onClick={() => onNavigate('checklist', { lists: { section: 'trip' } })}
+        aria-label={`Tonight: ${title}. Opens your Trip plan.`}
+      >
+        <span className="today-action-card__body">
+          <span className="today-action-card__label">Tonight</span>
+          <span className="today-action-card__title">{title}</span>
+        </span>
+        <ChevronRight className="today-action-card__chevron" size={18} strokeWidth={2} aria-hidden />
+      </button>
+      <MembershipQuickAccess />
+    </div>
+  );
+}
