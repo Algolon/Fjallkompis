@@ -283,10 +283,25 @@ test('the remembered in-session Map context is only overwritten explicitly', () 
 });
 
 test('the block keeps its fixed responsibility — no dashboard creep', () => {
-  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Journey progress'));
-  // Exactly two actions inside the stage block.
-  const actions = hero.match(/className="hero-action(?: |")/g) ?? [];
-  assert.equal(actions.length, 2, 'exactly two follow-up actions');
+  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Today’s stages'));
+  // The block still offers at most two follow-up actions at a time. Since
+  // Hiking days it has two mutually exclusive branches: a day holding ONE
+  // canonical stage keeps Stage Guide + View Route, and a combined day shows
+  // a single action instead (a lone Stage Guide / View Route would open just
+  // one of the day's stages — an action narrower than the hero's claim).
+  const singleStage = hero.slice(hero.indexOf(') : ('));
+  const combined = hero.slice(hero.indexOf('multiStage ? ('), hero.indexOf(') : ('));
+  assert.equal(
+    (singleStage.match(/className="hero-action(?: |")/g) ?? []).length,
+    2,
+    'a single-stage day keeps exactly two follow-up actions',
+  );
+  assert.equal(
+    (combined.match(/className="hero-action(?: |")/g) ?? []).length,
+    1,
+    'a combined day offers exactly one, and it points at the stage parts',
+  );
+  assert.match(combined, /View today’s stages/);
   // No separate visible heading above the chips (deliberate review decision).
   assert.ok(!/Highlights</.test(hero), 'no "Highlights" heading');
   assert.ok(!/Stage Briefing/.test(hero), 'no "Stage Briefing" heading');

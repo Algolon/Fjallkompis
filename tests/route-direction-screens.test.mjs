@@ -99,17 +99,25 @@ test('Settings confirms a consequential direction change and never the active on
 
 // ---- Screens consume the active itinerary -----------------------------------
 
-test('Today renders itinerary-ordered stages and the oriented silhouette', () => {
-  assert.match(today, /const \{ currentStage, stages, routeDirection \} = useStore\(\)/);
-  assert.match(today, /stages\.map\(\(stage\) =>/);
-  assert.match(today, /Day \{currentStage\.day\} of \{stages\.length\}/);
-  // Silhouette follows the active stage's oriented profile.
-  assert.match(today, /<HeroSilhouette profile=\{currentStage\.elevationProfile\} \/>/);
+test('Today renders itinerary-ordered days and the oriented silhouette', () => {
+  // Since Hiking days, Today renders PLANNED DAYS rather than raw stages.
+  // The days are derived from the active itinerary's ordered stages, so they
+  // flip with direction exactly as the stage list did; `currentStage` is
+  // still read, because progress and the current PART key on it.
+  assert.match(
+    today,
+    /const \{ currentStage, routeDirection, plannedDays, currentPlannedDay \} = useStore\(\)/,
+  );
+  assert.match(today, /plannedDays\.map\(\(d\) =>/);
+  assert.match(today, /Day \{day\.number\} of \{plannedDays\.length\}/);
+  // Silhouette follows the planned day's oriented, concatenated profile.
+  assert.match(today, /<HeroSilhouette profile=\{day\.elevationProfile\} \/>/);
   // Highlights are direction-aware.
   assert.match(today, /stageHighlights\(currentStage\.id, undefined, routeDirection\)/);
-  // Journey legend reads from the ordered stages (flips with direction).
-  assert.match(today, /stages\[0\]\.fromHutId/);
-  assert.match(today, /stages\[stages\.length - 1\]\.toHutId/);
+  assert.match(today, /stageHighlights\(stage\.id, 3, routeDirection\)/);
+  // Journey legend reads from the ordered days (flips with direction).
+  assert.match(today, /plannedDays\[0\]\.fromStopId/);
+  assert.match(today, /plannedDays\[plannedDays\.length - 1\]\.toStopId/);
 });
 
 test('Stages uses the itinerary for order, geometry, guides and header', () => {

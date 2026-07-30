@@ -34,6 +34,7 @@ import {
 import { stageHighlights } from '../data/stageHighlights.mjs';
 import type { StageHighlightIcon } from '../data/stageHighlights.mjs';
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
+import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import type { ElevationSample } from '../route/types';
 import type { TabId } from '../components/TabBar';
@@ -154,8 +155,26 @@ const MODE_TABS: { id: TodayMode; label: string }[] = [
   { id: 'onroute', label: 'On route' },
 ];
 
+/**
+ * "Sat 5 Sep" — the hero's compact date, formatted from the PLAN's stored
+ * date. Uses the same deterministic, fixed-English helper as the pickers,
+ * which builds dates from numeric parts only (ISO-string date parsing is UTC
+ * and would shift a calendar day westwards). Nothing here reads the clock:
+ * the day shown is the one the user selected, never today's system date. The
+ * year is dropped — the full date is available where the plan is configured.
+ */
+function formatDayDate(iso: string): string | null {
+  const label = formatDateFieldLabel(iso);
+  return label ? label.split(' ').slice(0, 3).join(' ') : null;
+}
+
 export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
-  const { currentStage, stages, routeDirection } = useStore();
+  // `plannedDays` is always populated: with no personal plan it is one
+  // canonical stage per planned day with no dates, so this screen has ONE
+  // structural path and the unplanned app behaves exactly as before.
+  const { currentStage, routeDirection, plannedDays, currentPlannedDay } = useStore();
+  // Focus/scroll target for a combined day's "View today's stages" action.
+  const partsRef = useRef<HTMLElement>(null);
 
   // Manual mode only — remembered per device (non-versioned UI preference,
   // see utils/todayMode.mjs), never switched by dates, GPS or trip phase.
@@ -181,15 +200,26 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
     tabRefs.current[next]?.focus();
   };
 
+  const day = currentPlannedDay;
+  const multiStage = (day?.stages.length ?? 0) > 1;
+
   // Static, priority-capped stage metadata (max four) — deterministic and
   // offline; no GPS, network or time-of-day input. Direction-aware: the
   // climb/descent chips reflect the way this physical segment is walked.
-  const highlights = currentStage
-    ? stageHighlights(currentStage.id, undefined, routeDirection)
-    : [];
-  const from = currentStage ? STOPS_BY_ID[currentStage.fromHutId] : null;
-  const to = currentStage ? STOPS_BY_ID[currentStage.toHutId] : null;
+  // A combined day deliberately shows NO hero chips: merging two capped
+  // lists into one capped list would silently drop half the metadata, so the
+  // chips stay with the stage parts that own them.
+  const highlights =
+    currentStage && !multiStage
+      ? stageHighlights(currentStage.id, undefined, routeDirection)
+      : [];
+  // The day's endpoints — the same stage endpoints when the day holds one
+  // stage, the first stage's start and the LAST stage's end when it holds
+  // several. Intermediate stops are the "via" line, never Tonight.
+  const from = day ? STOPS_BY_ID[day.fromStopId] : null;
+  const to = day ? STOPS_BY_ID[day.toStopId] : null;
   const nextStop = to;
+  const dayDate = day?.date ? formatDayDate(day.date) : null;
   const nextStopElevation =
     nextStop && WAYPOINT_BY_ID[HUT_TO_WAYPOINT[nextStop.id]]?.elevation != null
       ? Math.round(WAYPOINT_BY_ID[HUT_TO_WAYPOINT[nextStop.id]].elevation as number)
@@ -273,27 +303,42 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
           id="today-panel-onroute"
           aria-labelledby="today-tab-onroute"
         >
-          {currentStage && from && to ? (
+          {currentStage && day && from && to ? (
         <>
-          {/* A. Hero: the stage block (spruce anchor). Fixed responsibility
+          {/* A. Hero: the planned hiking day (spruce anchor). Fixed
+              responsibility
               (docs/design-reviews/2026-07-v0.18-today-stage-block-direction.md):
-              today's stage, its essential characteristics, and the two
-              follow-up actions — nothing else grows in here. */}
-          <section className="hero" aria-label={`Current stage, day ${currentStage.day}`}>
-            <HeroSilhouette profile={currentStage.elevationProfile} />
+              today's walking, its essential characteristics, and the
+              follow-up actions — nothing else grows in here. A day holding
+              one canonical stage renders exactly as it always did. */}
+          <section
+            className="hero"
+            aria-label={`Today: day ${day.number} of ${plannedDays.length}${
+              dayDate ? `, ${dayDate}` : ''
+            }`}
+          >
+            <HeroSilhouette profile={day.elevationProfile} />
             <div className="hero-content">
-              <span className="hero-day">Day {currentStage.day} of {stages.length}</span>
+              <span className="hero-day">
+                Day {day.number} of {plannedDays.length}
+                {dayDate ? <span className="hero-day__date"> · {dayDate}</span> : null}
+              </span>
               <h2 className="hero-title">
                 {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
               </h2>
+              {multiStage ? (
+                <p className="hero-via">
+                  via {day.viaStopIds.map((id) => stopShortName(STOPS_BY_ID[id])).join(' and ')}
+                </p>
+              ) : null}
               <div className="hero-stats tnum">
-                <span>{formatDistanceKm(currentStage.distanceKm)}</span>
+                <span>{formatDistanceKm(day.distanceKm)}</span>
                 <span aria-hidden>·</span>
                 <span>
-                  ↗ {currentStage.totalAscentM ?? '—'} m · ↘ {currentStage.totalDescentM ?? '—'} m
+                  ↗ {day.totalAscentM ?? '—'} m · ↘ {day.totalDescentM ?? '—'} m
                 </span>
                 <span aria-hidden>·</span>
-                <span>{formatHoursEstimate(currentStage.estimatedHours)}</span>
+                <span>{formatHoursEstimate(day.estimatedHours)}</span>
               </div>
               {highlights.length > 0 ? (
                 // Static stage metadata, not controls (pill = metadata is the
@@ -314,71 +359,185 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
                 </ul>
               ) : null}
               <div className="hero-actions">
-                {/* Stage Guide = primary information depth; View Route = the
-                    complementary spatial action. The mapStageId payload is the
-                    ONLY thing that overwrites the remembered in-session Map
-                    browse state (see App.tsx). */}
-                <button
-                  className="hero-action hero-action--primary"
-                  onClick={() => onNavigate('stages', { guideStageId: currentStage.id })}
-                  aria-label="Stage Guide — open today’s full day guide in Stages"
-                >
-                  <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
-                </button>
-                <button
-                  className="hero-action"
-                  onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
-                  aria-label="View Route — show today’s stage on the map"
-                >
-                  <Route size={15} strokeWidth={2} aria-hidden /> View Route
-                </button>
+                {multiStage ? (
+                  // A combined day's hero must not offer an action narrower
+                  // than what it claims: a single "Stage Guide" or "View
+                  // Route" could only open ONE of the day's stages. The hero
+                  // sends the user to the parts below, where each canonical
+                  // stage carries its own guide and map links.
+                  <button
+                    className="hero-action hero-action--primary"
+                    onClick={() => {
+                      partsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                      partsRef.current?.focus();
+                    }}
+                    aria-label={`View today’s stages — ${day.stages.length} stages, each with its own guide and map`}
+                  >
+                    <BookOpen size={15} strokeWidth={2} aria-hidden /> View today’s stages
+                  </button>
+                ) : (
+                  <>
+                    {/* Stage Guide = primary information depth; View Route =
+                        the complementary spatial action. The mapStageId
+                        payload is the ONLY thing that overwrites the
+                        remembered in-session Map browse state (see App.tsx). */}
+                    <button
+                      className="hero-action hero-action--primary"
+                      onClick={() => onNavigate('stages', { guideStageId: currentStage.id })}
+                      aria-label="Stage Guide — open today’s full day guide in Stages"
+                    >
+                      <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
+                    </button>
+                    <button
+                      className="hero-action"
+                      onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
+                      aria-label="View Route — show today’s stage on the map"
+                    >
+                      <Route size={15} strokeWidth={2} aria-hidden /> View Route
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </section>
 
-          {/* B. Journey progress */}
+          {/* B. Today's stages — only for a day that holds several canonical
+              stages. Each part keeps its OWN identity, statistics, highlight
+              chips and links: nothing is merged, re-ranked or capped across
+              stages, and guides, detours and safety information stay where
+              the stage owns them. */}
+          {multiStage ? (
+            <section
+              className="card today-glass today-glass--light today-parts"
+              aria-labelledby="today-parts-heading"
+              ref={partsRef}
+              tabIndex={-1}
+            >
+              <span className="card-title" id="today-parts-heading">
+                Today’s stages
+              </span>
+              <ol className="today-parts__list">
+                {day.stages.map((stage, i) => {
+                  const partFrom = STOPS_BY_ID[stage.fromHutId];
+                  const partTo = STOPS_BY_ID[stage.toHutId];
+                  const isCurrentPart = stage.id === currentStage.id;
+                  const partHighlights = stageHighlights(stage.id, 3, routeDirection);
+                  return (
+                    <li
+                      key={stage.id}
+                      className={`today-part${isCurrentPart ? ' is-current' : ''}`}
+                    >
+                      <div className="today-part__top">
+                        <span className="today-part__label">Part {i + 1}</span>
+                        {isCurrentPart ? (
+                          // Progress and live tracking follow this canonical
+                          // stage, so the day says which part that is.
+                          <span className="pill pill-current">
+                            <span className="dot" /> Current stage
+                          </span>
+                        ) : null}
+                      </div>
+                      <h3 className="today-part__route">
+                        {stopShortName(partFrom)} <span aria-hidden>→</span>{' '}
+                        {stopShortName(partTo)}
+                      </h3>
+                      <div className="today-part__stats tnum">
+                        <span>{formatDistanceKm(stage.distanceKm)}</span>
+                        <span aria-hidden>·</span>
+                        <span>
+                          ↗ {stage.totalAscentM ?? '—'} m · ↘ {stage.totalDescentM ?? '—'} m
+                        </span>
+                        <span aria-hidden>·</span>
+                        <span>{formatHoursEstimate(stage.estimatedHours)}</span>
+                      </div>
+                      {partHighlights.length > 0 ? (
+                        <ul
+                          className="today-part__chips"
+                          aria-label={`Stage characteristics, part ${i + 1}`}
+                        >
+                          {partHighlights.map((h) => {
+                            const HighlightIcon = HIGHLIGHT_ICONS[h.icon];
+                            return (
+                              <li key={h.id} className="hero-chip hero-chip--light">
+                                <HighlightIcon size={13} strokeWidth={2.2} aria-hidden />
+                                {h.label}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                      <div className="today-part__actions">
+                        <button
+                          className="today-part__action"
+                          onClick={() => onNavigate('stages', { guideStageId: stage.id })}
+                          aria-label={`Day guide for ${stopShortName(partFrom)} to ${stopShortName(partTo)} — opens Stages`}
+                        >
+                          <BookOpen size={14} strokeWidth={2} aria-hidden /> Day guide
+                        </button>
+                        <button
+                          className="today-part__action"
+                          onClick={() => onNavigate('map', { mapStageId: stage.id })}
+                          aria-label={`Show ${stopShortName(partFrom)} to ${stopShortName(partTo)} on the map`}
+                        >
+                          <Route size={14} strokeWidth={2} aria-hidden /> View on map
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ) : null}
+
+          {/* C. Journey progress — one marker per PLANNED hiking day (with no
+              personal plan that is one marker per canonical stage, exactly as
+              before). */}
           <section className="card today-glass today-glass--light" aria-label="Journey progress">
             <div className="row-between">
               <span className="card-title">Journey</span>
               <span className="card-sub tnum" style={{ marginTop: 0 }}>
-                Day {currentStage.day} of {stages.length}
+                Day {day.number} of {plannedDays.length}
               </span>
             </div>
             <div className="journey" role="list">
-              {stages.map((stage) => {
+              {plannedDays.map((d) => {
                 const status =
-                  stage.day < currentStage.day
+                  d.number < day.number
                     ? 'past'
-                    : stage.day === currentStage.day
+                    : d.number === day.number
                       ? 'current'
                       : 'future';
-                const sFrom = STOPS_BY_ID[stage.fromHutId];
-                const sTo = STOPS_BY_ID[stage.toHutId];
+                const dFrom = STOPS_BY_ID[d.fromStopId];
+                const dTo = STOPS_BY_ID[d.toStopId];
                 return (
                   <button
-                    key={stage.id}
+                    key={d.number}
                     role="listitem"
                     className={`journey-step is-${status}`}
                     // Opens the Stages screen — changing the current stage
                     // stays an explicit action there.
                     onClick={() => onNavigate('stages')}
-                    aria-label={`Day ${stage.day}: ${stopShortName(sFrom)} to ${stopShortName(sTo)}${
-                      status === 'current' ? ' (current stage)' : ''
+                    aria-label={`Day ${d.number}: ${stopShortName(dFrom)} to ${stopShortName(dTo)}${
+                      status === 'current' ? ' (current day)' : ''
                     }. Opens Stages.`}
                     aria-current={status === 'current' ? 'step' : undefined}
                   >
-                    <span className="journey-dot tnum">{stage.day}</span>
+                    <span className="journey-dot tnum">{d.number}</span>
                   </button>
                 );
               })}
             </div>
             <div className="journey-legend row-between">
-              <span>{stopShortName(STOPS_BY_ID[stages[0].fromHutId])}</span>
-              <span>{stopShortName(STOPS_BY_ID[stages[stages.length - 1].toHutId])}</span>
+              <span>{stopShortName(STOPS_BY_ID[plannedDays[0].fromStopId])}</span>
+              <span>
+                {stopShortName(STOPS_BY_ID[plannedDays[plannedDays.length - 1].toStopId])}
+              </span>
             </div>
           </section>
 
-          {/* C. Tonight's stop — compact navigation card. When an STF
+          {/* D. Tonight's stop — the planned day's FINAL stop (an
+              intermediate via-stop is never shown here). Compact navigation
+              card. When an STF
               membership document is explicitly marked for Today (and its file
               is locally available), a compact quick-access action shares this
               row; otherwise Tonight keeps the full width on its own. Two

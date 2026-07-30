@@ -4481,6 +4481,13 @@ span.trip-attach-open {
     grid-column: 1;
     grid-row: span 2;
   }
+  /* Today's stages belongs to the hero above it, so it spans both columns
+     and Journey/Tonight keep the exact relationship they had before this
+     card existed. Must out-specify the section.card rule above. */
+  .today-screen [role='tabpanel'] > section.today-parts {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
   .today-screen [role='tabpanel'] > .tonight-row {
     grid-column: 2;
     margin: 0;
@@ -5398,5 +5405,130 @@ span.trip-attach-open {
   }
   .dayplan-part {
     flex-wrap: wrap;
+  }
+}
+
+/* --- Today: planned hiking day ------------------------------------------
+   A day holding ONE canonical stage renders exactly as it always did; these
+   rules only dress what a MULTI-stage day adds. */
+
+/* The hero's date rides the day eyebrow, quieter than the day number. */
+.hero-day__date {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+/* Intermediate stops of a combined day — context under the endpoints, never
+   competing with the title. */
+.hero-via {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Today's stages: the canonical parts of a combined day. Each keeps its own
+   identity, statistics, chips and links — nothing is merged across stages. */
+.today-parts:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+.today-parts__list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.today-part {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.today-part.is-current {
+  border-color: var(--cloudberry);
+}
+.today-part__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.today-part__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.today-part__route {
+  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.today-part__stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.today-part__chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+}
+/* The hero chip silhouette on a light surface (the parts card is paper). */
+.hero-chip--light {
+  background: var(--paper-2);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+.today-part__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.today-part__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.today-part__action:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) {
+  .today-part__action:hover {
+    background: var(--paper);
+  }
+}
+.today-part__action:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+@media (max-width: 340px) {
+  .today-part__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .today-part__action {
+    justify-content: center;
   }
 }
