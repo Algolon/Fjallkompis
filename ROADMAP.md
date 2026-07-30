@@ -107,6 +107,20 @@ cross-device synchronization is deliberately far down this roadmap.
    files only — no accounts, no sync.
 5. **Trim the initial bundle** — lazy-load/code-split MapLibre behind the Map
    screen so first paint doesn't pay for the map engine.
+6. **Worn clothing follow-ups** — two items deliberately deferred from the
+   Worn feature (PR #77), where Worn applies to the ENTIRE row (full
+   quantity, full row weight; one row has one visible location — splitting
+   is done by creating separate rows):
+   - **Seed split of high-quantity clothing rows** — offer shirts, socks
+     and underwear as "worn" + "spares" rows in the template (the gloves
+     item already models this framing). A content change, but it reaches
+     existing users only through a template-version bump with its own
+     idempotent migration step per the seed maintenance contract in
+     `src/data/packingSeed.mjs`.
+   - **`wornQuantity` unit-level model** ("1 of 3 worn") — only if
+     gram-level weight precision ever becomes a requirement. It re-specifies
+     the packed/worn exclusivity rule at unit level and needs its own
+     per-row UI, so it is a feature of its own, not a patch.
 
 ## Later
 
