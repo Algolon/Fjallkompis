@@ -29,7 +29,10 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   pointer read as a save/confirm action. The close control is how you leave
   the sheet, and the automatic date match plus the generic fallback make the
   button unnecessary. Choosing a stage in Stages still moves the current day
-  explicitly.
+  explicitly — and while that manual choice is overriding the calendar,
+  Today says so ("Manually selected day") and offers one quiet
+  **Follow plan dates** action that returns to automatic date matching
+  without touching your current stage or anything else.
 - **Changing a Hiking day no longer silently rewrites another day.** Turning
   a day that walks into Travel or Rest & explore used to hand its route
   stages to a neighbouring hiking day — you edited one day and another day
