@@ -67,6 +67,14 @@ export interface HikingEndpointOption {
   distanceKm: number;
   isCurrent: boolean;
   effect: 'none' | 'merge' | 'split';
+  /** Following hiking days whose walking this option absorbs entirely. */
+  absorbedDays: number;
+  /** True when one further day is left shorter rather than absorbed. */
+  shortensNextDay: boolean;
+  /** Stages this option takes from the days after it (a merge). */
+  takenStages: number;
+  /** Stages this option hands to a new day after this one (a split). */
+  releasedStages: number;
 }
 
 export declare function buildPlannedDays(

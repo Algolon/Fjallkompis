@@ -391,6 +391,20 @@ function OvernightSummary({ day }: { day: PlannedDay }) {
 }
 
 /**
+ * What walking further does to the days after this one, counted rather than
+ * asserted: whole days absorbed, a day merely left shorter, or both.
+ */
+function mergeConsequence(option: ReturnType<typeof hikingEndpointOptions>[number]): string {
+  const stages = `${option.takenStages} ${option.takenStages === 1 ? 'stage' : 'stages'}`;
+  if (option.absorbedDays === 0) return `Takes ${stages} from the next hiking day.`;
+  const days =
+    option.absorbedDays === 1 ? 'the next hiking day' : `the next ${option.absorbedDays} hiking days`;
+  return option.shortensNextDay
+    ? `Merges ${days} into this day and shortens the one after.`
+    : `Merges ${days} into this day.`;
+}
+
+/**
  * The one place in the planner that shows distance: choosing where a hiking
  * day ends IS choosing how far to walk, so each option states its stage count
  * and total distance — and what picking it does to the surrounding days.
@@ -415,11 +429,16 @@ function EndpointChooser({
       <ul className="dayplan-options" role="list">
         {options.map((option) => {
           const stop = STOPS_BY_ID[option.stopId];
+          // The real consequence, counted. A distant endpoint can absorb
+          // several days, and "the following hiking day" would understate it;
+          // a nearer one only shortens the next day without absorbing it.
           const consequence =
             option.effect === 'merge'
-              ? 'Merges the following hiking day into this one.'
+              ? mergeConsequence(option)
               : option.effect === 'split'
-                ? 'Splits the rest of the walking into a new day.'
+                ? option.releasedStages === 1
+                  ? 'Creates a new hiking day for the remaining stage.'
+                  : `Creates a new hiking day for the remaining ${option.releasedStages} stages.`
                 : null;
           return (
             <li key={option.stopId}>

@@ -249,6 +249,7 @@ export function hikingEndpointOptions(days, dayIndex, stages) {
   let available = 0;
   for (let i = dayIndex; i < days.length; i++) available += days[i].stages.length;
 
+  const current = day.stages.length;
   const options = [];
   let distanceKm = 0;
   for (let n = 1; n <= available; n++) {
@@ -259,10 +260,41 @@ export function hikingEndpointOptions(days, dayIndex, stages) {
       stopId: stage.toHutId,
       stages: n,
       distanceKm,
-      isCurrent: n === day.stages.length,
+      isCurrent: n === current,
       // What choosing this option does to the surrounding days.
-      effect: n === day.stages.length ? 'none' : n > day.stages.length ? 'merge' : 'split',
+      effect: n === current ? 'none' : n > current ? 'merge' : 'split',
+      // ...and by how much, so the consequence can be stated exactly rather
+      // than as a fixed sentence about "the following hiking day".
+      ...(n > current
+        ? absorption(days, dayIndex, n - current)
+        : { absorbedDays: 0, shortensNextDay: false, takenStages: 0 }),
+      releasedStages: n < current ? current - n : 0,
     });
   }
   return options;
+}
+
+/**
+ * What growing this day by `needed` stages does to the days after it.
+ *
+ *   absorbedDays     following hiking days that lose their walking ENTIRELY.
+ *                    A day that also travels or rests survives as that — it is
+ *                    the walking that is absorbed, which is what is described.
+ *   shortensNextDay  true when one further day is left with some of its stages
+ *                    rather than emptied, so a merge never silently understates
+ *                    itself as covering only the whole days it swallowed.
+ */
+function absorption(days, dayIndex, needed) {
+  let remaining = needed;
+  let absorbedDays = 0;
+  let shortensNextDay = false;
+  for (let i = dayIndex + 1; i < days.length && remaining > 0; i++) {
+    const count = days[i].stages.length;
+    if (count === 0) continue;
+    const taken = Math.min(remaining, count);
+    remaining -= taken;
+    if (taken === count) absorbedDays += 1;
+    else shortensNextDay = true;
+  }
+  return { absorbedDays, shortensNextDay, takenStages: needed };
 }

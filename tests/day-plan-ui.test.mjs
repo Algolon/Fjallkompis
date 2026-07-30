@@ -174,8 +174,25 @@ test('each endpoint option states its stages, distance and consequence', () => {
   const chooser = sheet.slice(sheet.indexOf('function EndpointChooser('));
   assert.match(chooser, /\{option\.stages\} \{option\.stages === 1 \? 'stage' : 'stages'\}/);
   assert.match(chooser, /formatDistanceKm\(option\.distanceKm\)/);
-  assert.match(chooser, /Merges the following hiking day into this one\./);
-  assert.match(chooser, /Splits the rest of the walking into a new day\./);
+  // The consequence is COUNTED, never a fixed sentence: a distant endpoint can
+  // absorb several days, and one about "the following hiking day" understates
+  // it. Both branches carry a singular and a plural form.
+  const merge = sheet.slice(sheet.indexOf('function mergeConsequence('), sheet.indexOf('/**\n * The one place'));
+  assert.match(merge, /the next hiking day/);
+  assert.match(merge, /the next \$\{option\.absorbedDays\} hiking days/);
+  assert.match(merge, /Merges \$\{days\} into this day\./);
+  // A nearer endpoint takes stages without emptying a day, and says so.
+  assert.match(merge, /Takes \$\{stages\} from the next hiking day\./);
+  assert.match(merge, /Merges \$\{days\} into this day and shortens the one after\./);
+  assert.match(chooser, /Creates a new hiking day for the remaining stage\./);
+  assert.match(
+    chooser,
+    /Creates a new hiking day for the remaining \$\{option\.releasedStages\} stages\./,
+  );
+  assert.ok(
+    !/Merges the following hiking day|Splits the rest of the walking/.test(chooser),
+    'the uncounted sentences are gone',
+  );
   // The one deliberate exception: nothing heavier than distance appears.
   for (const forbidden of ['totalAscentM', 'estimatedHours', 'stageHighlights', 'guide']) {
     assert.ok(!chooser.includes(forbidden), `the chooser must not show ${forbidden}`);

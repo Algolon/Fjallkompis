@@ -21,7 +21,7 @@ import {
   hikingEndpointOptions,
   plannedDayForStage,
 } from '../src/plan/plannedDays.mjs';
-import { defaultDays } from '../src/plan/dayPlan.mjs';
+import { defaultDays, setHikingStages } from '../src/plan/dayPlan.mjs';
 import { buildDirectionalItinerary } from '../src/route/itinerary.mjs';
 import { WAYPOINT_TO_HUT } from '../src/route/waypointStops.mjs';
 import { DEFAULT_DIRECTION, REVERSE_DIRECTION } from '../src/route/direction.mjs';
@@ -541,4 +541,85 @@ test('a travel day with nothing before it derives no overnight at all', () => {
   const [first] = buildPlannedDays(forwardStages, plan(days), TRIP_ITEMS);
   assert.equal(first.derivedOvernight.kind, 'none');
   assert.equal(first.derivedOvernight.source, 'derived');
+});
+
+// ---- Endpoint consequences, counted ----------------------------------------
+//
+// A distant endpoint can absorb SEVERAL days. The chooser has to say how many
+// rather than always claiming "the following hiking day".
+
+test('a merge counts the hiking days it really absorbs', () => {
+  const days = buildPlannedDays(forwardStages, plan(defaultDays(STAGES)), []);
+  const options = hikingEndpointOptions(days, 0, forwardStages);
+  assert.equal(options.length, STAGES);
+  const byStages = Object.fromEntries(options.map((o) => [o.stages, o]));
+  assert.equal(byStages[1].effect, 'none');
+  assert.equal(byStages[1].absorbedDays, 0);
+  assert.equal(byStages[2].effect, 'merge');
+  assert.equal(byStages[2].absorbedDays, 1, 'one day swallowed');
+  assert.equal(byStages[4].absorbedDays, 3, 'three days swallowed');
+  assert.equal(byStages[STAGES].absorbedDays, STAGES - 1, 'the whole route in one day');
+});
+
+test('a merge skips non-hiking days when counting what it absorbs', () => {
+  // A rest day between the walking is not "a hiking day merged into this one".
+  const days = buildPlannedDays(
+    forwardStages,
+    plan([day([hiking(1)]), day([rest()]), day([hiking(1)]), day([hiking(5)])]),
+    [],
+  );
+  const options = hikingEndpointOptions(days, 0, forwardStages);
+  const two = options.find((o) => o.stages === 2);
+  assert.equal(two.effect, 'merge');
+  assert.equal(two.absorbedDays, 1, 'the rest day is not counted');
+});
+
+test('a merge that only partly empties a day reports it as shortened, not absorbed', () => {
+  const days = buildPlannedDays(
+    forwardStages,
+    plan([day([hiking(1)]), day([hiking(3)]), day([hiking(3)])]),
+    [],
+  );
+  const at = (n) => hikingEndpointOptions(days, 0, forwardStages).find((o) => o.stages === n);
+  // Day 2 keeps two of its three stages: nothing is absorbed, one is shortened.
+  assert.equal(at(2).absorbedDays, 0);
+  assert.equal(at(2).shortensNextDay, true);
+  assert.equal(at(2).takenStages, 1);
+  // Day 2 is emptied exactly.
+  assert.equal(at(4).absorbedDays, 1);
+  assert.equal(at(4).shortensNextDay, false);
+  // Day 2 absorbed, day 3 shortened.
+  assert.equal(at(5).absorbedDays, 1);
+  assert.equal(at(5).shortensNextDay, true);
+  // Both absorbed.
+  assert.equal(at(7).absorbedDays, 2);
+  assert.equal(at(7).shortensNextDay, false);
+});
+
+test('a split counts the stages it hands to the new day', () => {
+  const days = buildPlannedDays(forwardStages, plan([day([hiking(4)]), day([hiking(3)])]), []);
+  const options = hikingEndpointOptions(days, 0, forwardStages);
+  assert.equal(options.find((o) => o.stages === 3).effect, 'split');
+  assert.equal(options.find((o) => o.stages === 3).releasedStages, 1);
+  assert.equal(options.find((o) => o.stages === 1).releasedStages, 3);
+  assert.equal(options.find((o) => o.stages === 4).releasedStages, 0, 'no change, no split');
+});
+
+test('the counted consequence matches what the mutation performs', () => {
+  const records = defaultDays(STAGES);
+  const days = buildPlannedDays(forwardStages, plan(records), []);
+  for (const option of hikingEndpointOptions(days, 0, forwardStages)) {
+    const after = setHikingStages(records, 0, option.stages);
+    const removed = records.length - after.length;
+    if (option.effect === 'merge') {
+      assert.equal(removed, option.absorbedDays, `merging to ${option.stages} stages`);
+      assert.equal(option.takenStages, option.stages - 1, 'stages taken from later days');
+      // On a one-stage-per-day plan a merge always empties whole days.
+      assert.equal(option.shortensNextDay, false);
+    }
+    if (option.effect === 'split') {
+      assert.equal(after.length - records.length, 1, 'a split always makes exactly one new day');
+      assert.equal(after[1].activities[0].stages, option.releasedStages);
+    }
+  }
 });
