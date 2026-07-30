@@ -203,7 +203,11 @@ test('zero-highlight stages render nothing: the selector returns []', () => {
   assert.deepEqual(stageHighlights('not-a-stage'), []);
   assert.deepEqual(stageHighlights(''), []);
   // And the render is guarded — no empty <ul> placeholder row.
-  const today = readFileSync(join(root, 'src/screens/TodayScreen.tsx'), 'utf8');
+  // The On route hero moved into its own module (the same split as
+// TodayPrepare), so the screen contracts below read it there.
+const today =
+  readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8') +
+  readFileSync(join(root, 'src/components/TodayHero.tsx'), 'utf8');
   assert.match(today, /highlights\.length > 0 \? \(/, 'chip row only renders when non-empty');
 });
 
@@ -219,7 +223,11 @@ test('0–4 displayed highlights are all reachable through the selector', () => 
 
 // ---- Today screen contract ---------------------------------------------------
 
-const today = readFileSync(join(root, 'src/screens/TodayScreen.tsx'), 'utf8');
+// The On route hero moved into its own module (the same split as
+// TodayPrepare), so the screen contracts below read it there.
+const today =
+  readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8') +
+  readFileSync(join(root, 'src/components/TodayHero.tsx'), 'utf8');
 
 test('chips are semantically non-interactive metadata with a labelled list', () => {
   assert.match(today, /<ul className="hero-chips" aria-label="Stage characteristics">/);
@@ -246,9 +254,16 @@ test('every taxonomy icon key is mapped to a lucide component on Today', () => {
 });
 
 test('Stage Guide opens the CURRENT stage’s guide on Stages', () => {
+  // No plan: the hero IS the current stage, passed in as `stage`.
   assert.match(
     today,
-    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: currentStage\.id \}\)\}/,
+    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: stage\.id \}\)\}/,
+  );
+  // With a plan: the day's OWN first stage, so the guide always matches the
+  // route printed above it.
+  assert.match(
+    today,
+    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: leadStage\.id \}\)\}/,
   );
   assert.match(today, />\s*Stage Guide\s*</, 'visible Stage Guide label');
   // App.tsx forwards the one-shot payload into StagesScreen.
@@ -265,10 +280,8 @@ test('Stage Guide opens the CURRENT stage’s guide on Stages', () => {
 });
 
 test('View Route focuses the Map on the current stage via the payload', () => {
-  assert.match(
-    today,
-    /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: currentStage\.id \}\)\}/,
-  );
+  assert.match(today, /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: stage\.id \}\)\}/);
+  assert.match(today, /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: leadStage\.id \}\)\}/);
   assert.match(today, />\s*View Route\s*</, 'visible View Route label');
 });
 
@@ -283,10 +296,30 @@ test('the remembered in-session Map context is only overwritten explicitly', () 
 });
 
 test('the block keeps its fixed responsibility — no dashboard creep', () => {
-  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Journey progress'));
-  // Exactly two actions inside the stage block.
-  const actions = hero.match(/className="hero-action(?: |")/g) ?? [];
-  assert.equal(actions.length, 2, 'exactly two follow-up actions');
+  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('function PlannedJourney'));
+  // At most two follow-up actions at a time. A single canonical stage keeps
+  // Stage Guide + View Route; a day covering several stages shows ONE action
+  // instead (either alone would open just one of them — narrower than the
+  // hero's claim); a travel or rest day gets its own single action.
+  const combined = hero.slice(
+    hero.indexOf('{hiking && multiStage && leadStage ? ('),
+    hero.indexOf(') : hiking && leadStage ? ('),
+  );
+  const singleStage = hero.slice(
+    hero.indexOf(') : hiking && leadStage ? ('),
+    hero.indexOf('{/* Travel-ONLY days'),
+  );
+  assert.equal(
+    (singleStage.match(/className="hero-action(?: |")/g) ?? []).length,
+    2,
+    'a single-stage day keeps exactly two follow-up actions',
+  );
+  assert.equal(
+    (combined.match(/className="hero-action(?: |")/g) ?? []).length,
+    1,
+    'a multi-stage day offers exactly one, pointing at Stages',
+  );
+  assert.match(combined, /Open in Stages/);
   // No separate visible heading above the chips (deliberate review decision).
   assert.ok(!/Highlights</.test(hero), 'no "Highlights" heading');
   assert.ok(!/Stage Briefing/.test(hero), 'no "Stage Briefing" heading');

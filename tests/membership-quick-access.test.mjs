@@ -31,7 +31,7 @@ import {
   enforceMembershipQuickAccess,
   listWalletDocuments,
 } from '../src/wallet/walletStore.mjs';
-import { SCHEMA_VERSION } from '../src/utils/stateMigration.mjs';
+import { SCHEMA_VERSION, defaultState } from '../src/utils/stateMigration.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const quickAccess = readFileSync(join(root, 'src/components/MembershipQuickAccess.tsx'), 'utf8');
@@ -208,8 +208,16 @@ test('no filename/title/note heuristics anywhere in the feature', () => {
   }
 });
 
-test('membership metadata is wallet data — PersistentState schema stays at 6', () => {
-  assert.equal(SCHEMA_VERSION, 6);
+test('membership metadata is wallet data — it never enters PersistentState', () => {
+  // The point is the storage BOUNDARY (membership flags live in the wallet
+  // IndexedDB, not in the versioned state blob), not a frozen version number —
+  // other features legitimately bump it, and tests/state-migration.test.mjs
+  // owns that pin.
+  assert.equal(typeof SCHEMA_VERSION, 'number');
+  const state = defaultState('d1');
+  for (const field of ['membershipProvider', 'showOnToday', 'wallet', 'documents']) {
+    assert.ok(!(field in state), `${field} is not a PersistentState field`);
+  }
 });
 
 // ---- Editor and Today card contracts ----------------------------------------

@@ -130,6 +130,27 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Day plan (v0.26.0)**: an optional personal calendar layer over the
+  canonical route, created only by an explicit action in Settings — with no
+  plan the app stays exactly as it was, and migration to schema v7 leaves
+  every existing user at `dayPlan: null`. A journey is a list of calendar
+  days holding Hiking, Travel and Rest & explore activities; a day may both
+  walk and travel, and the stored order says which came first. A hiking day
+  records only how many ADJACENT stages it covers, so the counts partition
+  the route exactly and a skipped, duplicated, non-adjacent or reordered
+  stage is structurally unrepresentable. Days carry stable ids (never array
+  indices); the calendar pointer (`currentDayId`) lives inside the plan and
+  follows the route pointer (`currentStageId`) when an edit hands a stage to
+  another day. Overnights are references, explicit or derived (walk endpoint,
+  or the previous night for a rest day) and always reversible back to
+  derived; Travel is matched read-only from Lists → Trip by date and never
+  copied. Settings gained a compact review view with a deliberate edit mode,
+  an endpoint chooser that states the real consequence of a merge or split,
+  and capability-gated controls that never offer an edit the model refuses;
+  Today gained compact per-activity variants; and changing route direction
+  with a plan is an explicit, confirmed, destructive step. Alongside it,
+  canonical segments are now called "Stage N" on Stages and the Map, because
+  which day you walk them on became personal. Design record: PR #74.
 - **App-owned date/time pickers (v0.25.0)**: the Trip plan's date and time
   fields moved off the broken native Android dialogs onto Fjällkompis's own
   picker system — a Monday-first calendar dialog and a digital 24-hour time

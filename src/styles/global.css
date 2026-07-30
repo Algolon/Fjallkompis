@@ -5235,3 +5235,296 @@ span.trip-attach-open {
   outline: 2px solid var(--glacier-soft);
   outline-offset: 2px;
 }
+
+/* --- Day plan (personal journey, Settings) --------------------------------
+   The list is an OVERVIEW: date, what happens, the route line when there is
+   walking, and tonight. Editing controls appear only in edit mode. */
+
+.dayplan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dayplan-day {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px;
+}
+.dayplan-day.is-current {
+  border-color: var(--cloudberry);
+  background: var(--cloudberry-soft);
+}
+.dayplan > li + li > .dayplan-day {
+  margin-top: 10px;
+}
+.dayplan-day__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dayplan-day__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dayplan-day__date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dayplan-day__kinds {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dayplan-day__route {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+.dayplan-day__via {
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin: 2px 0 0;
+}
+/* "then hike" — the sequencing lead in front of a walk that follows a
+   transfer. Quiet and smaller than the route it introduces. */
+.dayplan-day__lead {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.dayplan-day__tonight {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 8px 0 0;
+}
+
+/* Add-a-day divider — edit mode only, so the view list stays uncluttered. */
+.dayplan-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 0;
+}
+.dayplan-add-row::before,
+.dayplan-add-row::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+.dayplan-add {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 8px;
+  padding: 6px 12px;
+  min-height: 30px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  background: var(--paper);
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+/* 30px visual + a 7px inset on each side = a 44px touch target, the same
+   technique as the Today mode pill. */
+.dayplan-add::after {
+  content: '';
+  position: absolute;
+  inset: -7px 0;
+}
+.dayplan-add:active {
+  transform: scale(0.97);
+}
+.dayplan-add:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+/* --- Day plan: the per-day edit sheet ------------------------------------ */
+
+.dayplan-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.dayplan-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+}
+.dayplan-kind.is-on {
+  background: var(--spruce);
+  border-color: var(--spruce);
+  color: #f4f8f5;
+}
+.dayplan-kind:active {
+  transform: scale(0.97);
+}
+.dayplan-kind:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+.dayplan-sheet__route {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+
+.dayplan-travel {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dayplan-travel li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+}
+
+/* Option lists (endpoint chooser, overnight chooser). */
+.dayplan-options {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dayplan-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.dayplan-option.is-current {
+  border-color: var(--cloudberry);
+  background: var(--cloudberry-soft);
+}
+/* The derived choice — "where today's walk ends", "same as last night". It is
+   what the day does on its own, so it reads as the default rather than as one
+   more equal option: a dashed edge, and it always leads the list. */
+.dayplan-option--derived {
+  border-style: dashed;
+}
+.dayplan-option:active {
+  transform: scale(0.99);
+}
+.dayplan-option:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+.dayplan-option__name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.dayplan-option__meta {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.dayplan-option__effect {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.dayplan-add-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.sheet-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@media (max-width: 340px) {
+  .dayplan-add,
+  .dayplan-kind {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .sheet-actions {
+    flex-direction: column;
+  }
+}
+
+/* --- Today: planned hiking day ------------------------------------------
+   A day holding ONE canonical stage renders exactly as it always did; these
+   rules only dress what a MULTI-stage day adds. */
+
+/* The hero's date rides the day eyebrow, quieter than the day number. */
+.hero-day__date {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+/* Intermediate stops of a combined day — context under the endpoints, never
+   competing with the title. */
+.hero-day__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  vertical-align: -2px;
+  opacity: 0.85;
+}
+/* Non-hiking days keep a marker on the rail but read as off-trail. */
+.journey-step.is-off-trail .journey-dot {
+  border-style: dashed;
+}
+.hero-via {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+}
+

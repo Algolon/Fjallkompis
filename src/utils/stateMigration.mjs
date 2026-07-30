@@ -52,6 +52,18 @@
  *     path keys off `packingTemplateVersion` presence and the trip path off
  *     the `trip` field, so the two migrations compose independently.
  *
+ * v6 → v7 (Day plan):
+ *   - `dayPlan` is added: the personal journey plan — ordered calendar days,
+ *     each holding hiking / travel / rest activities (src/plan/dayPlan.mjs).
+ *     Payloads without it — every existing user, whichever schema they come
+ *     from — normalise to `null`. Null is not a fallback: it is the canonical
+ *     default state, in which the app shows no dates, no planned days and no
+ *     activity indicators, exactly as before the feature existed. Nothing is
+ *     ever inferred from trip items, documents, route direction or the system
+ *     date; only an explicit action in Settings creates a plan.
+ *     Like the packing and trip paths, this one keys off its own field, so all
+ *     three compose independently.
+ *
  * Normalisation is idempotent and never throws: malformed fields fall back to
  * defaults instead of wiping the app.
  */
@@ -69,8 +81,9 @@ import {
 } from './packingModel.mjs';
 import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
 import { normalizeTripItems } from '../trip/tripModel.mjs';
+import { normalizeDayPlan } from '../plan/dayPlan.mjs';
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Fresh seed packing items (deep-ish copy so callers can't mutate the seed). */
 export function seedPackingItems() {
@@ -87,6 +100,7 @@ export function defaultState(defaultStageId) {
     packing: seedPackingItems(),
     packingTemplateVersion: PACKING_TEMPLATE_VERSION,
     trip: [],
+    dayPlan: null,
   };
 }
 
@@ -238,16 +252,26 @@ function migrateLegacyPacking(raw) {
 
 /**
  * Validate + normalise an unknown blob into the current schema. Accepts v1
- * through v5 payloads (and anything malformed in between). Unknown/missing
+ * through v6 payloads (and anything malformed in between). Unknown/missing
  * fields fall back to defaults rather than throwing, so a partially-corrupt
  * or older payload still loads instead of wiping the app. Retired fields
  * (v1 shopOverride, v2 checklist) are ignored, never a parse failure.
+ *
+ * `stageCount` is the canonical stage count the day plan must partition. It is
+ * supplied by the caller (src/utils/storage.ts passes STAGES.length) because
+ * this module is deliberately free of route-data imports. Omitting it means a
+ * day plan cannot be validated at all, so it normalises to `null` — the
+ * feature's own default, never a crash.
  */
-export function normalizeState(raw, defaultStageId) {
+export function normalizeState(raw, defaultStageId, stageCount) {
   const base = defaultState(defaultStageId);
   if (!isObject(raw)) return base;
 
   const templateVersion = ownedTemplateVersion(raw.packingTemplateVersion);
+  // The direction resolved just below is the ACTIVE one at load time, so a
+  // plan whose stored direction disagrees (an import from a device walking
+  // the other way) is repaired here rather than silently applied.
+  const direction = normalizeDirection(raw.routeDirection);
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -257,7 +281,7 @@ export function normalizeState(raw, defaultStageId) {
         : base.currentStageId,
     // Missing (older payload) or invalid values normalise to the canonical
     // forward direction — an older export can never carry an invalid one.
-    routeDirection: normalizeDirection(raw.routeDirection),
+    routeDirection: direction,
     hutData: normalizeHutData(raw.hutData),
     journal: Array.isArray(raw.journal) ? raw.journal.filter(isJournalish) : [],
     packing:
@@ -266,5 +290,6 @@ export function normalizeState(raw, defaultStageId) {
         : normalizeOwnedPacking(raw.packing),
     packingTemplateVersion: PACKING_TEMPLATE_VERSION,
     trip: normalizeTripItems(raw.trip),
+    dayPlan: normalizeDayPlan(raw.dayPlan, direction, stageCount),
   };
 }

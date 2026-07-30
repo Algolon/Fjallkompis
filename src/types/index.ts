@@ -825,6 +825,82 @@ export interface PackingCategory {
   title: string;
 }
 
+// ---- Day plan (personal journey planning) ---------------------------------------
+
+/**
+ * The user's personal Day plan — the ONLY new persisted data of the feature.
+ *
+ * A journey is a sequence of CALENDAR DAYS; only some of them contain walking.
+ * A day holds one or more ordered {@link DayActivity} entries and, optionally,
+ * an explicit overnight reference. Canonical route stages are never modified,
+ * merged, split, skipped, duplicated or reordered by any of this: a hiking
+ * activity records only HOW MANY adjacent stages that day covers, and the
+ * stages themselves are derived by walking the days in order.
+ *
+ * Planning is strictly OPT-IN. `PersistentState.dayPlan` is null until the user
+ * creates a plan in Settings, and null means the app behaves exactly as it did
+ * before the feature existed: no dates, no activity indicators, no inferred
+ * days (see src/plan/dayPlan.mjs).
+ *
+ * Everything else — day numbers, dates, stage ids, endpoints, via-stops,
+ * totals, elevation profiles, matched Trip items, the effective overnight —
+ * is DERIVED at runtime (src/plan/plannedDays.mjs).
+ */
+export interface DayPlanState {
+  /** The walking direction this plan's hiking allocation was authored for. */
+  direction: RouteDirection;
+  /** ISO date (yyyy-mm-dd) of day 1 of the JOURNEY — not of the first hike. */
+  startDate: string;
+  /** Stable id of the active calendar day, or null. Never an array index. */
+  currentDayId: string | null;
+  /** Ordered, consecutive calendar days. At least one. */
+  days: PlannedDayRecord[];
+}
+
+/** One persisted calendar day. Dates are derived from startDate + position. */
+export interface PlannedDayRecord {
+  /** Stable id (`day_<base36>_<random>`) — survives insertion and removal. */
+  id: string;
+  /** Ordered activities; order records e.g. hike-then-travel vs travel-then-hike. */
+  activities: DayActivity[];
+  /** Explicit overnight. ABSENT means "derive" — never a fourth variant. */
+  overnight?: OvernightRef;
+}
+
+/**
+ * A supported activity. Deliberately closed: no custom or free-form variant.
+ *  - hiking: covers `stages` ADJACENT canonical stages, taken in route order
+ *    from the running cursor. Across every day these counts sum to exactly the
+ *    canonical stage count, which is what makes a skipped, duplicated,
+ *    non-adjacent or reordered stage structurally unrepresentable.
+ *  - travel: presence only. The movement's details live in Lists → Trip and
+ *    are matched by date, never copied here.
+ *  - rest: presence only, and exclusive — a rest day holds nothing else.
+ */
+export type DayActivity =
+  | { kind: 'hiking'; stages: number }
+  | { kind: 'travel' }
+  | { kind: 'rest' };
+
+export type DayActivityKind = DayActivity['kind'];
+
+/**
+ * Where the user sleeps at the end of a day, when they say so explicitly.
+ * Absence means the effective overnight is derived (hiking endpoint, or the
+ * previous day's overnight for a rest day). References only — accommodation
+ * names and details are never copied out of Stops or the Trip plan.
+ */
+export type OvernightRef =
+  | { kind: 'stop'; stopId: string }
+  | { kind: 'stay'; tripItemId: string }
+  | { kind: 'none' };
+
+/**
+ * The derived planned-day model (PlannedDay) lives beside the itinerary types
+ * it composes — src/plan/plannedDays.mjs — because it carries real
+ * ItineraryStage objects. Nothing about it is ever persisted.
+ */
+
 // ---- Journal --------------------------------------------------------------------
 
 export interface JournalEntry {
@@ -865,6 +941,9 @@ export interface HutUserData {
  * src/utils/stateMigration.mjs).
  * Schema v6 added `trip` (personal Travel and Stay items); older payloads
  * normalise to an empty trip plan.
+ * Schema v7 added `dayPlan` (the personal Day plan); older payloads — and
+ * every existing user — normalise to `null`, which is exactly the app's
+ * pre-v7 behaviour (no dates, no planned days, no activity indicators).
  */
 export interface PersistentState {
   schemaVersion: number;
@@ -899,4 +978,17 @@ export interface PersistentState {
    * backup and device transfer like every other PersistentState field.
    */
   trip: TripItem[];
+  /**
+   * The personal Day plan, or null when the user has not created one. Null is
+   * the default and the canonical state: no dates, no planned calendar days,
+   * no activity indicators — the app exactly as it was before this feature.
+   * Only an explicit action in Settings creates a plan; nothing is ever
+   * inferred from Trip items, documents, route direction or the system date.
+   *
+   * `currentStageId` above remains the route-progress pointer in every state.
+   * `dayPlan.currentDayId` is the CALENDAR-day pointer and exists only while a
+   * plan does; travel and rest days carry no stage, so one pointer cannot
+   * answer both questions.
+   */
+  dayPlan: DayPlanState | null;
 }

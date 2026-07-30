@@ -194,7 +194,7 @@ export function routeLayers(): LayerSpecification[] {
         'line-opacity': 0.35,
       },
     },
-    // All seven day stages, coloured per day.
+    // All seven canonical route stages, coloured by stage sequence position.
     {
       id: 'route-stages',
       type: 'line',

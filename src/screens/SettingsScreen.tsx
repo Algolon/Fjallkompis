@@ -22,8 +22,10 @@ import {
   formatBytes,
 } from '../components/OfflineMapCard';
 import { CreditsSheet } from '../components/CreditsSheet';
+import { DayPlanCard } from '../components/DayPlanCard';
 import { InstallCard, installStatusText } from '../components/InstallCard';
 import { useTrailReadiness } from '../hooks/useTrailReadiness';
+import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 type SettingsSection = 'install' | 'maps' | 'backup' | 'sources';
@@ -217,14 +219,14 @@ function SettingsAccordion({
  * never touched).
  */
 function RouteDirectionCard() {
-  const { routeDirection, setRouteDirection, currentStage } = useStore();
+  const { routeDirection, setRouteDirection, currentStage, dayPlan } = useStore();
   const [pending, setPending] = useState<RouteDirection | null>(null);
 
   const request = (dir: RouteDirection) => {
     if (dir === routeDirection) return; // never confirm the active direction
-    // A current stage (or live progress) makes the change consequential — ask
-    // first. With nothing selected, apply immediately.
-    if (currentStage) setPending(dir);
+    // A current stage (or live progress), or a personal hiking-day plan, makes
+    // the change consequential — ask first. With neither, apply immediately.
+    if (currentStage || dayPlan) setPending(dir);
     else setRouteDirection(dir);
   };
 
@@ -269,9 +271,14 @@ function RouteDirectionCard() {
 
       {pending ? (
         <ConfirmDialog
-          title="Change route direction?"
-          body="Stages and progress will be reordered for the new direction. Your packing list, journal and stop notes will stay unchanged. Any live tracking on the Map stops."
-          primaryLabel="Change direction"
+          title={dayPlan ? 'Remove day plan and change direction?' : 'Change route direction?'}
+          body={
+            dayPlan
+              ? 'Your day plan describes a journey in the current direction — which stages you walk, where each day ends, where you stay and when you travel. It cannot be reused the other way round, so it will be removed. Your packing list, Trip plan, documents, journal and stop notes stay unchanged.'
+              : 'Stages and progress will be reordered for the new direction. Your packing list, journal and stop notes will stay unchanged. Any live tracking on the Map stops.'
+          }
+          primaryLabel={dayPlan ? 'Remove day plan and change direction' : 'Change direction'}
+          destructive={dayPlan != null}
           onConfirm={() => {
             setRouteDirection(pending);
             setPending(null);
@@ -290,9 +297,17 @@ export function SettingsScreen({
    *  section on arrival. Plain tab navigation keeps everything collapsed. */
   initialSection?: SettingsDeepLinkSection | null;
 }) {
-  const { state, replaceState, resetAll, routeDirection } = useStore();
+  const { state, replaceState, resetAll, routeDirection, dayPlan, plannedDays } =
+    useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  // The collapsed summary states the plan without expanding it. With no plan
+  // it invites one — it never implies a plan exists.
+  const dayPlanSummary = dayPlan
+    ? `${plannedDays.length} ${plannedDays.length === 1 ? 'day' : 'days'} from ${
+        formatDateFieldLabel(dayPlan.startDate) ?? dayPlan.startDate
+      }`
+    : 'Not set up — plan your journey day by day';
   // Every Settings section starts collapsed for a consistent, scannable list
   // (Route direction is still first; its collapsed summary shows the current
   // choice). Route direction and Trail readiness each own an independent
@@ -300,6 +315,7 @@ export function SettingsScreen({
   // shared SettingsAccordion behaviour, no section is open on load unless a
   // one-shot deep link asked for it.
   const [directionOpen, setDirectionOpen] = useState(false);
+  const [dayPlanOpen, setDayPlanOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(initialSection === 'readiness');
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -387,6 +403,19 @@ export function SettingsScreen({
         onToggle={() => setDirectionOpen((current) => !current)}
       >
         <RouteDirectionCard />
+      </SettingsAccordion>
+
+      {/* Day plan — directly after Route direction, because a plan describes a
+          journey in ONE walking direction and changing direction removes it.
+          Same accordion system; the summary shows the plan without expanding. */}
+      <SettingsAccordion
+        id="day-plan"
+        title="Day plan"
+        summary={dayPlanSummary}
+        open={dayPlanOpen}
+        onToggle={() => setDayPlanOpen((current) => !current)}
+      >
+        <DayPlanCard />
       </SettingsAccordion>
 
       <TrailReadinessCard

@@ -10,6 +10,48 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-07-30
+
+### Added
+
+- **An optional Day plan.** Settings → Day plan turns the route into your own
+  journey: pick the first day and Fjällkompis lays out one hiking day per
+  stage, which you then shape. Add **Travel** days and **Rest & explore**
+  days, combine adjacent stages into one longer hiking day (or split them
+  apart again), and make a day that both walks and travels. The route stages,
+  their guides and their route data never change — only which day you walk
+  them on.
+- **Tonight, chosen or derived.** Each day ends somewhere: by default where
+  the walk ends, and for a Rest & explore day wherever you already were. Pick
+  a different stop, an existing stay from your Trip plan, or no overnight at
+  all — and go back to "Same as last night" whenever you like, so the day
+  follows the one before it again.
+- **Travel from your Trip plan.** A Travel day shows the transport you
+  already recorded in Lists → Trip for that date, read-only. Nothing is
+  copied: Lists → Trip stays the one place travel is edited.
+- **Today follows your plan.** With a plan, Today shows the calendar day you
+  are on — the date, what the day is, and, on a day that both walks and
+  travels, both in the order you put them in. Journey runs over your planned
+  days rather than the seven stages.
+
+### Changed
+
+- **Stages are called stages.** The Stages screen and the Map now say
+  "Stage 1 … Stage 7" instead of "Day 1 … Day 7". A stage is a fixed piece of
+  the route; which day you walk it on is personal, and now lives in the Day
+  plan.
+
+### Unchanged (deliberately)
+
+- **Without a Day plan, nothing changes.** No dates, no day types, and the
+  same Today, Journey, Tonight, Stages and Map as before. A plan exists only
+  once you make one in Settings; upgrading never creates one, and nothing is
+  inferred from your Trip plan, your documents or the date. Existing trips,
+  packing lists, notes and documents are untouched.
+- Journey days are consecutive — this iteration has no date gaps, no
+  whole-day combined route on the Map (a multi-stage day opens in Stages),
+  and no Wallet ticket shortcut on a Travel day yet.
+
 ## [0.25.0] - 2026-07-24
 
 ### Added

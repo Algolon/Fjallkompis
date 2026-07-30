@@ -393,7 +393,7 @@ export function MapScreen({
     : null;
 
   const currentStageTitle = currentStage
-    ? `Day ${currentStage.day}: ${stopShortName(STOPS_BY_ID[currentStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[currentStage.toHutId])}`
+    ? `Stage ${currentStage.day}: ${stopShortName(STOPS_BY_ID[currentStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[currentStage.toHutId])}`
     : null;
 
   // Along-route progress is always computed against the CURRENT persisted
@@ -490,7 +490,7 @@ export function MapScreen({
                 tracking.active && currentStage ? (
                   <TrackingStatusOverlay
                     session={session}
-                    stageLabel={`Day ${currentStage.day}`}
+                    stageLabel={`Stage ${currentStage.day}`}
                   />
                 ) : null
               }
@@ -630,7 +630,7 @@ export function MapScreen({
                 className="chip stage-select__day"
                 aria-pressed={viewStageId === s.id}
                 onClick={() => setViewStageId(s.id)}
-                aria-label={`Day ${s.day}`}
+                aria-label={`Stage ${s.day}`}
               >
                 <span className="chip-swatch" style={{ background: STAGE_COLORS[s.day] }} />
                 {s.day}
