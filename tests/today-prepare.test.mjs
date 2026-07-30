@@ -73,7 +73,11 @@ test('corrupt or unknown stored values fall back to On route, never throw', () =
 });
 
 test('the mode lives OUTSIDE the versioned state blob (no schema bump)', () => {
-  assert.equal(SCHEMA_VERSION, 6, 'Prepare mode must not bump the schema');
+  // The point of this test is that the Prepare mode is a device UI preference,
+  // not persisted state — NOT that the schema is frozen at one number (other
+  // features legitimately bump it; the canonical pin lives in
+  // tests/state-migration.test.mjs). Assert the property, not the constant.
+  assert.equal(typeof SCHEMA_VERSION, 'number');
   assert.ok(
     !('todayMode' in defaultState('d1')),
     'todayMode is not a PersistentState field',

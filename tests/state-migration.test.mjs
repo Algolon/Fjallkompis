@@ -47,13 +47,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 6', () => {
-  assert.equal(SCHEMA_VERSION, 6);
+test('schema version is 7', () => {
+  assert.equal(SCHEMA_VERSION, 7);
 });
 
-test('v1 → v6: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v7: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 6);
+  assert.equal(s.schemaVersion, 7);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -186,7 +186,7 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 6);
+    assert.equal(s.schemaVersion, 7);
     assert.equal(s.currentStageId, 'd1');
     assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
@@ -202,7 +202,7 @@ test('v3 → v4: older state without routeDirection defaults to forward', () => 
   // A realistic v3 payload never carried a direction field.
   const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
   const s = normalizeState(v3);
-  assert.equal(s.schemaVersion, 6);
+  assert.equal(s.schemaVersion, 7);
   assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
   // Unrelated data survives untouched.
   assert.equal(s.currentStageId, 'd5');
@@ -482,7 +482,7 @@ function ownedV5State() {
 test('v5 → v6: an owned packing payload gains an empty trip plan, nothing else changes', () => {
   const v5 = ownedV5State();
   const s = normalizeState(v5);
-  assert.equal(s.schemaVersion, 6);
+  assert.equal(s.schemaVersion, 7);
   assert.deepEqual(s.trip, [], 'no trip items are fabricated');
   // The owned snapshot survives byte-for-byte: no re-run of the seed merge,
   // no restored deletions, no reset progress.
@@ -597,7 +597,133 @@ test('combined migration is idempotent and never mutates its input', () => {
 
 test('fresh defaultState carries the current template, its version and an empty trip', () => {
   const s = defaultState('d1');
-  assert.equal(s.schemaVersion, 6);
+  assert.equal(s.schemaVersion, 7);
   assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
   assert.deepEqual(s.trip, []);
+});
+
+// ---- Hiking days (v6 → v7) --------------------------------------------------
+//
+// The day plan is validated as a PARTITION of the canonical stage sequence, so
+// the caller supplies the stage count (src/utils/storage.ts passes
+// STAGES.length). These tests use the real Kungsleden count.
+
+const STAGE_COUNT = 7;
+const FORWARD = 'abisko-to-nikkaluokta';
+const REVERSE = 'nikkaluokta-to-abisko';
+
+/** A schema v6 payload: owned packing + a trip plan, but no day plan. */
+function v6State() {
+  return {
+    ...ownedV5State(),
+    schemaVersion: 6,
+    trip: [
+      {
+        id: 'trip_a',
+        kind: 'stay',
+        title: 'Sälka hut',
+        status: 'planned',
+        stayType: 'mountain-hut',
+        checkInDate: '2026-08-25',
+        attachmentIds: [],
+        createdAt: 1751400000000,
+        updatedAt: 1751400000000,
+      },
+    ],
+  };
+}
+
+test('v6 → v7: an existing payload gains dayPlan: null and nothing else changes', () => {
+  const v6 = v6State();
+  const s = normalizeState(v6, 'd1', STAGE_COUNT);
+  assert.equal(s.schemaVersion, 7);
+  assert.equal(s.dayPlan, null, 'no plan is fabricated for existing users');
+  // Every other field is untouched — the three migration paths compose.
+  assert.deepEqual(s.packing, v6.packing);
+  assert.equal(s.packingTemplateVersion, 2);
+  assert.deepEqual(s.trip, v6.trip);
+  assert.equal(s.currentStageId, 'd2');
+  assert.equal(s.routeDirection, REVERSE);
+});
+
+test('defaultState starts with no hiking-day plan', () => {
+  assert.equal(defaultState('d1').dayPlan, null);
+});
+
+test('v7 roundtrip: a valid plan persists verbatim beside every other field', () => {
+  const state = {
+    ...v6State(),
+    schemaVersion: 7,
+    routeDirection: FORWARD,
+    dayPlan: { direction: FORWARD, firstDate: '2026-09-03', groups: [1, 2, 1, 1, 1, 1] },
+  };
+  const s = normalizeState(state, 'd1', STAGE_COUNT);
+  assert.deepEqual(s.dayPlan, {
+    direction: FORWARD,
+    firstDate: '2026-09-03',
+    groups: [1, 2, 1, 1, 1, 1],
+  });
+  assert.deepEqual(s.packing, state.packing);
+  assert.deepEqual(s.trip, state.trip);
+});
+
+test('an invalid grouping keeps the date and resets to one stage per day', () => {
+  const state = {
+    ...v6State(),
+    routeDirection: FORWARD,
+    dayPlan: { direction: FORWARD, firstDate: '2026-09-03', groups: [0, 9] },
+  };
+  const s = normalizeState(state, 'd1', STAGE_COUNT);
+  assert.deepEqual(s.dayPlan, {
+    direction: FORWARD,
+    firstDate: '2026-09-03',
+    groups: [1, 1, 1, 1, 1, 1, 1],
+  });
+});
+
+test('an unreal first date or unknown direction discards the plan entirely', () => {
+  for (const bad of [
+    { direction: FORWARD, firstDate: '2027-02-29', groups: [1, 1, 1, 1, 1, 1, 1] },
+    { direction: FORWARD, firstDate: '', groups: [1, 1, 1, 1, 1, 1, 1] },
+    { direction: 'sideways', firstDate: '2026-09-03', groups: [1, 1, 1, 1, 1, 1, 1] },
+    'a plan',
+    42,
+  ]) {
+    const s = normalizeState({ ...v6State(), dayPlan: bad }, 'd1', STAGE_COUNT);
+    assert.equal(s.dayPlan, null, JSON.stringify(bad));
+    assert.equal(s.currentStageId, 'd2', 'the rest of the state still loads');
+  }
+});
+
+test('a plan stored for the OTHER direction resets its grouping on load', () => {
+  const state = {
+    ...v6State(),
+    routeDirection: REVERSE,
+    dayPlan: { direction: FORWARD, firstDate: '2026-09-03', groups: [1, 2, 1, 1, 1, 1] },
+  };
+  const s = normalizeState(state, 'd1', STAGE_COUNT);
+  assert.equal(s.dayPlan.direction, REVERSE, 'the ACTIVE direction wins');
+  assert.equal(s.dayPlan.firstDate, '2026-09-03', 'the first date is kept');
+  assert.deepEqual(s.dayPlan.groups, [1, 1, 1, 1, 1, 1, 1]);
+});
+
+test('day-plan migration is idempotent and never mutates its input', () => {
+  const state = {
+    ...v6State(),
+    routeDirection: FORWARD,
+    dayPlan: { direction: FORWARD, firstDate: '2026-09-03', groups: [2, 1, 1, 1, 1, 1] },
+  };
+  const frozen = JSON.stringify(state);
+  const once = normalizeState(state, 'd1', STAGE_COUNT);
+  const twice = normalizeState(once, 'd1', STAGE_COUNT);
+  assert.deepEqual(twice, once);
+  assert.equal(JSON.stringify(state), frozen, 'input object untouched');
+});
+
+test('a legacy payload from any older schema still lands on dayPlan: null', () => {
+  for (const legacy of [V1_STATE, { ...V1_STATE, schemaVersion: 3 }]) {
+    const s = normalizeState(legacy, 'd1', STAGE_COUNT);
+    assert.equal(s.schemaVersion, 7);
+    assert.equal(s.dayPlan, null);
+  }
 });

@@ -138,7 +138,15 @@ test('trip sheet: stay dates use DateField wired to the same draft state (rollou
 });
 
 test('no persisted-schema change rides this feature', () => {
-  assert.match(migration, /export const SCHEMA_VERSION = 6;/, 'schema stays at v6');
+  // The picker system stores nothing of its own: it writes the SAME shapes the
+  // native inputs wrote ('YYYY-MM-DD' / 'HH:mm') into the fields that already
+  // existed. Assert that property rather than pinning a schema number, which
+  // other features legitimately bump (the canonical pin lives in
+  // tests/state-migration.test.mjs).
+  assert.ok(
+    !/picker|dateField|timeField/i.test(migration),
+    'the migration module knows nothing about the picker components',
+  );
 });
 
 test('the custom flow never depends on native showPicker()', () => {

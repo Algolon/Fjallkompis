@@ -6,4 +6,5 @@ export declare function defaultState(defaultStageId?: string | null): Persistent
 export declare function normalizeState(
   raw: unknown,
   defaultStageId?: string | null,
+  stageCount?: number,
 ): PersistentState;

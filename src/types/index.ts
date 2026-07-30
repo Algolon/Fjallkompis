@@ -825,6 +825,84 @@ export interface PackingCategory {
   title: string;
 }
 
+// ---- Hiking days (personal day plan) --------------------------------------------
+
+/**
+ * The user's personal hiking-day plan — the ONLY new persisted data of the
+ * Hiking days feature. Deliberately three primitives:
+ *
+ *  - `direction`: the walking direction this grouping was authored for. A plan
+ *    authored for one direction is never silently applied to the other (see
+ *    normalizeDayPlan in src/plan/dayPlan.mjs);
+ *  - `firstDate`: 'YYYY-MM-DD' — the date of planned day 1. Every later day's
+ *    date is derived from it; this version assumes consecutive hiking days;
+ *  - `groups`: a PARTITION of the active ordered stage sequence — the number of
+ *    adjacent canonical stages walked on each planned day, in walking order.
+ *
+ * Everything else (day numbers, dates, endpoints, via-stops, totals, elevation
+ * profiles, which day is current) is DERIVED at runtime from the active
+ * itinerary — see src/plan/plannedDays.ts. Nothing here references geometry,
+ * stage ids or GPX: the plan personalises scheduling, never the route.
+ */
+export interface DayPlanState {
+  direction: RouteDirection;
+  /** ISO date (yyyy-mm-dd) of planned day 1. */
+  firstDate: string;
+  /** Stage counts per planned day, in walking order. Sums to the stage count. */
+  groups: number[];
+}
+
+/**
+ * One planned hiking day: one or more ADJACENT canonical stages walked on the
+ * same date. Fully derived — never persisted (see DayPlanState). The canonical
+ * stages it contains are the untouched active-itinerary stages, so guides,
+ * highlights, detours, geometry and statistics stay stage-owned.
+ */
+export interface PlannedDay {
+  /** 1-based planned day number, in walking order. */
+  number: number;
+  /** ISO date, or null when no plan is configured. */
+  date: string | null;
+  /** Canonical stages in walking order — at least one. */
+  stages: ItineraryStageLike[];
+  /** First stage's start stop. */
+  fromStopId: string;
+  /** Last stage's end stop — the day's destination ("Tonight"). */
+  toStopId: string;
+  /** Intermediate canonical stage boundaries (empty for a single-stage day). */
+  viaStopIds: string[];
+  /** Sum of the stages' GPX distances. */
+  distanceKm: number;
+  /** Sums — null when any component value is missing. */
+  totalAscentM: number | null;
+  totalDescentM: number | null;
+  /** Extremes over the day's stages — never sums. */
+  minimumElevationM: number | null;
+  maximumElevationM: number | null;
+  /** Sum of the per-stage personal estimates (always presented as an estimate). */
+  estimatedHours: number;
+  /** The stages' verified profiles concatenated with cumulative offsets. */
+  elevationProfile: ElevationSampleLike[];
+  /** True when this day contains the persisted current stage. */
+  isCurrent: boolean;
+}
+
+/**
+ * Structural shape of an active-itinerary stage as PlannedDay carries it. The
+ * concrete type is ItineraryStage (src/route/activeItinerary.ts); declaring it
+ * structurally here keeps src/types free of a route-layer import cycle.
+ */
+export interface ItineraryStageLike extends Stage {
+  elevationProfile: ElevationSampleLike[];
+}
+
+export interface ElevationSampleLike {
+  distanceKm: number;
+  elevationM: number;
+  lat: number;
+  lon: number;
+}
+
 // ---- Journal --------------------------------------------------------------------
 
 export interface JournalEntry {
@@ -865,6 +943,9 @@ export interface HutUserData {
  * src/utils/stateMigration.mjs).
  * Schema v6 added `trip` (personal Travel and Stay items); older payloads
  * normalise to an empty trip plan.
+ * Schema v7 added `dayPlan` (the personal Hiking days plan); older payloads —
+ * and every existing user — normalise to `null`, which is exactly the app's
+ * pre-v7 behaviour (one canonical stage per day, no dates).
  */
 export interface PersistentState {
   schemaVersion: number;
@@ -899,4 +980,12 @@ export interface PersistentState {
    * backup and device transfer like every other PersistentState field.
    */
   trip: TripItem[];
+  /**
+   * The personal Hiking days plan, or null when the user has not configured
+   * one. `null` is the default and means "one canonical stage per day, no
+   * dates" — the app's behaviour before this feature existed. `currentStageId`
+   * above remains the ONLY persisted current-position pointer; the active
+   * planned day is derived as the day containing it.
+   */
+  dayPlan: DayPlanState | null;
 }
