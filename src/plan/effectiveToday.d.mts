@@ -1,7 +1,7 @@
 import type { PlannedDay } from './plannedDays.mjs';
 
 /** How the day Today shows was resolved. */
-export type TodaySource = 'override' | 'date' | 'generic';
+export type TodaySource = 'preview' | 'override' | 'date' | 'generic';
 
 export interface EffectiveToday {
   /** The planned day Today shows, or null for the generic Today. */
@@ -18,6 +18,7 @@ export declare function plannedDayForDate(
 
 export declare function resolveEffectiveToday(
   days: ReadonlyArray<PlannedDay>,
+  previewDayId: string | null,
   currentDayId: string | null,
   todayIso: string | null,
 ): EffectiveToday;

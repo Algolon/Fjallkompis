@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BedDouble, BusFront, Coffee, Footprints, Pencil, Plus } from 'lucide-react';
+import { BedDouble, BusFront, Coffee, Eye, Footprints, Pencil, Plus } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { DateField } from './DateField';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -11,6 +11,7 @@ import { DAY_ACTIVITY_LABELS, hikingDonorIndex } from '../plan/dayPlan.mjs';
 import { hikingLead, travelPresentation } from '../plan/dayPresentation.mjs';
 import type { PlannedDay, ResolvedOvernight } from '../plan/plannedDays.mjs';
 import type { DayActivityKind, TripItem } from '../types';
+import type { TabId } from './TabBar';
 
 /**
  * Day plan — the personal journey, configured in Settings.
@@ -26,11 +27,18 @@ import type { DayActivityKind, TripItem } from '../types';
  * overview. Editing is a deliberate mode switch, so a plan cannot be changed by
  * a stray tap while being read.
  */
-export function DayPlanCard() {
+export function DayPlanCard({
+  onNavigate,
+}: {
+  /** The app's tab navigator; when absent the Preview action is not shown. */
+  onNavigate?: (tab: TabId) => void;
+}) {
   const {
     dayPlan,
     plannedDays,
     currentPlannedDay,
+    todaySource,
+    previewPlannedDay,
     dayPlanIsDefault,
     createDayPlan,
     setStartDate,
@@ -111,11 +119,31 @@ export function DayPlanCard() {
               day={day}
               trip={state.trip}
               editing={editing}
-              // The "Today" marker follows what Today actually shows — the
-              // manual pointer OR the day whose date is today — so the plan
-              // and Today can never disagree about which day you are on.
-              isToday={day.id === currentPlannedDay?.id}
+              // The marker follows what Today actually shows — the transient
+              // preview, the manual pointer, or the day whose date is today —
+              // so the plan and Today can never disagree about the day shown.
+              // 'previewing' names the temporary state honestly; 'today' is
+              // the real (manual or date-resolved) day.
+              marker={
+                day.id === currentPlannedDay?.id
+                  ? todaySource === 'preview'
+                    ? 'previewing'
+                    : 'today'
+                  : null
+              }
               onEdit={() => setOpenDayId(day.id)}
+              // Preview: a small explicit action, view mode only, never the
+              // whole row (the compact list stays a safe reading surface).
+              // Rows already marked need no Preview; every other row gets
+              // one — including the real Today row while a preview is up.
+              onPreview={
+                onNavigate
+                  ? () => {
+                      previewPlannedDay(day.id);
+                      onNavigate('today');
+                    }
+                  : undefined
+              }
             />
           </li>
         ))}
@@ -214,21 +242,28 @@ function DayRow({
   day,
   trip,
   editing,
-  isToday,
+  marker,
   onEdit,
+  onPreview,
 }: {
   day: PlannedDay;
   trip: TripItem[];
   editing: boolean;
-  /** True when this is the day Today is showing (pointer or date match). */
-  isToday: boolean;
+  /** How this row relates to what Today shows: the transient preview, the
+   *  real (manual or date-resolved) day, or neither. */
+  marker: 'previewing' | 'today' | null;
   onEdit: () => void;
+  /** Preview this day on Today (view mode only; absent without a navigator). */
+  onPreview?: () => void;
 }) {
   const dateLabel = day.date ? formatDateFieldLabel(day.date) : null;
   const kindsLabel = activityLabel(day.kinds);
   const tonight = overnightLabel(day.overnight, trip);
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
+  // "Preview day 4 on Today — Alesjaure to Sälka" / "— Rest & explore".
+  const previewSummary =
+    from && to ? `${stopShortName(from)} to ${stopShortName(to)}` : kindsLabel;
   // Matched transport is surfaced only on a day that HAS a travel activity —
   // the derivation matches every date honestly, but the plan must not imply an
   // activity the user did not put on the day. Wording and position come from
@@ -237,7 +272,7 @@ function DayRow({
   const walkLead = hikingLead(day);
 
   return (
-    <article className={`dayplan-day${isToday ? ' is-current' : ''}`}>
+    <article className={`dayplan-day${marker !== null ? ' is-current' : ''}`}>
       <div className="dayplan-day__top">
         <span className="dayplan-day__label tnum">
           {dateLabel ? <span className="dayplan-day__date">{dateLabel}</span> : null}
@@ -258,10 +293,27 @@ function DayRow({
           >
             <Pencil size={13} strokeWidth={2.2} aria-hidden /> Edit
           </button>
-        ) : isToday ? (
+        ) : marker === 'previewing' ? (
+          // This day is on Today as a TEMPORARY preview — said plainly, and
+          // deliberately not the "Today" pill: previewing is not being there.
+          <span className="pill pill-current">
+            <span className="dot" /> Previewing
+          </span>
+        ) : marker === 'today' ? (
           <span className="pill pill-current">
             <span className="dot" /> Today
           </span>
+        ) : onPreview ? (
+          // Small explicit action in the slot Edit occupies in edit mode.
+          // Opens this day on Today without touching route progress.
+          <button
+            type="button"
+            className="stage-set-pill"
+            onClick={onPreview}
+            aria-label={`Preview day ${day.number} on Today — ${previewSummary}`}
+          >
+            <Eye size={13} strokeWidth={2.2} aria-hidden /> Preview
+          </button>
         ) : null}
       </div>
 

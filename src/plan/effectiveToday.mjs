@@ -4,18 +4,23 @@
  * ONE resolution, in a fixed precedence, used by every surface that has to
  * answer "what is today":
  *
- *   1. `currentDayId` points at a planned day  → that day, as an explicit
+ *   1. `previewDayId` points at a planned day → that day, as a TRANSIENT
+ *      PREVIEW (Settings → Preview). Presentation only: it lives in runtime
+ *      memory, is never persisted, and implies nothing about where the user
+ *      actually is — it exists so a future or past planned day can be
+ *      inspected in its Today presentation.
+ *   2. `currentDayId` points at a planned day  → that day, as an explicit
  *      MANUAL OVERRIDE. The user chose it (Stages → "Set as current"), so it
  *      outranks the calendar.
- *   2. the device's local calendar date equals a planned day's date → that
+ *   3. the device's local calendar date equals a planned day's date → that
  *      day. Derived only: nothing is written back, and the plan is never
  *      created, moved or reshaped by the system clock.
- *   3. otherwise → no planned day, and Today renders its original,
+ *   4. otherwise → no planned day, and Today renders its original,
  *      date-independent experience from `currentStageId`.
  *
  * So a plan that has not started yet, one that has finished, a gap date inside
  * a plan whose days are not consecutive, and a pointer left dangling by an
- * edit all land on (3) — a populated generic Today. A Day plan existing can
+ * edit all land on (4) — a populated generic Today. A Day plan existing can
  * never blank the Today page.
  *
  * Dates are compared as 'YYYY-MM-DD' STRINGS, both sides being local calendar
@@ -33,11 +38,12 @@ import { isRealIsoDate } from '../utils/dateTimeField.mjs';
 
 /**
  * How the day Today shows was resolved:
+ *   'preview'  a transient, never-persisted preview of a planned day;
  *   'override' the user's own current-day pointer;
  *   'date'     the device's local calendar date matched a planned day;
  *   'generic'  no planned day applies — the date-independent Today.
  */
-export const TODAY_SOURCES = ['override', 'date', 'generic'];
+export const TODAY_SOURCES = ['preview', 'override', 'date', 'generic'];
 
 const NONE = { day: null, source: 'generic' };
 
@@ -47,31 +53,42 @@ export function plannedDayForDate(days, iso) {
   return days.find((d) => d.date === iso) ?? null;
 }
 
+/** A day id resolved against the derived days, or null. */
+function dayById(days, id) {
+  if (typeof id !== 'string' || id === '') return null;
+  return days.find((d) => d.id === id) ?? null;
+}
+
 /**
  * Resolve the effective Today.
  *
  * @param {ReadonlyArray<object>} days  Derived planned days (empty when there
  *   is no plan — the canonical default state).
+ * @param {string|null} previewDayId    The TRANSIENT preview pointer (runtime
+ *   memory only — never persisted, cleared by reload).
  * @param {string|null} currentDayId    The plan's own manual pointer.
  * @param {string|null} todayIso        The device's local calendar date.
- * @returns {{ day: object|null, source: 'override'|'date'|'generic' }}
+ * @returns {{ day: object|null, source: 'preview'|'override'|'date'|'generic' }}
  */
-export function resolveEffectiveToday(days, currentDayId, todayIso) {
+export function resolveEffectiveToday(days, previewDayId, currentDayId, todayIso) {
   if (!Array.isArray(days) || days.length === 0) return NONE;
 
-  // 1. An explicit manual override wins — including over a different date
-  //    matching, which is the whole point of being able to override.
-  if (typeof currentDayId === 'string' && currentDayId !== '') {
-    const chosen = days.find((d) => d.id === currentDayId);
-    if (chosen) return { day: chosen, source: 'override' };
-    // A dangling pointer is not an error state: it falls through to the date
-    // match and then to the generic Today, exactly like no pointer at all.
-  }
+  // 1. A transient preview outranks everything WHILE it is being shown — it
+  //    is presentation, not progress, and exiting it reveals 2–4 unchanged.
+  //    A dangling preview id (the previewed day was deleted) falls through
+  //    silently, exactly like a dangling manual pointer.
+  const previewed = dayById(days, previewDayId);
+  if (previewed) return { day: previewed, source: 'preview' };
 
-  // 2. Today's local calendar date, matched exactly against a planned date.
+  // 2. An explicit manual override wins — including over a different date
+  //    matching, which is the whole point of being able to override.
+  const chosen = dayById(days, currentDayId);
+  if (chosen) return { day: chosen, source: 'override' };
+
+  // 3. Today's local calendar date, matched exactly against a planned date.
   const matched = plannedDayForDate(days, todayIso);
   if (matched) return { day: matched, source: 'date' };
 
-  // 3. Before the plan, after it, or on a date it does not cover.
+  // 4. Before the plan, after it, or on a date it does not cover.
   return NONE;
 }

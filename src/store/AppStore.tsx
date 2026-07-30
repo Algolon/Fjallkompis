@@ -87,15 +87,29 @@ interface AppStore {
   /** Derived calendar days. Empty when there is no plan — never implicit days. */
   plannedDays: PlannedDay[];
   /**
-   * The EFFECTIVE Today: the plan's own `currentDayId` when it points at a
-   * planned day, otherwise the planned day whose date is the device's local
-   * calendar date, otherwise null — in which case Today renders its original
-   * date-independent experience. Derived only: a date match is never written
-   * back to `currentDayId` (see src/plan/effectiveToday.mjs).
+   * The EFFECTIVE Today: the transient preview when one is active, else the
+   * plan's own `currentDayId` when it points at a planned day, otherwise the
+   * planned day whose date is the device's local calendar date, otherwise
+   * null — in which case Today renders its original date-independent
+   * experience. Derived only: neither a preview nor a date match is ever
+   * written back to the plan (see src/plan/effectiveToday.mjs).
    */
   currentPlannedDay: PlannedDay | null;
-  /** How `currentPlannedDay` was resolved: override, date, or generic. */
+  /** How `currentPlannedDay` was resolved: preview, override, date, generic. */
   todaySource: TodaySource;
+  /**
+   * TRANSIENT planned-day preview (Settings → Preview). Runtime React state
+   * only: never part of PersistentState, never written to localStorage, never
+   * exported — a reload or restart clears it, ordinary tab navigation keeps
+   * it. Preview is PRESENTATION: it moves neither `currentDayId` nor
+   * `currentStageId`, and no plan, trip, packing, journal, note, wallet or
+   * direction data changes because of it.
+   */
+  previewDayId: string | null;
+  /** Preview a planned day on Today. Unknown ids resolve to no preview. */
+  previewPlannedDay: (dayId: string) => void;
+  /** Leave the preview; Today reverts to override / date / generic. */
+  exitDayPreview: () => void;
   /** True when the plan is still one hiking day per canonical stage. */
   dayPlanIsDefault: boolean;
   /** Create the default plan (one hiking day per stage) from a start date. */
@@ -184,18 +198,40 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   // Probe storage once (lazy initializer) rather than on every render.
   const [storageOk] = useState<boolean>(() => storageAvailable());
 
+  // TRANSIENT planned-day preview. Deliberately PLAIN React state, separate
+  // from `state`: the persistence effect below watches `state` only, so a
+  // preview can never reach localStorage, the JSON backup or device
+  // transfer, and a reload starts clean. It survives ordinary tab switches
+  // because the provider outlives the screens.
+  const [previewDayId, setPreviewDayId] = useState<string | null>(null);
+
   // Persist on every change. Debounce-free is fine given tiny payloads.
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  /** Preview a planned day on Today. An unknown id simply resolves to none. */
+  const previewPlannedDay = useCallback((dayId: string) => {
+    setPreviewDayId(typeof dayId === 'string' && dayId !== '' ? dayId : null);
+  }, []);
+
+  /** Leave the preview. Today reverts to override / date / generic. */
+  const exitDayPreview = useCallback(() => {
+    setPreviewDayId(null);
+  }, []);
 
   /**
    * Select a canonical stage (the Stages screen's "Set as current"). When a
    * Day plan exists, the calendar day containing that stage becomes the active
    * day in the SAME update — the two pointers are written together, never
    * separately, so they cannot drift apart.
+   *
+   * An explicit progress choice also ENDS any transient preview: the user is
+   * saying "this is where I am", and a preview left on top would hide the
+   * very day they just selected.
    */
   const setCurrentStage = useCallback((stageId: string) => {
+    setPreviewDayId(null);
     setState((s) => {
       if (!s.dayPlan) return { ...s, currentStageId: stageId };
       const stageIndex = getActiveItinerary(s.routeDirection).stages.findIndex(
@@ -209,6 +245,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setRouteDirection = useCallback((direction: RouteDirection) => {
+    // The plan this preview pointed into is removed below; drop the preview
+    // with it rather than leaving a dangling id around.
+    setPreviewDayId(null);
     setState((s) => {
       const next = normalizeDirection(direction);
       // No-op (and no re-render churn) when re-selecting the active direction.
@@ -355,6 +394,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const resetDayPlan = useCallback(() => {
+    // Fresh day ids — any previewed day is gone, so the preview goes too.
+    setPreviewDayId(null);
     setState((s) => {
       if (!s.dayPlan) return s;
       const fresh = buildDayPlan(
@@ -368,7 +409,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const removeDayPlan = useCallback(() => {
     // Only the plan goes: the current stage, packing, trip, journal and notes
-    // are untouched, so the app returns exactly to its default state.
+    // are untouched, so the app returns exactly to its default state. The
+    // transient preview pointed into the removed plan, so it ends here too.
+    setPreviewDayId(null);
     setState((s) => (s.dayPlan ? { ...s, dayPlan: null } : s));
   }, []);
 
@@ -552,15 +595,31 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     () => buildPlannedDays(itinerary.stages, state.dayPlan, state.trip),
     [itinerary, state.dayPlan, state.trip],
   );
+  // A previewed day that stops existing (removed by a day-list edit, a plan
+  // reset, or the plan's removal) clears the transient pointer instead of
+  // leaving it dangling. The resolution below would fall through safely
+  // anyway — this keeps the runtime state honest, not just the rendering.
+  useEffect(() => {
+    if (previewDayId != null && !plannedDays.some((d) => d.id === previewDayId)) {
+      setPreviewDayId(null);
+    }
+  }, [previewDayId, plannedDays]);
+
   // The EFFECTIVE Today. The clock is read HERE and nowhere else in the day
   // plan: the resolution itself is a pure function of the derived days, the
-  // user's own pointer and one injected 'YYYY-MM-DD'. It only READS the date —
-  // no plan is created, moved, reshaped, and no `currentDayId` is persisted
-  // because a date happened to match.
+  // transient preview, the user's own pointer and one injected 'YYYY-MM-DD'.
+  // It only READS — no plan is created, moved or reshaped, and neither a
+  // preview nor a date match is ever persisted because it won resolution.
   const localToday = todayIso();
   const effectiveToday = useMemo(
-    () => resolveEffectiveToday(plannedDays, state.dayPlan?.currentDayId ?? null, localToday),
-    [plannedDays, state.dayPlan, localToday],
+    () =>
+      resolveEffectiveToday(
+        plannedDays,
+        previewDayId,
+        state.dayPlan?.currentDayId ?? null,
+        localToday,
+      ),
+    [plannedDays, previewDayId, state.dayPlan, localToday],
   );
   const currentPlannedDay = effectiveToday.day;
   const dayPlanIsDefault =
@@ -590,6 +649,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     plannedDays,
     currentPlannedDay,
     todaySource: effectiveToday.source,
+    previewDayId,
+    previewPlannedDay,
+    exitDayPreview,
     dayPlanIsDefault,
     createDayPlan,
     setStartDate,

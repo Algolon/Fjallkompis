@@ -143,14 +143,70 @@ test('the store resolves the effective Today with ONE clock read, read-only', ()
   assert.match(store, /from '\.\.\/plan\/effectiveToday\.mjs'/);
   assert.match(
     store,
-    /resolveEffectiveToday\(plannedDays, state\.dayPlan\?\.currentDayId \?\? null, localToday\)/,
+    /resolveEffectiveToday\(\s*plannedDays,\s*previewDayId,\s*state\.dayPlan\?\.currentDayId \?\? null,\s*localToday,\s*\)/,
   );
   assert.match(store, /const localToday = todayIso\(\);/);
-  // The clock steers DISPLAY only: no plan action reads it, and the date
-  // match is never persisted back into currentDayId.
+  // The clock steers DISPLAY only: no plan action reads it, and neither a
+  // date match nor a preview is ever persisted back into the plan.
   const derived = store.slice(store.indexOf('// ---- Derived selectors'));
-  assert.ok(!/setState/.test(derived), 'the derived block never writes state');
+  assert.ok(!/setState/.test(derived), 'the derived block never writes persisted state');
   assert.match(store, /todaySource: effectiveToday\.source,/);
+});
+
+// ---- Transient planned-day preview ------------------------------------------
+
+test('the preview pointer is RUNTIME state — never persisted anywhere', () => {
+  // Plain React state, separate from the persisted blob: the save effect
+  // watches `state` only, so a preview cannot reach localStorage, the JSON
+  // backup or device transfer, and a reload starts clean.
+  assert.match(store, /const \[previewDayId, setPreviewDayId\] = useState<string \| null>\(null\);/);
+  assert.match(store, /useEffect\(\(\) => \{\s*\n\s*saveState\(state\);\s*\n\s*\}, \[state\]\);/);
+  // Nothing about the DAY preview exists in the persisted model, its
+  // migration, its storage layer, or the export used for device transfer.
+  // (The word "preview" alone is not the fence — the Map's stop preview is
+  // an unrelated, pre-existing concept.)
+  for (const [file, src] of [
+    ['types', types],
+    ['stateMigration', migration],
+    ['storage', storage],
+    ['exportImport', read('src/utils/exportImport.ts')],
+  ]) {
+    assert.ok(
+      !/previewDayId|previewPlannedDay|dayPreview/i.test(src),
+      `${file} must know nothing about the day preview`,
+    );
+  }
+  // And the schema did not move for it.
+  assert.match(migration, /export const SCHEMA_VERSION = 7;/);
+});
+
+test('previewing mutates neither pointer and no persisted field', () => {
+  const preview = /const previewPlannedDay = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  const exit = /const exitDayPreview = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  for (const [name, action] of [['previewPlannedDay', preview], ['exitDayPreview', exit]]) {
+    assert.ok(!/setState/.test(action), `${name} never writes persisted state`);
+    for (const forbidden of ['currentDayId', 'currentStageId', 'dayPlan', 'trip', 'packing']) {
+      assert.ok(!action.includes(forbidden), `${name} must not touch ${forbidden}`);
+    }
+  }
+  // Unknown/empty ids are normalised to "no preview", not stored as garbage.
+  assert.match(preview, /typeof dayId === 'string' && dayId !== '' \? dayId : null/);
+});
+
+test('preview clears on progress selection, plan removal, reset and direction change', () => {
+  // Set as current is an explicit progress action: it must replace a preview.
+  const setStage = /const setCurrentStage = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.match(setStage, /setPreviewDayId\(null\);/);
+  for (const name of ['removeDayPlan', 'resetDayPlan', 'setRouteDirection']) {
+    const action = new RegExp(`const ${name} = useCallback\\([\\s\\S]*?\\}, \\[\\]\\);`).exec(store)[0];
+    assert.match(action, /setPreviewDayId\(null\);/, `${name} clears the preview`);
+  }
+  // A previewed day removed by an ORDINARY day-list edit clears too — via the
+  // watcher, so the runtime pointer never stays dangling.
+  assert.match(
+    store,
+    /previewDayId != null && !plannedDays\.some\(\(d\) => d\.id === previewDayId\)/,
+  );
 });
 
 test('selecting a stage moves the active day in the SAME update', () => {

@@ -37,7 +37,7 @@ test('the Settings section is called "Day plan" and follows Route direction', ()
   assert.ok(directionAt > 0 && planAt > 0);
   assert.ok(directionAt < planAt && planAt < readinessAt);
   assert.match(settings, /title="Day plan"/);
-  assert.match(settings, /<DayPlanCard \/>/);
+  assert.match(settings, /<DayPlanCard onNavigate=\{onNavigate\} \/>/);
 });
 
 test('the feature is never named Itinerary, Trip plan, Journey or Schedule', () => {
@@ -115,7 +115,7 @@ test('an active manual override is named and offers exactly one way back', () =>
   // A pointer set via Stages → "Set as current" never expires on its own, so
   // while one is active Today must SAY the day was chosen manually and offer
   // the return to date-following — outside the day-edit action hierarchy.
-  assert.match(onRoute, /\{todaySource === 'override' \? \(/);
+  assert.match(onRoute, /\) : todaySource === 'override' \? \(/);
   assert.match(onRoute, /Manually selected day/);
   assert.match(onRoute, /Follow plan dates/);
   assert.match(onRoute, /onClick=\{followPlanDates\}/);
@@ -379,7 +379,7 @@ test('the day-type indicator is icons in the existing eyebrow row', () => {
   assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} \/>/);
   // The words are always in the hero's accessible name, in stored order.
   assert.match(onRoute, /const kindWords = activityOrderPhrase\(day\);/);
-  assert.match(onRoute, /aria-label=\{`Today: day \$\{day\.number\} of \$\{dayCount\}/);
+  assert.match(onRoute, /aria-label=\{`\$\{previewing \? 'Previewing' : 'Today'\}: day \$\{day\.number\} of \$\{dayCount\}/);
   // It costs no height: it rides the eyebrow line.
   assert.match(css, /\.hero-day__type \{[^}]*margin-left: 8px;/s);
 });
@@ -477,7 +477,7 @@ test('Today places the travel line by the stored order, not by a fixed slot', ()
   assert.ok(after > title, 'a following transfer renders below it');
   // The accessible name carries the same sequence.
   assert.match(hero, /const kindWords = activityOrderPhrase\(day\);/);
-  assert.match(hero, /aria-label=\{`Today: day \$\{day\.number\} of \$\{dayCount\}/);
+  assert.match(hero, /aria-label=\{`\$\{previewing \? 'Previewing' : 'Today'\}: day \$\{day\.number\} of \$\{dayCount\}/);
 });
 
 test('the planner places the travel line by the same rule and leads the walk', () => {
@@ -531,4 +531,73 @@ test('the journey rail runs over planned days when a plan exists', () => {
 test('Today reads no clock — the date comes from the plan', () => {
   assert.ok(!/todayIso|Date\.now|new Date\(/.test(onRoute));
   assert.match(onRoute, /formatDateFieldLabel/);
+});
+
+// ---- Transient planned-day preview ------------------------------------------
+//
+// The Day plan ↔ Today connection: any planned day can be INSPECTED in its
+// Today presentation without touching route progress. Preview is presentation
+// only (the store contracts prove transience); these fence the surfaces.
+
+test('view mode offers a small explicit Preview action, never the whole row', () => {
+  const row = card.slice(card.indexOf('function DayRow('), card.indexOf('function AddDayRow('));
+  assert.match(row, /Preview/);
+  assert.match(row, /onClick=\{onPreview\}/);
+  // A full accessible name: the day and its concise route/activity summary.
+  assert.match(row, /aria-label=\{`Preview day \$\{day\.number\} on Today — \$\{previewSummary\}`\}/);
+  // The row article itself is never a button/navigation target.
+  assert.ok(!/<article[^>]*onClick/.test(row), 'the row is a reading surface, not a control');
+  // Edit mode keeps Edit — Preview renders only when NOT editing (the same
+  // ternary slot), and no Save/OK/Done/Make-this-today exists anywhere.
+  assert.match(row, /\{editing \? \(/);
+  for (const gone of ['Make this today', '>Save<', '>OK<', '>Done<']) {
+    assert.ok(!row.includes(gone), `${gone} must not exist on a day row`);
+  }
+});
+
+test('the row marker distinguishes previewing, today and unrelated rows', () => {
+  const row = card.slice(card.indexOf('function DayRow('), card.indexOf('function AddDayRow('));
+  // Previewing replaces the Preview action on the previewed row; the REAL
+  // (manual or date-resolved) day keeps its Today pill; other rows Preview.
+  assert.match(row, /marker === 'previewing' \? \(/);
+  assert.match(row, /Previewing/);
+  assert.match(row, /marker === 'today' \? \(/);
+  // The marker derives from the ONE store resolution, never a local re-derive.
+  assert.match(card, /day\.id === currentPlannedDay\?\.id/);
+  assert.match(card, /todaySource === 'preview'/);
+  // Preview both sets the transient pointer AND navigates to Today.
+  assert.match(card, /previewPlannedDay\(day\.id\);/);
+  assert.match(card, /onNavigate\('today'\);/);
+});
+
+test('Today names the preview and offers exactly one way out', () => {
+  assert.match(onRoute, /\{previewing \? \(/);
+  assert.match(onRoute, /Previewing planned day/);
+  assert.match(onRoute, /Exit preview/);
+  assert.match(onRoute, /onClick=\{exitDayPreview\}/);
+  // Reuses the manual-override row's scale — same class, same slot, before
+  // Journey — and the two rows are mutually exclusive branches of ONE ternary.
+  const previewAt = onRoute.indexOf('Previewing planned day');
+  const journeyAt = onRoute.indexOf('<PlannedJourney');
+  assert.ok(previewAt > 0 && previewAt < journeyAt, 'the status row precedes Journey');
+  assert.match(onRoute, /previewing \? \([\s\S]*?today-override[\s\S]*?\) : todaySource === 'override' \? \(/);
+});
+
+test('a previewed day is never announced as actual progress', () => {
+  // Hero leads with "Previewing", Journey says "(previewing)" and drops the
+  // aria-current step claim.
+  assert.match(onRoute, /previewing \? 'Previewing' : 'Today'/);
+  assert.match(onRoute, /previewing \? ' \(previewing\)' : ' \(current day\)'/);
+  assert.match(onRoute, /aria-current=\{status === 'current' && !previewing \? 'step' : undefined\}/);
+  // The preview flag is the RESOLVED source, nothing else.
+  assert.match(onRoute, /const previewing = todaySource === 'preview';/);
+});
+
+test('Settings gained exactly one navigation duty: Preview → Today', () => {
+  assert.match(settings, /onNavigate\?: \(tab: TabId\) => void;/);
+  const uses = settings.match(/onNavigate/g) ?? [];
+  // Declaration, prop destructure/doc and the single pass-through — no other
+  // Settings control navigates anywhere.
+  assert.ok(uses.length <= 4, `Settings must not grow other navigations (${uses.length})`);
+  assert.match(settings, /<DayPlanCard onNavigate=\{onNavigate\} \/>/);
 });

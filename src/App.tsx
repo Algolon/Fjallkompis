@@ -73,7 +73,14 @@ function Screens({
     case 'settings':
       // Today Prepare's readiness card deep-links to the Trail readiness
       // section (same one-shot payload pattern as Stops/Stages/Lists).
-      return <SettingsScreen initialSection={nav.payload?.settings?.section ?? null} />;
+      // Settings navigates OUT for exactly one thing: the Day plan's
+      // "Preview" opens the previewed day on Today.
+      return (
+        <SettingsScreen
+          initialSection={nav.payload?.settings?.section ?? null}
+          onNavigate={navigate}
+        />
+      );
   }
 }
 
