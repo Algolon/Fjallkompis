@@ -5236,12 +5236,14 @@ span.trip-attach-open {
   outline-offset: 2px;
 }
 
-/* --- Hiking days (personal day plan, Settings) ----------------------------
-   Canonical stages are never edited here — only how they are DIVIDED across
-   calendar days. The boundary control is one button in two states, so
-   combining and splitting share an affordance and a position. */
+/* --- Day plan (personal journey, Settings) --------------------------------
+   The list is an OVERVIEW: date, what happens, the route line when there is
+   walking, and tonight. Editing controls appear only in edit mode. */
 
 .dayplan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
 }
@@ -5256,24 +5258,36 @@ span.trip-attach-open {
   border-color: var(--cloudberry);
   background: var(--cloudberry-soft);
 }
+.dayplan > li + li > .dayplan-day {
+  margin-top: 10px;
+}
 .dayplan-day__top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
 }
 .dayplan-day__label {
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dayplan-day__date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dayplan-day__kinds {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-faint);
-}
-.dayplan-day__date {
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
 }
 .dayplan-day__route {
   font-size: 15px;
@@ -5285,69 +5299,36 @@ span.trip-attach-open {
   color: var(--ink-faint);
   margin: 2px 0 0;
 }
-.dayplan-day__stats {
-  margin-top: 10px;
-}
-
-/* Canonical stage parts inside a combined day — the day never flattens them. */
-.dayplan-parts {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-}
-.dayplan-part {
+.dayplan-day__tonight {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-}
-.dayplan-part__label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  white-space: nowrap;
-}
-.dayplan-part__route {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.dayplan-part__stat {
-  font-size: 12.5px;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
   color: var(--ink-soft);
-  white-space: nowrap;
+  margin: 8px 0 0;
 }
 
-/* The boundary row draws the junction as a line the button sits on, so an
-   active boundary reads as a real break between two day cards. */
-.dayplan-boundary-row {
+/* Add-a-day divider — edit mode only, so the view list stays uncluttered. */
+.dayplan-add-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 0;
+  padding: 5px 0;
 }
-.dayplan-boundary-row::before,
-.dayplan-boundary-row::after {
+.dayplan-add-row::before,
+.dayplan-add-row::after {
   content: '';
   flex: 1 1 auto;
   height: 1px;
   background: var(--line);
 }
-.dayplan-boundary {
+.dayplan-add {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin: 0 8px;
-  padding: 7px 12px;
-  /* 44px touch target on a 30px visual control (::after below), the same
-     technique as the Today mode pill. */
+  padding: 6px 12px;
   min-height: 30px;
   border-radius: 999px;
   border: 1px dashed var(--line-strong);
@@ -5356,48 +5337,151 @@ span.trip-attach-open {
   font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+  transition: transform 0.08s ease, background 0.15s ease;
 }
-.dayplan-boundary::after {
+/* 30px visual + a 7px inset on each side = a 44px touch target, the same
+   technique as the Today mode pill. */
+.dayplan-add::after {
   content: '';
   position: absolute;
   inset: -7px 0;
 }
-.dayplan-boundary.is-active {
-  border-style: solid;
-  border-color: var(--spruce);
-  background: var(--paper);
-  color: var(--spruce);
-}
-.dayplan-boundary:active {
+.dayplan-add:active {
   transform: scale(0.97);
 }
-@media (hover: hover) {
-  .dayplan-boundary:hover {
-    background: var(--paper-2);
-  }
-}
-.dayplan-boundary:focus-visible {
+.dayplan-add:focus-visible {
   outline: 2px solid var(--glacier-700);
   outline-offset: 2px;
 }
 
-/* Inside a combined day the junction is nested between parts: keep it clearly
-   subordinate to the day-level boundaries around the cards. */
-.dayplan-parts .dayplan-boundary-row {
-  padding: 4px 0;
+/* --- Day plan: the per-day edit sheet ------------------------------------ */
+
+.dayplan-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.dayplan-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+}
+.dayplan-kind.is-on {
+  background: var(--spruce);
+  border-color: var(--spruce);
+  color: #f4f8f5;
+}
+.dayplan-kind:active {
+  transform: scale(0.97);
+}
+.dayplan-kind:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+.dayplan-sheet__route {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+
+.dayplan-travel {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dayplan-travel li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+}
+
+/* Option lists (endpoint chooser, overnight chooser). */
+.dayplan-options {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dayplan-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.dayplan-option.is-current {
+  border-color: var(--cloudberry);
+  background: var(--cloudberry-soft);
+}
+.dayplan-option:active {
+  transform: scale(0.99);
+}
+.dayplan-option:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+.dayplan-option__name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.dayplan-option__meta {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.dayplan-option__effect {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.dayplan-add-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.sheet-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
 }
 
 @media (max-width: 340px) {
-  .dayplan-boundary {
+  .dayplan-add,
+  .dayplan-kind {
     font-size: 12px;
-    padding: 7px 10px;
+    padding: 8px 10px;
   }
-  .dayplan-part {
-    flex-wrap: wrap;
+  .sheet-actions {
+    flex-direction: column;
   }
 }
 
@@ -5412,6 +5496,18 @@ span.trip-attach-open {
 }
 /* Intermediate stops of a combined day — context under the endpoints, never
    competing with the title. */
+.hero-day__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  vertical-align: -2px;
+  opacity: 0.85;
+}
+/* Non-hiking days keep a marker on the rail but read as off-trail. */
+.journey-step.is-off-trail .journey-dot {
+  border-style: dashed;
+}
 .hero-via {
   margin: 4px 0 0;
   font-size: 13.5px;

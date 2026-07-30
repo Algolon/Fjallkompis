@@ -22,7 +22,7 @@ import {
   formatBytes,
 } from '../components/OfflineMapCard';
 import { CreditsSheet } from '../components/CreditsSheet';
-import { HikingDaysCard } from '../components/HikingDaysCard';
+import { DayPlanCard } from '../components/DayPlanCard';
 import { InstallCard, installStatusText } from '../components/InstallCard';
 import { useTrailReadiness } from '../hooks/useTrailReadiness';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
@@ -271,14 +271,14 @@ function RouteDirectionCard() {
 
       {pending ? (
         <ConfirmDialog
-          title="Change route direction?"
+          title={dayPlan ? 'Remove day plan and change direction?' : 'Change route direction?'}
           body={
-            'Stages and progress will be reordered for the new direction. Your packing list, journal and stop notes will stay unchanged. Any live tracking on the Map stops.' +
-            (dayPlan
-              ? ' Your hiking days will return to one stage per day. Your first hiking date will be kept.'
-              : '')
+            dayPlan
+              ? 'Your day plan describes a journey in the current direction — which stages you walk, where each day ends, where you stay and when you travel. It cannot be reused the other way round, so it will be removed. Your packing list, Trip plan, documents, journal and stop notes stay unchanged.'
+              : 'Stages and progress will be reordered for the new direction. Your packing list, journal and stop notes will stay unchanged. Any live tracking on the Map stops.'
           }
-          primaryLabel="Change direction"
+          primaryLabel={dayPlan ? 'Remove day plan and change direction' : 'Change direction'}
+          destructive={dayPlan != null}
           onConfirm={() => {
             setRouteDirection(pending);
             setPending(null);
@@ -301,11 +301,13 @@ export function SettingsScreen({
     useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  const hikingDaysSummary = dayPlan
-    ? `${plannedDays.length} hiking ${plannedDays.length === 1 ? 'day' : 'days'} from ${
-        formatDateFieldLabel(dayPlan.firstDate) ?? dayPlan.firstDate
+  // The collapsed summary states the plan without expanding it. With no plan
+  // it invites one — it never implies a plan exists.
+  const dayPlanSummary = dayPlan
+    ? `${plannedDays.length} ${plannedDays.length === 1 ? 'day' : 'days'} from ${
+        formatDateFieldLabel(dayPlan.startDate) ?? dayPlan.startDate
       }`
-    : 'One stage per day — set a first hiking date to plan';
+    : 'Not set up — plan your journey day by day';
   // Every Settings section starts collapsed for a consistent, scannable list
   // (Route direction is still first; its collapsed summary shows the current
   // choice). Route direction and Trail readiness each own an independent
@@ -313,7 +315,7 @@ export function SettingsScreen({
   // shared SettingsAccordion behaviour, no section is open on load unless a
   // one-shot deep link asked for it.
   const [directionOpen, setDirectionOpen] = useState(false);
-  const [hikingDaysOpen, setHikingDaysOpen] = useState(false);
+  const [dayPlanOpen, setDayPlanOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(initialSection === 'readiness');
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -403,18 +405,17 @@ export function SettingsScreen({
         <RouteDirectionCard />
       </SettingsAccordion>
 
-      {/* Hiking days — directly after Route direction, because the plan is a
-          partition of the ACTIVE direction's stage sequence and a direction
-          change resets it. Same accordion system; its summary shows how many
-          days are planned without expanding. */}
+      {/* Day plan — directly after Route direction, because a plan describes a
+          journey in ONE walking direction and changing direction removes it.
+          Same accordion system; the summary shows the plan without expanding. */}
       <SettingsAccordion
-        id="hiking-days"
-        title="Hiking days"
-        summary={hikingDaysSummary}
-        open={hikingDaysOpen}
-        onToggle={() => setHikingDaysOpen((current) => !current)}
+        id="day-plan"
+        title="Day plan"
+        summary={dayPlanSummary}
+        open={dayPlanOpen}
+        onToggle={() => setDayPlanOpen((current) => !current)}
       >
-        <HikingDaysCard />
+        <DayPlanCard />
       </SettingsAccordion>
 
       <TrailReadinessCard
