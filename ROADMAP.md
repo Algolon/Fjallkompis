@@ -138,6 +138,14 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Planned-day preview (v0.26.2)**: the missing Day plan → Today
+  connection. A small **Preview** action on each Settings day row opens that
+  day in the unchanged Today presentation; resolution precedence is now
+  preview → manual override → date match → generic. The preview pointer is
+  transient runtime state — never persisted, never exported, cleared by
+  reload, replaced by Stages → Set as current — so inspecting a future day
+  can never masquerade as route progress. Completes the v0.26 Day plan
+  experience; the Hiking-allocation redesign (§Next) remains separate.
 - **Day plan hotfix (v0.26.1)**: Today never goes empty because a plan
   exists. The day shown resolves in one fixed order — explicit current day,
   else the planned day dated today (device-local calendar date, display-only,
