@@ -3416,6 +3416,21 @@ button.stop-fac:focus-visible {
   border-color: var(--spruce);
   color: #fff;
 }
+/* Progress-header value: the packed count with, once anything is worn, the
+   worn count right-aligned directly beneath it. Stacked rather than
+   "6/69 packed · 5 worn" on one line: the title plus both counts cannot
+   share a line even at 390px, and a mid-phrase wrap with a dangling
+   separator reads broken. Each count is one unbreakable line. */
+.pack-progress-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+.pack-progress-count__worn {
+  font-weight: 600;
+  color: var(--ink-faint);
+}
 .pack-label {
   flex: 1;
   min-width: 0;

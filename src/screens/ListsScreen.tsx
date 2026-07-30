@@ -366,14 +366,22 @@ function PackingView() {
   return (
     <>
       {/* Progress overview — a backpack meter. Worn items are handled but
-          not in the pack, so they leave the packed denominator and surface
-          as one quiet pill (count + worn weight) instead of a second meter:
-          the card keeps a single number, a single bar, one pill row. */}
+          not in the pack, so they leave the packed denominator; the worn
+          count sits IN the header value ("6/69 packed" over "5 worn",
+          stacked — see .pack-progress-count) so the shrunken denominator
+          explains itself without mental subtraction. Worn weight is a
+          separate quiet pill. One number block, one bar, one pill row —
+          and with nothing worn, exactly the old header. */}
       <div className="card">
         <div className="row-between">
           <span className="card-title">Packing progress</span>
-          <span className="tnum" style={{ fontWeight: 700 }}>
-            {stats.packed}/{stats.packTotal} packed
+          <span className="tnum pack-progress-count" style={{ fontWeight: 700 }}>
+            <span>
+              {stats.packed}/{stats.packTotal} packed
+            </span>
+            {stats.worn > 0 ? (
+              <span className="pack-progress-count__worn">{stats.worn} worn</span>
+            ) : null}
           </span>
         </div>
         <div className="meter" style={{ marginTop: 10 }}>
@@ -398,16 +406,14 @@ function PackingView() {
               {formatGrams(stats.weightedGrams)}
             </span>
           ) : null}
-          {stats.worn > 0 ? (
+          {stats.wornWeightedGrams > 0 ? (
             <span
               className="pill tnum"
-              title="Worn on the body — not in the backpack and not in its weight"
+              title="Weight worn on the body — items with an entered weight × quantity, never part of the backpack weight"
             >
               <Shirt size={12} strokeWidth={2} aria-hidden />
-              {stats.worn} worn
-              {stats.wornWeightedGrams > 0
-                ? ` · ${stats.wornWeightMissing > 0 ? '≥ ' : ''}${formatGrams(stats.wornWeightedGrams)}`
-                : ''}
+              {stats.wornWeightMissing > 0 ? '≥ ' : ''}
+              {formatGrams(stats.wornWeightedGrams)} worn
             </span>
           ) : null}
         </div>

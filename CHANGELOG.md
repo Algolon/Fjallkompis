@@ -18,8 +18,9 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   item editor gains a Worn checkbox below Essential item. Packed and Worn are
   two different locations, so an item can never be both: choosing one always
   clears the other. The packing progress header counts packed items over
-  backpack items only, and a quiet pill shows the worn count with its own
-  weight — worn items no longer inflate the backpack weight. A Worn filter
+  backpack items only and names the worn count right beneath it ("6/69
+  packed" over "5 worn"), with a quiet pill for the worn weight — worn
+  items no longer inflate the backpack weight. A Worn filter
   pill appears once the first item is worn. Existing lists are untouched:
   every item simply starts un-worn and the screen looks exactly as before
   until you use the feature.

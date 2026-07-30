@@ -183,7 +183,24 @@ test('the progress header separates backpack and worn without a second meter', (
   const view = lists.slice(lists.indexOf('function PackingView'));
   assert.match(view, /packTotal: *packTotal|packTotal,/, 'backpack denominator excludes worn');
   assert.match(view, /\{stats\.packed\}\/\{stats\.packTotal\} packed/);
-  assert.match(view, /\{stats\.worn\} worn/, 'worn count pill');
-  assert.match(view, /wornWeightedGrams/, 'worn weight shown beside its count');
+  // The worn count lives IN the header value ("6/69 packed" stacked over
+  // "5 worn" — see .pack-progress-count) so the shrunken denominator
+  // explains itself — and only once something is worn, keeping the un-worn
+  // header identical to the pre-feature one. Stacked, never one line with a
+  // separator: title + both counts cannot share a line even at 390px, and a
+  // mid-phrase wrap with a dangling dot reads broken.
+  assert.match(
+    view,
+    /<span className="pack-progress-count__worn">\{stats\.worn\} worn<\/span>/,
+  );
+  assert.match(view, /stats\.worn > 0 \? \(/, 'worn line rendered only once something is worn');
+  assert.ok(css.includes('.pack-progress-count'), 'stacked header value CSS exists');
+  assert.match(css, /pack-progress-count \{[^}]*flex-direction: column/, 'counts stack');
+  assert.match(css, /pack-progress-count \{[^}]*white-space: nowrap/, 'each count is unbreakable');
+  // The worn pill carries the worn WEIGHT only (the count already sits in
+  // the header), with the same ≥ lower-bound marker as the backpack weight.
+  assert.match(view, /stats\.wornWeightedGrams > 0 \? \(/, 'pill appears only with a worn weight');
+  assert.match(view, /wornWeightMissing > 0 \? '≥ ' : ''/);
+  assert.match(view, /\{formatGrams\(stats\.wornWeightedGrams\)\} worn/);
   assert.ok(!/meter-fill--worn|second-meter/.test(view), 'one meter, one bar');
 });
