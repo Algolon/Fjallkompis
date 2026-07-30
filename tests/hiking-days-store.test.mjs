@@ -99,7 +99,6 @@ test('the plan is never derived from anything but the persisted primitives', () 
 
 test('the store exposes the day-plan actions and no group-level API', () => {
   for (const action of [
-    'createDayPlan',
     'setFirstHikingDate',
     'toggleDayBoundary',
     'resetDayPlan',
@@ -112,6 +111,10 @@ test('the store exposes the day-plan actions and no group-level API', () => {
     !/setGroups|updateGroups|setDayGroups/.test(store),
     'no action hands raw groups to components',
   );
+  // Setting the first date is also how a plan is created, so there is no
+  // second, redundant create action on the store surface.
+  const surface = /interface AppStore \{[\s\S]*?\n\}/.exec(store)[0];
+  assert.ok(!/createDayPlan/.test(surface), 'no redundant create action');
 });
 
 test('activating a day selects that day’s FIRST canonical stage', () => {

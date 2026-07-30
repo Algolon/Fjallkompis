@@ -74,9 +74,11 @@ interface AppStore {
   currentPlannedDay: PlannedDay | null;
   /** True when the plan exists and is already one stage per day. */
   dayPlanIsDefault: boolean;
-  /** Create the default one-stage-per-day plan from a first hiking date. */
-  createDayPlan: (firstDate: string) => void;
-  /** Move an existing plan's first hiking date (invalid input is ignored). */
+  /**
+   * Set the first hiking date. With no plan yet this CREATES the default
+   * one-stage-per-day plan; with a plan it moves the date. An empty or
+   * malformed value is ignored — clearing the field never deletes a plan.
+   */
   setFirstHikingDate: (firstDate: string) => void;
   /**
    * Toggle the day boundary AFTER the stage at `stageIndex` (0-based, walking
@@ -177,17 +179,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---- Hiking days -------------------------------------------------------
-
-  const createDayPlan = useCallback((firstDate: string) => {
-    setState((s) => {
-      const plan = buildDayPlan(
-        s.routeDirection,
-        firstDate,
-        getActiveItinerary(s.routeDirection).stages.length,
-      );
-      return plan ? { ...s, dayPlan: plan } : s;
-    });
-  }, []);
 
   const setFirstHikingDate = useCallback((firstDate: string) => {
     setState((s) => {
@@ -427,7 +418,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     plannedDays,
     currentPlannedDay,
     dayPlanIsDefault,
-    createDayPlan,
     setFirstHikingDate,
     toggleDayBoundary,
     resetDayPlan,
