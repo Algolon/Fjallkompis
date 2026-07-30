@@ -39,10 +39,17 @@ test('the store derives the active itinerary from the persisted direction', () =
 });
 
 test('changing direction keeps the stable current-stage id (no numeric remap)', () => {
-  // setRouteDirection only writes routeDirection — the physical currentStageId
-  // is untouched, so its itinerary day/endpoints are recomputed, not remapped.
+  // The physical currentStageId is untouched, so its itinerary day/endpoints
+  // are recomputed, not remapped. Since the Hiking days feature, the action
+  // also resets the personal day plan in the SAME update (its grouping is
+  // direction-specific) — but it still never rewrites currentStageId.
   assert.match(store, /if \(s\.routeDirection === next\) return s;/);
-  assert.match(store, /return \{ \.\.\.s, routeDirection: next \};/);
+  assert.match(store, /return \{ \.\.\.s, routeDirection: next, dayPlan \};/);
+  const action = /const setRouteDirection = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.ok(
+    !/currentStageId/.test(action),
+    'the direction action never rewrites the current stage',
+  );
 });
 
 // ---- App: reset transient Map browse state on direction change --------------

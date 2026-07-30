@@ -853,55 +853,10 @@ export interface DayPlanState {
 }
 
 /**
- * One planned hiking day: one or more ADJACENT canonical stages walked on the
- * same date. Fully derived — never persisted (see DayPlanState). The canonical
- * stages it contains are the untouched active-itinerary stages, so guides,
- * highlights, detours, geometry and statistics stay stage-owned.
+ * The derived planned-day model (PlannedDay) lives beside the itinerary types
+ * it composes — src/plan/plannedDays.ts — because it carries real
+ * ItineraryStage objects. Nothing about it is ever persisted.
  */
-export interface PlannedDay {
-  /** 1-based planned day number, in walking order. */
-  number: number;
-  /** ISO date, or null when no plan is configured. */
-  date: string | null;
-  /** Canonical stages in walking order — at least one. */
-  stages: ItineraryStageLike[];
-  /** First stage's start stop. */
-  fromStopId: string;
-  /** Last stage's end stop — the day's destination ("Tonight"). */
-  toStopId: string;
-  /** Intermediate canonical stage boundaries (empty for a single-stage day). */
-  viaStopIds: string[];
-  /** Sum of the stages' GPX distances. */
-  distanceKm: number;
-  /** Sums — null when any component value is missing. */
-  totalAscentM: number | null;
-  totalDescentM: number | null;
-  /** Extremes over the day's stages — never sums. */
-  minimumElevationM: number | null;
-  maximumElevationM: number | null;
-  /** Sum of the per-stage personal estimates (always presented as an estimate). */
-  estimatedHours: number;
-  /** The stages' verified profiles concatenated with cumulative offsets. */
-  elevationProfile: ElevationSampleLike[];
-  /** True when this day contains the persisted current stage. */
-  isCurrent: boolean;
-}
-
-/**
- * Structural shape of an active-itinerary stage as PlannedDay carries it. The
- * concrete type is ItineraryStage (src/route/activeItinerary.ts); declaring it
- * structurally here keeps src/types free of a route-layer import cycle.
- */
-export interface ItineraryStageLike extends Stage {
-  elevationProfile: ElevationSampleLike[];
-}
-
-export interface ElevationSampleLike {
-  distanceKm: number;
-  elevationM: number;
-  lat: number;
-  lon: number;
-}
 
 // ---- Journal --------------------------------------------------------------------
 
