@@ -10,6 +10,40 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-07-30
+
+### Fixed
+
+- **Today is never empty because a Day plan exists.** Creating a plan used to
+  leave Today showing only a "No day selected yet" card until you found
+  `Make this today` inside a day's edit sheet. Today now resolves the day to
+  show in one fixed order: the day you explicitly made current (Stages →
+  "Set as current"), otherwise the planned day whose date is today on this
+  device, otherwise the same date-independent Today as without a plan. A
+  future plan does not replace Today before its first date, a finished plan
+  does not blank it afterwards, and nothing about this writes to the plan —
+  the date match is display-only, works offline, and compares local calendar
+  dates so no timezone can shift the day.
+- **`Make this today` removed from the day edit sheet.** The sheet saves every
+  change as it is made; a primary button that only set the current-day
+  pointer read as a save/confirm action. The close control is how you leave
+  the sheet, and the automatic date match plus the generic fallback make the
+  button unnecessary. Choosing a stage in Stages still moves the current day
+  explicitly — and while that manual choice is overriding the calendar,
+  Today says so ("Manually selected day") and offers one quiet
+  **Follow plan dates** action that returns to automatic date matching
+  without touching your current stage or anything else.
+- **Changing a Hiking day no longer silently rewrites another day.** Turning
+  a day that walks into Travel or Rest & explore used to hand its route
+  stages to a neighbouring hiking day — you edited one day and another day
+  changed without an explicit decision. The change is now refused up front:
+  the toggle is disabled and the sheet names the route section that still
+  needs a hiking day (e.g. "This day still contains the Kebnekaise →
+  Nikkaluokta route section"). Move the walking away explicitly first —
+  through "Change endpoint", which states its exact consequence — and the day
+  is free to change. Actions that do touch a neighbouring day (removing a
+  day, adding a hiking day) now name that day before you confirm.
+
 ## [0.26.0] - 2026-07-30
 
 ### Added

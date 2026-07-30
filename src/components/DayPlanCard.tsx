@@ -7,7 +7,7 @@ import { DayPlanDaySheet } from './DayPlanDaySheet';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
-import { DAY_ACTIVITY_LABELS } from '../plan/dayPlan.mjs';
+import { DAY_ACTIVITY_LABELS, hikingDonorIndex } from '../plan/dayPlan.mjs';
 import { hikingLead, travelPresentation } from '../plan/dayPresentation.mjs';
 import type { PlannedDay, ResolvedOvernight } from '../plan/plannedDays.mjs';
 import type { DayActivityKind, TripItem } from '../types';
@@ -30,6 +30,7 @@ export function DayPlanCard() {
   const {
     dayPlan,
     plannedDays,
+    currentPlannedDay,
     dayPlanIsDefault,
     createDayPlan,
     setStartDate,
@@ -110,6 +111,10 @@ export function DayPlanCard() {
               day={day}
               trip={state.trip}
               editing={editing}
+              // The "Today" marker follows what Today actually shows — the
+              // manual pointer OR the day whose date is today — so the plan
+              // and Today can never disagree about which day you are on.
+              isToday={day.id === currentPlannedDay?.id}
               onEdit={() => setOpenDayId(day.id)}
             />
           </li>
@@ -209,11 +214,14 @@ function DayRow({
   day,
   trip,
   editing,
+  isToday,
   onEdit,
 }: {
   day: PlannedDay;
   trip: TripItem[];
   editing: boolean;
+  /** True when this is the day Today is showing (pointer or date match). */
+  isToday: boolean;
   onEdit: () => void;
 }) {
   const dateLabel = day.date ? formatDateFieldLabel(day.date) : null;
@@ -229,7 +237,7 @@ function DayRow({
   const walkLead = hikingLead(day);
 
   return (
-    <article className={`dayplan-day${day.isCurrent ? ' is-current' : ''}`}>
+    <article className={`dayplan-day${isToday ? ' is-current' : ''}`}>
       <div className="dayplan-day__top">
         <span className="dayplan-day__label tnum">
           {dateLabel ? <span className="dayplan-day__date">{dateLabel}</span> : null}
@@ -250,7 +258,7 @@ function DayRow({
           >
             <Pencil size={13} strokeWidth={2.2} aria-hidden /> Edit
           </button>
-        ) : day.isCurrent ? (
+        ) : isToday ? (
           <span className="pill pill-current">
             <span className="dot" /> Today
           </span>
@@ -338,7 +346,14 @@ function AddDaySheet({
   const { plannedDays } = useStore();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useOverlayScrollLock();
-  const canHike = plannedDays.some((d) => d.stages.length > 1);
+  // The day a new hiking day would take its stage from — named up front, so
+  // adding one never silently shortens a day the user was not looking at.
+  const donor = plannedDays[hikingDonorIndex(plannedDays, index)] ?? null;
+  const canHike = donor !== null;
+  const donorFrom = donor?.fromStopId ? STOPS_BY_ID[donor.fromStopId] : null;
+  const donorTo = donor?.toStopId ? STOPS_BY_ID[donor.toStopId] : null;
+  const donorSection =
+    donorFrom && donorTo ? `${stopShortName(donorFrom)} → ${stopShortName(donorTo)}` : null;
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -379,12 +394,17 @@ function AddDaySheet({
             <Footprints size={16} strokeWidth={2} aria-hidden /> Hiking day
           </button>
         </div>
-        {!canHike ? (
+        {canHike ? (
+          <p className="card-sub" style={{ marginTop: 10 }}>
+            A hiking day takes one route stage from day {donor.number}
+            {donorSection ? ` (${donorSection})` : ''}.
+          </p>
+        ) : (
           <p className="card-sub" style={{ marginTop: 10 }}>
             Every stage already has its own hiking day, so there is no walking
             to move onto a new one.
           </p>
-        ) : null}
+        )}
       </div>
     </dialog>
   );

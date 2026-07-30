@@ -40,7 +40,6 @@ import {
   currentDayIdAfterEdit,
   dayIndexById,
   dayIndexForStageIndex,
-  firstStageIndexOfDay,
   insertDay,
   isDefaultDays,
   removeDay as removeDayFromPlan,
@@ -49,8 +48,11 @@ import {
   setDayOvernight as setDayOvernightIn,
   setHikingStages,
 } from '../plan/dayPlan.mjs';
-import { buildPlannedDays, currentPlannedDayOf } from '../plan/plannedDays.mjs';
+import { buildPlannedDays } from '../plan/plannedDays.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
+import { resolveEffectiveToday } from '../plan/effectiveToday.mjs';
+import type { TodaySource } from '../plan/effectiveToday.mjs';
+import { todayIso } from '../utils/format';
 
 interface AppStore {
   state: PersistentState;
@@ -84,8 +86,16 @@ interface AppStore {
   dayPlan: DayPlanState | null;
   /** Derived calendar days. Empty when there is no plan — never implicit days. */
   plannedDays: PlannedDay[];
-  /** The active calendar day, from the plan's own stable currentDayId. */
+  /**
+   * The EFFECTIVE Today: the plan's own `currentDayId` when it points at a
+   * planned day, otherwise the planned day whose date is the device's local
+   * calendar date, otherwise null — in which case Today renders its original
+   * date-independent experience. Derived only: a date match is never written
+   * back to `currentDayId` (see src/plan/effectiveToday.mjs).
+   */
   currentPlannedDay: PlannedDay | null;
+  /** How `currentPlannedDay` was resolved: override, date, or generic. */
+  todaySource: TodaySource;
   /** True when the plan is still one hiking day per canonical stage. */
   dayPlanIsDefault: boolean;
   /** Create the default plan (one hiking day per stage) from a start date. */
@@ -108,8 +118,14 @@ interface AppStore {
   resetDayPlan: () => void;
   /** Destructive: drop the plan entirely (back to the default state). */
   removeDayPlan: () => void;
-  /** Make a day current. A hiking day also selects its first canonical stage. */
-  activatePlannedDay: (dayId: string) => void;
+  /**
+   * Clear the manual current-day override so Today follows the plan's dates
+   * again (or the generic fallback outside them). Touches ONLY
+   * `dayPlan.currentDayId`; route progress (`currentStageId`), the plan's
+   * days and dates, and everything else are preserved. A no-op with no plan
+   * or no override — the UI offers it only while one is active.
+   */
+  followPlanDates: () => void;
 
   // Stage (resolved against the active itinerary — itinerary day + oriented
   // endpoints/geometry for the persisted physical segment id).
@@ -357,27 +373,25 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Make a day current. A hiking day also selects its FIRST canonical stage,
-   * so route progress and the calendar day agree; a travel or rest day carries
-   * no stage and never fabricates one — `currentStageId` simply stays put.
+   * The way BACK from a manual override. Setting one is a side effect of
+   * Stages → "Set as current"; without this action the pointer would outrank
+   * the calendar forever (it never expires on its own — precedence 1 always
+   * beats precedence 2). Clearing it re-resolves Today from the local date,
+   * or the generic fallback outside the plan. Nothing else is touched.
    */
-  const activatePlannedDay = useCallback((dayId: string) => {
+  const followPlanDates = useCallback(() => {
     setState((s) => {
-      if (!s.dayPlan) return s;
-      const index = dayIndexById(s.dayPlan.days, dayId);
-      if (index === -1) return s;
-      const stageIndex = firstStageIndexOfDay(s.dayPlan.days, index);
-      const stageId =
-        stageIndex === -1
-          ? s.currentStageId
-          : getActiveItinerary(s.routeDirection).stages[stageIndex]?.id ?? s.currentStageId;
-      return {
-        ...s,
-        currentStageId: stageId,
-        dayPlan: { ...s.dayPlan, currentDayId: dayId },
-      };
+      if (!s.dayPlan || s.dayPlan.currentDayId == null) return s;
+      return { ...s, dayPlan: { ...s.dayPlan, currentDayId: null } };
     });
   }, []);
+
+  // There is no "make this day today" action. The manual override exists —
+  // Stages → "Set as current" writes both pointers through `setCurrentStage`
+  // above — but it is a consequence of choosing where you are on the route,
+  // never a control in the day EDITOR, where it read as a save/confirm button
+  // for an auto-saving sheet. Everything else Today needs comes from the date
+  // match and the generic fallback (src/plan/effectiveToday.mjs).
 
   const setStopNote = useCallback((stopId: string, notes: string) => {
     setState((s) => ({
@@ -538,10 +552,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     () => buildPlannedDays(itinerary.stages, state.dayPlan, state.trip),
     [itinerary, state.dayPlan, state.trip],
   );
-  const currentPlannedDay = useMemo<PlannedDay | null>(
-    () => currentPlannedDayOf(plannedDays),
-    [plannedDays],
+  // The EFFECTIVE Today. The clock is read HERE and nowhere else in the day
+  // plan: the resolution itself is a pure function of the derived days, the
+  // user's own pointer and one injected 'YYYY-MM-DD'. It only READS the date —
+  // no plan is created, moved, reshaped, and no `currentDayId` is persisted
+  // because a date happened to match.
+  const localToday = todayIso();
+  const effectiveToday = useMemo(
+    () => resolveEffectiveToday(plannedDays, state.dayPlan?.currentDayId ?? null, localToday),
+    [plannedDays, state.dayPlan, localToday],
   );
+  const currentPlannedDay = effectiveToday.day;
   const dayPlanIsDefault =
     state.dayPlan != null && isDefaultDays(state.dayPlan.days, itinerary.stages.length);
 
@@ -568,6 +589,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     dayPlan: state.dayPlan,
     plannedDays,
     currentPlannedDay,
+    todaySource: effectiveToday.source,
     dayPlanIsDefault,
     createDayPlan,
     setStartDate,
@@ -579,7 +601,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setDayOvernight,
     resetDayPlan,
     removeDayPlan,
-    activatePlannedDay,
+    followPlanDates,
     getStopNote,
     setStopNote,
     setPackingStatus,

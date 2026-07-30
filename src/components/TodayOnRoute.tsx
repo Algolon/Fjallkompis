@@ -45,10 +45,17 @@ function formatDayDate(iso: string): string | null {
 /**
  * Today — On route. Two top-level shapes:
  *
- *   - NO Day plan (the default): the original date-independent stage view.
- *     Nothing about planning appears — no date, no activity indicator.
- *   - A Day plan: the active calendar day, in one of four compact variants
- *     (hiking, travel, rest, hiking + travel).
+ *   - NO planned day for today: the original date-independent stage view.
+ *     Nothing about planning appears — no date, no activity indicator. This
+ *     is the default (no plan at all) AND the fallback whenever a plan exists
+ *     but does not describe today: before its first date, after its last, on
+ *     a date it does not cover, or with a pointer an edit left dangling.
+ *   - A planned day for today: that calendar day, in one of four compact
+ *     variants (hiking, travel, rest, hiking + travel).
+ *
+ * `day` is the EFFECTIVE Today the store resolved (manual override, then an
+ * exact local-calendar-date match, then none — src/plan/effectiveToday.mjs).
+ * Nothing here reads the clock, and a Day plan can never blank this page.
  *
  * Every variant keeps header + hero + Journey + Tonight inside one mobile
  * viewport at 375x667. Stage detail belongs to Stages, not here.
@@ -68,9 +75,17 @@ export function TodayOnRoute({
   trip: TripItem[];
   onNavigate: Navigate;
 }) {
-  const planned = plannedDays.length > 0;
+  // How the shown day was resolved, and the way back from a manual override.
+  // A pointer set via Stages → "Set as current" never expires by itself, so
+  // while one is active Today says so and offers ONE quiet action to return
+  // to following the plan's dates. Hidden the moment no override is active.
+  const { todaySource, followPlanDates } = useStore();
 
-  // ---- Default state: no plan, no dates, no day types ----------------------
+  // A plan alone is not enough: today has to BE one of its days. Without one
+  // the generic view runs, fully populated, exactly as it does with no plan.
+  const planned = plannedDays.length > 0 && day !== null;
+
+  // ---- Default state: no planned day for today, no dates, no day types -----
   if (!planned) {
     if (!currentStage) return <NoStageEmpty onNavigate={onNavigate} />;
     const from = STOPS_BY_ID[currentStage.fromHutId];
@@ -90,8 +105,6 @@ export function TodayOnRoute({
   }
 
   // ---- Planned state -------------------------------------------------------
-  if (!day) return <NoDayEmpty onNavigate={onNavigate} />;
-
   const overnightStopId =
     day.overnight.kind === 'stop' ? (day.overnight.stopId ?? null) : null;
   const overnightStay =
@@ -107,6 +120,19 @@ export function TodayOnRoute({
         routeDirection={routeDirection}
         onNavigate={onNavigate}
       />
+      {todaySource === 'override' ? (
+        <div className="today-override today-glass today-glass--light">
+          <span className="today-override__label">Manually selected day</span>
+          <button
+            type="button"
+            className="stage-set-pill"
+            onClick={followPlanDates}
+            aria-label="Follow plan dates — show the planned day for today’s date again"
+          >
+            Follow plan dates
+          </button>
+        </div>
+      ) : null}
       <PlannedJourney day={day} plannedDays={plannedDays} onNavigate={onNavigate} />
       {overnightStopId ? (
         <TonightCard stopId={overnightStopId} onNavigate={onNavigate} />
@@ -369,25 +395,6 @@ function PlannedJourney({
         <span>{last ? stopShortName(STOPS_BY_ID[last.toStopId as string]) : ''}</span>
       </div>
     </section>
-  );
-}
-
-function NoDayEmpty({ onNavigate }: { onNavigate: Navigate }) {
-  return (
-    <div className="card today-glass today-glass--opaque empty">
-      <Mountain size={30} strokeWidth={1.5} aria-hidden style={{ opacity: 0.5 }} />
-      <p>
-        No day selected yet. Open your day plan in Settings and choose the day
-        you are on.
-      </p>
-      <button
-        className="btn btn-primary"
-        style={{ marginTop: 14 }}
-        onClick={() => onNavigate('settings')}
-      >
-        Open day plan
-      </button>
-    </div>
   );
 }
 

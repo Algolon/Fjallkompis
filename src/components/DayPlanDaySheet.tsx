@@ -10,6 +10,8 @@ import {
   canDropHikingFromDay,
   canInsertHikingDay,
   canRemoveDay,
+  hikingDonorIndex,
+  hikingHeirIndex,
 } from '../plan/dayPlan.mjs';
 import { hikingEndpointOptions } from '../plan/plannedDays.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
@@ -26,6 +28,34 @@ const NO_DONOR =
 const NO_HEIR =
   'This is the only day with walking, so its route stages have nowhere to go.';
 const ONLY_ACTIVITY = 'A day has to do something — add another activity first.';
+
+/** "Kebnekaise → Nikkaluokta" — the route section a day carries, or null. */
+function routeSection(day: Pick<PlannedDay, 'fromStopId' | 'toStopId'>): string | null {
+  const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
+  const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
+  return from && to ? `${stopShortName(from)} → ${stopShortName(to)}` : null;
+}
+
+/** "day 4 (Sälka → Singi)" — how another day is named before it is changed. */
+function dayReference(day: PlannedDay): string {
+  const section = routeSection(day);
+  return section ? `day ${day.number} (${section})` : `day ${day.number}`;
+}
+
+/**
+ * Why walking cannot be taken OFF this day.
+ *
+ * The stages a hiking day carries are canonical route sections; handing them
+ * to another day changes a day the user is not editing. Until sections can be
+ * reassigned explicitly, the change is refused and the section is named, so
+ * the sheet says what is in the way instead of quietly rewriting a neighbour.
+ */
+function stillWalksReason(day: PlannedDay): string {
+  const section = routeSection(day);
+  return `This day still contains the ${
+    section ?? 'walking'
+  } route section. Reassign that section before changing this day to Rest & explore or Travel.`;
+}
 
 /**
  * Edit one planned day — the app's `.sheet` native <dialog>.
@@ -45,7 +75,6 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
     setHikingDayStages,
     setDayOvernight,
     removePlannedDay,
-    activatePlannedDay,
   } = useStore();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useOverlayScrollLock();
@@ -74,22 +103,30 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
   const removeBlockedReason =
     plannedDays.length <= 1 ? 'This is the only day in your plan.' : NO_HEIR;
 
+  // The days on the other side of an allocation change, named BEFORE it
+  // happens: the day a stage would come from, and the day this day's stages
+  // would move to if it were removed.
+  const donor = plannedDays[hikingDonorIndex(plannedDays, day.index)] ?? null;
+  const heir = plannedDays[hikingHeirIndex(plannedDays, day.index)] ?? null;
+
   /** Why a kind toggle is unavailable, or null when it is available. */
   const kindBlocked = (kind: DayActivityKind): string | null => {
     if (kind === 'travel') {
       // Travel needs no stage. Removing the day's only activity would leave it
-      // doing nothing, which is not a state a day can be in.
-      return hasTravel && day.kinds.length === 1 ? ONLY_ACTIVITY : null;
+      // doing nothing, which is not a state a day can be in. Turning travel
+      // OFF on a day that also walks is fine; turning it on always is.
+      if (hasTravel && day.kinds.length === 1) return ONLY_ACTIVITY;
+      return null;
     }
     if (kind === 'hiking') {
       if (!hasHiking) return canTakeAStage ? null : NO_DONOR;
       if (day.kinds.length === 1) return ONLY_ACTIVITY;
-      return canGiveUpWalking ? null : NO_HEIR;
+      return canGiveUpWalking ? null : stillWalksReason(day);
     }
     // Rest is exclusive: switching it on drops any walking, switching it off
     // turns the day back into a hiking day and so needs a stage to take.
     if (isRest) return canTakeAStage ? null : NO_DONOR;
-    return canGiveUpWalking ? null : NO_HEIR;
+    return canGiveUpWalking ? null : stillWalksReason(day);
   };
 
   const toggleKind = (kind: DayActivityKind) => {
@@ -112,6 +149,13 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
         .filter((r): r is string => r !== null && r !== ONLY_ACTIVITY),
     ),
   ];
+
+  // Taking walking ON shortens another day. It is allowed — but never a
+  // surprise: the day it comes from is named before the toggle is pressed.
+  const donorNote =
+    !hasHiking && donor
+      ? `Adding hiking takes one route stage from ${dayReference(donor)}.`
+      : null;
 
   return (
     <dialog
@@ -167,6 +211,11 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
                 {note}
               </p>
             ))}
+            {donorNote ? (
+              <p className="card-sub" style={{ marginTop: 8 }}>
+                {donorNote}
+              </p>
+            ) : null}
 
             {hasHiking && hasTravel ? (
               <button
@@ -248,23 +297,12 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
               Change where you stay
             </button>
 
+            {/* One action, and it is the destructive one. Every edit above
+                saves as it is made, so this sheet has no OK, Save or Done —
+                the close control in the header is how you leave it. Nor does
+                it choose which day is "today": that is resolved from the date
+                (src/plan/effectiveToday.mjs), not confirmed here. */}
             <div className="sheet-actions">
-              {day.isCurrent ? (
-                <span className="pill pill-current" style={{ flex: 1, justifyContent: 'center' }}>
-                  <span className="dot" /> Today
-                </span>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  style={{ flex: 1 }}
-                  onClick={() => {
-                    activatePlannedDay(day.id);
-                    onClose();
-                  }}
-                >
-                  Make this today
-                </button>
-              )}
               <button
                 className="btn btn-danger"
                 style={{ flex: 1 }}
@@ -313,8 +351,10 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
         <ConfirmDialog
           title="Remove this day?"
           body={
-            day.stages.length > 0
-              ? 'Its walking moves to the next day, so no route stage is lost. Later dates move one day earlier.'
+            day.stages.length > 0 && heir
+              ? `Its route stages move to ${dayReference(
+                  heir,
+                )}, so no stage is lost. Later dates move one day earlier.`
               : 'Later dates move one day earlier. Your Trip plan and documents are not affected.'
           }
           primaryLabel="Remove day"

@@ -88,6 +88,14 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Next
 
+3. **Hiking-allocation redesign** — the Day plan's persisted model records
+   only how many adjacent stages a day covers, so a route section can never
+   be reassigned to a specific day directly; v0.26.1 therefore *refuses*
+   edits that would orphan a day's walking rather than silently handing it
+   to a neighbour. The redesign decides the explicit reassignment UX (and
+   any model change behind it): where a freed section goes, how the user
+   chooses, and whether backtracking, repeated stages or partial-stage days
+   ever become representable.
 4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
    capabilities: import a standalone packing list; import or create custom
@@ -130,6 +138,17 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Day plan hotfix (v0.26.1)**: Today never goes empty because a plan
+  exists. The day shown resolves in one fixed order — explicit current day,
+  else the planned day dated today (device-local calendar date, display-only,
+  never persisted), else the unchanged generic Today — so a future plan waits
+  for its first date and an expired plan falls back instead of blanking the
+  page. The misleading `Make this today` button left the auto-saving day
+  sheet, and Hiking-day edits that would silently hand route stages to
+  another day are now refused with the blocking route section named. The
+  deeper model question — reassigning a day's route section explicitly
+  instead of refusing — stays open for the Hiking-allocation redesign
+  (§Next).
 - **Day plan (v0.26.0)**: an optional personal calendar layer over the
   canonical route, created only by an explicit action in Settings — with no
   plan the app stays exactly as it was, and migration to schema v7 leaves

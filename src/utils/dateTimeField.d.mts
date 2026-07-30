@@ -20,6 +20,7 @@ export declare function daysInMonth(year: number, month: number): number;
 export declare function parseIsoDate(v: unknown): DateParts | null;
 export declare function isRealIsoDate(v: unknown): boolean;
 export declare function toIsoDate(year: number, month: number, day: number): string;
+export declare function localIsoDate(now?: Date): string | null;
 export declare function weekdayIndex(year: number, month: number, day: number): number;
 export declare function buildMonthGrid(year: number, month: number): (number | null)[][];
 export declare function addMonths(year: number, month: number, delta: number): MonthRef;

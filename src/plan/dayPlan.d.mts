@@ -62,6 +62,8 @@ export declare function insertDay(
   kinds: readonly DayActivityKind[],
 ): PlannedDayRecord[];
 export declare function canInsertHikingDay(days: unknown, index: number): boolean;
+export declare function hikingDonorIndex(days: unknown, index: number): number;
+export declare function hikingHeirIndex(days: unknown, index: number): number;
 export declare function canDropHikingFromDay(days: unknown, index: number): boolean;
 export declare function removeDay(
   days: readonly PlannedDayRecord[],

@@ -21,7 +21,12 @@ import {
   hikingEndpointOptions,
   plannedDayForStage,
 } from '../src/plan/plannedDays.mjs';
-import { defaultDays, setHikingStages } from '../src/plan/dayPlan.mjs';
+import {
+  canDropHikingFromDay,
+  defaultDays,
+  setDayActivities,
+  setHikingStages,
+} from '../src/plan/dayPlan.mjs';
 import { buildDirectionalItinerary } from '../src/route/itinerary.mjs';
 import { WAYPOINT_TO_HUT } from '../src/route/waypointStops.mjs';
 import { DEFAULT_DIRECTION, REVERSE_DIRECTION } from '../src/route/direction.mjs';
@@ -622,4 +627,53 @@ test('the counted consequence matches what the mutation performs', () => {
       assert.equal(after[1].activities[0].stages, option.releasedStages);
     }
   }
+});
+
+// ---- Silent cross-day mutation is gone --------------------------------------
+//
+// The 0.26.0 regression: turning a Hiking day into Rest & explore handed its
+// canonical stages to a neighbouring hiking day. The user edited ONE day and
+// another day changed without an explicit decision. The mutation is now
+// refused outright, nothing is partially applied, and the sheet names the
+// route section that still needs a hiking day.
+
+test('Kebnekaise → Nikkaluokta cannot silently move onto the Singi day', () => {
+  // 1. Singi → Kebnekaise on one day; 2. Kebnekaise → Nikkaluokta on the next.
+  const records = defaultDays(STAGES);
+  const before = buildPlannedDays(forwardStages, plan(records), []);
+  const singiDay = before.find((d) => d.fromStopId === 'singi');
+  const lastDay = before.find((d) => d.fromStopId === 'kebnekaise');
+  assert.equal(singiDay.toStopId, 'kebnekaise');
+  assert.equal(lastDay.toStopId, 'nikkaluokta');
+  assert.equal(lastDay.index, singiDay.index + 1, 'they are adjacent days');
+
+  // 3. Attempt to change the second day to Rest & explore.
+  assert.equal(canDropHikingFromDay(records, lastDay.index), false, 'the UI disables the toggle');
+  const attempted = setDayActivities(records, lastDay.index, ['rest']);
+
+  // 4. Neither day changes — the plan comes back byte-identical.
+  assert.deepEqual(attempted, records, 'refused, nothing partially applied');
+  const after = buildPlannedDays(forwardStages, plan(attempted), []);
+  assert.deepEqual(after.map((d) => d.kinds), before.map((d) => d.kinds));
+  assert.equal(after[singiDay.index].stages.length, 1, 'the Singi day did not grow');
+  assert.equal(after[singiDay.index].toStopId, 'kebnekaise');
+  assert.equal(after[lastDay.index].toStopId, 'nikkaluokta', 'the last day still walks');
+
+  // 5. An explanatory message is shown (the sheet's source carries the copy;
+  //    tests/day-plan-ui.test.mjs fences the exact wording and the gating).
+  const sheet = readFileSync(join(ROOT, 'src/components/DayPlanDaySheet.tsx'), 'utf8');
+  assert.match(sheet, /This day still contains the \$\{\s*section \?\? 'walking'\s*\} route section\./);
+  assert.match(sheet, /Reassign that section before changing this day/);
+});
+
+test('no direction of the rest/travel change reallocates stages any more', () => {
+  // Travel instead of rest, and the mixed-day variant, are refused the same
+  // way: only additions that the sheet names up front may touch another day.
+  const records = defaultDays(STAGES);
+  for (const kinds of [['rest'], ['travel']]) {
+    assert.deepEqual(setDayActivities(records, 5, kinds), records, kinds.join());
+  }
+  const mixed = setDayActivities(records, 5, ['hiking', 'travel']);
+  assert.notDeepEqual(mixed, records, 'adding travel to a hiking day is a safe, same-day edit');
+  assert.deepEqual(setDayActivities(mixed, 5, ['travel']), mixed, 'dropping the walking is not');
 });
