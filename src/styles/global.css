@@ -3409,6 +3409,13 @@ button.stop-fac:focus-visible {
   border-color: var(--good);
   color: #fff;
 }
+/* Worn = as settled as packed, but a different location (on the body, not in
+   the backpack) — same filled treatment, spruce instead of the packed green. */
+.pack-status.is-worn {
+  background: var(--spruce);
+  border-color: var(--spruce);
+  color: #fff;
+}
 .pack-label {
   flex: 1;
   min-width: 0;

@@ -28,6 +28,7 @@ import {
 import { seedPackingItems } from '../utils/stateMigration.mjs';
 import {
   applyPackingPatch,
+  isWornEligibleCategory,
   resetPackingProgress as resetPackingProgressItems,
 } from '../utils/packingModel.mjs';
 import { newTripItemId, normalizeTripItem } from '../trip/tripModel.mjs';
@@ -401,10 +402,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setPackingStatus = useCallback((itemId: string, status: PackingStatus) => {
-    setState((s) => ({
-      ...s,
-      packing: s.packing.map((i) => (i.id === itemId ? { ...i, status } : i)),
-    }));
+    // Routed through applyPackingPatch so the packed/worn location
+    // exclusivity holds no matter where a status change comes from.
+    setState((s) => ({ ...s, packing: applyPackingPatch(s.packing, itemId, { status }) }));
   }, []);
 
   const addPackingItem = useCallback(
@@ -412,7 +412,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
       setState((s) => ({
         ...s,
-        packing: [...s.packing, { ...item, id, status: 'needed', custom: true }],
+        packing: [
+          ...s.packing,
+          {
+            ...item,
+            id,
+            status: 'needed',
+            // Worn only exists in worn-eligible categories.
+            worn: item.worn && isWornEligibleCategory(item.categoryId),
+            custom: true,
+          },
+        ],
       }));
     },
     [],

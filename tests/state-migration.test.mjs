@@ -47,13 +47,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 7', () => {
-  assert.equal(SCHEMA_VERSION, 7);
+test('schema version is 8', () => {
+  assert.equal(SCHEMA_VERSION, 8);
 });
 
-test('v1 → v7: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v8: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 7);
+  assert.equal(s.schemaVersion, 8);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -186,7 +186,7 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 7);
+    assert.equal(s.schemaVersion, 8);
     assert.equal(s.currentStageId, 'd1');
     assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
@@ -202,7 +202,7 @@ test('v3 → v4: older state without routeDirection defaults to forward', () => 
   // A realistic v3 payload never carried a direction field.
   const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
   const s = normalizeState(v3);
-  assert.equal(s.schemaVersion, 7);
+  assert.equal(s.schemaVersion, 8);
   assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
   // Unrelated data survives untouched.
   assert.equal(s.currentStageId, 'd5');
@@ -445,6 +445,12 @@ test('seedPackingItems returns fresh copies (no shared mutable state)', () => {
 
 // ---- Trip plan (v5 → v6) ----------------------------------------------------
 
+/**
+ * The v8 normaliser adds `worn: false` to every packing item that predates
+ * the field — the expected post-migration shape of a historical fixture.
+ */
+const withWornDefault = (items) => items.map((i) => ({ ...i, worn: false }));
+
 /** A realistic PR#64-era v5 payload: owned, personalised packing, no trip. */
 function ownedV5State() {
   return {
@@ -482,11 +488,11 @@ function ownedV5State() {
 test('v5 → v6: an owned packing payload gains an empty trip plan, nothing else changes', () => {
   const v5 = ownedV5State();
   const s = normalizeState(v5);
-  assert.equal(s.schemaVersion, 7);
+  assert.equal(s.schemaVersion, 8);
   assert.deepEqual(s.trip, [], 'no trip items are fabricated');
-  // The owned snapshot survives byte-for-byte: no re-run of the seed merge,
-  // no restored deletions, no reset progress.
-  assert.deepEqual(s.packing, v5.packing);
+  // The owned snapshot survives field-for-field (plus the v8 worn default):
+  // no re-run of the seed merge, no restored deletions, no reset progress.
+  assert.deepEqual(s.packing, withWornDefault(v5.packing));
   assert.equal(s.packingTemplateVersion, 2);
   assert.equal(s.currentStageId, 'd2');
   assert.equal(s.routeDirection, 'nikkaluokta-to-abisko');
@@ -528,7 +534,7 @@ test('v6 roundtrip: travel and stay items persist verbatim beside owned packing'
   const v6 = { ...ownedV5State(), schemaVersion: 6, trip };
   const out = normalizeState(v6);
   assert.deepEqual(out.trip, trip);
-  assert.deepEqual(out.packing, v6.packing, 'packing untouched beside trip data');
+  assert.deepEqual(out.packing, withWornDefault(v6.packing), 'packing untouched beside trip data');
 });
 
 test('a PR#65-era development payload (trip but NO template version) heals both ways', () => {
@@ -597,7 +603,7 @@ test('combined migration is idempotent and never mutates its input', () => {
 
 test('fresh defaultState carries the current template, its version and an empty trip', () => {
   const s = defaultState('d1');
-  assert.equal(s.schemaVersion, 7);
+  assert.equal(s.schemaVersion, 8);
   assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
   assert.deepEqual(s.trip, []);
 });
@@ -666,10 +672,10 @@ function v6State() {
 test('v6 → v7: an existing payload gains dayPlan: null and nothing else changes', () => {
   const v6 = v6State();
   const s = normalizeState(v6, 'd1', STAGE_COUNT);
-  assert.equal(s.schemaVersion, 7);
+  assert.equal(s.schemaVersion, 8);
   assert.equal(s.dayPlan, null, 'no plan is ever generated for an existing user');
-  // Every other field is untouched — the three migration paths compose.
-  assert.deepEqual(s.packing, v6.packing);
+  // Every other field is untouched — the migration paths compose.
+  assert.deepEqual(s.packing, withWornDefault(v6.packing));
   assert.equal(s.packingTemplateVersion, 2);
   assert.deepEqual(s.trip, v6.trip);
   assert.equal(s.currentStageId, 'd2');
@@ -692,7 +698,7 @@ test('v7 roundtrip: the mixed journey persists verbatim beside every other field
   const state = { ...v6State(), schemaVersion: 7, routeDirection: FORWARD, dayPlan: journeyPlan() };
   const s = normalizeState(state, 'd1', STAGE_COUNT);
   assert.deepEqual(s.dayPlan, state.dayPlan);
-  assert.deepEqual(s.packing, state.packing);
+  assert.deepEqual(s.packing, withWornDefault(state.packing));
   assert.deepEqual(s.trip, state.trip);
 });
 
@@ -761,7 +767,7 @@ test('day-plan migration is idempotent and never mutates its input', () => {
 test('a legacy payload from any older schema still lands on dayPlan: null', () => {
   for (const legacy of [V1_STATE, { ...V1_STATE, schemaVersion: 3 }]) {
     const s = normalizeState(legacy, 'd1', STAGE_COUNT);
-    assert.equal(s.schemaVersion, 7);
+    assert.equal(s.schemaVersion, 8);
     assert.equal(s.dayPlan, null);
   }
 });
@@ -779,4 +785,79 @@ test('removing the day plan is isolated — nothing else is touched', () => {
   assert.deepEqual(withoutPlan.packing, withPlan.packing);
   assert.deepEqual(withoutPlan.hutData, withPlan.hutData);
   assert.deepEqual(withoutPlan.journal, withPlan.journal);
+});
+
+// ---- Worn clothing (v7 → v8) ------------------------------------------------
+//
+// Packing items gain `worn` (worn on the body instead of carried). Every
+// payload that predates the field must land on worn: false everywhere — a
+// behavioural no-op — and impossible or ineligible worn states must heal.
+
+test('v7 → v8: every pre-worn payload lands on worn: false for every item', () => {
+  // Legacy (no template version), owned v5/v6, and v1 payloads alike.
+  for (const payload of [V1_STATE, legacyStateWithBlanket(), ownedV5State(), v6State()]) {
+    const s = normalizeState(payload, 'd1', STAGE_COUNT);
+    assert.ok(s.packing.length > 0);
+    for (const item of s.packing) {
+      assert.equal(item.worn, false, `${item.id} starts un-worn`);
+    }
+  }
+});
+
+test('v8 roundtrip: worn persists on worn-eligible categories', () => {
+  const s = defaultState('d1');
+  s.packing = s.packing.map((i) =>
+    i.id === 'pack.footwear.boots' || i.id === 'pack.clothing.fleece' ? { ...i, worn: true } : i,
+  );
+  const out = normalizeState(JSON.parse(JSON.stringify(s)), 'd1', STAGE_COUNT);
+  assert.equal(out.packing.find((i) => i.id === 'pack.footwear.boots').worn, true);
+  assert.equal(out.packing.find((i) => i.id === 'pack.clothing.fleece').worn, true);
+  assert.equal(out.packing.find((i) => i.id === 'pack.sleep.liner').worn, false);
+});
+
+test('worn on a non-eligible category heals to false', () => {
+  const out = normalizeState({
+    packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    packing: [
+      { id: 'pack.electronics.phone', label: 'Phone', categoryId: 'electronics', quantity: 1, status: 'ready', essential: true, worn: true, custom: false },
+      // Unknown category falls back to comfort — also not worn-eligible.
+      { id: 'custom_x', label: 'Mystery', categoryId: 'no-such', quantity: 1, status: 'needed', essential: false, worn: true, custom: true },
+    ],
+  });
+  for (const item of out.packing) {
+    assert.equal(item.worn, false, `${item.id} cannot be worn`);
+  }
+});
+
+test('impossible packed + worn heals to packed (progress is kept), idempotently', () => {
+  const raw = {
+    packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+    packing: [
+      { id: 'pack.footwear.boots', label: 'Boots', categoryId: 'footwear', quantity: 1, status: 'packed', essential: true, worn: true, custom: false },
+    ],
+  };
+  const once = normalizeState(raw, 'd1', STAGE_COUNT);
+  const boots = once.packing.find((i) => i.id === 'pack.footwear.boots');
+  assert.equal(boots.status, 'packed');
+  assert.equal(boots.worn, false);
+  const twice = normalizeState(JSON.parse(JSON.stringify(once)), 'd1', STAGE_COUNT);
+  assert.deepEqual(twice, once, 'healing is idempotent');
+});
+
+test('non-boolean worn values heal to false', () => {
+  for (const bad of ['yes', 1, {}, [], null]) {
+    const out = normalizeState({
+      packingTemplateVersion: PACKING_TEMPLATE_VERSION,
+      packing: [
+        { id: 'pack.footwear.boots', label: 'Boots', categoryId: 'footwear', quantity: 1, status: 'needed', essential: true, worn: bad, custom: false },
+      ],
+    });
+    assert.equal(out.packing[0].worn, false, `worn=${JSON.stringify(bad)}`);
+  }
+});
+
+test('the seed template never pre-marks anything as worn', () => {
+  for (const item of SEED_PACKING_ITEMS) {
+    assert.equal(item.worn, false, `${item.id} must start un-worn`);
+  }
 });

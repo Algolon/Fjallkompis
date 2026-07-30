@@ -114,3 +114,76 @@ test('store contract: delete works for every item; helpers come from packingMode
   assert.match(store, /from '\.\.\/utils\/packingModel\.mjs'/);
   assert.ok(!/resetPacking:/.test(store), 'old conflated store action removed');
 });
+
+// ---- Worn clothing ----------------------------------------------------------
+
+test('the Worn checkbox sits below Essential, same styling, gated on category', () => {
+  // Rendered only while the category chosen IN THE FORM is worn-eligible.
+  assert.match(editor, /const wornEligible = isWornEligibleCategory\(categoryId\)/);
+  assert.match(editor, /wornEligible \? \(/, 'checkbox is conditional on eligibility');
+  // Below the Essential toggle, before the Save/Cancel row.
+  const essentialAt = editor.indexOf('Essential item');
+  const wornAt = editor.indexOf('<span className="label">Worn</span>');
+  const saveAt = editor.indexOf('onClick={save}');
+  assert.ok(essentialAt !== -1 && wornAt !== -1 && saveAt !== -1);
+  assert.ok(essentialAt < wornAt && wornAt < saveAt, 'Essential, then Worn, then actions');
+  // Same check--setting styling and pressed-state semantics as Essential.
+  assert.match(editor, /aria-pressed=\{worn\}/);
+  const wornBlock = editor.slice(editor.indexOf('wornEligible ? ('), wornAt);
+  assert.match(wornBlock, /check check--setting/);
+  // Saving never smuggles worn onto a non-eligible category.
+  assert.match(editor, /worn: wornEligible && worn/);
+});
+
+test('the add form mirrors the Worn checkbox with the same gating', () => {
+  const addForm = lists.slice(
+    lists.indexOf('function AddItemForm'),
+    lists.indexOf('function PackingView'),
+  );
+  assert.match(addForm, /const wornEligible = isWornEligibleCategory\(categoryId\)/);
+  assert.match(addForm, /<span className="label">Worn<\/span>/);
+  assert.match(addForm, /worn: wornEligible && worn/);
+});
+
+test('the status tap cycle reaches Worn only for worn-eligible categories', () => {
+  const view = lists.slice(lists.indexOf('function PackingView'));
+  assert.match(view, /isWornEligibleCategory\(item\.categoryId\)/, 'cycle gates on category');
+  assert.match(view, /updatePackingItem\(item\.id, \{ worn: true \}\)/, 'Packed → Worn');
+  assert.match(
+    view,
+    /updatePackingItem\(item\.id, \{ worn: false, status: 'needed' \}\)/,
+    'Worn → Needed restarts the cycle',
+  );
+  // The row shows ONE state: the shared display collapse, also used by the
+  // aria label, so a worn item never reads as its underlying status.
+  assert.match(view, /packingDisplayState/);
+  assert.match(lists, /worn: 'Worn'/, 'Worn has a visible state label');
+});
+
+test('exclusivity lives in the model: the store routes status changes through it', () => {
+  assert.match(
+    store,
+    /packing: applyPackingPatch\(s\.packing, itemId, \{ status \}\)/,
+    'setPackingStatus cannot bypass the packed/worn rules',
+  );
+  assert.match(store, /isWornEligibleCategory\(item\.categoryId\)/, 'add sanitises worn');
+});
+
+test('the Worn filter pill exists but only once something is worn', () => {
+  const view = lists.slice(lists.indexOf('function PackingView'));
+  assert.match(view, /'worn'\] as Filter\[\]/, 'worn is a filter state');
+  assert.match(
+    view,
+    /f !== 'worn' \|\| stats\.worn > 0 \|\| filter === 'worn'/,
+    'pill appears with the first worn item (and never strands an active filter)',
+  );
+});
+
+test('the progress header separates backpack and worn without a second meter', () => {
+  const view = lists.slice(lists.indexOf('function PackingView'));
+  assert.match(view, /packTotal: *packTotal|packTotal,/, 'backpack denominator excludes worn');
+  assert.match(view, /\{stats\.packed\}\/\{stats\.packTotal\} packed/);
+  assert.match(view, /\{stats\.worn\} worn/, 'worn count pill');
+  assert.match(view, /wornWeightedGrams/, 'worn weight shown beside its count');
+  assert.ok(!/meter-fill--worn|second-meter/.test(view), 'one meter, one bar');
+});
