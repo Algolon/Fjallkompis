@@ -173,8 +173,6 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   // canonical stage per planned day with no dates, so this screen has ONE
   // structural path and the unplanned app behaves exactly as before.
   const { currentStage, routeDirection, plannedDays, currentPlannedDay } = useStore();
-  // Focus/scroll target for a combined day's "View today's stages" action.
-  const partsRef = useRef<HTMLElement>(null);
 
   // Manual mode only — remembered per device (non-versioned UI preference,
   // see utils/todayMode.mjs), never switched by dates, GPS or trip phase.
@@ -361,19 +359,16 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
               <div className="hero-actions">
                 {multiStage ? (
                   // A combined day's hero must not offer an action narrower
-                  // than what it claims: a single "Stage Guide" or "View
-                  // Route" could only open ONE of the day's stages. The hero
-                  // sends the user to the parts below, where each canonical
-                  // stage carries its own guide and map links.
+                  // than what it claims: "Stage Guide" or "View Route" would
+                  // each open only ONE of the day's stages. ONE honest action
+                  // instead — Stages lists the day's stages adjacently, each
+                  // with its own guide, highlights and map link.
                   <button
                     className="hero-action hero-action--primary"
-                    onClick={() => {
-                      partsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-                      partsRef.current?.focus();
-                    }}
-                    aria-label={`View today’s stages — ${day.stages.length} stages, each with its own guide and map`}
+                    onClick={() => onNavigate('stages', { guideStageId: day.stages[0].id })}
+                    aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
                   >
-                    <BookOpen size={15} strokeWidth={2} aria-hidden /> View today’s stages
+                    <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
                   </button>
                 ) : (
                   <>
@@ -401,95 +396,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
             </div>
           </section>
 
-          {/* B. Today's stages — only for a day that holds several canonical
-              stages. Each part keeps its OWN identity, statistics, highlight
-              chips and links: nothing is merged, re-ranked or capped across
-              stages, and guides, detours and safety information stay where
-              the stage owns them. */}
-          {multiStage ? (
-            <section
-              className="card today-glass today-glass--light today-parts"
-              aria-labelledby="today-parts-heading"
-              ref={partsRef}
-              tabIndex={-1}
-            >
-              <span className="card-title" id="today-parts-heading">
-                Today’s stages
-              </span>
-              <ol className="today-parts__list">
-                {day.stages.map((stage, i) => {
-                  const partFrom = STOPS_BY_ID[stage.fromHutId];
-                  const partTo = STOPS_BY_ID[stage.toHutId];
-                  const isCurrentPart = stage.id === currentStage.id;
-                  const partHighlights = stageHighlights(stage.id, 3, routeDirection);
-                  return (
-                    <li
-                      key={stage.id}
-                      className={`today-part${isCurrentPart ? ' is-current' : ''}`}
-                    >
-                      <div className="today-part__top">
-                        <span className="today-part__label">Part {i + 1}</span>
-                        {isCurrentPart ? (
-                          // Progress and live tracking follow this canonical
-                          // stage, so the day says which part that is.
-                          <span className="pill pill-current">
-                            <span className="dot" /> Current stage
-                          </span>
-                        ) : null}
-                      </div>
-                      <h3 className="today-part__route">
-                        {stopShortName(partFrom)} <span aria-hidden>→</span>{' '}
-                        {stopShortName(partTo)}
-                      </h3>
-                      <div className="today-part__stats tnum">
-                        <span>{formatDistanceKm(stage.distanceKm)}</span>
-                        <span aria-hidden>·</span>
-                        <span>
-                          ↗ {stage.totalAscentM ?? '—'} m · ↘ {stage.totalDescentM ?? '—'} m
-                        </span>
-                        <span aria-hidden>·</span>
-                        <span>{formatHoursEstimate(stage.estimatedHours)}</span>
-                      </div>
-                      {partHighlights.length > 0 ? (
-                        <ul
-                          className="today-part__chips"
-                          aria-label={`Stage characteristics, part ${i + 1}`}
-                        >
-                          {partHighlights.map((h) => {
-                            const HighlightIcon = HIGHLIGHT_ICONS[h.icon];
-                            return (
-                              <li key={h.id} className="hero-chip hero-chip--light">
-                                <HighlightIcon size={13} strokeWidth={2.2} aria-hidden />
-                                {h.label}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : null}
-                      <div className="today-part__actions">
-                        <button
-                          className="today-part__action"
-                          onClick={() => onNavigate('stages', { guideStageId: stage.id })}
-                          aria-label={`Stage guide for ${stopShortName(partFrom)} to ${stopShortName(partTo)} — opens Stages`}
-                        >
-                          <BookOpen size={14} strokeWidth={2} aria-hidden /> Stage guide
-                        </button>
-                        <button
-                          className="today-part__action"
-                          onClick={() => onNavigate('map', { mapStageId: stage.id })}
-                          aria-label={`Show ${stopShortName(partFrom)} to ${stopShortName(partTo)} on the map`}
-                        >
-                          <Route size={14} strokeWidth={2} aria-hidden /> View on map
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          ) : null}
-
-          {/* C. Journey progress — one marker per PLANNED hiking day (with no
+          {/* B. Journey progress — one marker per PLANNED hiking day (with no
               personal plan that is one marker per canonical stage, exactly as
               before). */}
           <section className="card today-glass today-glass--light" aria-label="Journey progress">
@@ -535,7 +442,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
             </div>
           </section>
 
-          {/* D. Tonight's stop — the planned day's FINAL stop (an
+          {/* C. Tonight's stop — the planned day's FINAL stop (an
               intermediate via-stop is never shown here). Compact navigation
               card. When an STF
               membership document is explicitly marked for Today (and its file

@@ -280,7 +280,8 @@ test('the Map keeps its stage colouring and canonical day property', () => {
 test('Today labels planned days "Day N of M" and stage parts "Part N"', () => {
   const todayScreen = read('src/screens/TodayScreen.tsx');
   assert.match(todayScreen, /Day \{day\.number\} of \{plannedDays\.length\}/);
-  assert.match(todayScreen, /Part \{i \+ 1\}/);
-  // Per-part links name the stage guide, matching the hero's Stage Guide.
-  assert.match(todayScreen, /aria-hidden \/> Stage guide/);
+  // Stage parts are NOT expanded on Today (that section was removed to keep
+  // the no-scroll overview); a combined day gets one honest Stages action.
+  assert.ok(!/Part \{i \+ 1\}/.test(todayScreen), 'no stage-part cards on Today');
+  assert.match(todayScreen, /Open in Stages/);
 });

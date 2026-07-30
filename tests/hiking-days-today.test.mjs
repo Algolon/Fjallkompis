@@ -192,7 +192,7 @@ test('the hero shows aggregate statistics and via-stops for a combined day', () 
 });
 
 test('a combined day never offers a hero action narrower than its claim', () => {
-  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Today’s stages'));
+  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Journey progress'));
   // Rendered markup only: the comments in this branch legitimately NAME the
   // actions they explain away.
   const combined = stripComments(
@@ -200,11 +200,12 @@ test('a combined day never offers a hero action narrower than its claim', () => 
   );
   assert.ok(!/Stage Guide/.test(combined), 'no singular Stage Guide on a combined day');
   assert.ok(!/View Route/.test(combined), 'no whole-day View Route on a combined day');
-  assert.ok(!/guideStageId|mapStageId/.test(combined), 'no per-stage payload from the hero');
-  assert.match(combined, /View today’s stages/);
-  // It moves focus to the parts, so keyboard users follow the same path.
-  assert.match(combined, /partsRef\.current\?\.scrollIntoView/);
-  assert.match(combined, /partsRef\.current\?\.focus\(\)/);
+  assert.ok(!/mapStageId/.test(combined), 'no whole-day map claim from the hero');
+  // ONE honest action. Stages lists the day's stages adjacently, each with its
+  // own guide and map link, so nothing is lost by not expanding them here.
+  assert.match(combined, /Open in Stages/);
+  assert.match(combined, /onNavigate\('stages', \{ guideStageId: day\.stages\[0\]\.id \}\)/);
+  assert.ok(!/Stage guides/.test(combined), 'never a plural label for a single-stage deep link');
 });
 
 test('hero chips stay for a single-stage day and are omitted for a combined one', () => {
@@ -212,23 +213,6 @@ test('hero chips stay for a single-stage day and are omitted for a combined one'
     today,
     /currentStage && !multiStage\s*\?\s*stageHighlights\(currentStage\.id, undefined, routeDirection\)\s*:\s*\[\]/,
   );
-});
-
-test('each part keeps its own identity, statistics, chips and links', () => {
-  const parts = today.slice(today.indexOf('today-parts__list'), today.indexOf('Journey progress'));
-  assert.match(parts, /Part \{i \+ 1\}/);
-  assert.match(parts, /formatDistanceKm\(stage\.distanceKm\)/);
-  assert.match(parts, /stageHighlights\(stage\.id, 3, routeDirection\)/);
-  assert.match(parts, /onNavigate\('stages', \{ guideStageId: stage\.id \}\)/);
-  assert.match(parts, /onNavigate\('map', \{ mapStageId: stage\.id \}\)/);
-  // Nothing is merged, re-ranked or capped ACROSS stages.
-  assert.ok(!/flatMap|concat\(/.test(parts), 'stage content is never merged across parts');
-});
-
-test('the current part is marked, because progress follows that canonical stage', () => {
-  assert.match(today, /const isCurrentPart = stage\.id === currentStage\.id;/);
-  assert.match(today, /Current stage/);
-  assert.match(css, /\.today-part\.is-current \{\s*border-color: var\(--cloudberry\);/);
 });
 
 test('Tonight is the planned day’s final stop, never an intermediate one', () => {
@@ -245,32 +229,13 @@ test('Today reads no clock: the date comes from the plan, not the system', () =>
   assert.match(today, /formatDateFieldLabel/);
 });
 
-test('the parts section is only rendered for a day with several stages', () => {
-  assert.match(today, /const multiStage = \(day\?\.stages\.length \?\? 0\) > 1;/);
-  assert.match(today, /\{multiStage \? \(\s*<section\s*\n\s*className="card today-glass today-glass--light today-parts"/);
-});
-
-test('the parts card is reachable and focusable for the hero action', () => {
-  assert.match(today, /ref=\{partsRef\}/);
-  assert.match(today, /tabIndex=\{-1\}/);
-  assert.match(today, /aria-labelledby="today-parts-heading"/);
-  assert.match(css, /\.today-parts:focus-visible \{\s*outline: 2px solid var\(--glacier-700\);/);
-});
-
-test('the desktop grid keeps Journey and Tonight in their original columns', () => {
-  // The parts card spans like the hero it belongs to; without this it would
-  // take column 1 and push Journey out of the pre-existing composition.
-  assert.match(
-    css,
-    /\.today-screen \[role='tabpanel'\] > section\.today-parts \{\s*grid-column: 1 \/ -1;/,
-  );
-  assert.match(css, /\.today-screen \[role='tabpanel'\] > \.tonight-row \{\s*grid-column: 2;/);
-});
-
-test('part actions meet the touch-target and focus conventions', () => {
-  assert.match(css, /\.today-part__action \{[^}]*min-height: 40px;[^}]*padding: 8px 12px;/s);
-  assert.match(css, /\.today-part__action:focus-visible \{\s*outline: 2px solid var\(--glacier-700\);/);
-  assert.match(css, /\.today-part__action:active \{\s*transform: scale\(0\.97\);/);
-  // Stacked full-width on the smallest phones rather than overflowing.
-  assert.match(css, /@media \(max-width: 340px\) \{\s*\.today-part__actions \{\s*flex-direction: column;/);
+test('Today carries NO expanded stage-detail section', () => {
+  // The measured regression: a per-stage card list added 486px at 375x667 and
+  // pushed Journey and Tonight below the fold. Stage detail lives in Stages.
+  for (const gone of ['today-parts', 'Today\u2019s stages', 'today-part__action', 'Part {i + 1}']) {
+    assert.ok(!today.includes(gone), `TodayScreen must not contain ${gone}`);
+  }
+  for (const gone of ['.today-parts', '.today-part__', '.hero-chip--light']) {
+    assert.ok(!css.includes(gone), `global.css must not contain ${gone}`);
+  }
 });

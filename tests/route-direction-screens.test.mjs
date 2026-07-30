@@ -114,7 +114,6 @@ test('Today renders itinerary-ordered days and the oriented silhouette', () => {
   assert.match(today, /<HeroSilhouette profile=\{day\.elevationProfile\} \/>/);
   // Highlights are direction-aware.
   assert.match(today, /stageHighlights\(currentStage\.id, undefined, routeDirection\)/);
-  assert.match(today, /stageHighlights\(stage\.id, 3, routeDirection\)/);
   // Journey legend reads from the ordered days (flips with direction).
   assert.match(today, /plannedDays\[0\]\.fromStopId/);
   assert.match(today, /plannedDays\[plannedDays\.length - 1\]\.toStopId/);

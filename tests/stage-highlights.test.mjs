@@ -283,7 +283,7 @@ test('the remembered in-session Map context is only overwritten explicitly', () 
 });
 
 test('the block keeps its fixed responsibility — no dashboard creep', () => {
-  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Today’s stages'));
+  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('Journey progress'));
   // The block still offers at most two follow-up actions at a time. Since
   // Hiking days it has two mutually exclusive branches: a day holding ONE
   // canonical stage keeps Stage Guide + View Route, and a combined day shows
@@ -301,7 +301,7 @@ test('the block keeps its fixed responsibility — no dashboard creep', () => {
     1,
     'a combined day offers exactly one, and it points at the stage parts',
   );
-  assert.match(combined, /View today’s stages/);
+  assert.match(combined, /Open in Stages/);
   // No separate visible heading above the chips (deliberate review decision).
   assert.ok(!/Highlights</.test(hero), 'no "Highlights" heading');
   assert.ok(!/Stage Briefing/.test(hero), 'no "Stage Briefing" heading');
