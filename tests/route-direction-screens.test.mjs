@@ -17,7 +17,7 @@ const read = (p) => readFileSync(join(root, p), 'utf8');
 const store = read('src/store/AppStore.tsx');
 const app = read('src/App.tsx');
 const settings = read('src/screens/SettingsScreen.tsx');
-const today = read('src/screens/TodayScreen.tsx');
+const today = read('src/components/TodayOnRoute.tsx');
 const stages = read('src/screens/StagesScreen.tsx');
 const stops = read('src/screens/StopsScreen.tsx');
 const map = read('src/screens/MapScreen.tsx');
@@ -40,11 +40,11 @@ test('the store derives the active itinerary from the persisted direction', () =
 
 test('changing direction keeps the stable current-stage id (no numeric remap)', () => {
   // The physical currentStageId is untouched, so its itinerary day/endpoints
-  // are recomputed, not remapped. Since the Hiking days feature, the action
-  // also resets the personal day plan in the SAME update (its grouping is
-  // direction-specific) — but it still never rewrites currentStageId.
+  // are recomputed, not remapped. Since the Day plan feature the action also
+  // REMOVES any plan in the same update (a plan describes a journey in one
+  // direction) — but it still never rewrites currentStageId.
   assert.match(store, /if \(s\.routeDirection === next\) return s;/);
-  assert.match(store, /return \{ \.\.\.s, routeDirection: next, dayPlan \};/);
+  assert.match(store, /return \{ \.\.\.s, routeDirection: next, dayPlan: null \};/);
   const action = /const setRouteDirection = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
   assert.ok(
     !/currentStageId/.test(action),
@@ -85,10 +85,12 @@ test('Settings confirms a consequential direction change and never the active on
     settings,
     /if \(currentStage \|\| dayPlan\) setPending\(dir\);\s*else setRouteDirection\(dir\);/,
   );
-  // Dialog copy + actions per spec.
+  // Dialog copy + actions per spec. With a Day plan the change is destructive
+  // and says so; without one the original copy is unchanged.
   assert.match(settings, /Change route direction\?/);
   assert.match(settings, /packing list, journal and stop notes will stay unchanged/);
-  assert.match(settings, /primaryLabel="Change direction"/);
+  assert.match(settings, /primaryLabel=\{dayPlan \? 'Remove day plan and change direction' : 'Change direction'\}/);
+  assert.match(settings, /Remove day plan and change direction\?/);
   // The dialog itself is the shared accessible ConfirmDialog component
   // (extracted so the packing editor can reuse it).
   assert.match(settings, /import \{ ConfirmDialog \} from '\.\.\/components\/ConfirmDialog'/);
@@ -99,24 +101,23 @@ test('Settings confirms a consequential direction change and never the active on
 
 // ---- Screens consume the active itinerary -----------------------------------
 
-test('Today renders itinerary-ordered days and the oriented silhouette', () => {
-  // Since Hiking days, Today renders PLANNED DAYS rather than raw stages.
-  // The days are derived from the active itinerary's ordered stages, so they
-  // flip with direction exactly as the stage list did; `currentStage` is
-  // still read, because progress and the current PART key on it.
-  assert.match(
-    today,
-    /const \{ currentStage, routeDirection, plannedDays, currentPlannedDay \} = useStore\(\)/,
-  );
-  assert.match(today, /plannedDays\.map\(\(d\) =>/);
-  assert.match(today, /Day \{day\.number\} of \{plannedDays\.length\}/);
-  // Silhouette follows the planned day's oriented, concatenated profile.
+test('Today renders itinerary-ordered stages and days, and the oriented silhouette', () => {
+  // Without a Day plan Today renders the ORIGINAL stage view, straight from
+  // the active itinerary; with one it renders planned calendar days derived
+  // from the same ordered stages. Both flip with direction.
+  assert.match(today, /const \{ stages \} = useStore\(\)/);
+  assert.match(today, /stages\.map\(\(stage\) =>/);
+  assert.match(today, /Day \{stage\.day\} of \{stages\.length\}/);
+  assert.match(today, /Day \{day\.number\} of \{dayCount\}/);
+  // Silhouettes follow the oriented profiles.
+  assert.match(today, /<HeroSilhouette profile=\{stage\.elevationProfile\} \/>/);
   assert.match(today, /<HeroSilhouette profile=\{day\.elevationProfile\} \/>/);
   // Highlights are direction-aware.
+  assert.match(today, /stageHighlights\(stage\.id, undefined, routeDirection\)/);
   assert.match(today, /stageHighlights\(currentStage\.id, undefined, routeDirection\)/);
-  // Journey legend reads from the ordered days (flips with direction).
-  assert.match(today, /plannedDays\[0\]\.fromStopId/);
-  assert.match(today, /plannedDays\[plannedDays\.length - 1\]\.toStopId/);
+  // Journey legend reads from the ordered stages (flips with direction).
+  assert.match(today, /stages\[0\]\.fromHutId/);
+  assert.match(today, /stages\[stages\.length - 1\]\.toHutId/);
 });
 
 test('Stages uses the itinerary for order, geometry, guides and header', () => {

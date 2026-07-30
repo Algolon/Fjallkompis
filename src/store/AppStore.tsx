@@ -8,8 +8,11 @@ import {
   type ReactNode,
 } from 'react';
 import type {
+  DayActivityKind,
   DayPlanState,
   JournalEntry,
+  OvernightRef,
+  PlannedDayRecord,
   PackingItem,
   PackingStatus,
   PersistentState,
@@ -34,9 +37,16 @@ import type { ActiveItinerary, ItineraryStage } from '../route/activeItinerary';
 import { isRealIsoDate } from '../utils/dateTimeField.mjs';
 import {
   createDayPlan as buildDayPlan,
-  defaultGroups,
-  isDefaultGrouping,
-  toggleBoundary,
+  dayIndexById,
+  dayIndexForStageIndex,
+  firstStageIndexOfDay,
+  insertDay,
+  isDefaultDays,
+  removeDay as removeDayFromPlan,
+  reorderDayActivities,
+  setDayActivities as setDayActivitiesIn,
+  setDayOvernight as setDayOvernightIn,
+  setHikingStages,
 } from '../plan/dayPlan.mjs';
 import { buildPlannedDays, currentPlannedDayOf } from '../plan/plannedDays.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
@@ -65,33 +75,40 @@ interface AppStore {
    */
   setRouteDirection: (direction: RouteDirection) => void;
 
-  // Hiking days — the personal day plan over the canonical stages. Only
-  // `dayPlan` is persisted; `plannedDays` and `currentPlannedDay` are derived
-  // (and `plannedDays` is always populated: with no plan it is one canonical
-  // stage per day with no dates, i.e. the app's pre-feature behaviour).
+  // Day plan — the personal journey: ordered calendar days, each holding
+  // hiking / travel / rest activities. ONLY `dayPlan` is persisted;
+  // `plannedDays` and `currentPlannedDay` are derived, and both are EMPTY /
+  // null until the user explicitly creates a plan in Settings. Nothing is
+  // ever inferred from trip items, documents, direction or the system date.
   dayPlan: DayPlanState | null;
+  /** Derived calendar days. Empty when there is no plan — never implicit days. */
   plannedDays: PlannedDay[];
+  /** The active calendar day, from the plan's own stable currentDayId. */
   currentPlannedDay: PlannedDay | null;
-  /** True when the plan exists and is already one stage per day. */
+  /** True when the plan is still one hiking day per canonical stage. */
   dayPlanIsDefault: boolean;
-  /**
-   * Set the first hiking date. With no plan yet this CREATES the default
-   * one-stage-per-day plan; with a plan it moves the date. An empty or
-   * malformed value is ignored — clearing the field never deletes a plan.
-   */
-  setFirstHikingDate: (firstDate: string) => void;
-  /**
-   * Toggle the day boundary AFTER the stage at `stageIndex` (0-based, walking
-   * order): combine that day with the next, or split it there again. The one
-   * control expresses both directions — components never touch `groups`.
-   */
-  toggleDayBoundary: (stageIndex: number) => void;
-  /** Back to one stage per day; the first date and direction are kept. */
+  /** Create the default plan (one hiking day per stage) from a start date. */
+  createDayPlan: (startDate: string) => void;
+  /** Move an existing plan's journey start date. Invalid input is ignored. */
+  setStartDate: (startDate: string) => void;
+  /** Insert a day at `index` with the given activity kinds. */
+  addPlannedDay: (index: number, kinds: DayActivityKind[]) => void;
+  /** Remove a day by stable id; its walking passes to a neighbouring day. */
+  removePlannedDay: (dayId: string) => void;
+  /** Replace a day's activity composition (kinds, in the order given). */
+  setDayActivities: (dayId: string, kinds: DayActivityKind[]) => void;
+  /** Swap a two-activity day's order (hike-then-travel ⇄ travel-then-hike). */
+  swapDayActivities: (dayId: string) => void;
+  /** Set how many adjacent canonical stages a hiking day covers. */
+  setHikingDayStages: (dayId: string, stages: number) => void;
+  /** Set (or clear back to derived, with undefined) a day's overnight. */
+  setDayOvernight: (dayId: string, ref: OvernightRef | undefined) => void;
+  /** Back to one hiking day per stage; the start date and direction are kept. */
   resetDayPlan: () => void;
-  /** Destructive: drop the plan entirely (back to unplanned behaviour). */
+  /** Destructive: drop the plan entirely (back to the default state). */
   removeDayPlan: () => void;
-  /** Make a planned day current by selecting its FIRST canonical stage. */
-  activatePlannedDay: (dayIndex: number) => void;
+  /** Make a day current. A hiking day also selects its first canonical stage. */
+  activatePlannedDay: (dayId: string) => void;
 
   // Stage (resolved against the active itinerary — itinerary day + oriented
   // endpoints/geometry for the persisted physical segment id).
@@ -155,8 +172,23 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     saveState(state);
   }, [state]);
 
+  /**
+   * Select a canonical stage (the Stages screen's "Set as current"). When a
+   * Day plan exists, the calendar day containing that stage becomes the active
+   * day in the SAME update — the two pointers are written together, never
+   * separately, so they cannot drift apart.
+   */
   const setCurrentStage = useCallback((stageId: string) => {
-    setState((s) => ({ ...s, currentStageId: stageId }));
+    setState((s) => {
+      if (!s.dayPlan) return { ...s, currentStageId: stageId };
+      const stageIndex = getActiveItinerary(s.routeDirection).stages.findIndex(
+        (st) => st.id === stageId,
+      );
+      const dayIndex = stageIndex === -1 ? -1 : dayIndexForStageIndex(s.dayPlan.days, stageIndex);
+      const currentDayId =
+        dayIndex === -1 ? s.dayPlan.currentDayId : s.dayPlan.days[dayIndex].id;
+      return { ...s, currentStageId: stageId, dayPlan: { ...s.dayPlan, currentDayId } };
+    });
   }, []);
 
   const setRouteDirection = useCallback((direction: RouteDirection) => {
@@ -164,58 +196,165 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       const next = normalizeDirection(direction);
       // No-op (and no re-render churn) when re-selecting the active direction.
       if (s.routeDirection === next) return s;
-      // The plan follows in the SAME state update, so no render ever observes
-      // a plan whose direction disagrees with the route. Groupings are reset,
-      // never mirrored; the user's first hiking date is kept.
-      const dayPlan = s.dayPlan
-        ? {
-            ...s.dayPlan,
-            direction: next,
-            groups: defaultGroups(getActiveItinerary(next).stages.length),
-          }
-        : null;
-      return { ...s, routeDirection: next, dayPlan };
+      // A plan describes a journey in ONE walking direction: which stages are
+      // walked, where each day ends, where the user sleeps and which travel
+      // day is the outbound one. None of that survives a reversal, so the plan
+      // is REMOVED in the same state update rather than mirrored, rebuilt or
+      // partially retained — Settings confirms this destructive step first.
+      // Everything else (current stage, trip, packing, journal, notes) is
+      // untouched.
+      return { ...s, routeDirection: next, dayPlan: null };
     });
   }, []);
 
-  // ---- Hiking days -------------------------------------------------------
+  // ---- Day plan ----------------------------------------------------------
+  //
+  // Every write to the two persisted pointers goes through these actions:
+  // `currentStageId` (route progress, present in every state) and
+  // `dayPlan.currentDayId` (the calendar day, present only while a plan is).
+  // Travel and rest days carry no stage, so one pointer cannot answer both
+  // questions; keeping both writes here is what stops them diverging.
 
-  const setFirstHikingDate = useCallback((firstDate: string) => {
+  /** Apply a day-list edit, repairing the active-day pointer if it vanished. */
+  const patchDays = useCallback(
+    (s: PersistentState, days: PlannedDayRecord[]): PersistentState => {
+      if (!s.dayPlan) return s;
+      const currentDayId =
+        s.dayPlan.currentDayId != null && days.some((d) => d.id === s.dayPlan!.currentDayId)
+          ? s.dayPlan.currentDayId
+          : null;
+      return { ...s, dayPlan: { ...s.dayPlan, days, currentDayId } };
+    },
+    [],
+  );
+
+  const createDayPlan = useCallback((startDate: string) => {
     setState((s) => {
-      // An empty or malformed value is ignored: clearing the field must never
-      // delete a plan — removing it is a separate, explicit, confirmed action.
-      if (!isRealIsoDate(firstDate)) return s;
-      if (s.dayPlan) return { ...s, dayPlan: { ...s.dayPlan, firstDate } };
-      // With no plan yet, choosing a date IS how the default plan is created.
+      if (s.dayPlan) return s;
       const plan = buildDayPlan(
         s.routeDirection,
-        firstDate,
+        startDate,
         getActiveItinerary(s.routeDirection).stages.length,
       );
       return plan ? { ...s, dayPlan: plan } : s;
     });
   }, []);
 
-  const toggleDayBoundary = useCallback((stageIndex: number) => {
+  const setStartDate = useCallback((startDate: string) => {
     setState((s) => {
-      if (!s.dayPlan) return s;
-      const groups = toggleBoundary(s.dayPlan.groups, stageIndex);
-      return { ...s, dayPlan: { ...s.dayPlan, groups } };
+      // An empty or malformed value is ignored: clearing the field must never
+      // delete a plan — removing it is a separate, explicit, confirmed action.
+      if (!s.dayPlan || !isRealIsoDate(startDate)) return s;
+      return { ...s, dayPlan: { ...s.dayPlan, startDate } };
     });
   }, []);
+
+  const addPlannedDay = useCallback(
+    (index: number, kinds: DayActivityKind[]) => {
+      setState((s) => (s.dayPlan ? patchDays(s, insertDay(s.dayPlan.days, index, kinds)) : s));
+    },
+    [patchDays],
+  );
+
+  const removePlannedDay = useCallback(
+    (dayId: string) => {
+      setState((s) => {
+        if (!s.dayPlan) return s;
+        const index = dayIndexById(s.dayPlan.days, dayId);
+        if (index === -1) return s;
+        return patchDays(s, removeDayFromPlan(s.dayPlan.days, index));
+      });
+    },
+    [patchDays],
+  );
+
+  const setDayActivities = useCallback(
+    (dayId: string, kinds: DayActivityKind[]) => {
+      setState((s) => {
+        if (!s.dayPlan) return s;
+        const index = dayIndexById(s.dayPlan.days, dayId);
+        if (index === -1) return s;
+        return patchDays(s, setDayActivitiesIn(s.dayPlan.days, index, kinds));
+      });
+    },
+    [patchDays],
+  );
+
+  const swapDayActivities = useCallback(
+    (dayId: string) => {
+      setState((s) => {
+        if (!s.dayPlan) return s;
+        const index = dayIndexById(s.dayPlan.days, dayId);
+        if (index === -1) return s;
+        return patchDays(s, reorderDayActivities(s.dayPlan.days, index));
+      });
+    },
+    [patchDays],
+  );
+
+  const setHikingDayStages = useCallback(
+    (dayId: string, stages: number) => {
+      setState((s) => {
+        if (!s.dayPlan) return s;
+        const index = dayIndexById(s.dayPlan.days, dayId);
+        if (index === -1) return s;
+        return patchDays(s, setHikingStages(s.dayPlan.days, index, stages));
+      });
+    },
+    [patchDays],
+  );
+
+  const setDayOvernight = useCallback(
+    (dayId: string, ref: OvernightRef | undefined) => {
+      setState((s) => {
+        if (!s.dayPlan) return s;
+        const index = dayIndexById(s.dayPlan.days, dayId);
+        if (index === -1) return s;
+        return patchDays(s, setDayOvernightIn(s.dayPlan.days, index, ref));
+      });
+    },
+    [patchDays],
+  );
 
   const resetDayPlan = useCallback(() => {
     setState((s) => {
       if (!s.dayPlan) return s;
-      const groups = defaultGroups(getActiveItinerary(s.routeDirection).stages.length);
-      return { ...s, dayPlan: { ...s.dayPlan, groups } };
+      const fresh = buildDayPlan(
+        s.routeDirection,
+        s.dayPlan.startDate,
+        getActiveItinerary(s.routeDirection).stages.length,
+      );
+      return fresh ? { ...s, dayPlan: fresh } : s;
     });
   }, []);
 
   const removeDayPlan = useCallback(() => {
     // Only the plan goes: the current stage, packing, trip, journal and notes
-    // are untouched, so the app returns exactly to its unplanned behaviour.
+    // are untouched, so the app returns exactly to its default state.
     setState((s) => (s.dayPlan ? { ...s, dayPlan: null } : s));
+  }, []);
+
+  /**
+   * Make a day current. A hiking day also selects its FIRST canonical stage,
+   * so route progress and the calendar day agree; a travel or rest day carries
+   * no stage and never fabricates one — `currentStageId` simply stays put.
+   */
+  const activatePlannedDay = useCallback((dayId: string) => {
+    setState((s) => {
+      if (!s.dayPlan) return s;
+      const index = dayIndexById(s.dayPlan.days, dayId);
+      if (index === -1) return s;
+      const stageIndex = firstStageIndexOfDay(s.dayPlan.days, index);
+      const stageId =
+        stageIndex === -1
+          ? s.currentStageId
+          : getActiveItinerary(s.routeDirection).stages[stageIndex]?.id ?? s.currentStageId;
+      return {
+        ...s,
+        currentStageId: stageId,
+        dayPlan: { ...s.dayPlan, currentDayId: dayId },
+      };
+    });
   }, []);
 
   const setStopNote = useCallback((stopId: string, notes: string) => {
@@ -371,28 +510,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   // Hiking days. Always derived, never persisted: with no plan this is one
   // canonical stage per day with no dates, so every consumer reads ONE shape
   // and the unplanned app behaves exactly as it did before the feature.
+  // EMPTY until the user creates a plan: with no plan there are no calendar
+  // days at all, so no screen can accidentally show a date or an activity
+  // indicator. Trip items ride along read-only so a travel day can name the
+  // movements the user already recorded — matched by date, never copied.
   const plannedDays = useMemo<PlannedDay[]>(
-    () => buildPlannedDays(itinerary.stages, state.dayPlan, state.currentStageId),
-    [itinerary, state.dayPlan, state.currentStageId],
+    () => buildPlannedDays(itinerary.stages, state.dayPlan, state.trip),
+    [itinerary, state.dayPlan, state.trip],
   );
-  // The active planned day is DERIVED from currentStageId — the one persisted
-  // current-position pointer. There is deliberately no second pointer to keep
-  // in sync, so the two can never disagree.
   const currentPlannedDay = useMemo<PlannedDay | null>(
     () => currentPlannedDayOf(plannedDays),
     [plannedDays],
   );
   const dayPlanIsDefault =
-    state.dayPlan != null &&
-    isDefaultGrouping(state.dayPlan.groups, itinerary.stages.length);
-
-  const activatePlannedDay = useCallback(
-    (dayIndex: number) => {
-      const day = plannedDays[dayIndex];
-      if (day) setCurrentStage(day.stages[0].id);
-    },
-    [plannedDays, setCurrentStage],
-  );
+    state.dayPlan != null && isDefaultDays(state.dayPlan.days, itinerary.stages.length);
 
   const getStopNote = useCallback(
     (stopId: string): string => state.hutData[stopId]?.notes ?? '',
@@ -418,8 +549,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     plannedDays,
     currentPlannedDay,
     dayPlanIsDefault,
-    setFirstHikingDate,
-    toggleDayBoundary,
+    createDayPlan,
+    setStartDate,
+    addPlannedDay,
+    removePlannedDay,
+    setDayActivities,
+    swapDayActivities,
+    setHikingDayStages,
+    setDayOvernight,
     resetDayPlan,
     removeDayPlan,
     activatePlannedDay,
