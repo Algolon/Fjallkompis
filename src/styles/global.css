@@ -5449,6 +5449,12 @@ span.trip-attach-open {
   border-color: var(--cloudberry);
   background: var(--cloudberry-soft);
 }
+/* The derived choice — "where today's walk ends", "same as last night". It is
+   what the day does on its own, so it reads as the default rather than as one
+   more equal option: a dashed edge, and it always leads the list. */
+.dayplan-option--derived {
+  border-style: dashed;
+}
 .dayplan-option:active {
   transform: scale(0.99);
 }

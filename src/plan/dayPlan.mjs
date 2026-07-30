@@ -390,6 +390,24 @@ export function canInsertHikingDay(days, index) {
 }
 
 /**
+ * True when the day at `index` can GIVE UP its walking — the precondition for
+ * turning a hiking day into a travel or rest day. Its stages have to land on a
+ * neighbouring hiking day, so the only day that walks can never stop walking:
+ * the route must stay covered.
+ *
+ * The mirror of `canInsertHikingDay`, and the same rule `setDayActivities`
+ * enforces, exposed so the UI can disable the control and say why instead of
+ * offering a tap that quietly does nothing.
+ */
+export function canDropHikingFromDay(days, index) {
+  if (!Array.isArray(days)) return false;
+  const day = days[index];
+  if (!day) return false;
+  if (hikingStagesOf(day) === 0) return true; // nothing to give up
+  return findHikingNeighbour(days, index) !== -1;
+}
+
+/**
  * Remove the day at `index`. Its walking, if any, moves to the next hiking day
  * or (failing that) the previous one, so no stage is ever lost. Removing the
  * only day, or the only day that walks, is refused.

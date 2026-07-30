@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import {
   DAY_ACTIVITY_KINDS,
   buildActivities,
+  canDropHikingFromDay,
   canInsertHikingDay,
   canRemoveDay,
   createDayPlan,
@@ -624,4 +625,67 @@ test('the pointer rule never invents a day, and null in means null out', () => {
   assert.equal(currentDayIdAfterEdit([a], [a], 'day_gone', 0), null);
   // A current stage that is not on the route cannot move anything.
   assert.equal(currentDayIdAfterEdit([a], [a], a.id, -1), a.id);
+});
+
+// ---- Edit capability: what the model will actually accept -------------------
+//
+// The UI asks these BEFORE offering a control, so a tap can never be a silent
+// no-op and a destructive confirmation can never be followed by nothing.
+
+test('a day can only take on walking when some other day has a stage to spare', () => {
+  const spread = defaultDays(STAGES); // every stage already has its own day
+  assert.equal(canInsertHikingDay(spread, 0), false);
+  assert.equal(canInsertHikingDay(spread, 3), false);
+  // Merge two stages onto one day and a spare appears.
+  const merged = setHikingStages(spread, 0, 2);
+  assert.equal(canInsertHikingDay(merged, 0), true);
+  assert.equal(canInsertHikingDay(merged, merged.length), true, 'donors are found backwards too');
+});
+
+test('a day can only give up its walking when another day can take it', () => {
+  const only = [day([hiking(STAGES)]), day([travel()])];
+  assert.equal(canDropHikingFromDay(only, 0), false, 'the only walking day must keep walking');
+  assert.equal(canDropHikingFromDay(only, 1), true, 'a travel day has nothing to give up');
+  const two = [day([hiking(3)]), day([hiking(4)])];
+  assert.equal(canDropHikingFromDay(two, 0), true);
+  assert.equal(canDropHikingFromDay(two, 1), true);
+  assert.equal(canDropHikingFromDay(two, 9), false, 'no such day');
+  assert.equal(canDropHikingFromDay(null, 0), false);
+});
+
+test('the capability answers match what the mutation actually does', () => {
+  // Refused: the only walking day cannot stop walking, and the plan comes
+  // back byte-identical rather than half-applied.
+  const only = [day([hiking(STAGES)]), day([travel()])];
+  assert.equal(canDropHikingFromDay(only, 0), false);
+  assert.deepEqual(setDayActivities(only, 0, ['travel']), only, 'refused, so unchanged');
+
+  // Refused: every stage already has its own day, so a travel day has no
+  // walking to take on.
+  const spread = [...defaultDays(STAGES), day([travel()])];
+  const travelIndex = spread.length - 1;
+  assert.equal(canInsertHikingDay(spread, travelIndex), false);
+  assert.deepEqual(
+    setDayActivities(spread, travelIndex, ['hiking']),
+    spread,
+    'refused, so unchanged',
+  );
+
+  // Allowed: the plan really changes, and stays a valid partition.
+  const merged = setHikingStages(defaultDays(STAGES), 0, 2);
+  const withTravelDay = insertDay(merged, 0, ['travel']);
+  assert.equal(canInsertHikingDay(withTravelDay, 0), true);
+  const grown = setDayActivities(withTravelDay, 0, ['travel', 'hiking']);
+  assert.notDeepEqual(grown, withTravelDay);
+  assert.ok(isValidDays(grown, STAGES));
+});
+
+test('removal is refused for the only day and for the only walking day', () => {
+  assert.equal(canRemoveDay([day([hiking(STAGES)])], 0), false, 'the only day');
+  // One hiking day plus one travel day: the walking has nowhere to go.
+  const pair = [day([hiking(STAGES)]), day([travel()])];
+  assert.equal(canRemoveDay(pair, 0), false, 'the only walking day');
+  assert.equal(canRemoveDay(pair, 1), true, 'the travel day is free to go');
+  assert.deepEqual(removeDay(pair, 0), pair, 'the refused removal changes nothing');
+  assert.equal(removeDay(pair, 1).length, 1);
 });

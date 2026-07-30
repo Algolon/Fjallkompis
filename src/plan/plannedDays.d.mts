@@ -48,6 +48,12 @@ export interface PlannedDay {
   elevationProfile: ElevationSample[];
   /** The effective overnight (explicit, hiking endpoint, carried, or none). */
   overnight: ResolvedOvernight;
+  /**
+   * What the overnight would be with NO explicit reference stored — the
+   * hiking endpoint, a rest day's carried location, or none. Never 'explicit'.
+   * The overnight chooser offers this as the way back to derived behaviour.
+   */
+  derivedOvernight: ResolvedOvernight;
   /** Trip transport items recorded for this date — read-only, matched by date. */
   travelItems: TripItem[];
   /** True when this is the plan's active day. */

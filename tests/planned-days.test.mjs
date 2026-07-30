@@ -473,3 +473,72 @@ test('the reversed route derives the same journey shape from the other end', () 
   const ids = days.flatMap((d) => d.stages.map((s) => s.id));
   assert.deepEqual(ids, reverseStages.map((s) => s.id));
 });
+
+// ---- The derived overnight, alongside the effective one ---------------------
+//
+// `overnight` is what the day HAS; `derivedOvernight` is what it would have
+// with nothing stored. The chooser needs both: without the second, a day that
+// has been overridden once can never inherit again.
+
+test('every day exposes what its overnight would be with nothing stored', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  for (const d of days) {
+    assert.ok(d.derivedOvernight, `day ${d.number} exposes a derived overnight`);
+    assert.notEqual(d.derivedOvernight.source, 'explicit', 'the derivation ignores the override');
+  }
+});
+
+test('a hiking day derives its walking endpoint whatever it has stored', () => {
+  const days = plan([day([hiking(1)], { kind: 'stop', stopId: 'kebnekaise' }), day([hiking(6)])]);
+  const [first] = buildPlannedDays(forwardStages, days, []);
+  assert.equal(first.overnight.kind, 'stop');
+  assert.equal(first.overnight.stopId, 'kebnekaise', 'the override wins');
+  assert.equal(first.overnight.source, 'explicit');
+  // ...and the way back is still known.
+  assert.equal(first.derivedOvernight.source, 'hiking');
+  assert.equal(first.derivedOvernight.stopId, forwardStages[0].toHutId);
+});
+
+test('a rest day carries the night before, and still knows it when overridden', () => {
+  const base = [day([hiking(6)]), day([rest()]), day([hiking(1)])];
+  const [, restDay] = buildPlannedDays(forwardStages, plan(base), []);
+  const carriedTo = forwardStages[5].toHutId;
+  assert.equal(restDay.overnight.source, 'carried');
+  assert.equal(restDay.overnight.stopId, carriedTo);
+  assert.equal(restDay.derivedOvernight.source, 'carried');
+
+  // Override it, and the carried value is STILL what it would fall back to.
+  const overridden = [day([hiking(6)]), day([rest()], { kind: 'stop', stopId: 'abisko' }), day([hiking(1)])];
+  const [, pinned] = buildPlannedDays(forwardStages, plan(overridden), []);
+  assert.equal(pinned.overnight.source, 'explicit');
+  assert.equal(pinned.overnight.stopId, 'abisko');
+  assert.equal(pinned.derivedOvernight.source, 'carried');
+  assert.equal(pinned.derivedOvernight.stopId, carriedTo, 'the way back survives the override');
+});
+
+test('a carried rest day FOLLOWS the day before when that day changes', () => {
+  // The point of clearing the override rather than pinning today's answer.
+  const shorter = [day([hiking(5)]), day([rest()]), day([hiking(2)])];
+  const longer = [day([hiking(6)]), day([rest()]), day([hiking(1)])];
+  const [, a] = buildPlannedDays(forwardStages, plan(shorter), []);
+  const [, b] = buildPlannedDays(forwardStages, plan(longer), []);
+  assert.equal(a.overnight.stopId, forwardStages[4].toHutId);
+  assert.equal(b.overnight.stopId, forwardStages[5].toHutId);
+  assert.notEqual(a.overnight.stopId, b.overnight.stopId, 'the rest day moved with its source');
+});
+
+test('a rest day carrying a Trip stay derives that stay, not a canonical stop', () => {
+  const stay = { kind: 'stay', tripItemId: 'trip_kiruna' };
+  const days = [day([hiking(7)], stay), day([rest()])];
+  const [, restDay] = buildPlannedDays(forwardStages, plan(days), TRIP_ITEMS);
+  assert.equal(restDay.derivedOvernight.kind, 'stay');
+  assert.equal(restDay.derivedOvernight.tripItemId, 'trip_kiruna');
+  assert.equal(restDay.derivedOvernight.source, 'carried');
+});
+
+test('a travel day with nothing before it derives no overnight at all', () => {
+  const days = [day([travel()]), day([hiking(7)])];
+  const [first] = buildPlannedDays(forwardStages, plan(days), TRIP_ITEMS);
+  assert.equal(first.derivedOvernight.kind, 'none');
+  assert.equal(first.derivedOvernight.source, 'derived');
+});

@@ -6,9 +6,26 @@ import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { formatDistanceKm } from '../utils/format';
+import {
+  canDropHikingFromDay,
+  canInsertHikingDay,
+  canRemoveDay,
+} from '../plan/dayPlan.mjs';
 import { hikingEndpointOptions } from '../plan/plannedDays.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
-import type { DayActivityKind, OvernightRef } from '../types';
+import type { DayActivityKind, OvernightRef, TripItem } from '../types';
+
+/**
+ * Why an edit is unavailable. The route has to stay covered exactly once, so
+ * a stage can only move BETWEEN hiking days — there is nowhere else for it to
+ * come from or go to. Same wording as the Add day flow, which already says
+ * this when every stage has its own day.
+ */
+const NO_DONOR =
+  'Every stage already has its own hiking day, so there is no walking to move onto this one.';
+const NO_HEIR =
+  'This is the only day with walking, so its route stages have nowhere to go.';
+const ONLY_ACTIVITY = 'A day has to do something — add another activity first.';
 
 /**
  * Edit one planned day — the app's `.sheet` native <dialog>.
@@ -45,9 +62,38 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
   const isRest = day.kinds.includes('rest');
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
-  const canRemove = plannedDays.length > 1;
+
+  // Every control below is gated on the MODEL's own rule, asked directly —
+  // never on a local approximation of it. A control the model would refuse is
+  // disabled and says why, rather than accepting a tap that changes nothing.
+  // The derived days carry the same `activities` the records do, so the pure
+  // helpers answer for them unchanged.
+  const canTakeAStage = canInsertHikingDay(plannedDays, day.index);
+  const canGiveUpWalking = canDropHikingFromDay(plannedDays, day.index);
+  const canRemove = canRemoveDay(plannedDays, day.index);
+  const removeBlockedReason =
+    plannedDays.length <= 1 ? 'This is the only day in your plan.' : NO_HEIR;
+
+  /** Why a kind toggle is unavailable, or null when it is available. */
+  const kindBlocked = (kind: DayActivityKind): string | null => {
+    if (kind === 'travel') {
+      // Travel needs no stage. Removing the day's only activity would leave it
+      // doing nothing, which is not a state a day can be in.
+      return hasTravel && day.kinds.length === 1 ? ONLY_ACTIVITY : null;
+    }
+    if (kind === 'hiking') {
+      if (!hasHiking) return canTakeAStage ? null : NO_DONOR;
+      if (day.kinds.length === 1) return ONLY_ACTIVITY;
+      return canGiveUpWalking ? null : NO_HEIR;
+    }
+    // Rest is exclusive: switching it on drops any walking, switching it off
+    // turns the day back into a hiking day and so needs a stage to take.
+    if (isRest) return canTakeAStage ? null : NO_DONOR;
+    return canGiveUpWalking ? null : NO_HEIR;
+  };
 
   const toggleKind = (kind: DayActivityKind) => {
+    if (kindBlocked(kind)) return; // the control is disabled; belt and braces
     if (kind === 'rest') {
       setDayActivities(day.id, isRest ? ['hiking'] : ['rest']);
       return;
@@ -57,6 +103,15 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
     if (kinds.length === 0) return; // a day always does something
     setDayActivities(day.id, kinds);
   };
+
+  // One quiet note under the row, not three: the reasons repeat across kinds.
+  const blockedNotes = [
+    ...new Set(
+      (['hiking', 'travel', 'rest'] as DayActivityKind[])
+        .map(kindBlocked)
+        .filter((r): r is string => r !== null && r !== ONLY_ACTIVITY),
+    ),
+  ];
 
   return (
     <dialog
@@ -87,6 +142,7 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
                 label="Hiking"
                 icon={Footprints}
                 pressed={hasHiking}
+                blocked={kindBlocked('hiking')}
                 onToggle={() => toggleKind('hiking')}
               />
               <KindToggle
@@ -94,6 +150,7 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
                 label="Travel"
                 icon={BusFront}
                 pressed={hasTravel}
+                blocked={kindBlocked('travel')}
                 onToggle={() => toggleKind('travel')}
               />
               <KindToggle
@@ -101,9 +158,15 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
                 label="Rest & explore"
                 icon={Coffee}
                 pressed={isRest}
+                blocked={kindBlocked('rest')}
                 onToggle={() => toggleKind('rest')}
               />
             </div>
+            {blockedNotes.map((note) => (
+              <p key={note} className="card-sub" style={{ marginTop: 8 }}>
+                {note}
+              </p>
+            ))}
 
             {hasHiking && hasTravel ? (
               <button
@@ -205,12 +268,20 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
               <button
                 className="btn btn-danger"
                 style={{ flex: 1 }}
+                // Gated on the model's own rule: a destructive confirmation
+                // must never be followed by a mutation the model refuses.
                 disabled={!canRemove}
+                title={canRemove ? undefined : removeBlockedReason}
                 onClick={() => setConfirmingRemove(true)}
               >
                 Remove day
               </button>
             </div>
+            {canRemove ? null : (
+              <p className="card-sub" style={{ marginTop: 8 }}>
+                {removeBlockedReason}
+              </p>
+            )}
           </>
         ) : null}
 
@@ -265,12 +336,15 @@ function KindToggle({
   label,
   icon: Icon,
   pressed,
+  blocked,
   onToggle,
 }: {
   kind: DayActivityKind;
   label: string;
   icon: typeof Footprints;
   pressed: boolean;
+  /** The model's reason for refusing this change, or null when it allows it. */
+  blocked: string | null;
   onToggle: () => void;
 }) {
   return (
@@ -278,6 +352,10 @@ function KindToggle({
       type="button"
       className={`dayplan-kind${pressed ? ' is-on' : ''}`}
       aria-pressed={pressed}
+      disabled={blocked !== null}
+      // The reason is also printed under the row; on the control itself it
+      // reaches anyone who lands on it without reading ahead.
+      title={blocked ?? undefined}
       onClick={onToggle}
       data-kind={kind}
     >
@@ -286,17 +364,30 @@ function KindToggle({
   );
 }
 
+/**
+ * What an overnight reference is CALLED. References only: a canonical stop
+ * resolves through the route data, a Trip stay through the user's own plan,
+ * and a stay they have since deleted says so instead of inventing a name.
+ */
+function overnightRefName(
+  ref: { kind: string; stopId?: string; tripItemId?: string },
+  trip: TripItem[],
+): string | null {
+  if (ref.kind === 'stop') {
+    const stop = ref.stopId ? STOPS_BY_ID[ref.stopId] : null;
+    return stop ? stopShortName(stop) : 'Unknown stop';
+  }
+  if (ref.kind === 'stay') {
+    return trip.find((i) => i.id === ref.tripItemId)?.title ?? 'Stay no longer in your Trip plan';
+  }
+  return null;
+}
+
 function OvernightSummary({ day }: { day: PlannedDay }) {
   const { state } = useStore();
-  if (day.overnight.kind === 'stop') {
-    const stop = day.overnight.stopId ? STOPS_BY_ID[day.overnight.stopId] : null;
-    return <>{stop ? stopShortName(stop) : 'Unknown stop'}</>;
-  }
-  if (day.overnight.kind === 'stay') {
-    const stay = state.trip.find((i) => i.id === day.overnight.tripItemId);
-    return <>{stay ? stay.title : 'Stay no longer in your Trip plan'}</>;
-  }
-  return <span className="muted">No overnight</span>;
+  const name = overnightRefName(day.overnight, state.trip);
+  if (!name) return <span className="muted">No overnight</span>;
+  return <>{name}</>;
 }
 
 /**
@@ -360,7 +451,16 @@ function EndpointChooser({
   );
 }
 
-/** Derived default, another canonical stop, an existing Trip stay, or none. */
+/**
+ * The derived default, another canonical stop, an existing Trip stay, or none.
+ *
+ * The FIRST option is always the derived one — where the walk ends, or, on a
+ * rest day, wherever the user already was. Choosing it clears the stored
+ * reference rather than pinning today's answer, so the day keeps following its
+ * source when an earlier day changes. Whatever it resolves to is dropped from
+ * the explicit lists below: two entries reading "Nikkaluokta" that persist
+ * different states are a trap, not a choice.
+ */
 function OvernightChooser({
   day,
   onChoose,
@@ -372,63 +472,76 @@ function OvernightChooser({
 }) {
   const { state, itinerary } = useStore();
   const stays = state.trip.filter((i) => i.kind === 'stay');
-  const derivedStopId = day.stages.length
-    ? day.stages[day.stages.length - 1].toHutId
-    : null;
+  const derived = day.derivedOvernight;
+  const isDerived = day.overnight.source !== 'explicit';
+  const derivedStopId = derived.kind === 'stop' ? (derived.stopId ?? null) : null;
+  const derivedStayId = derived.kind === 'stay' ? (derived.tripItemId ?? null) : null;
+  const derivedLabel = overnightRefName(derived, state.trip);
 
   return (
     <>
       <span className="section-label">Tonight</span>
       <ul className="dayplan-options" role="list">
-        {derivedStopId ? (
+        {derived.kind !== 'none' && derivedLabel ? (
           <li>
             <button
               type="button"
-              className={`dayplan-option${day.overnight.source === 'hiking' ? ' is-current' : ''}`}
+              className={`dayplan-option dayplan-option--derived${isDerived ? ' is-current' : ''}`}
+              aria-current={isDerived ? 'true' : undefined}
               onClick={() => onChoose(undefined)}
             >
-              <span className="dayplan-option__name">
-                {stopShortName(STOPS_BY_ID[derivedStopId])}
+              <span className="dayplan-option__name">{derivedLabel}</span>
+              <span className="dayplan-option__effect">
+                {derived.source === 'hiking'
+                  ? 'Where today’s walk ends'
+                  : 'Same as last night — follows the day before'}
               </span>
-              <span className="dayplan-option__effect">Where today’s walk ends</span>
             </button>
           </li>
         ) : null}
-        {itinerary.orderedStops.map((stop) => (
-          <li key={stop.id}>
-            <button
-              type="button"
-              className={`dayplan-option${
-                day.overnight.kind === 'stop' && day.overnight.stopId === stop.id
-                  ? ' is-current'
-                  : ''
-              }`}
-              onClick={() => onChoose({ kind: 'stop', stopId: stop.id })}
-            >
-              <span className="dayplan-option__name">{stopShortName(stop)}</span>
-            </button>
-          </li>
-        ))}
-        {stays.map((stay) => (
-          <li key={stay.id}>
-            <button
-              type="button"
-              className={`dayplan-option${
-                day.overnight.kind === 'stay' && day.overnight.tripItemId === stay.id
-                  ? ' is-current'
-                  : ''
-              }`}
-              onClick={() => onChoose({ kind: 'stay', tripItemId: stay.id })}
-            >
-              <span className="dayplan-option__name">{stay.title}</span>
-              <span className="dayplan-option__effect">From your Trip plan</span>
-            </button>
-          </li>
-        ))}
+        {itinerary.orderedStops
+          .filter((stop) => stop.id !== derivedStopId)
+          .map((stop) => (
+            <li key={stop.id}>
+              <button
+                type="button"
+                className={`dayplan-option${
+                  !isDerived && day.overnight.kind === 'stop' && day.overnight.stopId === stop.id
+                    ? ' is-current'
+                    : ''
+                }`}
+                onClick={() => onChoose({ kind: 'stop', stopId: stop.id })}
+              >
+                <span className="dayplan-option__name">{stopShortName(stop)}</span>
+              </button>
+            </li>
+          ))}
+        {stays
+          .filter((stay) => stay.id !== derivedStayId)
+          .map((stay) => (
+            <li key={stay.id}>
+              <button
+                type="button"
+                className={`dayplan-option${
+                  !isDerived &&
+                  day.overnight.kind === 'stay' &&
+                  day.overnight.tripItemId === stay.id
+                    ? ' is-current'
+                    : ''
+                }`}
+                onClick={() => onChoose({ kind: 'stay', tripItemId: stay.id })}
+              >
+                <span className="dayplan-option__name">{stay.title}</span>
+                <span className="dayplan-option__effect">From your Trip plan</span>
+              </button>
+            </li>
+          ))}
         <li>
           <button
             type="button"
-            className={`dayplan-option${day.overnight.kind === 'none' ? ' is-current' : ''}`}
+            className={`dayplan-option${
+              !isDerived && day.overnight.kind === 'none' ? ' is-current' : ''
+            }`}
             onClick={() => onChoose({ kind: 'none' })}
           >
             <span className="dayplan-option__name">No overnight</span>

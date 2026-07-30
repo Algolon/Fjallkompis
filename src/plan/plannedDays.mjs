@@ -120,8 +120,7 @@ function matchTravelItems(tripItems, date) {
  * A Travel-only day therefore has NO overnight unless the user sets one:
  * a canonical Stop is never inferred from a trip item's free-text destination.
  */
-function resolveOvernight(record, stages, previous) {
-  if (record.overnight) return { ...record.overnight, source: 'explicit' };
+function deriveOvernight(record, stages, previous) {
   if (stages.length > 0) {
     return { kind: 'stop', stopId: stages[stages.length - 1].toHutId, source: 'hiking' };
   }
@@ -129,6 +128,11 @@ function resolveOvernight(record, stages, previous) {
     return { ...previous, source: 'carried' };
   }
   return { kind: 'none', source: 'derived' };
+}
+
+function resolveOvernight(record, stages, previous) {
+  if (record.overnight) return { ...record.overnight, source: 'explicit' };
+  return deriveOvernight(record, stages, previous);
 }
 
 function buildDay(record, index, startDate, stages, currentDayId, tripItems, previousOvernight) {
@@ -154,6 +158,10 @@ function buildDay(record, index, startDate, stages, currentDayId, tripItems, pre
     estimatedHours: stages.reduce((sum, s) => sum + s.estimatedHours, 0),
     elevationProfile: concatProfiles(stages),
     overnight,
+    // What the overnight WOULD be with no explicit reference stored. The
+    // chooser needs it to offer the way back to derived behaviour — otherwise
+    // a rest day that has been overridden once can never inherit again.
+    derivedOvernight: deriveOvernight(record, stages, previousOvernight),
     travelItems: matchTravelItems(tripItems, date),
     isCurrent: currentDayId != null && record.id === currentDayId,
   };

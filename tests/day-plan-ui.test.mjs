@@ -185,13 +185,86 @@ test('each endpoint option states its stages, distance and consequence', () => {
 test('the overnight chooser offers derived, stop, Trip stay and none', () => {
   const chooser = sheet.slice(sheet.indexOf('function OvernightChooser('));
   assert.match(chooser, /Where today’s walk ends/);
-  assert.match(chooser, /itinerary\.orderedStops\.map/);
+  assert.match(chooser, /itinerary\.orderedStops/);
   assert.match(chooser, /state\.trip\.filter\(\(i\) => i\.kind === 'stay'\)/);
   assert.match(chooser, /No overnight/);
   assert.match(chooser, /onChoose\(undefined\)/, 'clearing returns to derived');
   // No free-text accommodation inside the Day plan.
   assert.ok(!/<input/.test(chooser), 'no free-text accommodation field');
   assert.match(chooser, /Add it in Lists → Trip and it will\s*\n?\s*appear here\./);
+});
+
+test('a rest day can always go back to inheriting the night before', () => {
+  const chooser = sheet.slice(sheet.indexOf('function OvernightChooser('));
+  // The derived option is offered for ANY derivation, not just a walk's end,
+  // so an overridden rest day is not a one-way door.
+  assert.match(chooser, /const derived = day\.derivedOvernight;/);
+  assert.match(chooser, /Same as last night — follows the day before/);
+  assert.match(chooser, /derived\.kind !== 'none' && derivedLabel \? \(/);
+  // Choosing it CLEARS the stored reference rather than pinning the answer.
+  assert.match(chooser, /onClick=\{\(\) => onChoose\(undefined\)\}/);
+});
+
+test('derived is visibly distinct and is selected only when nothing is stored', () => {
+  const chooser = sheet.slice(sheet.indexOf('function OvernightChooser('));
+  assert.match(chooser, /const isDerived = day\.overnight\.source !== 'explicit';/);
+  assert.match(chooser, /dayplan-option--derived/);
+  assert.match(css, /\.dayplan-option--derived \{[^}]*border-style: dashed;/s);
+  // An explicit entry never lights up just because the derivation agrees.
+  for (const guard of [/!isDerived && day\.overnight\.kind === 'stop'/, /!isDerived &&\s*\n?\s*day\.overnight\.kind === 'stay'/, /!isDerived && day\.overnight\.kind === 'none'/]) {
+    assert.match(chooser, guard);
+  }
+});
+
+test('the chooser never lists the derived location twice', () => {
+  const chooser = sheet.slice(sheet.indexOf('function OvernightChooser('));
+  // Two entries reading "Nikkaluokta" that persist different states are a
+  // trap: the derived one stays, the duplicate explicit one is filtered out.
+  assert.match(chooser, /\.filter\(\(stop\) => stop\.id !== derivedStopId\)/);
+  assert.match(chooser, /\.filter\(\(stay\) => stay\.id !== derivedStayId\)/);
+  // Every OTHER stop and stay stays available as a deliberate override.
+  assert.match(chooser, /onChoose\(\{ kind: 'stop', stopId: stop\.id \}\)/);
+  assert.match(chooser, /onChoose\(\{ kind: 'stay', tripItemId: stay\.id \}\)/);
+  assert.match(chooser, /onChoose\(\{ kind: 'none' \}\)/);
+});
+
+// ---- Invalid edits are refused before they are offered ----------------------
+
+test('every day-sheet control is gated on the model rule, not a local copy', () => {
+  assert.match(sheet, /from '\.\.\/plan\/dayPlan\.mjs'/);
+  assert.match(sheet, /const canTakeAStage = canInsertHikingDay\(plannedDays, day\.index\);/);
+  assert.match(sheet, /const canGiveUpWalking = canDropHikingFromDay\(plannedDays, day\.index\);/);
+  assert.match(sheet, /const canRemove = canRemoveDay\(plannedDays, day\.index\);/);
+  // The superseded approximation must not come back.
+  assert.ok(
+    !/canRemove = plannedDays\.length > 1/.test(sheet),
+    'removal is not gated on the day count alone',
+  );
+});
+
+test('a blocked activity toggle is disabled and says why', () => {
+  assert.match(sheet, /blocked=\{kindBlocked\('hiking'\)\}/);
+  assert.match(sheet, /blocked=\{kindBlocked\('travel'\)\}/);
+  assert.match(sheet, /blocked=\{kindBlocked\('rest'\)\}/);
+  assert.match(sheet, /disabled=\{blocked !== null\}/);
+  assert.match(sheet, /\{blockedNotes\.map\(\(note\) => \(/);
+  // The reason reuses the Add day flow's sentence.
+  assert.match(sheet, /Every stage already has its own hiking day/);
+  assert.match(card, /Every stage already has its own hiking day/);
+  // And a blocked toggle never reaches the store.
+  assert.match(sheet, /if \(kindBlocked\(kind\)\) return;/);
+});
+
+test('a destructive confirmation is never offered for a mutation that no-ops', () => {
+  const actions = sheet.slice(sheet.indexOf('<div className="sheet-actions">'), sheet.indexOf('{view === \'endpoint\''));
+  assert.match(actions, /disabled=\{!canRemove\}/);
+  assert.match(actions, /title=\{canRemove \? undefined : removeBlockedReason\}/);
+  assert.match(sheet, /\{removeBlockedReason\}/, 'the reason is visible, not only a tooltip');
+  assert.match(
+    sheet,
+    /plannedDays\.length <= 1 \? 'This is the only day in your plan\.' : NO_HEIR/,
+  );
+  assert.match(sheet, /This is the only day with walking, so its route stages have nowhere to go\./);
 });
 
 test('a deleted Trip stay is reported honestly, never rendered as a name', () => {
