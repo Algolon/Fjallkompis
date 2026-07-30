@@ -18,7 +18,7 @@ export function defaultState(): PersistentState {
  * payloads forward (see src/utils/stateMigration.mjs). Unknown or missing
  * fields fall back to defaults rather than throwing.
  *
- * The canonical stage count is passed through so a persisted Hiking days plan
+ * The canonical stage count is passed through so a persisted Day plan
  * can be validated as a partition of the real route; the migration module
  * itself stays free of route-data imports.
  */

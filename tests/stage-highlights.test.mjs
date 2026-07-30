@@ -297,7 +297,7 @@ test('the block keeps its fixed responsibility — no dashboard creep', () => {
   // instead (either alone would open just one of them — narrower than the
   // hero's claim); a travel or rest day gets its own single action.
   const combined = hero.slice(hero.indexOf('{hiking && multiStage ? ('), hero.indexOf(') : hiking && currentStage ? ('));
-  const singleStage = hero.slice(hero.indexOf(') : hiking && currentStage ? ('), hero.indexOf('{travel ? ('));
+  const singleStage = hero.slice(hero.indexOf(') : hiking && currentStage ? ('), hero.indexOf('{/* Travel-ONLY days'));
   assert.equal(
     (singleStage.match(/className="hero-action(?: |")/g) ?? []).length,
     2,

@@ -79,7 +79,7 @@ test('Settings exposes a real radio group with two mutually exclusive options', 
 test('Settings confirms a consequential direction change and never the active one', () => {
   assert.match(settings, /if \(dir === routeDirection\) return;/);
   // Confirmation only when the change is consequential — a current stage, or
-  // (since Hiking days) a personal day plan whose grouping will reset.
+  // (since the Day plan) a personal plan that the change would remove.
   // Otherwise apply immediately.
   assert.match(
     settings,

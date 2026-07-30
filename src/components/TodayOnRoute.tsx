@@ -165,10 +165,12 @@ function PlannedDayHero({
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
   const kindWords = day.kinds.map((k) => ACTIVITY_WORD[k]).join(' and ');
-  // A combined day shows NO chips: two capped lists merged into one capped
-  // list would silently drop half the metadata, and the space is needed.
+  // Chips only on a plain single-stage hiking day. A combined day would have
+  // to merge two capped lists into one capped list, silently dropping half
+  // the metadata; a mixed day already spends that line on the transfer. Both
+  // cases also need the height — the hero has none spare at 375x667.
   const highlights =
-    hiking && !multiStage && currentStage
+    hiking && !multiStage && !travel && currentStage
       ? stageHighlights(currentStage.id, undefined, routeDirection)
       : [];
   const travelLine = day.travelItems
@@ -280,9 +282,13 @@ function PlannedDayHero({
               </button>
             </>
           ) : null}
-          {travel ? (
+          {/* Travel-ONLY days get the Trip action. On a mixed day the walking
+              owns the two actions and the transfer is already stated on the
+              line above — a third button would crowd the block past its fixed
+              responsibility and past the one-viewport budget. */}
+          {travel && !hiking ? (
             <button
-              className={`hero-action${hiking ? '' : ' hero-action--primary'}`}
+              className="hero-action hero-action--primary"
               onClick={() => onNavigate('checklist', { lists: { section: 'trip' } })}
               aria-label="Open in Trip — your travel and tickets for today"
             >

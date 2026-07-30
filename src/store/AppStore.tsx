@@ -67,11 +67,11 @@ interface AppStore {
    * segment exists in both directions, so its itinerary day, endpoints and
    * ascent/descent are simply recomputed by the itinerary selector.
    *
-   * Any Hiking days plan is reset ATOMICALLY in the same update: the stored
-   * plan adopts the new direction and returns to one stage per day, keeping
-   * the user's first hiking date. A grouping authored for one walking
-   * direction is never mirrored or silently applied to the other, and the app
-   * can never hold a plan whose direction disagrees with the route.
+   * Any Day plan is REMOVED atomically in the same update: a plan describes a
+   * journey in one walking direction — which stages are walked, where each day
+   * ends, where the user sleeps, which travel day is outbound — so it is never
+   * mirrored, rebuilt or partially reused, and the app can never hold a plan
+   * whose direction disagrees with the route. Settings confirms this first.
    */
   setRouteDirection: (direction: RouteDirection) => void;
 
@@ -507,9 +507,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const nextHutId = currentStage ? currentStage.toHutId : null;
 
-  // Hiking days. Always derived, never persisted: with no plan this is one
-  // canonical stage per day with no dates, so every consumer reads ONE shape
-  // and the unplanned app behaves exactly as it did before the feature.
+  // Day plan. Always derived, never persisted.
   // EMPTY until the user creates a plan: with no plan there are no calendar
   // days at all, so no screen can accidentally show a date or an activity
   // indicator. Trip items ride along read-only so a travel day can name the

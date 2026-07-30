@@ -220,11 +220,16 @@ function DayRow({
   const tonight = overnightLabel(day.overnight, trip);
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
-  const travelLine = day.travelItems
-    .map((i) => [i.kind === 'transport' ? i.from : null, i.kind === 'transport' ? i.to : null])
-    .filter(([a, b]) => a || b)
-    .map(([a, b]) => `${a ?? '?'} → ${b ?? '?'}`)
-    .join(', ');
+  // Matched transport is surfaced only on a day that HAS a travel activity.
+  // The derivation matches every date honestly, but the plan must not imply
+  // an activity the user did not put on the day.
+  const travelLine = day.kinds.includes('travel')
+    ? day.travelItems
+        .map((i) => [i.kind === 'transport' ? i.from : null, i.kind === 'transport' ? i.to : null])
+        .filter(([a, b]) => a || b)
+        .map(([a, b]) => `${a ?? '?'} → ${b ?? '?'}`)
+        .join(', ')
+    : '';
 
   return (
     <article className={`dayplan-day${day.isCurrent ? ' is-current' : ''}`}>

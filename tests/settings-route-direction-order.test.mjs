@@ -71,7 +71,7 @@ test('the collapsed Route direction summary shows the current direction', () => 
     'summary renders the active direction label',
   );
   // The screen destructures the active direction from the store (alongside
-  // whatever else it needs — the Hiking days summary reads the plan too).
+  // whatever else it needs — the Day plan summary reads the plan too).
   assert.match(settings, /routeDirection, dayPlan, plannedDays \} =\s*\n?\s*useStore\(\)/);
 });
 

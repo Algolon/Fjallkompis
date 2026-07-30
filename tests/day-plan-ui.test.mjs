@@ -263,8 +263,8 @@ test('a multi-stage day offers one honest action and no whole-day map claim', ()
 });
 
 test('a single-stage planned day keeps chips and both original actions', () => {
-  assert.match(onRoute, /hiking && !multiStage && currentStage\s*\?\s*stageHighlights/);
-  const single = onRoute.slice(onRoute.indexOf(') : hiking && currentStage ? ('), onRoute.indexOf('{travel ? ('));
+  assert.match(onRoute, /hiking && !multiStage && !travel && currentStage\s*\?\s*stageHighlights/);
+  const single = onRoute.slice(onRoute.indexOf(') : hiking && currentStage ? ('), onRoute.indexOf('{/* Travel-ONLY days'));
   assert.match(single, /Stage Guide/);
   assert.match(single, /View Route/);
 });
@@ -273,6 +273,9 @@ test('a travel day shows its matched movements and opens Trip', () => {
   assert.match(onRoute, /const travelLine = day\.travelItems/);
   assert.match(onRoute, /No travel added yet/);
   assert.match(onRoute, /Open in Trip/);
+  // A MIXED day keeps the two walking actions; the transfer is already a line
+  // above, and a third button would break the block's fixed responsibility.
+  assert.match(onRoute, /\{travel && !hiking \? \(/);
 });
 
 test('a rest day names where it is based and opens Stop info', () => {
