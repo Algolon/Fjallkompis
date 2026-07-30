@@ -183,11 +183,17 @@ export function StagesScreen({
 
   return (
     <div className="screen screen--stages">
-      <ScreenHeader eyebrow="7 days · 8 stops" title="Stages">
-        The week from {startName} to {endName} as seven day stages. Distances
-        and climbing come from the GPX; ± times are personal estimates. Open a
-        day’s guide for what to expect, and use the pill in its corner to set
-        the stage you’re walking.
+      {/* Stages are the canonical route segments — fixed geography, not
+          calendar days. How they are divided across hiking days is personal
+          and lives in Settings; this screen never shows or edits that. */}
+      <ScreenHeader
+        eyebrow={`${stages.length} stages · ${itinerary.orderedStops.length} stops`}
+        title="Stages"
+      >
+        The route from {startName} to {endName} as {stages.length} fixed
+        stages. Distances and climbing come from the GPX; ± times are personal
+        estimates. Open a stage’s guide for what to expect, and use the pill in
+        its corner to set the stage you’re walking.
       </ScreenHeader>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -261,7 +267,7 @@ export function StagesScreen({
               <div className="stage-card__top">
                 <div className="row" style={{ gap: 10 }}>
                   <span className={`pill ${isCurrent ? 'pill-current' : ''}`}>
-                    Day {stage.day}
+                    Stage {stage.day}
                   </span>
                   <span className="tnum" style={{ fontWeight: 700 }}>
                     {formatDistanceKm(stage.distanceKm)}
@@ -277,7 +283,7 @@ export function StagesScreen({
                     type="button"
                     className="stage-set-pill"
                     onClick={() => setCurrentStage(stage.id)}
-                    aria-label={`Set day ${stage.day} as current stage`}
+                    aria-label={`Set stage ${stage.day} as the current stage`}
                   >
                     Set as current
                   </button>
@@ -316,7 +322,7 @@ export function StagesScreen({
                         aria-controls={guidePanelId}
                         onClick={() => toggleGuide(stage.id)}
                       >
-                        <span>Day guide</span>
+                        <span>Stage guide</span>
                         <ChevronDown
                           className="stage-guide__chevron"
                           size={18}
@@ -329,7 +335,7 @@ export function StagesScreen({
                           id={guidePanelId}
                           className="stage-guide"
                           role="region"
-                          aria-label={`Day ${stage.day} guide`}
+                          aria-label={`Stage ${stage.day} guide`}
                         >
                           <StageGuidePanel stage={stage} guide={guide} />
                         </div>
@@ -372,7 +378,7 @@ export function StagesScreen({
                           id={explorePanelId}
                           className="stage-guide"
                           role="region"
-                          aria-label={`Day ${stage.day} — highlights and detours`}
+                          aria-label={`Stage ${stage.day} — highlights and detours`}
                         >
                           <HighlightsAndDetours
                             stageId={stage.id}

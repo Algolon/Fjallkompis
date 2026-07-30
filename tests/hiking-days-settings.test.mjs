@@ -233,3 +233,54 @@ test('the card reads canonical data but never writes it', () => {
     assert.ok(!card.includes(forbidden), `the card never touches ${forbidden}`);
   }
 });
+
+// ---- Canonical "Stage N" terminology ----------------------------------------
+//
+// A canonical route segment is ALWAYS a stage, whether or not a personal plan
+// exists; a planned hiking day is always "Day N of M". The two vocabularies
+// never swap places and never depend on each other's state.
+
+test('Stages labels canonical segments "Stage N", never "Day N"', () => {
+  const stagesScreen = read('src/screens/StagesScreen.tsx');
+  assert.match(stagesScreen, /Stage \{stage\.day\}/);
+  assert.match(stagesScreen, /aria-label=\{`Set stage \$\{stage\.day\} as the current stage`\}/);
+  assert.match(stagesScreen, /aria-label=\{`Stage \$\{stage\.day\} guide`\}/);
+  assert.match(stagesScreen, /aria-label=\{`Stage \$\{stage\.day\} — highlights and detours`\}/);
+  assert.ok(!/Day \{stage\.day\}|Day \$\{stage\.day\}/.test(stagesScreen), 'no Day N on a stage');
+  // The label is unconditional — never a ternary on whether a plan exists.
+  assert.ok(!/dayPlan|plannedDays/.test(stagesScreen), 'Stages never reads the personal plan');
+});
+
+test('Stages header states the stage count from data, not a hardcoded week', () => {
+  const stagesScreen = read('src/screens/StagesScreen.tsx');
+  assert.match(stagesScreen, /eyebrow=\{`\$\{stages\.length\} stages · \$\{itinerary\.orderedStops\.length\} stops`\}/);
+  assert.match(stagesScreen, /as \{stages\.length\}\s*\n?\s*fixed\s*\n?\s*stages/);
+  assert.ok(!/seven day stages|7 days/.test(stagesScreen), 'no stale calendar-week copy');
+});
+
+test('Map uses canonical Stage N labels in stage contexts', () => {
+  const mapScreen = read('src/screens/MapScreen.tsx');
+  assert.match(mapScreen, /`Stage \$\{currentStage\.day\}: /);
+  assert.match(mapScreen, /stageLabel=\{`Stage \$\{currentStage\.day\}`\}/);
+  assert.match(mapScreen, /aria-label=\{`Stage \$\{s\.day\}`\}/);
+  assert.ok(!/Day \$\{s\.day\}|Day \$\{currentStage\.day\}/.test(mapScreen), 'no Day N on the Map');
+  assert.ok(!/dayPlan|plannedDays/.test(mapScreen), 'the Map never reads the personal plan');
+});
+
+test('the Map keeps its stage colouring and canonical day property', () => {
+  const mapStyle = read('src/map/mapStyle.ts');
+  // ItineraryStage.day remains the canonical stage sequence position: the
+  // colour expression still matches on it, one colour per stage.
+  assert.match(mapStyle, /\['get', 'day'\]/);
+  assert.match(mapStyle, /export const STAGE_COLORS: Record<number, string> = \{/);
+  const itinerary = read('src/route/itinerary.mjs');
+  assert.match(itinerary, /toLineString\(points, \{ stageId: stage\.id, day: itineraryDay \}\)/);
+});
+
+test('Today labels planned days "Day N of M" and stage parts "Part N"', () => {
+  const todayScreen = read('src/screens/TodayScreen.tsx');
+  assert.match(todayScreen, /Day \{day\.number\} of \{plannedDays\.length\}/);
+  assert.match(todayScreen, /Part \{i \+ 1\}/);
+  // Per-part links name the stage guide, matching the hero's Stage Guide.
+  assert.match(todayScreen, /aria-hidden \/> Stage guide/);
+});

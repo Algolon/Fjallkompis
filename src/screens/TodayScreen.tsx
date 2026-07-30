@@ -470,9 +470,9 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
                         <button
                           className="today-part__action"
                           onClick={() => onNavigate('stages', { guideStageId: stage.id })}
-                          aria-label={`Day guide for ${stopShortName(partFrom)} to ${stopShortName(partTo)} — opens Stages`}
+                          aria-label={`Stage guide for ${stopShortName(partFrom)} to ${stopShortName(partTo)} — opens Stages`}
                         >
-                          <BookOpen size={14} strokeWidth={2} aria-hidden /> Day guide
+                          <BookOpen size={14} strokeWidth={2} aria-hidden /> Stage guide
                         </button>
                         <button
                           className="today-part__action"
