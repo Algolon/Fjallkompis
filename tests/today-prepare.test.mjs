@@ -100,6 +100,7 @@ const item = (over = {}) => ({
   quantity: 1,
   status: 'needed',
   essential: false,
+  worn: false,
   custom: false,
   ...over,
 });
@@ -135,10 +136,49 @@ test('packingSummary: empty list is honest zeros (never “ready”)', () => {
     needed: 0,
     ready: 0,
     packed: 0,
+    worn: 0,
     essentialNotPacked: 0,
     weightedGrams: 0,
     weightMissing: 0,
+    wornWeightedGrams: 0,
+    wornWeightMissing: 0,
   });
+});
+
+test('packingSummary: worn rows form their own bucket, never double-counted', () => {
+  const s = packingSummary([
+    item({ status: 'needed' }),
+    item({ status: 'ready', worn: true }),
+    item({ status: 'needed', worn: true }),
+    item({ status: 'packed' }),
+  ]);
+  assert.deepEqual(
+    { total: s.total, needed: s.needed, ready: s.ready, packed: s.packed, worn: s.worn },
+    { total: 4, needed: 1, ready: 0, packed: 1, worn: 2 },
+    'worn rows leave the needed/ready/packed buckets entirely',
+  );
+});
+
+test('packingSummary: worn weight is separate — never in the backpack weight', () => {
+  const s = packingSummary([
+    item({ status: 'packed', weightGrams: 500 }),
+    item({ status: 'needed', weightGrams: 300, quantity: 2 }),
+    item({ worn: true, weightGrams: 1200 }),
+    item({ worn: true }),
+    item({ status: 'needed' }),
+  ]);
+  assert.equal(s.weightedGrams, 1100, 'backpack weight sums only un-worn rows');
+  assert.equal(s.weightMissing, 1, 'only un-worn rows count as missing backpack weight');
+  assert.equal(s.wornWeightedGrams, 1200, 'worn weight sums only worn rows');
+  assert.equal(s.wornWeightMissing, 1, 'worn rows without a weight are counted separately');
+});
+
+test('packingSummary: an essential worn item is accounted for, not a warning', () => {
+  const s = packingSummary([
+    item({ essential: true, worn: true }),
+    item({ essential: true, status: 'needed' }),
+  ]);
+  assert.equal(s.essentialNotPacked, 1, 'worn essentials are on the body — handled');
 });
 
 // ---- Compact header mode control --------------------------------------------

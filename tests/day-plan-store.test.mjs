@@ -77,8 +77,8 @@ test('the two pointers are distinct concepts and both are persisted', () => {
   }
 });
 
-test('the schema is v7 and defaults to no plan', () => {
-  assert.match(migration, /export const SCHEMA_VERSION = 7;/);
+test('the schema is v8 and defaults to no plan', () => {
+  assert.match(migration, /export const SCHEMA_VERSION = 8;/);
   assert.match(migration, /dayPlan: null,/);
   assert.match(migration, /dayPlan: normalizeDayPlan\(raw\.dayPlan, direction, stageCount\)/);
   assert.ok(

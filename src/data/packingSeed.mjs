@@ -79,6 +79,10 @@ const item = (categoryId, slug, label, opts = {}) => ({
   status: 'needed',
   ...(opts.weightGrams != null ? { weightGrams: opts.weightGrams } : {}),
   essential: opts.essential ?? false,
+  // Whether an item is worn on the body instead of carried is a personal
+  // decision (some hikers pack their fleece, some wear it), so the template
+  // never pre-marks anything as worn.
+  worn: false,
   custom: false,
 });
 

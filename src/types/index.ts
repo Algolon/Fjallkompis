@@ -813,6 +813,14 @@ export interface PackingItem {
   weightGrams?: number;
   essential: boolean;
   /**
+   * True when the item is worn on the body instead of carried in the
+   * backpack. Only items in worn-eligible categories (clothing, rain &
+   * insulation, footwear — see WORN_CATEGORY_IDS) can carry the mark, and
+   * packed + worn is an impossible state: the two are different locations,
+   * enforced by applyPackingPatch and the state normaliser.
+   */
+  worn: boolean;
+  /**
    * Provenance only: true for user-added items, false for items that came
    * from the seed template. NOT an authorization flag — every item can be
    * renamed, moved, re-weighted and deleted regardless of origin.
