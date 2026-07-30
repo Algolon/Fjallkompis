@@ -390,21 +390,47 @@ export function canInsertHikingDay(days, index) {
 }
 
 /**
+ * Index of the day a new (or newly walking) day at `index` would take its
+ * stage FROM, or -1. Exported so the UI can name that day before the change
+ * rather than after it: taking walking on shortens someone else's day, and
+ * which day that is has to be visible in advance.
+ */
+export function hikingDonorIndex(days, index) {
+  if (!Array.isArray(days)) return -1;
+  return findDonor(days, Math.max(0, index ?? 0));
+}
+
+/**
+ * Index of the day that INHERITS the walking when the day at `index` is
+ * removed, or -1 when nothing can. Exported for the same reason: removal
+ * states which day the route stages move to before it happens.
+ */
+export function hikingHeirIndex(days, index) {
+  if (!Array.isArray(days) || !days[index]) return -1;
+  return findHikingNeighbour(days, index);
+}
+
+/**
  * True when the day at `index` can GIVE UP its walking — the precondition for
- * turning a hiking day into a travel or rest day. Its stages have to land on a
- * neighbouring hiking day, so the only day that walks can never stop walking:
- * the route must stay covered.
+ * turning a hiking day into a travel or rest day.
  *
- * The mirror of `canInsertHikingDay`, and the same rule `setDayActivities`
- * enforces, exposed so the UI can disable the control and say why instead of
- * offering a tap that quietly does nothing.
+ * A day that walks NEVER can. Its canonical stages would have to land on some
+ * other day, and moving them is a decision about that other day: it silently
+ * lengthened a day the user was not editing (they changed one day and another
+ * one changed too). Until the route sections a day carries can be reassigned
+ * explicitly, the answer is simply no — the day has to be emptied of walking
+ * first, through the endpoint chooser, which states its consequence.
+ *
+ * A day that does not walk has nothing to give up, so it can.
+ *
+ * The same rule `setDayActivities` enforces, exposed so the UI can disable the
+ * control and name the route section still on this day.
  */
 export function canDropHikingFromDay(days, index) {
   if (!Array.isArray(days)) return false;
   const day = days[index];
   if (!day) return false;
-  if (hikingStagesOf(day) === 0) return true; // nothing to give up
-  return findHikingNeighbour(days, index) !== -1;
+  return hikingStagesOf(day) === 0;
 }
 
 /**
@@ -442,9 +468,16 @@ function findHikingNeighbour(days, index) {
 }
 
 /**
- * Replace a day's activity composition. Dropping the walking from the only
- * hiking day is refused (the route must stay covered); its stages otherwise
- * move to a neighbouring hiking day.
+ * Replace a day's activity composition.
+ *
+ * REFUSED when it would drop the walking from a day that walks: those stages
+ * are canonical route sections and would have to be handed to another day,
+ * which is a change to a day the user is not editing. Nothing is partially
+ * applied — the day list comes back unchanged and the UI says which section
+ * still needs a hiking day (see `canDropHikingFromDay`).
+ *
+ * Taking walking ON is still allowed: it borrows a single stage from the
+ * nearest hiking day with one to spare, which the UI names before the change.
  */
 export function setDayActivities(days, index, kinds) {
   if (!Array.isArray(days)) return [];
@@ -456,11 +489,7 @@ export function setDayActivities(days, index, kinds) {
   if (!isValidActivities(activities)) return out;
 
   const keepsHiking = activities.some((a) => a.kind === 'hiking');
-  if (currentStages > 0 && !keepsHiking) {
-    const heir = findHikingNeighbour(out, index);
-    if (heir === -1) return out; // refuse: nothing else walks
-    hikingActivity(out[heir]).stages += currentStages;
-  }
+  if (currentStages > 0 && !keepsHiking) return out; // refuse: never reallocate
   if (currentStages === 0 && keepsHiking) {
     const donor = findDonor(out, index);
     if (donor === -1) return out; // refuse: no stage to spare

@@ -1,4 +1,5 @@
 import type { StopType } from '../types';
+import { localIsoDate } from './dateTimeField.mjs';
 
 /** "12.4 km" / "850 m" depending on magnitude. */
 export function formatDistanceKm(km: number): string {
@@ -43,10 +44,14 @@ export function formatDateLong(iso: string): string {
   });
 }
 
+/**
+ * The device's local calendar date, 'YYYY-MM-DD'. The single clock read for
+ * "what day is it here"; the calendar arithmetic itself lives in the pure
+ * dateTimeField helper, which builds the string from local calendar parts
+ * rather than from a UTC instant.
+ */
 export function todayIso(): string {
-  const d = new Date();
-  const tzOffset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+  return localIsoDate(new Date()) as string;
 }
 
 export function stopTypeLabel(type: StopType): string {

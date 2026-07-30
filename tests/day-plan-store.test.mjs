@@ -114,12 +114,28 @@ test('with no plan the derived days are empty — no implicit calendar days', ()
 
 // ---- Pointer synchronisation ------------------------------------------------
 
-test('activating a hiking day selects its FIRST stage; other days fabricate none', () => {
-  const action = /const activatePlannedDay = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
-  assert.match(action, /const stageIndex = firstStageIndexOfDay\(s\.dayPlan\.days, index\)/);
-  assert.match(action, /stageIndex === -1\s*\?\s*s\.currentStageId/, 'no stage is invented');
-  assert.match(action, /currentStageId: stageId,/);
-  assert.match(action, /dayPlan: \{ \.\.\.s\.dayPlan, currentDayId: dayId \}/);
+test('there is no "make this day today" action — the override rides Set as current', () => {
+  // The 0.26.1 removal: `activatePlannedDay` existed to compensate for a
+  // selection model in which no day was ever current until the user pressed
+  // `Make this today` in an auto-saving edit sheet. The effective Today now
+  // resolves from the pointer OR the local calendar date (effectiveToday.mjs),
+  // and the only way the pointer is written is choosing a stage in Stages.
+  assert.ok(!store.includes('activatePlannedDay'), 'the action is gone');
+  assert.ok(!/Make this today/.test(store), 'and so is its copy');
+});
+
+test('the store resolves the effective Today with ONE clock read, read-only', () => {
+  assert.match(store, /from '\.\.\/plan\/effectiveToday\.mjs'/);
+  assert.match(
+    store,
+    /resolveEffectiveToday\(plannedDays, state\.dayPlan\?\.currentDayId \?\? null, localToday\)/,
+  );
+  assert.match(store, /const localToday = todayIso\(\);/);
+  // The clock steers DISPLAY only: no plan action reads it, and the date
+  // match is never persisted back into currentDayId.
+  const derived = store.slice(store.indexOf('// ---- Derived selectors'));
+  assert.ok(!/setState/.test(derived), 'the derived block never writes state');
+  assert.match(store, /todaySource: effectiveToday\.source,/);
 });
 
 test('selecting a stage moves the active day in the SAME update', () => {
@@ -178,7 +194,6 @@ test('the store exposes the day-plan actions and no raw-activity API', () => {
     'setDayOvernight',
     'resetDayPlan',
     'removeDayPlan',
-    'activatePlannedDay',
   ]) {
     assert.ok(store.includes(action), `${action} is exposed`);
   }

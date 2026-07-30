@@ -72,6 +72,23 @@ export function toIsoDate(year, month, day) {
   return `${String(year).padStart(4, '0')}-${pad2(month)}-${pad2(day)}`;
 }
 
+/**
+ * The DEVICE's local calendar date as 'YYYY-MM-DD'.
+ *
+ * Read from the local calendar parts (`getFullYear`/`getMonth`/`getDate`) —
+ * never through `toISOString()`, which reports the UTC day and is a different
+ * date for part of every day east or west of Greenwich. That is what makes a
+ * plain `dayDate === localIsoDate()` string comparison timezone-safe: both
+ * sides are calendar days in the same (local) calendar.
+ *
+ * The instant is injected so callers stay testable; only the app's `todayIso`
+ * wrapper reads the clock.
+ */
+export function localIsoDate(now = new Date()) {
+  if (!(now instanceof Date) || Number.isNaN(now.getTime())) return null;
+  return toIsoDate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
 /** Monday-first weekday index (0 = Monday … 6 = Sunday) for a real date. */
 export function weekdayIndex(year, month, day) {
   // Local Date built from numeric parts — calendar-safe (no UTC parsing).

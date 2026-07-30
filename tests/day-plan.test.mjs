@@ -26,6 +26,8 @@ import {
   dayIndexForStageIndex,
   defaultDays,
   firstStageIndexOfDay,
+  hikingDonorIndex,
+  hikingHeirIndex,
   hikingStagesOf,
   insertDay,
   isDefaultDays,
@@ -352,17 +354,40 @@ test('activity order is preserved and can be swapped', () => {
   assert.deepEqual(reorderDayActivities(swapped, 0)[0].activities, [hiking(STAGES), travel()]);
 });
 
-test('turning a hiking day into a rest day hands its stages to a neighbour', () => {
+test('a day that walks refuses to become a rest day — no other day changes', () => {
+  // The 0.26.0 behaviour handed the orphaned stages to a neighbouring hiking
+  // day: the user edited one day and a day they had not touched grew. Now the
+  // edit is refused OUTRIGHT and nothing is partially applied.
   const base = defaultDays(STAGES);
   const after = setDayActivities(base, 3, ['rest']);
-  assert.deepEqual(after[3].activities, [rest()]);
+  assert.deepEqual(after, base, 'refused, so byte-identical');
+  assert.equal(hikingStagesOf(after[4]), 1, 'the next day is untouched');
   assert.equal(totalHikingStages(after), STAGES);
-  assert.equal(hikingStagesOf(after[4]), 2);
+});
+
+test('a day that walks refuses to become a travel day either', () => {
+  const base = defaultDays(STAGES);
+  assert.deepEqual(setDayActivities(base, 2, ['travel']), base, 'refused');
+  // Nor by dropping hiking from a day that already travels as well.
+  const mixed = setDayActivities(base, 2, ['hiking', 'travel']);
+  assert.deepEqual(setDayActivities(mixed, 2, ['travel']), mixed, 'refused');
 });
 
 test('the last walking day refuses to stop walking', () => {
   const days = [day([travel()]), day([hiking(STAGES)])];
   assert.deepEqual(setDayActivities(days, 1, ['rest']), days, 'refused');
+});
+
+test('a day emptied of walking first can then become a rest day', () => {
+  // The supported route: the endpoint chooser moves the section explicitly
+  // (stating its consequence), and the emptied day is free to change.
+  const base = [...defaultDays(STAGES - 1), day([hiking(1), travel()])];
+  const merged = setHikingStages(base, STAGES - 2, 2); // day 6 absorbs day 7's stage
+  const last = merged.length - 1;
+  assert.equal(hikingStagesOf(merged[last]), 0, 'the last day no longer walks');
+  const rested = setDayActivities(merged, last, ['rest']);
+  assert.deepEqual(rested[last].activities, [rest()]);
+  assert.equal(totalHikingStages(rested), STAGES);
 });
 
 test('a travel day can become a hiking day only when a stage is free', () => {
@@ -642,15 +667,39 @@ test('a day can only take on walking when some other day has a stage to spare', 
   assert.equal(canInsertHikingDay(merged, merged.length), true, 'donors are found backwards too');
 });
 
-test('a day can only give up its walking when another day can take it', () => {
+test('a day that walks can never give up its walking, whoever else walks', () => {
   const only = [day([hiking(STAGES)]), day([travel()])];
   assert.equal(canDropHikingFromDay(only, 0), false, 'the only walking day must keep walking');
   assert.equal(canDropHikingFromDay(only, 1), true, 'a travel day has nothing to give up');
+  // Even with a willing neighbour: moving a route section onto another day is
+  // a decision about THAT day, and this hotfix never makes it silently.
   const two = [day([hiking(3)]), day([hiking(4)])];
-  assert.equal(canDropHikingFromDay(two, 0), true);
-  assert.equal(canDropHikingFromDay(two, 1), true);
+  assert.equal(canDropHikingFromDay(two, 0), false);
+  assert.equal(canDropHikingFromDay(two, 1), false);
   assert.equal(canDropHikingFromDay(two, 9), false, 'no such day');
   assert.equal(canDropHikingFromDay(null, 0), false);
+});
+
+test('the capability answer matches the mutation for every walking day', () => {
+  const two = [day([hiking(3)]), day([hiking(4)])];
+  for (const index of [0, 1]) {
+    assert.equal(canDropHikingFromDay(two, index), false);
+    assert.deepEqual(setDayActivities(two, index, ['rest']), two, 'refused, so unchanged');
+    assert.deepEqual(setDayActivities(two, index, ['travel']), two, 'refused, so unchanged');
+  }
+});
+
+test('the day a stage would come from, and the day it would go to, are nameable', () => {
+  const spread = defaultDays(STAGES);
+  assert.equal(hikingDonorIndex(spread, 0), -1, 'nothing to spare');
+  const merged = setHikingStages(spread, 0, 3); // [3,1,1,1,1]
+  assert.equal(hikingDonorIndex(merged, 1), 0, 'the nearest day with a spare stage');
+  assert.equal(hikingDonorIndex(null, 0), -1);
+  // The heir is the day that inherits a removed day's walking.
+  assert.equal(hikingHeirIndex(merged, 1), 2);
+  assert.equal(hikingHeirIndex(merged, merged.length - 1), merged.length - 2, 'backwards too');
+  assert.equal(hikingHeirIndex([day([hiking(STAGES)])], 0), -1, 'nothing else walks');
+  assert.equal(hikingHeirIndex(merged, 99), -1, 'no such day');
 });
 
 test('the capability answers match what the mutation actually does', () => {
