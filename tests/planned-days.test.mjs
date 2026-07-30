@@ -1,11 +1,11 @@
 /**
- * The derived planned-day layer (src/plan/plannedDays.mjs) — the exact module
+ * Day plan — the derived layer (src/plan/plannedDays.mjs), the exact module
  * the store runs. Canonical stages are never modified: a planned day only
  * HOLDS them, so guides, highlights, detours and geometry stay stage-owned.
  *
- * Synthetic stages here carry the same shape the active itinerary produces
- * (see src/route/activeItinerary.ts ItineraryStage); the real Kungsleden data
- * is exercised through the itinerary transform in the direction tests below.
+ * The 3–11 September journey is the primary fixture: travel in, hiking days
+ * including one with two adjacent stages, a rest day, a mixed hiking+travel
+ * day ending in a Trip Stay, and a travel-home day with no overnight.
  *
  *   npm test   →  node --test tests/
  */
@@ -18,20 +18,21 @@ import {
   buildPlannedDays,
   currentPartIndex,
   currentPlannedDayOf,
+  hikingEndpointOptions,
+  plannedDayForStage,
 } from '../src/plan/plannedDays.mjs';
-import { defaultGroups } from '../src/plan/dayPlan.mjs';
+import { defaultDays } from '../src/plan/dayPlan.mjs';
 import { buildDirectionalItinerary } from '../src/route/itinerary.mjs';
+import { WAYPOINT_TO_HUT } from '../src/route/waypointStops.mjs';
 import { DEFAULT_DIRECTION, REVERSE_DIRECTION } from '../src/route/direction.mjs';
 
 const FORWARD = DEFAULT_DIRECTION;
 const REVERSE = REVERSE_DIRECTION;
 
-// ---- Hydrate the packed route JSON (mirrors src/route/hydrate.ts) -----------
+// ---- Real route data --------------------------------------------------------
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const raw = JSON.parse(
-  readFileSync(join(ROOT, 'src/generated/kungsleden-route.json'), 'utf8'),
-);
+const raw = JSON.parse(readFileSync(join(ROOT, 'src/generated/kungsleden-route.json'), 'utf8'));
 const unpack = (pts) =>
   pts.map(([lat, lon, elevation, cumulativeDistanceKm]) => ({
     lat,
@@ -54,360 +55,38 @@ const toProfile = (points) =>
       lon: p.lon,
     }));
 
-function hydrate() {
-  const overviewPoints = unpack(raw.overview.points);
-  return {
-    name: raw.name,
-    overviewPoints,
-    overviewGeoJson: toLineString(overviewPoints, { role: 'overview' }),
-    stages: raw.stages.map((g) => {
-      const points = unpack(g.points);
-      return {
-        id: g.id,
-        day: g.day,
-        fromWaypointId: g.fromWaypointId,
-        toWaypointId: g.toWaypointId,
-        points,
-        geoJson: toLineString(points, { stageId: g.id, day: g.day }),
-        bounds: g.bounds,
-        statistics: g.statistics,
-        elevationProfile: toProfile(points),
-      };
-    }),
-    waypoints: raw.waypoints,
-    bounds: raw.bounds,
-    statistics: raw.statistics,
-    userBounds: raw.userBounds,
-    mapCutoutBounds: raw.mapCutoutBounds,
-  };
-}
+const canonical = {
+  name: raw.name,
+  overviewPoints: unpack(raw.overview.points),
+  overviewGeoJson: toLineString(unpack(raw.overview.points), { role: 'overview' }),
+  stages: raw.stages.map((g) => {
+    const points = unpack(g.points);
+    return {
+      id: g.id,
+      day: g.day,
+      fromWaypointId: g.fromWaypointId,
+      toWaypointId: g.toWaypointId,
+      points,
+      geoJson: toLineString(points, { stageId: g.id, day: g.day }),
+      bounds: g.bounds,
+      statistics: g.statistics,
+      elevationProfile: toProfile(points),
+    };
+  }),
+  waypoints: raw.waypoints,
+  bounds: raw.bounds,
+  statistics: raw.statistics,
+  userBounds: raw.userBounds,
+  mapCutoutBounds: raw.mapCutoutBounds,
+};
 
-const route = hydrate();
-
-/**
- * A synthetic itinerary stage. Elevation samples are two per stage (start and
- * end) so profile concatenation is easy to reason about.
- */
-function stage(id, fromHutId, toHutId, opts = {}) {
-  // `in` rather than ?? so an EXPLICIT null (missing elevation data) survives.
-  const or = (key, fallback) => (key in opts ? opts[key] : fallback);
-  const distanceKm = or('distanceKm', 10);
-  return {
-    id,
-    day: or('day', 1),
-    fromHutId,
-    toHutId,
-    distanceKm,
-    estimatedHours: or('estimatedHours', 4),
-    notes: '',
-    totalAscentM: or('totalAscentM', 100),
-    totalDescentM: or('totalDescentM', 50),
-    minimumElevationM: or('minimumElevationM', 400),
-    maximumElevationM: or('maximumElevationM', 900),
-    points: [
-      { lat: 68, lon: 18, elevation: 400, cumulativeDistanceKm: 0 },
-      { lat: 68.1, lon: 18.1, elevation: 900, cumulativeDistanceKm: distanceKm },
-    ],
-    elevationProfile: [
-      { distanceKm: 0, elevationM: 400, lat: 68, lon: 18 },
-      { distanceKm, elevationM: 900, lat: 68.1, lon: 18.1 },
-    ],
-  };
-}
-
-/** Four adjacent stages: a → b → c → d → e. */
-function fourStages() {
-  return [
-    stage('s1', 'a', 'b', { distanceKm: 15.2, estimatedHours: 4, totalAscentM: 310, totalDescentM: 180 }),
-    stage('s2', 'b', 'c', { distanceKm: 21.4, estimatedHours: 6, totalAscentM: 420, totalDescentM: 250 }),
-    stage('s3', 'c', 'd', { distanceKm: 13.1, estimatedHours: 4.5, totalAscentM: 380, totalDescentM: 120 }),
-    stage('s4', 'd', 'e', { distanceKm: 12.3, estimatedHours: 4, totalAscentM: 60, totalDescentM: 420 }),
-  ];
-}
-
-const plan = (groups, firstDate = '2026-09-03', direction = FORWARD) => ({
-  direction,
-  firstDate,
-  groups,
-});
-
-// ---- No plan: the pre-feature behaviour, one code path ---------------------
-
-test('with NO plan there is one planned day per canonical stage, undated', () => {
-  const stages = fourStages();
-  const days = buildPlannedDays(stages, null, 's1');
-  assert.equal(days.length, 4);
-  days.forEach((day, i) => {
-    assert.equal(day.number, i + 1);
-    assert.equal(day.index, i);
-    assert.equal(day.date, null, 'no plan means no dates');
-    assert.equal(day.stages.length, 1);
-    assert.equal(day.stages[0].id, stages[i].id);
-    assert.deepEqual(day.viaStopIds, []);
-  });
-});
-
-test('an undated single-stage day mirrors its canonical stage exactly', () => {
-  const stages = fourStages();
-  const [day] = buildPlannedDays(stages, null, null);
-  const s = stages[0];
-  assert.equal(day.distanceKm, s.distanceKm);
-  assert.equal(day.totalAscentM, s.totalAscentM);
-  assert.equal(day.totalDescentM, s.totalDescentM);
-  assert.equal(day.minimumElevationM, s.minimumElevationM);
-  assert.equal(day.maximumElevationM, s.maximumElevationM);
-  assert.equal(day.estimatedHours, s.estimatedHours);
-  assert.equal(day.fromStopId, s.fromHutId);
-  assert.equal(day.toStopId, s.toHutId);
-  assert.equal(day.elevationProfile, s.elevationProfile, 'the stage profile is reused as-is');
-});
-
-test('an empty itinerary derives no days instead of throwing', () => {
-  assert.deepEqual(buildPlannedDays([], plan([1]), 's1'), []);
-  assert.deepEqual(buildPlannedDays(null, null, null), []);
-});
-
-// ---- Grouping --------------------------------------------------------------
-
-test('a default plan dates one stage per day consecutively', () => {
-  const days = buildPlannedDays(fourStages(), plan(defaultGroups(4)), null);
-  assert.deepEqual(
-    days.map((d) => d.date),
-    ['2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06'],
-  );
-});
-
-test('two adjacent stages in one day: endpoints, via-stop and aggregates', () => {
-  const days = buildPlannedDays(fourStages(), plan([1, 2, 1]), null);
-  assert.equal(days.length, 3);
-  const combined = days[1];
-  assert.equal(combined.number, 2);
-  assert.equal(combined.date, '2026-09-04');
-  assert.equal(combined.stages.length, 2);
-  assert.equal(combined.fromStopId, 'b', 'first stage start');
-  assert.equal(combined.toStopId, 'd', 'last stage end');
-  assert.deepEqual(combined.viaStopIds, ['c'], 'the internal boundary');
-  assert.equal(Number(combined.distanceKm.toFixed(1)), 34.5); // 21.4 + 13.1
-  assert.equal(combined.totalAscentM, 800); // 420 + 380
-  assert.equal(combined.totalDescentM, 370); // 250 + 120
-  assert.equal(combined.estimatedHours, 10.5); // 6 + 4.5
-  // Days after the combined one shift a date earlier.
-  assert.equal(days[2].date, '2026-09-05');
-});
-
-test('three adjacent stages in one day list every internal boundary', () => {
-  const days = buildPlannedDays(fourStages(), plan([1, 3]), null);
-  const big = days[1];
-  assert.equal(big.stages.length, 3);
-  assert.equal(big.fromStopId, 'b');
-  assert.equal(big.toStopId, 'e');
-  assert.deepEqual(big.viaStopIds, ['c', 'd']);
-  assert.equal(Number(big.distanceKm.toFixed(1)), 46.8);
-  assert.equal(big.estimatedHours, 14.5);
-});
-
-test('one day holding the whole route still reports both endpoints', () => {
-  const [only] = buildPlannedDays(fourStages(), plan([4]), null);
-  assert.equal(only.number, 1);
-  assert.equal(only.fromStopId, 'a');
-  assert.equal(only.toStopId, 'e');
-  assert.deepEqual(only.viaStopIds, ['b', 'c', 'd']);
-});
-
-test('a grouping that does not partition the stages falls back to one per day', () => {
-  // Only reachable transiently; the persisted value is repaired separately.
-  const days = buildPlannedDays(fourStages(), plan([1, 1]), null);
-  assert.equal(days.length, 4);
-  assert.equal(days[0].date, '2026-09-03', 'the date anchor still applies');
-});
-
-// ---- Aggregation edge cases ------------------------------------------------
-
-test('ascent and descent are null when ANY component value is missing', () => {
-  const stages = [
-    stage('s1', 'a', 'b', { totalAscentM: 300, totalDescentM: 100 }),
-    stage('s2', 'b', 'c', { totalAscentM: null, totalDescentM: 200 }),
-  ];
-  const [day] = buildPlannedDays(stages, plan([2]), null);
-  assert.equal(day.totalAscentM, null, 'a partial sum would understate the climb');
-  assert.equal(day.totalDescentM, 300, 'descent is complete, so it sums');
-});
-
-test('elevation extremes take min and max, never a sum', () => {
-  const stages = [
-    stage('s1', 'a', 'b', { minimumElevationM: 380, maximumElevationM: 760 }),
-    stage('s2', 'b', 'c', { minimumElevationM: 640, maximumElevationM: 1140 }),
-  ];
-  const [day] = buildPlannedDays(stages, plan([2]), null);
-  assert.equal(day.minimumElevationM, 380);
-  assert.equal(day.maximumElevationM, 1140);
-});
-
-test('elevation extremes ignore missing values but keep the present ones', () => {
-  const stages = [
-    stage('s1', 'a', 'b', { minimumElevationM: null, maximumElevationM: null }),
-    stage('s2', 'b', 'c', { minimumElevationM: 500, maximumElevationM: 900 }),
-  ];
-  const [day] = buildPlannedDays(stages, plan([2]), null);
-  assert.equal(day.minimumElevationM, 500);
-  assert.equal(day.maximumElevationM, 900);
-});
-
-test('a day whose stages all lack elevation data reports null, not zero', () => {
-  const stages = [
-    stage('s1', 'a', 'b', { minimumElevationM: null, maximumElevationM: null, totalAscentM: null }),
-    stage('s2', 'b', 'c', { minimumElevationM: null, maximumElevationM: null, totalAscentM: null }),
-  ];
-  const [day] = buildPlannedDays(stages, plan([2]), null);
-  assert.equal(day.minimumElevationM, null);
-  assert.equal(day.maximumElevationM, null);
-  assert.equal(day.totalAscentM, null);
-});
-
-// ---- Elevation profile -----------------------------------------------------
-
-test('a combined day concatenates the verified profiles with distance offsets', () => {
-  const stages = fourStages();
-  const [day] = buildPlannedDays(stages, plan([2, 1, 1]), null);
-  assert.equal(day.elevationProfile.length, 4, 'both stage profiles, nothing resampled');
-  assert.deepEqual(
-    day.elevationProfile.map((p) => Number(p.distanceKm.toFixed(1))),
-    [0, 15.2, 15.2, 36.6], // second stage offset by the first stage's length
-  );
-  // Elevations and coordinates are copied verbatim from the verified data.
-  assert.deepEqual(
-    day.elevationProfile.map((p) => p.elevationM),
-    [400, 900, 400, 900],
-  );
-});
-
-test('the concatenated profile distance is monotonically increasing', () => {
-  const [day] = buildPlannedDays(fourStages(), plan([4]), null);
-  for (let i = 1; i < day.elevationProfile.length; i++) {
-    assert.ok(
-      day.elevationProfile[i].distanceKm >= day.elevationProfile[i - 1].distanceKm,
-      `sample ${i} does not go backwards`,
-    );
-  }
-});
-
-test('deriving days never mutates the canonical stages or their profiles', () => {
-  const stages = fourStages();
-  const snapshot = JSON.stringify(stages);
-  const days = buildPlannedDays(stages, plan([2, 2]), 's1');
-  days[0].elevationProfile[0].distanceKm = 999;
-  assert.equal(
-    JSON.stringify(stages),
-    snapshot,
-    'the source stages are untouched by a mutated derived profile',
-  );
-});
-
-// ---- Current planned day ---------------------------------------------------
-
-test('the current day is the one CONTAINING the current stage — first, middle or last', () => {
-  const stages = fourStages();
-  const groups = plan([1, 3]); // s1 | s2 s3 s4
-  for (const [stageId, expectedDay, expectedPart] of [
-    ['s1', 1, 0],
-    ['s2', 2, 0],
-    ['s3', 2, 1],
-    ['s4', 2, 2],
-  ]) {
-    const days = buildPlannedDays(stages, groups, stageId);
-    const current = currentPlannedDayOf(days);
-    assert.equal(current.number, expectedDay, `stage ${stageId} resolves to day ${expectedDay}`);
-    assert.equal(currentPartIndex(current, stageId), expectedPart, `part index for ${stageId}`);
-    assert.equal(days.filter((d) => d.isCurrent).length, 1, 'exactly one current day');
-  }
-});
-
-test('no current stage means no current day and no current part', () => {
-  const days = buildPlannedDays(fourStages(), plan([2, 2]), null);
-  assert.equal(currentPlannedDayOf(days), null);
-  assert.ok(days.every((d) => !d.isCurrent));
-  assert.equal(currentPartIndex(days[0], null), -1);
-  assert.equal(currentPartIndex(null, 's1'), -1);
-});
-
-test('an unknown current stage id leaves every day non-current', () => {
-  const days = buildPlannedDays(fourStages(), plan([2, 2]), 'ghost');
-  assert.equal(currentPlannedDayOf(days), null);
-});
-
-// ---- Real route data, both directions --------------------------------------
-
-test('the real forward route derives seven undated days with no plan', () => {
-  const itinerary = buildDirectionalItinerary(route, FORWARD);
-  const stages = itinerary.route.stages.map(toItineraryShape);
-  const days = buildPlannedDays(stages, null, null);
-  assert.equal(days.length, 7);
-  assert.equal(days[0].stages[0].id, 'd1');
-  assert.equal(days[6].stages[0].id, 'd7');
-});
-
-test('the reversed route maps planned day 1 to the LAST physical segment', () => {
-  const itinerary = buildDirectionalItinerary(route, REVERSE);
-  const stages = itinerary.route.stages.map(toItineraryShape);
-  const days = buildPlannedDays(stages, plan(defaultGroups(7), '2026-09-03', REVERSE), 'd7');
-  assert.equal(days.length, 7);
-  assert.equal(days[0].stages[0].id, 'd7', 'walking south to north starts on d7');
-  assert.equal(days[0].date, '2026-09-03');
-  assert.equal(days[6].stages[0].id, 'd1');
-  assert.equal(currentPlannedDayOf(days).number, 1);
-});
-
-test('combining on the reversed route aggregates the reversed pair correctly', () => {
-  const itinerary = buildDirectionalItinerary(route, REVERSE);
-  const stages = itinerary.route.stages.map(toItineraryShape);
-  // Combine the first two walked segments (d7 + d6).
-  const days = buildPlannedDays(stages, plan([2, 1, 1, 1, 1, 1], '2026-09-03', REVERSE), 'd6');
-  assert.equal(days.length, 6);
-  const first = days[0];
-  assert.deepEqual(first.stages.map((s) => s.id), ['d7', 'd6']);
-  assert.equal(first.fromStopId, stages[0].fromHutId);
-  assert.equal(first.toStopId, stages[1].toHutId);
-  assert.deepEqual(first.viaStopIds, [stages[0].toHutId]);
-  assert.equal(
-    Number(first.distanceKm.toFixed(3)),
-    Number((stages[0].distanceKm + stages[1].distanceKm).toFixed(3)),
-  );
-  assert.equal(first.isCurrent, true, 'the current stage is the second part');
-  assert.equal(currentPartIndex(first, 'd6'), 1);
-});
-
-test('every canonical stage appears exactly once across the derived days', () => {
-  const itinerary = buildDirectionalItinerary(route, FORWARD);
-  const stages = itinerary.route.stages.map(toItineraryShape);
-  for (const groups of [[1, 1, 1, 1, 1, 1, 1], [2, 2, 3], [7], [1, 2, 1, 1, 1, 1]]) {
-    const days = buildPlannedDays(stages, plan(groups), null);
-    const ids = days.flatMap((d) => d.stages.map((s) => s.id));
-    assert.deepEqual(ids, stages.map((s) => s.id), `groups ${JSON.stringify(groups)}`);
-  }
-});
-
-test('derived day totals equal the whole-route totals for any grouping', () => {
-  const itinerary = buildDirectionalItinerary(route, FORWARD);
-  const stages = itinerary.route.stages.map(toItineraryShape);
-  const routeKm = stages.reduce((sum, s) => sum + s.distanceKm, 0);
-  for (const groups of [[1, 1, 1, 1, 1, 1, 1], [3, 4], [7]]) {
-    const days = buildPlannedDays(stages, plan(groups), null);
-    const total = days.reduce((sum, d) => sum + d.distanceKm, 0);
-    assert.equal(
-      Number(total.toFixed(6)),
-      Number(routeKm.toFixed(6)),
-      `grouping ${JSON.stringify(groups)} conserves route distance`,
-    );
-  }
-});
-
-/** Minimal ItineraryStage shape from a canonical RouteStage (see activeItinerary.ts). */
-function toItineraryShape(s) {
-  return {
+/** The itinerary stages the store passes in (mirrors activeItinerary.ts). */
+function stagesFor(direction) {
+  return buildDirectionalItinerary(canonical, direction).route.stages.map((s) => ({
     id: s.id,
     day: s.day,
-    fromHutId: `from_${s.fromWaypointId}`,
-    toHutId: `to_${s.toWaypointId}`,
+    fromHutId: WAYPOINT_TO_HUT[s.fromWaypointId],
+    toHutId: WAYPOINT_TO_HUT[s.toWaypointId],
     distanceKm: s.statistics.distanceKm,
     estimatedHours: 4,
     notes: '',
@@ -417,5 +96,380 @@ function toItineraryShape(s) {
     maximumElevationM: s.statistics.maximumElevationM,
     points: s.points,
     elevationProfile: s.elevationProfile,
-  };
+  }));
 }
+
+const forwardStages = stagesFor(FORWARD);
+const STAGES = forwardStages.length;
+
+let seq = 0;
+const day = (activities, overnight) => ({
+  id: `day_fixture_${(seq += 1)}`,
+  activities,
+  ...(overnight ? { overnight } : {}),
+});
+const hiking = (stages = 1) => ({ kind: 'hiking', stages });
+const travel = () => ({ kind: 'travel' });
+const rest = () => ({ kind: 'rest' });
+const plan = (days, extra = {}) => ({
+  direction: FORWARD,
+  startDate: '2026-09-03',
+  currentDayId: null,
+  days,
+  ...extra,
+});
+
+/** The concrete 3–11 September journey. */
+function journey() {
+  return [
+    day([travel()], { kind: 'stop', stopId: 'abisko' }), // 3 Sep
+    day([hiking(1)]), // 4 Sep  Abisko → Abiskojaure
+    day([hiking(1)]), // 5 Sep  → Alesjaure
+    day([hiking(2)]), // 6 Sep  → Sälka via Tjäktja
+    day([hiking(1)]), // 7 Sep  → Singi
+    day([hiking(1)]), // 8 Sep  → Kebnekaise
+    day([rest()]), // 9 Sep  based at Kebnekaise
+    day([hiking(1), travel()], { kind: 'stay', tripItemId: 'trip_kiruna' }), // 10 Sep
+    day([travel()], { kind: 'none' }), // 11 Sep
+  ];
+}
+
+const TRIP_ITEMS = [
+  {
+    id: 'trip_out',
+    kind: 'transport',
+    title: 'Flight to Kiruna',
+    status: 'confirmed',
+    mode: 'flight',
+    from: 'Amsterdam',
+    to: 'Kiruna',
+    date: '2026-09-03',
+    departureTime: '07:15',
+    attachmentIds: ['doc_ticket'],
+    createdAt: 1,
+    updatedAt: 1,
+  },
+  {
+    id: 'trip_bus',
+    kind: 'transport',
+    title: 'Bus to Abisko',
+    status: 'confirmed',
+    mode: 'bus',
+    from: 'Kiruna',
+    to: 'Abisko',
+    date: '2026-09-03',
+    departureTime: '13:40',
+    attachmentIds: [],
+    createdAt: 2,
+    updatedAt: 2,
+  },
+  {
+    id: 'trip_kiruna_bus',
+    kind: 'transport',
+    title: 'Bus Nikkaluokta → Kiruna',
+    status: 'planned',
+    mode: 'bus',
+    from: 'Nikkaluokta',
+    to: 'Kiruna',
+    date: '2026-09-10',
+    departureTime: '16:30',
+    attachmentIds: [],
+    createdAt: 3,
+    updatedAt: 3,
+  },
+  {
+    id: 'trip_kiruna',
+    kind: 'stay',
+    title: 'STF Kiruna',
+    status: 'confirmed',
+    stayType: 'hotel-hostel',
+    location: 'Kiruna',
+    checkInDate: '2026-09-10',
+    attachmentIds: [],
+    createdAt: 4,
+    updatedAt: 4,
+  },
+];
+
+// ---- The default state: no plan means NO days -------------------------------
+
+test('with NO plan there are no planned days at all', () => {
+  assert.deepEqual(buildPlannedDays(forwardStages, null, TRIP_ITEMS), []);
+  assert.deepEqual(buildPlannedDays(forwardStages, undefined), []);
+  assert.equal(currentPlannedDayOf([]), null);
+});
+
+test('nothing infers a plan from trip items, stays or documents', () => {
+  // A rich trip plan produces exactly nothing without a Day plan.
+  assert.deepEqual(buildPlannedDays(forwardStages, null, TRIP_ITEMS), []);
+});
+
+test('a plan whose hiking counts do not cover the route derives nothing', () => {
+  assert.deepEqual(buildPlannedDays(forwardStages, plan([day([hiking(3)])]), []), []);
+  assert.deepEqual(buildPlannedDays([], plan(defaultDays(STAGES)), []), []);
+});
+
+// ---- The concrete journey ---------------------------------------------------
+
+test('the 3–11 September journey derives nine consecutive dated days', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  assert.equal(days.length, 9);
+  assert.deepEqual(
+    days.map((d) => d.date),
+    [
+      '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07',
+      '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11',
+    ],
+  );
+  assert.deepEqual(days.map((d) => d.number), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+});
+
+test('every canonical stage appears exactly once, in route order', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  const ids = days.flatMap((d) => d.stages.map((s) => s.id));
+  assert.deepEqual(ids, forwardStages.map((s) => s.id));
+  assert.equal(ids.length, STAGES);
+});
+
+test('day kinds record the real journey, including the mixed day', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  assert.deepEqual(days.map((d) => d.kinds), [
+    ['travel'],
+    ['hiking'], ['hiking'], ['hiking'], ['hiking'], ['hiking'],
+    ['rest'],
+    ['hiking', 'travel'],
+    ['travel'],
+  ]);
+});
+
+test('activity ORDER is preserved — hike then travel, not travel then hike', () => {
+  const hikeThenTravel = buildPlannedDays(
+    forwardStages,
+    plan([day([hiking(STAGES), travel()])]),
+    [],
+  );
+  assert.deepEqual(hikeThenTravel[0].kinds, ['hiking', 'travel']);
+  const travelThenHike = buildPlannedDays(
+    forwardStages,
+    plan([day([travel(), hiking(STAGES)])]),
+    [],
+  );
+  assert.deepEqual(travelThenHike[0].kinds, ['travel', 'hiking']);
+});
+
+test('the combined day names its endpoints and its via-stop', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  const combined = days[3]; // 6 Sep
+  assert.equal(combined.stages.length, 2);
+  assert.equal(combined.fromStopId, 'alesjaure');
+  assert.equal(combined.toStopId, 'salka');
+  assert.deepEqual(combined.viaStopIds, ['tjaktja']);
+  const [a, b] = combined.stages;
+  assert.equal(combined.distanceKm, a.distanceKm + b.distanceKm);
+  assert.equal(combined.totalAscentM, a.totalAscentM + b.totalAscentM);
+  assert.equal(combined.minimumElevationM, Math.min(a.minimumElevationM, b.minimumElevationM));
+  assert.equal(combined.maximumElevationM, Math.max(a.maximumElevationM, b.maximumElevationM));
+});
+
+test('a travel or rest day walks nothing and reports no route figures', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  for (const idx of [0, 6, 8]) {
+    const d = days[idx];
+    assert.deepEqual(d.stages, []);
+    assert.equal(d.fromStopId, null);
+    assert.equal(d.toStopId, null);
+    assert.equal(d.distanceKm, 0);
+    assert.equal(d.totalAscentM, null);
+    assert.equal(d.minimumElevationM, null);
+    assert.deepEqual(d.elevationProfile, []);
+  }
+});
+
+// ---- Overnight resolution ---------------------------------------------------
+
+test('overnight resolves explicit → hiking endpoint → carried → none', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  assert.deepEqual(days[0].overnight, { kind: 'stop', stopId: 'abisko', source: 'explicit' });
+  assert.deepEqual(days[1].overnight, { kind: 'stop', stopId: 'abiskojaure', source: 'hiking' });
+  assert.deepEqual(days[3].overnight, { kind: 'stop', stopId: 'salka', source: 'hiking' });
+  assert.deepEqual(days[5].overnight, { kind: 'stop', stopId: 'kebnekaise', source: 'hiking' });
+  // The rest day stays where it already was.
+  assert.deepEqual(days[6].overnight, { kind: 'stop', stopId: 'kebnekaise', source: 'carried' });
+  // Hikes to Nikkaluokta but SLEEPS in Kiruna — the endpoint is not the bed.
+  assert.equal(days[7].toStopId, 'nikkaluokta');
+  assert.deepEqual(days[7].overnight, {
+    kind: 'stay',
+    tripItemId: 'trip_kiruna',
+    source: 'explicit',
+  });
+  // Travel home: deliberately nowhere.
+  assert.deepEqual(days[8].overnight, { kind: 'none', source: 'explicit' });
+});
+
+test('a travel-only day has NO overnight unless the user sets one', () => {
+  // A canonical stop is never inferred from a transport item's destination.
+  const days = buildPlannedDays(
+    forwardStages,
+    plan([day([travel()]), day([hiking(STAGES)])]),
+    TRIP_ITEMS,
+  );
+  assert.equal(days[0].overnight.kind, 'none');
+  assert.equal(days[0].travelItems.length, 2, 'it still shows the movements');
+});
+
+test('a rest day with nothing before it resolves to no overnight', () => {
+  const days = buildPlannedDays(forwardStages, plan([day([rest()]), day([hiking(STAGES)])]), []);
+  assert.equal(days[0].overnight.kind, 'none');
+});
+
+test('a dangling Trip Stay reference resolves without crashing', () => {
+  const days = buildPlannedDays(
+    forwardStages,
+    plan([day([hiking(STAGES)], { kind: 'stay', tripItemId: 'trip_deleted' })]),
+    TRIP_ITEMS,
+  );
+  // The reference is kept as-is; the UI resolves it against the live trip list
+  // and states honestly when the stay is gone.
+  assert.deepEqual(days[0].overnight, {
+    kind: 'stay',
+    tripItemId: 'trip_deleted',
+    source: 'explicit',
+  });
+});
+
+// ---- Travel matching --------------------------------------------------------
+
+test('transport items match a day by date and sort by departure time', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  assert.deepEqual(days[0].travelItems.map((i) => i.id), ['trip_out', 'trip_bus']);
+  assert.deepEqual(days[7].travelItems.map((i) => i.id), ['trip_kiruna_bus']);
+});
+
+test('untimed transport keeps its own order and follows timed items', () => {
+  const items = [
+    { id: 't_untimed', kind: 'transport', date: '2026-09-03', attachmentIds: [] },
+    { id: 't_timed', kind: 'transport', date: '2026-09-03', departureTime: '09:00', attachmentIds: [] },
+    { id: 't_untimed2', kind: 'transport', date: '2026-09-03', attachmentIds: [] },
+  ];
+  const days = buildPlannedDays(forwardStages, plan([day([travel()]), day([hiking(STAGES)])]), items);
+  assert.deepEqual(days[0].travelItems.map((i) => i.id), ['t_timed', 't_untimed', 't_untimed2']);
+});
+
+test('stays are never matched as travel, and other dates never leak in', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  assert.ok(days.every((d) => d.travelItems.every((i) => i.kind === 'transport')));
+  assert.deepEqual(days[4].travelItems, [], 'a day with no transport shows none');
+});
+
+test('trip data is referenced, never copied into the derived day', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), TRIP_ITEMS);
+  // The very objects from the trip list, not clones with copied fields.
+  assert.equal(days[0].travelItems[0], TRIP_ITEMS[0]);
+});
+
+// ---- Current day ------------------------------------------------------------
+
+test('the active day comes from the plan’s stable id, not a position', () => {
+  const days = journey();
+  const built = buildPlannedDays(forwardStages, plan(days, { currentDayId: days[6].id }), []);
+  const current = currentPlannedDayOf(built);
+  assert.equal(current.id, days[6].id);
+  assert.equal(current.number, 7);
+  assert.equal(built.filter((d) => d.isCurrent).length, 1);
+});
+
+test('a travel or rest day can be the active day', () => {
+  const days = journey();
+  for (const idx of [0, 6, 8]) {
+    const built = buildPlannedDays(forwardStages, plan(days, { currentDayId: days[idx].id }), []);
+    assert.equal(currentPlannedDayOf(built).index, idx);
+    assert.deepEqual(currentPlannedDayOf(built).stages, [], 'no stage is fabricated');
+  }
+});
+
+test('inserting a day before the active one does not move the activation', () => {
+  const days = journey();
+  const activeId = days[7].id;
+  const before = buildPlannedDays(forwardStages, plan(days, { currentDayId: activeId }), []);
+  assert.equal(currentPlannedDayOf(before).number, 8);
+
+  const shifted = [days[0], day([travel()]), ...days.slice(1)];
+  const after = buildPlannedDays(forwardStages, plan(shifted, { currentDayId: activeId }), []);
+  assert.equal(currentPlannedDayOf(after).id, activeId, 'the SAME day is still active');
+  assert.equal(currentPlannedDayOf(after).number, 9, 'it has simply moved a day later');
+});
+
+test('the current stage locates its day and its part', () => {
+  const days = journey();
+  const built = buildPlannedDays(forwardStages, plan(days), []);
+  assert.equal(plannedDayForStage(built, 'd3').number, 4, 'the combined day');
+  assert.equal(currentPartIndex(plannedDayForStage(built, 'd3'), 'd3'), 0);
+  assert.equal(currentPartIndex(plannedDayForStage(built, 'd4'), 'd4'), 1);
+  assert.equal(plannedDayForStage(built, 'ghost'), null);
+});
+
+// ---- Elevation profile ------------------------------------------------------
+
+test('a combined day concatenates verified profiles with monotonic offsets', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), []);
+  const profile = days[3].elevationProfile;
+  const [a, b] = days[3].stages;
+  assert.equal(profile.length, a.elevationProfile.length + b.elevationProfile.length);
+  for (let i = 1; i < profile.length; i++) {
+    assert.ok(profile[i].distanceKm >= profile[i - 1].distanceKm, `sample ${i} moves forward`);
+  }
+  assert.equal(profile[0].elevationM, a.elevationProfile[0].elevationM, 'values are verbatim');
+});
+
+test('deriving days never mutates the canonical stages', () => {
+  const snapshot = JSON.stringify(forwardStages.map((s) => s.elevationProfile.length));
+  const days = buildPlannedDays(forwardStages, plan(journey()), []);
+  days[3].elevationProfile[0].distanceKm = 999;
+  assert.equal(JSON.stringify(forwardStages.map((s) => s.elevationProfile.length)), snapshot);
+});
+
+// ---- Endpoint options -------------------------------------------------------
+
+test('endpoint options list every legal following stop with its consequence', () => {
+  const days = buildPlannedDays(forwardStages, plan(defaultDays(STAGES)), []);
+  const options = hikingEndpointOptions(days, 1, forwardStages);
+  assert.equal(options.length, 6, 'stage 2 onwards — everything still to walk');
+  assert.equal(options[0].stopId, 'alesjaure');
+  assert.equal(options[0].stages, 1);
+  assert.equal(options[0].isCurrent, true);
+  assert.equal(options[0].effect, 'none');
+  assert.equal(options[1].effect, 'merge');
+  assert.ok(options[1].distanceKm > options[0].distanceKm, 'distances accumulate');
+});
+
+test('endpoint options mark a shorter choice as a split', () => {
+  const days = buildPlannedDays(forwardStages, plan([day([hiking(3)]), day([hiking(4)])]), []);
+  const options = hikingEndpointOptions(days, 0, forwardStages);
+  assert.equal(options[0].effect, 'split');
+  assert.equal(options[2].effect, 'none');
+  assert.equal(options[3].effect, 'merge');
+});
+
+test('a travel or rest day has no endpoint options', () => {
+  const days = buildPlannedDays(forwardStages, plan(journey()), []);
+  assert.deepEqual(hikingEndpointOptions(days, 0, forwardStages), []);
+  assert.deepEqual(hikingEndpointOptions(days, 6, forwardStages), []);
+});
+
+// ---- Reverse direction ------------------------------------------------------
+
+test('the reversed route derives the same journey shape from the other end', () => {
+  const reverseStages = stagesFor(REVERSE);
+  const days = buildPlannedDays(
+    reverseStages,
+    { ...plan(journey()), direction: REVERSE },
+    [],
+  );
+  assert.equal(days.length, 9);
+  assert.equal(days[1].stages[0].id, 'd7', 'walking south to north starts on d7');
+  assert.equal(days[1].fromStopId, 'nikkaluokta');
+  assert.equal(days[7].stages[0].id, 'd1');
+  assert.equal(days[7].toStopId, 'abisko');
+  const ids = days.flatMap((d) => d.stages.map((s) => s.id));
+  assert.deepEqual(ids, reverseStages.map((s) => s.id));
+});
