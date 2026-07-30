@@ -3204,6 +3204,25 @@ button.stop-fac:focus-visible {
   opacity: 0.85;
 }
 
+/* Manual-override row (On route): one slim line, present ONLY while a manual
+   current-day override is active. States the fact quietly and offers the one
+   way back to date-following; no banner weight — it must not compete with
+   the hero above it. */
+.today-override {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 8px 10px 8px 16px;
+  border-radius: var(--r-md);
+}
+.today-override__label {
+  font-size: 13px;
+  color: var(--ink-soft);
+  min-width: 0;
+}
+
 /* Tonight row (On route): Tonight stays the flexible primary card; the STF
    quick access is a compact fixed-width sibling action. When no membership
    is marked for Today the row has a single child and Tonight keeps the full

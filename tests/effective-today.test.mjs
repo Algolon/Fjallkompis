@@ -355,3 +355,41 @@ test('a travel day DOES show the movements recorded for its own date', () => {
 test('there are exactly three outcomes, and none of them is an empty Today', () => {
   assert.deepEqual(TODAY_SOURCES, ['override', 'date', 'generic']);
 });
+
+// ---- Clearing an override (the `Follow plan dates` action) ------------------
+//
+// The store action nulls `currentDayId` and nothing else; these fix what the
+// resolution must then do. Pure and clock-injected, so "offline" is trivially
+// covered: nothing here (or in the store action) touches the network.
+
+test('clearing an override on a matching date returns Today to that date', () => {
+  const records = defaultDays(STAGES.length);
+  const chosen = records[5];
+  const days = build(planFrom(START, records, chosen.id));
+  // Overridden: day 6 shows even though the date says day 2.
+  assert.equal(resolveEffectiveToday(days, chosen.id, '2026-09-04').day.number, 6);
+  // Cleared: the same derived days, pointer null → the date answers again.
+  const cleared = resolveEffectiveToday(days, null, '2026-09-04');
+  assert.equal(cleared.source, 'date');
+  assert.equal(cleared.day.number, 2);
+});
+
+test('clearing an override outside the plan range falls back to generic', () => {
+  const records = defaultDays(STAGES.length);
+  const chosen = records[3];
+  const days = build(planFrom(START, records, chosen.id));
+  assert.equal(resolveEffectiveToday(days, chosen.id, '2026-10-20').source, 'override');
+  const cleared = resolveEffectiveToday(days, null, '2026-10-20');
+  assert.equal(cleared.day, null);
+  assert.equal(cleared.source, 'generic', 'never an empty planned Today after clearing');
+});
+
+test('with no override there is nothing to clear — and no-plan mode never resolves one', () => {
+  const days = build(planFrom(START));
+  // currentDayId null: the source is 'date' or 'generic', never 'override' —
+  // which is exactly the gate the Today affordance renders behind.
+  assert.equal(resolveEffectiveToday(days, null, START).source, 'date');
+  assert.equal(resolveEffectiveToday(days, null, '2030-01-01').source, 'generic');
+  // No plan at all: always generic, so the affordance is unreachable.
+  assert.equal(resolveEffectiveToday(build(null), null, START).source, 'generic');
+});

@@ -124,6 +124,21 @@ test('there is no "make this day today" action — the override rides Set as cur
   assert.ok(!/Make this today/.test(store), 'and so is its copy');
 });
 
+test('followPlanDates clears ONLY the override — the way back to date-following', () => {
+  // Without it a pointer set via Stages → "Set as current" would outrank the
+  // calendar forever: precedence 1 never expires on its own.
+  const action = /const followPlanDates = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.match(action, /if \(!s\.dayPlan \|\| s\.dayPlan\.currentDayId == null\) return s;/);
+  assert.match(action, /dayPlan: \{ \.\.\.s\.dayPlan, currentDayId: null \}/);
+  // ONLY the pointer: route progress, the plan's days/dates and every other
+  // field survive untouched — and nothing here needs the network, so the
+  // action works offline exactly like every other localStorage write.
+  const body = stripComments(action);
+  for (const forbidden of ['currentStageId', 'days:', 'startDate', 'trip', 'packing', 'fetch', 'navigator']) {
+    assert.ok(!body.includes(forbidden), `followPlanDates must not touch ${forbidden}`);
+  }
+});
+
 test('the store resolves the effective Today with ONE clock read, read-only', () => {
   assert.match(store, /from '\.\.\/plan\/effectiveToday\.mjs'/);
   assert.match(
@@ -194,6 +209,7 @@ test('the store exposes the day-plan actions and no raw-activity API', () => {
     'setDayOvernight',
     'resetDayPlan',
     'removeDayPlan',
+    'followPlanDates',
   ]) {
     assert.ok(store.includes(action), `${action} is exposed`);
   }

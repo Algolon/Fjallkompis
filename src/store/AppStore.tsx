@@ -118,6 +118,14 @@ interface AppStore {
   resetDayPlan: () => void;
   /** Destructive: drop the plan entirely (back to the default state). */
   removeDayPlan: () => void;
+  /**
+   * Clear the manual current-day override so Today follows the plan's dates
+   * again (or the generic fallback outside them). Touches ONLY
+   * `dayPlan.currentDayId`; route progress (`currentStageId`), the plan's
+   * days and dates, and everything else are preserved. A no-op with no plan
+   * or no override — the UI offers it only while one is active.
+   */
+  followPlanDates: () => void;
 
   // Stage (resolved against the active itinerary — itinerary day + oriented
   // endpoints/geometry for the persisted physical segment id).
@@ -364,6 +372,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setState((s) => (s.dayPlan ? { ...s, dayPlan: null } : s));
   }, []);
 
+  /**
+   * The way BACK from a manual override. Setting one is a side effect of
+   * Stages → "Set as current"; without this action the pointer would outrank
+   * the calendar forever (it never expires on its own — precedence 1 always
+   * beats precedence 2). Clearing it re-resolves Today from the local date,
+   * or the generic fallback outside the plan. Nothing else is touched.
+   */
+  const followPlanDates = useCallback(() => {
+    setState((s) => {
+      if (!s.dayPlan || s.dayPlan.currentDayId == null) return s;
+      return { ...s, dayPlan: { ...s.dayPlan, currentDayId: null } };
+    });
+  }, []);
+
   // There is no "make this day today" action. The manual override exists —
   // Stages → "Set as current" writes both pointers through `setCurrentStage`
   // above — but it is a consequence of choosing where you are on the route,
@@ -579,6 +601,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setDayOvernight,
     resetDayPlan,
     removeDayPlan,
+    followPlanDates,
     getStopNote,
     setStopNote,
     setPackingStatus,

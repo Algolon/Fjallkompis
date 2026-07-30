@@ -111,6 +111,27 @@ test('the effective day comes from the store resolution, not from isCurrent', ()
   assert.ok(!/todayIso|localIsoDate|isCurrent/.test(screen));
 });
 
+test('an active manual override is named and offers exactly one way back', () => {
+  // A pointer set via Stages → "Set as current" never expires on its own, so
+  // while one is active Today must SAY the day was chosen manually and offer
+  // the return to date-following — outside the day-edit action hierarchy.
+  assert.match(onRoute, /\{todaySource === 'override' \? \(/);
+  assert.match(onRoute, /Manually selected day/);
+  assert.match(onRoute, /Follow plan dates/);
+  assert.match(onRoute, /onClick=\{followPlanDates\}/);
+  // Gated on the RESOLVED source, never re-derived from the pointer or the
+  // clock — and rendered only in the planned branch, so no-plan mode (where
+  // the source is always 'generic') cannot show it. Exactly one gate.
+  assert.equal((onRoute.match(/todaySource === 'override'/g) ?? []).length, 1);
+  const generic = onRoute.slice(onRoute.indexOf('if (!planned) {'), onRoute.indexOf('// ---- Planned state'));
+  assert.ok(!/todaySource|followPlanDates/.test(generic), 'the generic branch is untouched');
+  // It stays out of the edit sheet: this is not a day-editing action.
+  assert.ok(!sheet.includes('Follow plan dates'));
+  assert.ok(!sheet.includes('followPlanDates'));
+  // The quiet-row styling exists and is not a banner.
+  assert.match(css, /\.today-override \{[^}]*justify-content: space-between;/s);
+});
+
 // ---- View mode --------------------------------------------------------------
 
 test('the plan list is an overview — no route statistics anywhere in it', () => {

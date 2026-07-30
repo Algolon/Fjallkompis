@@ -75,6 +75,12 @@ export function TodayOnRoute({
   trip: TripItem[];
   onNavigate: Navigate;
 }) {
+  // How the shown day was resolved, and the way back from a manual override.
+  // A pointer set via Stages → "Set as current" never expires by itself, so
+  // while one is active Today says so and offers ONE quiet action to return
+  // to following the plan's dates. Hidden the moment no override is active.
+  const { todaySource, followPlanDates } = useStore();
+
   // A plan alone is not enough: today has to BE one of its days. Without one
   // the generic view runs, fully populated, exactly as it does with no plan.
   const planned = plannedDays.length > 0 && day !== null;
@@ -114,6 +120,19 @@ export function TodayOnRoute({
         routeDirection={routeDirection}
         onNavigate={onNavigate}
       />
+      {todaySource === 'override' ? (
+        <div className="today-override today-glass today-glass--light">
+          <span className="today-override__label">Manually selected day</span>
+          <button
+            type="button"
+            className="stage-set-pill"
+            onClick={followPlanDates}
+            aria-label="Follow plan dates — show the planned day for today’s date again"
+          >
+            Follow plan dates
+          </button>
+        </div>
+      ) : null}
       <PlannedJourney day={day} plannedDays={plannedDays} onNavigate={onNavigate} />
       {overnightStopId ? (
         <TonightCard stopId={overnightStopId} onNavigate={onNavigate} />
