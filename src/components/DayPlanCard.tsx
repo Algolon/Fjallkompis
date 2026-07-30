@@ -8,6 +8,7 @@ import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { DAY_ACTIVITY_LABELS } from '../plan/dayPlan.mjs';
+import { hikingLead, travelPresentation } from '../plan/dayPresentation.mjs';
 import type { PlannedDay, ResolvedOvernight } from '../plan/plannedDays.mjs';
 import type { DayActivityKind, TripItem } from '../types';
 
@@ -220,16 +221,12 @@ function DayRow({
   const tonight = overnightLabel(day.overnight, trip);
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
-  // Matched transport is surfaced only on a day that HAS a travel activity.
-  // The derivation matches every date honestly, but the plan must not imply
-  // an activity the user did not put on the day.
-  const travelLine = day.kinds.includes('travel')
-    ? day.travelItems
-        .map((i) => [i.kind === 'transport' ? i.from : null, i.kind === 'transport' ? i.to : null])
-        .filter(([a, b]) => a || b)
-        .map(([a, b]) => `${a ?? '?'} → ${b ?? '?'}`)
-        .join(', ')
-    : '';
+  // Matched transport is surfaced only on a day that HAS a travel activity —
+  // the derivation matches every date honestly, but the plan must not imply an
+  // activity the user did not put on the day. Wording and position come from
+  // the shared helper, so this row and Today always agree on what came first.
+  const travelLine = travelPresentation(day);
+  const walkLead = hikingLead(day);
 
   return (
     <article className={`dayplan-day${day.isCurrent ? ' is-current' : ''}`}>
@@ -260,12 +257,19 @@ function DayRow({
         ) : null}
       </div>
 
+      {/* Travel first ⇒ its line sits above the walking, and the walk picks up
+          a "then hike" lead. The planner has the room Today's hero has not. */}
+      {travelLine?.position === 'before' ? (
+        <p className="dayplan-day__via">{travelLine.line}</p>
+      ) : null}
+
       {from && to ? (
         <h3 className="dayplan-day__route">
+          {walkLead ? <span className="dayplan-day__lead">{walkLead} </span> : null}
           {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
         </h3>
-      ) : travelLine ? (
-        <h3 className="dayplan-day__route">{travelLine}</h3>
+      ) : travelLine && !travelLine.isEmpty ? (
+        <h3 className="dayplan-day__route">{travelLine.text}</h3>
       ) : null}
 
       {day.viaStopIds.length > 0 ? (
@@ -280,8 +284,12 @@ function DayRow({
         </p>
       ) : null}
 
-      {from && to && travelLine ? (
-        <p className="dayplan-day__via">then travel {travelLine}</p>
+      {/* Travel after the walk, or a travel-only day with nothing recorded yet
+          (when it HAS movements they are already the headline above). Either
+          way the day never hides that travel is part of it. */}
+      {travelLine?.position === 'after' ||
+      (travelLine?.position === 'only' && travelLine.isEmpty) ? (
+        <p className="dayplan-day__via">{travelLine.line}</p>
       ) : null}
 
       <p className="dayplan-day__tonight">

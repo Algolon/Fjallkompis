@@ -22,6 +22,7 @@ import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
+import { activityOrderPhrase, travelPresentation } from '../plan/dayPresentation.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
 import type { DayActivityKind, RouteDirection, TripItem } from '../types';
@@ -126,12 +127,6 @@ const ACTIVITY_ICON: Record<DayActivityKind, typeof Footprints> = {
   travel: BusFront,
   rest: Coffee,
 };
-const ACTIVITY_WORD: Record<DayActivityKind, string> = {
-  hiking: 'Hiking',
-  travel: 'Travel',
-  rest: 'Rest & explore',
-};
-
 function DayTypeBadge({ kinds }: { kinds: DayActivityKind[] }) {
   return (
     <span className="hero-day__type" aria-hidden>
@@ -172,7 +167,7 @@ function PlannedDayHero({
   const travel = day.kinds.includes('travel');
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
-  const kindWords = day.kinds.map((k) => ACTIVITY_WORD[k]).join(' and ');
+  const kindWords = activityOrderPhrase(day);
   // Chips only on a plain single-stage hiking day. A combined day would have
   // to merge two capped lists into one capped list, silently dropping half
   // the metadata; a mixed day already spends that line on the transfer. Both
@@ -181,11 +176,9 @@ function PlannedDayHero({
     hiking && !multiStage && !travel && leadStage
       ? stageHighlights(leadStage.id, undefined, routeDirection)
       : [];
-  const travelLine = day.travelItems
-    .map((i) => (i.kind === 'transport' ? [i.from, i.to] : [null, null]))
-    .filter(([a, b]) => a || b)
-    .map(([a, b]) => `${a ?? '?'} → ${b ?? '?'}`)
-    .join(', ');
+  // One shared helper decides the wording AND the position, so Today and the
+  // Settings planner can never disagree about which happened first.
+  const travelLine = travelPresentation(day);
 
   return (
     <section
@@ -202,6 +195,15 @@ function PlannedDayHero({
           <DayTypeBadge kinds={day.kinds} />
         </span>
 
+        {/* Travel BEFORE the walk sits above it: the hero's line order is the
+            day's activity order, which is the only thing that distinguishes a
+            morning transfer from an evening one. The hero conveys the sequence
+            by position alone — a "then hike" lead would cost a line it has not
+            got at 375x667, and the ordered phrase is in the accessible name. */}
+        {travelLine?.position === 'before' ? (
+          <p className="hero-via">{travelLine.line}</p>
+        ) : null}
+
         {hiking && from && to ? (
           <h2 className="hero-title">
             {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
@@ -216,16 +218,11 @@ function PlannedDayHero({
           </p>
         ) : null}
 
-        {/* A travel leg on a hiking day is one quiet line, in activity order. */}
-        {travel && hiking && travelLine ? (
-          <p className="hero-via">then travel {travelLine}</p>
-        ) : null}
-        {travel && !hiking ? (
-          travelLine ? (
-            <p className="hero-via">{travelLine}</p>
-          ) : (
-            <p className="hero-via">No travel added yet</p>
-          )
+        {/* A travel leg after the walk is one quiet line below it. It renders
+            even when nothing in Lists → Trip matches the date, so a mixed day
+            is never mistakable for a plain hiking day. */}
+        {travelLine && travelLine.position !== 'before' ? (
+          <p className="hero-via">{travelLine.line}</p>
         ) : null}
         {!hiking && !travel && day.kinds.includes('rest') ? (
           <p className="hero-via">
@@ -335,7 +332,7 @@ function PlannedJourney({
         STOPS_BY_ID[d.toStopId],
       )}`;
     }
-    return d.kinds.map((k) => ACTIVITY_WORD[k]).join(' and ');
+    return activityOrderPhrase(d);
   };
   const first = plannedDays.find((d) => d.fromStopId);
   const last = [...plannedDays].reverse().find((d) => d.toStopId);

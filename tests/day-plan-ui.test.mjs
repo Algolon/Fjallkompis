@@ -246,8 +246,8 @@ test('the day-type indicator is icons in the existing eyebrow row', () => {
   assert.match(onRoute, /function DayTypeBadge\(\{ kinds \}/);
   assert.match(onRoute, /<span className="hero-day__type" aria-hidden>/);
   assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} \/>/);
-  // The words are always in the hero's accessible name.
-  assert.match(onRoute, /const kindWords = day\.kinds\.map\(\(k\) => ACTIVITY_WORD\[k\]\)\.join\(' and '\)/);
+  // The words are always in the hero's accessible name, in stored order.
+  assert.match(onRoute, /const kindWords = activityOrderPhrase\(day\);/);
   assert.match(onRoute, /aria-label=\{`Today: day \$\{day\.number\} of \$\{dayCount\}/);
   // It costs no height: it rides the eyebrow line.
   assert.match(css, /\.hero-day__type \{[^}]*margin-left: 8px;/s);
@@ -303,12 +303,76 @@ test('the no-plan hero still runs on currentStage, unchanged', () => {
 });
 
 test('a travel day shows its matched movements and opens Trip', () => {
-  assert.match(onRoute, /const travelLine = day\.travelItems/);
-  assert.match(onRoute, /No travel added yet/);
+  assert.match(onRoute, /const travelLine = travelPresentation\(day\);/);
   assert.match(onRoute, /Open in Trip/);
   // A MIXED day keeps the two walking actions; the transfer is already a line
-  // above, and a third button would break the block's fixed responsibility.
+  // above or below, and a third button would break the fixed responsibility.
   assert.match(onRoute, /\{travel && !hiking \? \(/);
+});
+
+// ---- Activity order ---------------------------------------------------------
+//
+// The stored order records whether the transfer happens before or after the
+// walking. Both surfaces must say so, in the same words, or the day sheet's
+// swap control is a button that appears to do nothing.
+
+test('both surfaces read activity order from ONE shared helper', () => {
+  for (const [name, src] of [['Today', onRoute], ['the planner', card]]) {
+    assert.match(
+      src,
+      /from '\.\.\/plan\/dayPresentation\.mjs'/,
+      `${name} imports the shared presenter`,
+    );
+    assert.match(src, /travelPresentation\(day\)/, `${name} asks it for the travel line`);
+    // No surface re-derives the wording or the ordering for itself.
+    assert.ok(
+      !/then travel \{|then travel \$\{/.test(stripComments(src)),
+      `${name} never hardcodes the sequencing copy`,
+    );
+  }
+});
+
+test('Today places the travel line by the stored order, not by a fixed slot', () => {
+  const hero = onRoute.slice(
+    onRoute.indexOf('function PlannedDayHero('),
+    onRoute.indexOf('function PlannedJourney('),
+  );
+  // Above the route when travel comes first...
+  const before = hero.indexOf("travelLine?.position === 'before'");
+  const title = hero.indexOf('<h2 className="hero-title">');
+  const after = hero.indexOf("travelLine && travelLine.position !== 'before'");
+  assert.ok(before > 0 && title > 0 && after > 0);
+  assert.ok(before < title, 'a leading transfer renders above the walking route');
+  assert.ok(after > title, 'a following transfer renders below it');
+  // The accessible name carries the same sequence.
+  assert.match(hero, /const kindWords = activityOrderPhrase\(day\);/);
+  assert.match(hero, /aria-label=\{`Today: day \$\{day\.number\} of \$\{dayCount\}/);
+});
+
+test('the planner places the travel line by the same rule and leads the walk', () => {
+  const row = card.slice(card.indexOf('function DayRow('), card.indexOf('function AddDayRow('));
+  const before = row.indexOf("travelLine?.position === 'before'");
+  const route = row.indexOf('<h3 className="dayplan-day__route">');
+  const after = row.indexOf("travelLine?.position === 'after'");
+  assert.ok(before > 0 && route > 0 && after > 0);
+  assert.ok(before < route && after > route);
+  assert.match(row, /const walkLead = hikingLead\(day\);/);
+  assert.match(row, /\{walkLead \? <span className="dayplan-day__lead">\{walkLead\} <\/span> : null\}/);
+});
+
+test('a mixed day never hides its travel when no Trip item matches the date', () => {
+  // Travel-only already had an honest empty state; the mixed day rendered
+  // nothing at all and was indistinguishable from a plain hiking day.
+  const hero = onRoute.slice(
+    onRoute.indexOf('function PlannedDayHero('),
+    onRoute.indexOf('function PlannedJourney('),
+  );
+  assert.ok(
+    !/travelLine\.text|travelLine &&\s*!travelLine\.isEmpty/.test(hero),
+    'Today renders the line unconditionally, empty state included',
+  );
+  const row = card.slice(card.indexOf('function DayRow('), card.indexOf('function AddDayRow('));
+  assert.match(row, /travelLine\?\.position === 'only' && travelLine\.isEmpty/);
 });
 
 test('a rest day names where it is based and opens Stop info', () => {

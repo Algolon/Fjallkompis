@@ -5299,6 +5299,13 @@ span.trip-attach-open {
   color: var(--ink-faint);
   margin: 2px 0 0;
 }
+/* "then hike" — the sequencing lead in front of a walk that follows a
+   transfer. Quiet and smaller than the route it introduces. */
+.dayplan-day__lead {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
 .dayplan-day__tonight {
   display: flex;
   align-items: center;
