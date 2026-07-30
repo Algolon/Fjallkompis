@@ -129,10 +129,18 @@ test('selecting a stage moves the active day in the SAME update', () => {
   assert.match(action, /return \{ \.\.\.s, currentStageId: stageId, dayPlan: \{ \.\.\.s\.dayPlan, currentDayId \} \};/);
 });
 
-test('a day-list edit repairs the active-day pointer instead of orphaning it', () => {
+test('a day-list edit repairs the active-day pointer through the shared rule', () => {
   const patch = /const patchDays = useCallback\([\s\S]*?\n  \);/.exec(store)[0];
-  assert.match(patch, /days\.some\(\(d\) => d\.id === s\.dayPlan!\.currentDayId\)/);
-  assert.match(patch, /: null;/, 'a vanished day clears the pointer, never re-points it');
+  // Ownership is answered by the pure model, not re-derived in the store.
+  assert.match(patch, /currentDayIdAfterEdit\(/);
+  assert.match(patch, /s\.dayPlan\.days,\s*\n\s*days,\s*\n\s*s\.dayPlan\.currentDayId,\s*\n\s*stageIndex,/);
+  assert.match(
+    patch,
+    /stages\.findIndex\(\s*\n?\s*\(st\) => st\.id === s\.currentStageId,?\s*\n?\s*\)/,
+    'the current stage is located in the ACTIVE itinerary',
+  );
+  // The edit never rewrites route progress to keep a day alive.
+  assert.ok(!/currentStageId:/.test(patch), 'a calendar edit never moves currentStageId');
 });
 
 test('no component writes the persisted pointers directly', () => {

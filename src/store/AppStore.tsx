@@ -37,6 +37,7 @@ import type { ActiveItinerary, ItineraryStage } from '../route/activeItinerary';
 import { isRealIsoDate } from '../utils/dateTimeField.mjs';
 import {
   createDayPlan as buildDayPlan,
+  currentDayIdAfterEdit,
   dayIndexById,
   dayIndexForStageIndex,
   firstStageIndexOfDay,
@@ -215,14 +216,35 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   // Travel and rest days carry no stage, so one pointer cannot answer both
   // questions; keeping both writes here is what stops them diverging.
 
-  /** Apply a day-list edit, repairing the active-day pointer if it vanished. */
+  /**
+   * Apply a day-list edit and repair the active-day pointer.
+   *
+   * An edit can move a canonical stage from one calendar day to another —
+   * splitting a two-stage day hands its second stage to a brand-new day, and
+   * merging hands a following day's stage back. When the active day was the
+   * one WALKING the current stage, it follows that stage to whichever day now
+   * owns it; the walker's own position on the route never changes, so the day
+   * shown must be the day that contains it.
+   *
+   * Ownership is answered by `dayIndexForStageIndex` — the same derivation
+   * `setCurrentStage` uses — never by re-deriving the stage allocation here.
+   *
+   * `currentStageId` is never moved to preserve the previously active day: a
+   * travel or rest day carries no stage, so it simply stays active while it
+   * exists, and degrades to "no active day" when the edit removed it.
+   */
   const patchDays = useCallback(
     (s: PersistentState, days: PlannedDayRecord[]): PersistentState => {
       if (!s.dayPlan) return s;
-      const currentDayId =
-        s.dayPlan.currentDayId != null && days.some((d) => d.id === s.dayPlan!.currentDayId)
-          ? s.dayPlan.currentDayId
-          : null;
+      const stageIndex = getActiveItinerary(s.routeDirection).stages.findIndex(
+        (st) => st.id === s.currentStageId,
+      );
+      const currentDayId = currentDayIdAfterEdit(
+        s.dayPlan.days,
+        days,
+        s.dayPlan.currentDayId,
+        stageIndex,
+      );
       return { ...s, dayPlan: { ...s.dayPlan, days, currentDayId } };
     },
     [],

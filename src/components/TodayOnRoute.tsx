@@ -103,7 +103,6 @@ export function TodayOnRoute({
       <PlannedDayHero
         day={day}
         dayCount={plannedDays.length}
-        currentStage={currentStage}
         routeDirection={routeDirection}
         onNavigate={onNavigate}
       />
@@ -144,23 +143,32 @@ function DayTypeBadge({ kinds }: { kinds: DayActivityKind[] }) {
   );
 }
 
-/** The hero for a planned calendar day, in its activity-specific variant. */
+/**
+ * The hero for a planned calendar day, in its activity-specific variant.
+ *
+ * EVERY piece of content comes from the day's OWN stages — route, via-stops,
+ * aggregates, characteristics and both actions. The global `currentStageId` is
+ * route progress, not a content source: an edit can hand the current stage to
+ * a different calendar day, and sourcing chips or actions from it would show
+ * one stage's terrain and open another stage's guide under this day's title.
+ */
 function PlannedDayHero({
   day,
   dayCount,
-  currentStage,
   routeDirection,
   onNavigate,
 }: {
   day: PlannedDay;
   dayCount: number;
-  currentStage: ItineraryStage | null;
   routeDirection: RouteDirection;
   onNavigate: Navigate;
 }) {
   const dayDate = day.date ? formatDayDate(day.date) : null;
   const hiking = day.stages.length > 0;
   const multiStage = day.stages.length > 1;
+  // The day's own first stage — what a one-stage day IS, and where a
+  // multi-stage day starts in Stages.
+  const leadStage: ItineraryStage | null = day.stages[0] ?? null;
   const travel = day.kinds.includes('travel');
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
@@ -170,8 +178,8 @@ function PlannedDayHero({
   // the metadata; a mixed day already spends that line on the transfer. Both
   // cases also need the height — the hero has none spare at 375x667.
   const highlights =
-    hiking && !multiStage && !travel && currentStage
-      ? stageHighlights(currentStage.id, undefined, routeDirection)
+    hiking && !multiStage && !travel && leadStage
+      ? stageHighlights(leadStage.id, undefined, routeDirection)
       : [];
   const travelLine = day.travelItems
     .map((i) => (i.kind === 'transport' ? [i.from, i.to] : [null, null]))
@@ -254,28 +262,29 @@ function PlannedDayHero({
         ) : null}
 
         <div className="hero-actions">
-          {hiking && multiStage ? (
+          {hiking && multiStage && leadStage ? (
             // One honest action: a single Stage Guide or View Route would open
-            // only ONE of the day's stages. Stages lists them adjacently.
+            // only ONE of the day's stages. Stages lists them adjacently, and
+            // this day's FIRST stage is where it opens.
             <button
               className="hero-action hero-action--primary"
-              onClick={() => onNavigate('stages', { guideStageId: day.stages[0].id })}
+              onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
               aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
             >
               <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
             </button>
-          ) : hiking && currentStage ? (
+          ) : hiking && leadStage ? (
             <>
               <button
                 className="hero-action hero-action--primary"
-                onClick={() => onNavigate('stages', { guideStageId: currentStage.id })}
+                onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
                 aria-label="Stage Guide — open today’s full day guide in Stages"
               >
                 <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
               </button>
               <button
                 className="hero-action"
-                onClick={() => onNavigate('map', { mapStageId: currentStage.id })}
+                onClick={() => onNavigate('map', { mapStageId: leadStage.id })}
                 aria-label="View Route — show today’s stage on the map"
               >
                 <Route size={15} strokeWidth={2} aria-hidden /> View Route

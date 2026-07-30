@@ -241,6 +241,40 @@ export function dayIndexForStageIndex(days, stageIndex) {
   return -1;
 }
 
+/**
+ * The active-day pointer after a day-list edit.
+ *
+ * An edit can hand a canonical stage from one calendar day to another —
+ * shrinking a two-stage day gives its second stage to a brand-new day, growing
+ * one takes a following day's stage back. When the active day was the one
+ * WALKING the current stage, it follows that stage to whichever day now owns
+ * it: the walker has not moved, so the day shown must be the day containing
+ * them. Ownership is answered by `dayIndexForStageIndex`, never by re-deriving
+ * the allocation.
+ *
+ * Otherwise the pointer simply survives while its day does (a travel or rest
+ * day carries no stage, so nothing can pull it elsewhere) and degrades to null
+ * — "no active day" — when the edit removed it. `currentStageId` is never
+ * moved here; route progress is not something a calendar edit may rewrite.
+ *
+ * @param {ReadonlyArray<object>} previousDays  The day list before the edit.
+ * @param {ReadonlyArray<object>} nextDays      The day list after it.
+ * @param {string|null} currentDayId            The active day before the edit.
+ * @param {number} currentStageIndex            0-based index of `currentStageId`
+ *   in the active itinerary, or -1 when it is not on the route.
+ * @returns {string|null}
+ */
+export function currentDayIdAfterEdit(previousDays, nextDays, currentDayId, currentStageIndex) {
+  if (!Array.isArray(nextDays) || currentDayId == null) return null;
+  const before = dayIndexForStageIndex(previousDays, currentStageIndex);
+  const walkedTheCurrentStage = before !== -1 && previousDays[before].id === currentDayId;
+  if (walkedTheCurrentStage) {
+    const after = dayIndexForStageIndex(nextDays, currentStageIndex);
+    if (after !== -1) return nextDays[after].id;
+  }
+  return nextDays.some((d) => d.id === currentDayId) ? currentDayId : null;
+}
+
 /** Index of the FIRST canonical stage covered by the day at `dayIndex`, or -1. */
 export function firstStageIndexOfDay(days, dayIndex) {
   if (!Array.isArray(days) || dayIndex < 0 || dayIndex >= days.length) return -1;

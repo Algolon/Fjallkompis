@@ -42,6 +42,12 @@ export declare function createDayPlan(
 
 export declare function dayIndexById(days: readonly PlannedDayRecord[], dayId: string): number;
 export declare function dayIndexForStageIndex(days: unknown, stageIndex: number): number;
+export declare function currentDayIdAfterEdit(
+  previousDays: readonly PlannedDayRecord[],
+  nextDays: readonly PlannedDayRecord[],
+  currentDayId: string | null,
+  currentStageIndex: number,
+): string | null;
 export declare function firstStageIndexOfDay(days: unknown, dayIndex: number): number;
 export declare function stagesAvailableFrom(days: unknown, dayIndex: number): number;
 

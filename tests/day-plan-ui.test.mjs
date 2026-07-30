@@ -255,18 +255,51 @@ test('the day-type indicator is icons in the existing eyebrow row', () => {
 
 test('a multi-stage day offers one honest action and no whole-day map claim', () => {
   const combined = stripComments(
-    onRoute.slice(onRoute.indexOf('{hiking && multiStage ? ('), onRoute.indexOf(') : hiking && currentStage ? (')),
+    onRoute.slice(
+      onRoute.indexOf('{hiking && multiStage && leadStage ? ('),
+      onRoute.indexOf(') : hiking && leadStage ? ('),
+    ),
   );
   assert.match(combined, /Open in Stages/);
+  assert.match(combined, /guideStageId: leadStage\.id/, "it opens the DAY's first stage");
   assert.ok(!/Stage Guide|View Route|mapStageId/.test(combined));
   assert.ok(!/Stage guides/.test(combined), 'never a plural label for one deep link');
 });
 
 test('a single-stage planned day keeps chips and both original actions', () => {
-  assert.match(onRoute, /hiking && !multiStage && !travel && currentStage\s*\?\s*stageHighlights/);
-  const single = onRoute.slice(onRoute.indexOf(') : hiking && currentStage ? ('), onRoute.indexOf('{/* Travel-ONLY days'));
+  assert.match(onRoute, /hiking && !multiStage && !travel && leadStage\s*\?\s*stageHighlights/);
+  const single = onRoute.slice(
+    onRoute.indexOf(') : hiking && leadStage ? ('),
+    onRoute.indexOf('{/* Travel-ONLY days'),
+  );
   assert.match(single, /Stage Guide/);
   assert.match(single, /View Route/);
+});
+
+test('every planned-day hero fact comes from the DAY, never from currentStage', () => {
+  // The regression: chips and actions were sourced from the global route
+  // pointer while route and statistics came from the day, so a split could
+  // show one stage's terrain under another stage's title.
+  const hero = stripComments(
+    onRoute.slice(onRoute.indexOf('function PlannedDayHero('), onRoute.indexOf('function PlannedJourney(')),
+  );
+  assert.ok(!/currentStage/.test(hero), 'the planned hero never reads currentStage');
+  assert.match(hero, /const leadStage: ItineraryStage \| null = day\.stages\[0\] \?\? null;/);
+  // Chips and both deep links resolve through that same day-owned stage.
+  assert.match(hero, /stageHighlights\(leadStage\.id/);
+  assert.match(hero, /guideStageId: leadStage\.id/);
+  assert.match(hero, /mapStageId: leadStage\.id/);
+});
+
+test('the no-plan hero still runs on currentStage, unchanged', () => {
+  const stageHero = stripComments(
+    onRoute.slice(onRoute.indexOf('function StageHero('), onRoute.indexOf('function StageJourney(')),
+  );
+  assert.match(stageHero, /stageHighlights\(stage\.id/);
+  assert.match(stageHero, /guideStageId: stage\.id/);
+  assert.match(stageHero, /mapStageId: stage\.id/);
+  // TodayOnRoute passes the route pointer straight through in the no-plan path.
+  assert.match(onRoute, /<StageHero\s+stage=\{currentStage\}/);
 });
 
 test('a travel day shows its matched movements and opens Trip', () => {

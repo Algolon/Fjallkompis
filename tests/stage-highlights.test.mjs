@@ -254,9 +254,16 @@ test('every taxonomy icon key is mapped to a lucide component on Today', () => {
 });
 
 test('Stage Guide opens the CURRENT stage’s guide on Stages', () => {
+  // No plan: the hero IS the current stage, passed in as `stage`.
   assert.match(
     today,
-    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: currentStage\.id \}\)\}/,
+    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: stage\.id \}\)\}/,
+  );
+  // With a plan: the day's OWN first stage, so the guide always matches the
+  // route printed above it.
+  assert.match(
+    today,
+    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: leadStage\.id \}\)\}/,
   );
   assert.match(today, />\s*Stage Guide\s*</, 'visible Stage Guide label');
   // App.tsx forwards the one-shot payload into StagesScreen.
@@ -273,10 +280,8 @@ test('Stage Guide opens the CURRENT stage’s guide on Stages', () => {
 });
 
 test('View Route focuses the Map on the current stage via the payload', () => {
-  assert.match(
-    today,
-    /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: currentStage\.id \}\)\}/,
-  );
+  assert.match(today, /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: stage\.id \}\)\}/);
+  assert.match(today, /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: leadStage\.id \}\)\}/);
   assert.match(today, />\s*View Route\s*</, 'visible View Route label');
 });
 
@@ -296,8 +301,14 @@ test('the block keeps its fixed responsibility — no dashboard creep', () => {
   // Stage Guide + View Route; a day covering several stages shows ONE action
   // instead (either alone would open just one of them — narrower than the
   // hero's claim); a travel or rest day gets its own single action.
-  const combined = hero.slice(hero.indexOf('{hiking && multiStage ? ('), hero.indexOf(') : hiking && currentStage ? ('));
-  const singleStage = hero.slice(hero.indexOf(') : hiking && currentStage ? ('), hero.indexOf('{/* Travel-ONLY days'));
+  const combined = hero.slice(
+    hero.indexOf('{hiking && multiStage && leadStage ? ('),
+    hero.indexOf(') : hiking && leadStage ? ('),
+  );
+  const singleStage = hero.slice(
+    hero.indexOf(') : hiking && leadStage ? ('),
+    hero.indexOf('{/* Travel-ONLY days'),
+  );
   assert.equal(
     (singleStage.match(/className="hero-action(?: |")/g) ?? []).length,
     2,

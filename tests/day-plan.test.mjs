@@ -19,6 +19,7 @@ import {
   canInsertHikingDay,
   canRemoveDay,
   createDayPlan,
+  currentDayIdAfterEdit,
   dateForDayIndex,
   dayIndexById,
   dayIndexForStageIndex,
@@ -545,4 +546,82 @@ test('normalisation is idempotent and never mutates its input', () => {
   assert.equal(JSON.stringify(source), frozen);
   once.days.push(day([travel()]));
   assert.equal(JSON.stringify(source), frozen, 'the repaired plan owns its own arrays');
+});
+
+// ---- Active-day pointer after an edit ---------------------------------------
+//
+// A day edit can hand a canonical stage to a different calendar day. The
+// walker has not moved, so the ACTIVE DAY follows the current stage — it is
+// never the case that Today shows one day while the current stage belongs to
+// another. Regression fence for the split/merge pointer desync.
+
+test('splitting after stage 1 moves the active day to the day that now walks stage 2', () => {
+  // Day A walks canonical stages 1–2 and is active; the walker is on stage 2.
+  const a = day([hiking(2)]);
+  const b = day([hiking(5)]);
+  const before = [a, b];
+  const after = setHikingStages(before, 0, 1); // "ends at" the first stage
+  assert.equal(after.length, 3, 'the released walking becomes its own new day');
+  assert.equal(hikingStagesOf(after[0]), 1);
+  assert.equal(hikingStagesOf(after[1]), 1);
+
+  // Stage index 1 = the second canonical stage.
+  const next = currentDayIdAfterEdit(before, after, a.id, 1);
+  assert.equal(next, after[1].id, 'the active day follows the current stage');
+  assert.notEqual(next, a.id, 'the emptied original day is no longer active');
+});
+
+test('splitting while stage 1 is current leaves the original day active', () => {
+  const a = day([hiking(2)]);
+  const b = day([hiking(5)]);
+  const before = [a, b];
+  const after = setHikingStages(before, 0, 1);
+  // Stage index 0 = the first canonical stage, which day A keeps.
+  assert.equal(currentDayIdAfterEdit(before, after, a.id, 0), a.id);
+});
+
+test('merging carries the active day back to the day that absorbed the stage', () => {
+  const a = day([hiking(1)]);
+  const b = day([hiking(1)]);
+  const c = day([hiking(5)]);
+  const before = [a, b, c];
+  // Day B is active and the walker is on stage 2, which B walks.
+  const after = setHikingStages(before, 0, 2); // day A grows and absorbs B
+  assert.ok(!after.some((d) => d.id === b.id), 'B had nothing else, so it disappears');
+  assert.equal(currentDayIdAfterEdit(before, after, b.id, 1), a.id);
+});
+
+test('a travel or rest day stays active across an unrelated edit', () => {
+  const t = day([travel()]);
+  const a = day([hiking(3)]);
+  const b = day([hiking(4)]);
+  const before = [t, a, b];
+  const after = setHikingStages(before, 1, 4); // edit two days away
+  // The active travel day walks nothing, so no stage can pull it elsewhere.
+  assert.equal(currentDayIdAfterEdit(before, after, t.id, 0), t.id);
+});
+
+test('inserting a day before the active one never activates a different day', () => {
+  const a = day([hiking(2)]);
+  const b = day([hiking(5)]);
+  const before = [a, b];
+  const after = insertDay(before, 0, ['travel']);
+  assert.equal(currentDayIdAfterEdit(before, after, b.id, 2), b.id);
+  assert.equal(currentDayIdAfterEdit(before, after, a.id, 0), a.id);
+});
+
+test('an active day that the edit removed degrades to no active day', () => {
+  const t = day([travel()]);
+  const a = day([hiking(7)]);
+  const before = [t, a];
+  const after = removeDay(before, 0);
+  assert.equal(currentDayIdAfterEdit(before, after, t.id, 0), null);
+});
+
+test('the pointer rule never invents a day, and null in means null out', () => {
+  const a = day([hiking(7)]);
+  assert.equal(currentDayIdAfterEdit([a], [a], null, 0), null);
+  assert.equal(currentDayIdAfterEdit([a], [a], 'day_gone', 0), null);
+  // A current stage that is not on the route cannot move anything.
+  assert.equal(currentDayIdAfterEdit([a], [a], a.id, -1), a.id);
 });
