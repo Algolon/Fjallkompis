@@ -5235,3 +5235,168 @@ span.trip-attach-open {
   outline: 2px solid var(--glacier-soft);
   outline-offset: 2px;
 }
+
+/* --- Hiking days (personal day plan, Settings) ----------------------------
+   Canonical stages are never edited here — only how they are DIVIDED across
+   calendar days. The boundary control is one button in two states, so
+   combining and splitting share an affordance and a position. */
+
+.dayplan {
+  display: flex;
+  flex-direction: column;
+}
+
+.dayplan-day {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px;
+}
+.dayplan-day.is-current {
+  border-color: var(--cloudberry);
+  background: var(--cloudberry-soft);
+}
+.dayplan-day__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dayplan-day__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dayplan-day__date {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.dayplan-day__route {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+.dayplan-day__via {
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin: 2px 0 0;
+}
+.dayplan-day__stats {
+  margin-top: 10px;
+}
+
+/* Canonical stage parts inside a combined day — the day never flattens them. */
+.dayplan-parts {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.dayplan-part {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.dayplan-part__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.dayplan-part__route {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.dayplan-part__stat {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* The boundary row draws the junction as a line the button sits on, so an
+   active boundary reads as a real break between two day cards. */
+.dayplan-boundary-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+}
+.dayplan-boundary-row::before,
+.dayplan-boundary-row::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+.dayplan-boundary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 8px;
+  padding: 7px 12px;
+  /* 44px touch target on a 30px visual control (::after below), the same
+     technique as the Today mode pill. */
+  min-height: 30px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  background: var(--paper);
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+}
+.dayplan-boundary::after {
+  content: '';
+  position: absolute;
+  inset: -7px 0;
+}
+.dayplan-boundary.is-active {
+  border-style: solid;
+  border-color: var(--spruce);
+  background: var(--paper);
+  color: var(--spruce);
+}
+.dayplan-boundary:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) {
+  .dayplan-boundary:hover {
+    background: var(--paper-2);
+  }
+}
+.dayplan-boundary:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+/* Inside a combined day the junction is nested between parts: keep it clearly
+   subordinate to the day-level boundaries around the cards. */
+.dayplan-parts .dayplan-boundary-row {
+  padding: 4px 0;
+}
+
+@media (max-width: 340px) {
+  .dayplan-boundary {
+    font-size: 12px;
+    padding: 7px 10px;
+  }
+  .dayplan-part {
+    flex-wrap: wrap;
+  }
+}

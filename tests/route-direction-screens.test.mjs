@@ -78,8 +78,13 @@ test('Settings exposes a real radio group with two mutually exclusive options', 
 
 test('Settings confirms a consequential direction change and never the active one', () => {
   assert.match(settings, /if \(dir === routeDirection\) return;/);
-  // Confirmation only when a current stage exists; otherwise apply immediately.
-  assert.match(settings, /if \(currentStage\) setPending\(dir\);\s*else setRouteDirection\(dir\);/);
+  // Confirmation only when the change is consequential — a current stage, or
+  // (since Hiking days) a personal day plan whose grouping will reset.
+  // Otherwise apply immediately.
+  assert.match(
+    settings,
+    /if \(currentStage \|\| dayPlan\) setPending\(dir\);\s*else setRouteDirection\(dir\);/,
+  );
   // Dialog copy + actions per spec.
   assert.match(settings, /Change route direction\?/);
   assert.match(settings, /packing list, journal and stop notes will stay unchanged/);
