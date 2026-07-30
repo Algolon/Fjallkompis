@@ -52,14 +52,15 @@
  *     path keys off `packingTemplateVersion` presence and the trip path off
  *     the `trip` field, so the two migrations compose independently.
  *
- * v6 → v7 (Hiking days):
- *   - `dayPlan` is added: the personal hiking-day plan (direction + first date
- *     + a partition of the ordered stages, see src/plan/dayPlan.mjs). Payloads
- *     without it — every existing user, whichever schema they come from —
- *     normalise to `null`, which IS the pre-v7 behaviour: one canonical stage
- *     per day, no dates. Nothing is fabricated, and no user needs a
- *     destructive migration. `currentStageId` stays the only persisted
- *     current-position pointer; the active planned day is derived from it.
+ * v6 → v7 (Day plan):
+ *   - `dayPlan` is added: the personal journey plan — ordered calendar days,
+ *     each holding hiking / travel / rest activities (src/plan/dayPlan.mjs).
+ *     Payloads without it — every existing user, whichever schema they come
+ *     from — normalise to `null`. Null is not a fallback: it is the canonical
+ *     default state, in which the app shows no dates, no planned days and no
+ *     activity indicators, exactly as before the feature existed. Nothing is
+ *     ever inferred from trip items, documents, route direction or the system
+ *     date; only an explicit action in Settings creates a plan.
  *     Like the packing and trip paths, this one keys off its own field, so all
  *     three compose independently.
  *

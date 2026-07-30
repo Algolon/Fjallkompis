@@ -215,26 +215,30 @@ test('an older export without trip data imports as an empty trip plan', () => {
   assert.ok(restored.packing.some((i) => i.id === 'custom_abc'), 'personal data survives');
 });
 
-test('full-state transfer preserves a configured hiking-day plan verbatim', () => {
+test('full-state transfer preserves a configured day plan verbatim', () => {
   const state = populatedState();
+  state.routeDirection = 'abisko-to-nikkaluokta';
   state.dayPlan = {
     direction: 'abisko-to-nikkaluokta',
-    firstDate: '2026-08-23',
-    groups: [1, 2, 1, 1, 1, 1],
+    startDate: '2026-08-23',
+    currentDayId: 'day_a2',
+    days: [
+      { id: 'day_a1', activities: [{ kind: 'travel' }], overnight: { kind: 'stop', stopId: 'abisko' } },
+      { id: 'day_a2', activities: [{ kind: 'hiking', stages: 2 }] },
+      { id: 'day_a3', activities: [{ kind: 'rest' }] },
+      { id: 'day_a4', activities: [{ kind: 'hiking', stages: 5 }, { kind: 'travel' }],
+        overnight: { kind: 'stay', tripItemId: 'trip_salka' } },
+    ],
   };
   const restored = exportImportRoundTrip(state);
-  assert.deepEqual(restored.dayPlan, {
-    direction: 'abisko-to-nikkaluokta',
-    firstDate: '2026-08-23',
-    groups: [1, 2, 1, 1, 1, 1],
-  });
+  assert.deepEqual(restored.dayPlan, state.dayPlan);
   // The plan rides alongside everything else — nothing is traded for it.
   assert.equal(restored.currentStageId, 'd3');
   assert.equal(restored.hutData.salka.notes, 'Sauna coins!');
   assert.equal(restored.trip.length, 2);
 });
 
-test('an older export without a day plan imports as no plan (existing behaviour)', () => {
+test('an older export without a day plan imports as no plan (the default state)', () => {
   const legacy = { ...populatedState(), schemaVersion: 6 };
   delete legacy.dayPlan;
   const restored = exportImportRoundTrip(legacy);
@@ -242,26 +246,37 @@ test('an older export without a day plan imports as no plan (existing behaviour)
   assert.equal(restored.currentStageId, 'd3', 'personal data survives');
 });
 
-test('a backup from a device walking the OTHER direction never applies its grouping', () => {
-  // The importing device is walking forward; the file carries a reverse plan.
+test('a backup from a device walking the OTHER direction never reuses its plan', () => {
   const state = populatedState();
   state.routeDirection = 'abisko-to-nikkaluokta';
   state.dayPlan = {
     direction: 'nikkaluokta-to-abisko',
-    firstDate: '2026-08-23',
-    groups: [2, 1, 1, 1, 1, 1],
+    startDate: '2026-08-23',
+    currentDayId: null,
+    days: [{ id: 'day_r1', activities: [{ kind: 'hiking', stages: 7 }] }],
   };
   const restored = exportImportRoundTrip(state);
-  assert.equal(restored.dayPlan.direction, 'abisko-to-nikkaluokta');
-  assert.equal(restored.dayPlan.firstDate, '2026-08-23', 'the date is kept');
-  assert.deepEqual(restored.dayPlan.groups, [1, 1, 1, 1, 1, 1, 1], 'grouping resets');
+  assert.equal(restored.dayPlan, null, 'discarded, never mirrored or rebuilt');
+  assert.equal(restored.currentStageId, 'd3', 'route progress is untouched');
 });
 
 test('a corrupt day plan never blocks the rest of the import', () => {
   const state = populatedState();
-  state.dayPlan = { direction: 'abisko-to-nikkaluokta', firstDate: 'whenever', groups: 'x' };
+  state.dayPlan = { direction: 'abisko-to-nikkaluokta', startDate: 'whenever', days: 'x' };
   const restored = exportImportRoundTrip(state);
   assert.equal(restored.dayPlan, null);
   assert.equal(restored.currentStageId, 'd3');
   assert.ok(restored.packing.some((i) => i.id === 'custom_abc'));
+});
+
+test('an export made by the earlier draft imports as no plan', () => {
+  const state = populatedState();
+  state.dayPlan = {
+    direction: 'abisko-to-nikkaluokta',
+    firstDate: '2026-08-23',
+    groups: [1, 1, 2, 1, 1, 1],
+  };
+  const restored = exportImportRoundTrip(state);
+  assert.equal(restored.dayPlan, null, 'the retired shape is never partly read');
+  assert.equal(restored.currentStageId, 'd3');
 });

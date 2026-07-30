@@ -1,242 +1,525 @@
 /**
- * Hiking days — the pure day-plan model.
+ * Day plan — the pure model.
  *
- * A canonical STAGE is a fixed geographical route segment (verified GPX,
- * statistics, guide content, highlights, detours). A PLANNED HIKING DAY is a
- * personal scheduling decision: one or more ADJACENT canonical stages walked
- * on the same calendar day. This module owns that second concept and nothing
- * else — it never sees geometry, never mutates canonical data, and never
- * knows a stage id.
+ * A journey is a sequence of CALENDAR DAYS. Only some of them contain walking:
+ * a day holds one or more ordered activities (hiking / travel / rest) and,
+ * optionally, an explicit overnight reference. Canonical route STAGES are
+ * fixed geographical segments and are never touched here — a hiking activity
+ * records only how many ADJACENT stages that day covers, and which stages
+ * those are is derived by walking the days in order.
  *
- * The persisted shape is deliberately three primitives:
+ * Planning is strictly OPT-IN. There is no such thing as an implicit plan:
+ * `dayPlan === null` is the canonical default state and this module never
+ * manufactures a plan from trip items, route direction or the system clock.
  *
- *   { direction, firstDate, groups }
+ * The partition invariant that protects the route survives from the earlier
+ * hiking-only model, unchanged in force:
  *
- * `groups` is a PARTITION of the active ordered stage sequence: the number of
- * adjacent stages in each planned day, in walking order. Storing counts rather
- * than stage-id arrays is what makes the product invariants structural instead
- * of validated:
- *   - every stage appears exactly once      (sum(groups) === stage count);
- *   - stage order is preserved              (a partition cannot reorder);
- *   - only adjacent stages share a day      (a partition cannot skip);
- *   - every day holds at least one stage    (every group >= 1);
- * so a skipped, duplicated or reordered stage is not representable at all.
+ *   Σ (hiking.stages over all days, in order) === canonical stage count
  *
- * Everything else — day numbers, dates, endpoints, via-stops, totals,
- * elevation profiles, which day is current — is DERIVED at runtime
- * (src/plan/plannedDays.ts), exactly like the direction-derived active
- * itinerary is derived from the persisted `routeDirection`.
+ * so every stage appears exactly once, in route order, in an adjacent run —
+ * and a skipped, duplicated, non-adjacent or reordered stage is not
+ * representable at all.
  *
  * Plain .mjs (with a sibling .d.mts declaration) so `node --test` exercises
- * the model directly — the same convention as routeProgress.mjs /
- * stateMigration.mjs / tripModel.mjs.
+ * the model directly — the convention shared with routeProgress.mjs,
+ * stateMigration.mjs and tripModel.mjs.
  */
 import { addDays, isRealIsoDate, parseIsoDate, toIsoDate } from '../utils/dateTimeField.mjs';
 import { isRouteDirection, normalizeDirection } from '../route/direction.mjs';
 
-/**
- * The default plan: one canonical stage per hiking day. Derived from the ACTUAL
- * stage count of the active itinerary — never a hardcoded seven.
- */
-export function defaultGroups(stageCount) {
-  if (!Number.isInteger(stageCount) || stageCount < 1) return [];
-  return new Array(stageCount).fill(1);
+/** The three supported activity kinds. Deliberately closed — no custom kind. */
+export const DAY_ACTIVITY_KINDS = ['hiking', 'travel', 'rest'];
+
+/** User-facing labels. 'rest' persists; "Rest & explore" is what it is called. */
+export const DAY_ACTIVITY_LABELS = {
+  hiking: 'Hiking',
+  travel: 'Travel',
+  rest: 'Rest & explore',
+};
+
+/** Stable day id — same shape as trip item / wallet document / packing ids. */
+export function newPlannedDayId() {
+  return `day_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Sum of a groups array (0 for anything that isn't an array). */
-export function groupsTotal(groups) {
-  if (!Array.isArray(groups)) return 0;
+// ---- Activities -------------------------------------------------------------
+
+/** The day's hiking activity, or null. */
+export function hikingActivity(day) {
+  return day?.activities?.find((a) => a.kind === 'hiking') ?? null;
+}
+
+/** How many canonical stages a day covers (0 when it does no walking). */
+export function hikingStagesOf(day) {
+  return hikingActivity(day)?.stages ?? 0;
+}
+
+export function hasActivity(day, kind) {
+  return day?.activities?.some((a) => a.kind === kind) === true;
+}
+
+/**
+ * Validate an ordered activity list against the SUPPORTED COMBINATIONS —
+ * deliberately not a generic "at most N" rule:
+ *   - at most one hiking activity;
+ *   - at most one travel activity;
+ *   - rest is exclusive (a rest day holds nothing else);
+ *   - hiking + travel may coexist, and their ARRAY ORDER records whether the
+ *     travel happens before or after the walking;
+ *   - every hiking activity covers at least one whole stage.
+ */
+export function isValidActivities(activities) {
+  if (!Array.isArray(activities) || activities.length === 0) return false;
+  let hiking = 0;
+  let travel = 0;
+  let rest = 0;
+  for (const a of activities) {
+    if (a == null || typeof a !== 'object') return false;
+    if (a.kind === 'hiking') {
+      hiking += 1;
+      if (typeof a.stages !== 'number' || !Number.isInteger(a.stages) || a.stages < 1) {
+        return false;
+      }
+    } else if (a.kind === 'travel') travel += 1;
+    else if (a.kind === 'rest') rest += 1;
+    else return false;
+  }
+  if (hiking > 1 || travel > 1 || rest > 1) return false;
+  if (rest === 1 && activities.length !== 1) return false;
+  return true;
+}
+
+/**
+ * Build a valid activity list from a requested set of kinds, preserving the
+ * caller's order. Rest wins outright (it is exclusive); an existing hiking
+ * stage count is carried over so changing a day's composition never silently
+ * re-allocates the route.
+ */
+export function buildActivities(kinds, existingStages = 1) {
+  const wanted = Array.isArray(kinds) ? kinds.filter((k) => DAY_ACTIVITY_KINDS.includes(k)) : [];
+  if (wanted.includes('rest')) return [{ kind: 'rest' }];
+  const out = [];
+  for (const kind of wanted) {
+    if (out.some((a) => a.kind === kind)) continue;
+    out.push(kind === 'hiking' ? { kind: 'hiking', stages: Math.max(1, existingStages) } : { kind });
+  }
+  return out;
+}
+
+// ---- Plan structure ---------------------------------------------------------
+
+/** Total canonical stages covered by a day list. NaN for malformed input. */
+export function totalHikingStages(days) {
+  if (!Array.isArray(days)) return NaN;
   let total = 0;
-  for (const n of groups) {
-    if (!Number.isInteger(n)) return NaN;
-    total += n;
+  for (const day of days) {
+    const activity = hikingActivity(day);
+    if (!activity) continue;
+    if (!Number.isInteger(activity.stages)) return NaN;
+    total += activity.stages;
   }
   return total;
 }
 
 /**
- * True when `groups` is a valid partition of `stageCount` adjacent stages:
- * a non-empty array of integers >= 1 summing to exactly the stage count.
- * Fractional, negative, zero, non-number and non-finite entries all fail.
+ * True when `days` is a structurally valid plan for `stageCount` canonical
+ * stages: a non-empty list of days with unique ids, valid activity
+ * combinations, valid overnight references, and hiking counts that partition
+ * the route exactly.
  */
-export function isValidGroups(groups, stageCount) {
-  if (!Array.isArray(groups) || groups.length === 0) return false;
+export function isValidDays(days, stageCount) {
+  if (!Array.isArray(days) || days.length === 0) return false;
   if (!Number.isInteger(stageCount) || stageCount < 1) return false;
-  let total = 0;
-  for (const n of groups) {
-    if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) return false;
-    total += n;
+  const ids = new Set();
+  for (const day of days) {
+    if (day == null || typeof day !== 'object') return false;
+    if (typeof day.id !== 'string' || day.id === '' || ids.has(day.id)) return false;
+    ids.add(day.id);
+    if (!isValidActivities(day.activities)) return false;
+    if (day.overnight !== undefined && !isValidOvernight(day.overnight)) return false;
   }
-  return total === stageCount;
+  return totalHikingStages(days) === stageCount;
 }
 
-/** True when the plan is in its default one-stage-per-day grouping. */
-export function isDefaultGrouping(groups, stageCount) {
-  return isValidGroups(groups, stageCount) && groups.length === stageCount;
+/** True for a well-formed overnight reference. */
+export function isValidOvernight(ref) {
+  if (ref == null || typeof ref !== 'object') return false;
+  if (ref.kind === 'none') return true;
+  if (ref.kind === 'stop') return typeof ref.stopId === 'string' && ref.stopId !== '';
+  if (ref.kind === 'stay') return typeof ref.tripItemId === 'string' && ref.tripItemId !== '';
+  return false;
 }
 
-/**
- * Index of the planned day containing the stage at `stageIndex` (both
- * 0-based, in walking order), or -1 when the index falls outside the plan.
- */
-export function dayIndexForStageIndex(groups, stageIndex) {
-  if (!Array.isArray(groups)) return -1;
-  if (!Number.isInteger(stageIndex) || stageIndex < 0) return -1;
-  let seen = 0;
-  for (let day = 0; day < groups.length; day++) {
-    seen += groups[day];
-    if (stageIndex < seen) return day;
-  }
-  return -1;
+/** The default plan: one hiking day per canonical stage, nothing else. */
+export function defaultDays(stageCount) {
+  if (!Number.isInteger(stageCount) || stageCount < 1) return [];
+  return Array.from({ length: stageCount }, () => ({
+    id: newPlannedDayId(),
+    activities: [{ kind: 'hiking', stages: 1 }],
+  }));
 }
 
-/** Index of the FIRST stage (0-based, walking order) of planned day `dayIndex`. */
-export function firstStageIndexOfDay(groups, dayIndex) {
-  if (!Array.isArray(groups)) return -1;
-  if (!Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex >= groups.length) return -1;
-  let offset = 0;
-  for (let day = 0; day < dayIndex; day++) offset += groups[day];
-  return offset;
+/** True when the plan is the default one-hiking-day-per-stage shape. */
+export function isDefaultDays(days, stageCount) {
+  return (
+    isValidDays(days, stageCount) &&
+    days.length === stageCount &&
+    days.every(
+      (d) => d.activities.length === 1 && d.activities[0].kind === 'hiking' && d.overnight === undefined,
+    )
+  );
 }
 
-/**
- * Boundary states between consecutive canonical stages, in walking order.
- *
- * There is one boundary per stage junction — `stageCount - 1` of them — and a
- * boundary is ACTIVE when a hiking day ends there. Boundary `i` sits between
- * the stages at index `i` and `i + 1`.
- *
- * Each entry carries what a control needs without recomputing the partition:
- *   { stageIndex, active, dayIndex }
- * where `dayIndex` is the planned day the boundary sits inside (when removed)
- * or the day that ENDS there (when active).
- */
-export function boundaryStates(groups) {
-  if (!Array.isArray(groups) || groups.length === 0) return [];
-  const out = [];
-  let stageIndex = 0;
-  for (let day = 0; day < groups.length; day++) {
-    for (let within = 0; within < groups[day]; within++) {
-      // The junction AFTER this stage; the very last stage has no boundary.
-      const isLastOfDay = within === groups[day] - 1;
-      const isLastDay = day === groups.length - 1;
-      if (isLastOfDay && isLastDay) break;
-      out.push({ stageIndex, active: isLastOfDay, dayIndex: day });
-      stageIndex++;
-    }
-    if (day === groups.length - 1) break;
-  }
-  return out;
-}
+// ---- Dates ------------------------------------------------------------------
 
 /**
- * Remove the boundary after the stage at `stageIndex`: the day ending there
- * merges with the following day. Returns a NEW array; the input is never
- * mutated. A no-op (returns an equal copy) when the boundary is already
- * removed or the index is out of range.
- */
-export function combineAt(groups, stageIndex) {
-  if (!Array.isArray(groups)) return [];
-  const boundary = boundaryStates(groups).find((b) => b.stageIndex === stageIndex);
-  if (!boundary || !boundary.active) return [...groups];
-  const day = boundary.dayIndex;
-  if (day + 1 >= groups.length) return [...groups];
-  const next = [...groups];
-  next.splice(day, 2, groups[day] + groups[day + 1]);
-  return next;
-}
-
-/**
- * Add a boundary after the stage at `stageIndex`: the day containing it is
- * split in two there. Returns a NEW array; the input is never mutated. A
- * no-op (returns an equal copy) when the boundary already exists or the index
- * is out of range.
- */
-export function splitAt(groups, stageIndex) {
-  if (!Array.isArray(groups)) return [];
-  const boundary = boundaryStates(groups).find((b) => b.stageIndex === stageIndex);
-  if (!boundary || boundary.active) return [...groups];
-  const day = boundary.dayIndex;
-  const dayStart = firstStageIndexOfDay(groups, day);
-  const left = stageIndex - dayStart + 1;
-  const right = groups[day] - left;
-  if (left < 1 || right < 1) return [...groups];
-  const next = [...groups];
-  next.splice(day, 1, left, right);
-  return next;
-}
-
-/**
- * Toggle the boundary after the stage at `stageIndex`. Combining and splitting
- * are exact inverses, so one control can express both directions of the same
- * decision. Returns a NEW array; the input is never mutated.
- */
-export function toggleBoundary(groups, stageIndex) {
-  if (!Array.isArray(groups)) return [];
-  const boundary = boundaryStates(groups).find((b) => b.stageIndex === stageIndex);
-  if (!boundary) return [...groups];
-  return boundary.active ? combineAt(groups, stageIndex) : splitAt(groups, stageIndex);
-}
-
-/**
- * The calendar date of planned day `dayIndex` (0-based): `firstDate` shifted
- * by whole days. Dates in this version assume CONSECUTIVE hiking days — there
- * are no rest or travel days to skip over. Null for a malformed first date.
+ * The calendar date of the day at `index`: `startDate` shifted by whole days.
+ * Journey days are CONSECUTIVE in this iteration — inserting or removing a day
+ * shifts every later date, which is what a continuous journey does. Null for a
+ * malformed start date.
  *
  * Numeric parts only (see dateTimeField.mjs): never `new Date('YYYY-MM-DD')`,
  * which parses as UTC and shifts a calendar day in western timezones.
  */
-export function dateForDayIndex(firstDate, dayIndex) {
-  const parts = parseIsoDate(firstDate);
+export function dateForDayIndex(startDate, index) {
+  const parts = parseIsoDate(startDate);
   if (!parts) return null;
-  if (!Number.isInteger(dayIndex) || dayIndex < 0) return null;
-  const shifted = addDays(parts.year, parts.month, parts.day, dayIndex);
+  if (!Number.isInteger(index) || index < 0) return null;
+  const shifted = addDays(parts.year, parts.month, parts.day, index);
   return toIsoDate(shifted.year, shifted.month, shifted.day);
 }
 
-/** A fresh default plan for a direction, first date and stage count. */
-export function createDayPlan(direction, firstDate, stageCount) {
-  if (!isRealIsoDate(firstDate)) return null;
+// ---- Creation ---------------------------------------------------------------
+
+/**
+ * A fresh default plan. Only ever called from an explicit user action —
+ * nothing in the app creates one from the system date or existing trip data.
+ */
+export function createDayPlan(direction, startDate, stageCount) {
+  if (!isRealIsoDate(startDate)) return null;
   if (!Number.isInteger(stageCount) || stageCount < 1) return null;
+  const days = defaultDays(stageCount);
   return {
     direction: normalizeDirection(direction),
-    firstDate,
-    groups: defaultGroups(stageCount),
+    startDate,
+    currentDayId: null,
+    days,
   };
 }
 
+// ---- Editing (pure; every helper returns a NEW day list) --------------------
+
+const cloneDay = (day) => ({
+  id: day.id,
+  activities: day.activities.map((a) => ({ ...a })),
+  ...(day.overnight !== undefined ? { overnight: { ...day.overnight } } : {}),
+});
+
+const cloneDays = (days) => days.map(cloneDay);
+
+/** Index of the day with this id, or -1. */
+export function dayIndexById(days, dayId) {
+  if (!Array.isArray(days) || typeof dayId !== 'string') return -1;
+  return days.findIndex((d) => d.id === dayId);
+}
+
 /**
- * Validate + repair a persisted or imported day plan. Never throws, never
- * mutates its input, and never returns a half-valid plan:
+ * Index of the day covering the canonical stage at `stageIndex` (0-based, in
+ * active route order), or -1 when that stage is outside the plan.
+ */
+export function dayIndexForStageIndex(days, stageIndex) {
+  if (!Array.isArray(days)) return -1;
+  if (!Number.isInteger(stageIndex) || stageIndex < 0) return -1;
+  let seen = 0;
+  for (let i = 0; i < days.length; i++) {
+    const stages = hikingStagesOf(days[i]);
+    if (stages === 0) continue;
+    seen += stages;
+    if (stageIndex < seen) return i;
+  }
+  return -1;
+}
+
+/** Index of the FIRST canonical stage covered by the day at `dayIndex`, or -1. */
+export function firstStageIndexOfDay(days, dayIndex) {
+  if (!Array.isArray(days) || dayIndex < 0 || dayIndex >= days.length) return -1;
+  if (hikingStagesOf(days[dayIndex]) === 0) return -1;
+  let offset = 0;
+  for (let i = 0; i < dayIndex; i++) offset += hikingStagesOf(days[i]);
+  return offset;
+}
+
+/** Stages still available to a day: its own plus every following hiking day's. */
+export function stagesAvailableFrom(days, dayIndex) {
+  if (!Array.isArray(days) || dayIndex < 0 || dayIndex >= days.length) return 0;
+  let total = 0;
+  for (let i = dayIndex; i < days.length; i++) total += hikingStagesOf(days[i]);
+  return total;
+}
+
+/** Remove a day's hiking activity; drop the whole day when nothing else is left. */
+function withoutHiking(day) {
+  const rest = day.activities.filter((a) => a.kind !== 'hiking');
+  return rest.length ? { ...day, activities: rest } : null;
+}
+
+/**
+ * Set how many canonical stages the hiking day at `dayIndex` covers.
  *
- *   - not an object / absent            → null (no plan; existing behaviour);
- *   - malformed or unreal first date    → null (the date is the plan's anchor);
- *   - unknown direction                 → null;
- *   - stored direction ≠ ACTIVE         → keep the date, adopt the active
- *                                         direction, reset to default groups.
- *                                         A grouping authored for one walking
- *                                         direction is never silently applied
- *                                         to the other one;
- *   - invalid groups (wrong sum, empty
- *     day, fractional, negative, …)     → keep the date and direction, reset
- *                                         to default groups.
+ * Growing a day CONSUMES stages from the following hiking days in order: a day
+ * emptied of walking keeps its other activities, or disappears when it had
+ * none. Shrinking a day RELEASES the remainder to the next hiking day, or
+ * creates a new hiking day immediately after when there is none. This is what
+ * "ends at ⟨stop⟩" compiles down to — merge, split or shift, always explicit.
+ *
+ * Returns a new day list; the input is never mutated. A no-op when the index
+ * is not a hiking day or the count is out of range.
+ */
+export function setHikingStages(days, dayIndex, stages) {
+  if (!Array.isArray(days)) return [];
+  const out = cloneDays(days);
+  const day = out[dayIndex];
+  if (!day || hikingStagesOf(day) === 0) return out;
+  if (!Number.isInteger(stages) || stages < 1) return out;
+  if (stages > stagesAvailableFrom(out, dayIndex)) return out;
+
+  const current = hikingStagesOf(day);
+  if (stages === current) return out;
+
+  const activity = hikingActivity(day);
+  if (stages > current) {
+    let needed = stages - current;
+    activity.stages = stages;
+    for (let i = dayIndex + 1; i < out.length && needed > 0; i++) {
+      const next = hikingActivity(out[i]);
+      if (!next) continue;
+      const taken = Math.min(needed, next.stages);
+      next.stages -= taken;
+      needed -= taken;
+      if (next.stages === 0) out[i] = withoutHiking(out[i]);
+    }
+    return out.filter(Boolean);
+  }
+
+  // Shrinking SPLITS: the released walking becomes its own new day right
+  // after. It is never folded into the following day — that would silently
+  // lengthen a day the user did not touch, and it would stop growing and
+  // shrinking being exact inverses of each other.
+  const released = current - stages;
+  activity.stages = stages;
+  out.splice(dayIndex + 1, 0, {
+    id: newPlannedDayId(),
+    activities: [{ kind: 'hiking', stages: released }],
+  });
+  return out;
+}
+
+/**
+ * Insert a day at `index`. A travel or rest day is free. A hiking day has to
+ * take a stage from an existing hiking day — the nearest one at or after the
+ * insertion point, else the nearest before it — so the partition still holds;
+ * when no hiking day has a stage to spare the call is a no-op (the UI disables
+ * the action and says why).
+ */
+export function insertDay(days, index, kinds) {
+  if (!Array.isArray(days)) return [];
+  const at = Math.max(0, Math.min(Number.isInteger(index) ? index : days.length, days.length));
+  const activities = buildActivities(kinds, 1);
+  if (!isValidActivities(activities)) return cloneDays(days);
+  const out = cloneDays(days);
+
+  if (activities.some((a) => a.kind === 'hiking')) {
+    const donor = findDonor(out, at);
+    if (donor === -1) return out;
+    hikingActivity(out[donor]).stages -= 1;
+    if (hikingActivity(out[donor]).stages === 0) {
+      const stripped = withoutHiking(out[donor]);
+      if (stripped) out[donor] = stripped;
+      else out.splice(donor, 1);
+    }
+  }
+  out.splice(at, 0, { id: newPlannedDayId(), activities });
+  return out;
+}
+
+/** Nearest hiking day with a spare stage: at/after `from` first, then before. */
+function findDonor(days, from) {
+  for (let i = from; i < days.length; i++) if (hikingStagesOf(days[i]) > 1) return i;
+  for (let i = from - 1; i >= 0; i--) if (hikingStagesOf(days[i]) > 1) return i;
+  return -1;
+}
+
+/** True when a hiking day can be inserted without breaking the partition. */
+export function canInsertHikingDay(days, index) {
+  return Array.isArray(days) && findDonor(days, Math.max(0, index ?? 0)) !== -1;
+}
+
+/**
+ * Remove the day at `index`. Its walking, if any, moves to the next hiking day
+ * or (failing that) the previous one, so no stage is ever lost. Removing the
+ * only day, or the only day that walks, is refused.
+ */
+export function removeDay(days, index) {
+  if (!Array.isArray(days) || days.length <= 1) return cloneDays(days ?? []);
+  const out = cloneDays(days);
+  const day = out[index];
+  if (!day) return out;
+  const stages = hikingStagesOf(day);
+  if (stages > 0) {
+    const heir = findHikingNeighbour(out, index);
+    if (heir === -1) return out; // the only walking day — refuse
+    hikingActivity(out[heir]).stages += stages;
+  }
+  out.splice(index, 1);
+  return out;
+}
+
+/** True when the day at `index` can be removed. */
+export function canRemoveDay(days, index) {
+  if (!Array.isArray(days) || days.length <= 1) return false;
+  const day = days[index];
+  if (!day) return false;
+  return hikingStagesOf(day) === 0 || findHikingNeighbour(days, index) !== -1;
+}
+
+function findHikingNeighbour(days, index) {
+  for (let i = index + 1; i < days.length; i++) if (hikingStagesOf(days[i]) > 0) return i;
+  for (let i = index - 1; i >= 0; i--) if (hikingStagesOf(days[i]) > 0) return i;
+  return -1;
+}
+
+/**
+ * Replace a day's activity composition. Dropping the walking from the only
+ * hiking day is refused (the route must stay covered); its stages otherwise
+ * move to a neighbouring hiking day.
+ */
+export function setDayActivities(days, index, kinds) {
+  if (!Array.isArray(days)) return [];
+  const out = cloneDays(days);
+  const day = out[index];
+  if (!day) return out;
+  const currentStages = hikingStagesOf(day);
+  const activities = buildActivities(kinds, Math.max(1, currentStages));
+  if (!isValidActivities(activities)) return out;
+
+  const keepsHiking = activities.some((a) => a.kind === 'hiking');
+  if (currentStages > 0 && !keepsHiking) {
+    const heir = findHikingNeighbour(out, index);
+    if (heir === -1) return out; // refuse: nothing else walks
+    hikingActivity(out[heir]).stages += currentStages;
+  }
+  if (currentStages === 0 && keepsHiking) {
+    const donor = findDonor(out, index);
+    if (donor === -1) return out; // refuse: no stage to spare
+    hikingActivity(out[donor]).stages -= 1;
+    if (hikingActivity(out[donor]).stages === 0) {
+      const stripped = withoutHiking(out[donor]);
+      if (stripped) out[donor] = stripped;
+      else out.splice(donor, 1);
+    }
+    // The donor may have shifted this day's position when it disappeared.
+    const self = out.findIndex((d) => d.id === day.id);
+    out[self] = { ...out[self], activities };
+    return out;
+  }
+  out[index] = { ...day, activities };
+  return out;
+}
+
+/** Swap the order of a day's two activities (hike-then-travel ⇄ travel-then-hike). */
+export function reorderDayActivities(days, index) {
+  if (!Array.isArray(days)) return [];
+  const out = cloneDays(days);
+  const day = out[index];
+  if (!day || day.activities.length !== 2) return out;
+  out[index] = { ...day, activities: [day.activities[1], day.activities[0]] };
+  return out;
+}
+
+/** Set or clear (undefined = derive) a day's explicit overnight reference. */
+export function setDayOvernight(days, index, ref) {
+  if (!Array.isArray(days)) return [];
+  const out = cloneDays(days);
+  const day = out[index];
+  if (!day) return out;
+  if (ref === undefined || ref === null) {
+    const { overnight, ...without } = day;
+    void overnight;
+    out[index] = without;
+    return out;
+  }
+  if (!isValidOvernight(ref)) return out;
+  out[index] = { ...day, overnight: { ...ref } };
+  return out;
+}
+
+// ---- Normalisation ----------------------------------------------------------
+
+function normalizeActivities(raw) {
+  if (!Array.isArray(raw)) return null;
+  const out = [];
+  for (const entry of raw) {
+    if (entry == null || typeof entry !== 'object') continue;
+    if (entry.kind === 'hiking') {
+      if (!Number.isInteger(entry.stages) || entry.stages < 1) return null;
+      out.push({ kind: 'hiking', stages: entry.stages });
+    } else if (entry.kind === 'travel' || entry.kind === 'rest') {
+      out.push({ kind: entry.kind });
+    }
+    // Unknown kinds are dropped, never carried through as a custom activity.
+  }
+  return isValidActivities(out) ? out : null;
+}
+
+/**
+ * Validate + repair a persisted or imported plan. Never throws, never mutates
+ * its input, and never returns a half-valid plan:
+ *
+ *   - absent / malformed / legacy shape        → null (no plan);
+ *   - unreal start date, unknown direction     → null;
+ *   - stored direction ≠ ACTIVE direction      → null. A plan authored for one
+ *     walking direction describes a different journey in the other, so it is
+ *     never mirrored, rebuilt or partially reused;
+ *   - any structurally invalid day list        → null;
+ *   - dangling / stale `currentDayId`          → null'd, plan kept.
+ *
+ * The earlier draft's `{ direction, firstDate, groups }` shape has no `days`
+ * array and therefore falls out here as null — never partially interpreted.
  *
  * @param {unknown} raw
  * @param {string} activeDirection  The direction the app is currently in.
- * @param {number} stageCount       Stage count of the active itinerary.
+ * @param {number} stageCount       Canonical stage count of the active itinerary.
  */
 export function normalizeDayPlan(raw, activeDirection, stageCount) {
   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return null;
   if (!Number.isInteger(stageCount) || stageCount < 1) return null;
-  if (!isRealIsoDate(raw.firstDate)) return null;
+  if (!isRealIsoDate(raw.startDate)) return null;
   if (!isRouteDirection(raw.direction)) return null;
+  if (raw.direction !== normalizeDirection(activeDirection)) return null;
+  if (!Array.isArray(raw.days) || raw.days.length === 0) return null;
 
-  const active = normalizeDirection(activeDirection);
-  const sameDirection = raw.direction === active;
-  const groups =
-    sameDirection && isValidGroups(raw.groups, stageCount)
-      ? [...raw.groups]
-      : defaultGroups(stageCount);
+  const days = [];
+  const ids = new Set();
+  for (const entry of raw.days) {
+    if (entry == null || typeof entry !== 'object') return null;
+    if (typeof entry.id !== 'string' || entry.id === '' || ids.has(entry.id)) return null;
+    const activities = normalizeActivities(entry.activities);
+    if (!activities) return null;
+    ids.add(entry.id);
+    const day = { id: entry.id, activities };
+    if (entry.overnight !== undefined && isValidOvernight(entry.overnight)) {
+      day.overnight = { ...entry.overnight };
+    }
+    days.push(day);
+  }
+  if (totalHikingStages(days) !== stageCount) return null;
 
-  return { direction: active, firstDate: raw.firstDate, groups };
+  return {
+    direction: raw.direction,
+    startDate: raw.startDate,
+    // A stale pointer degrades to "no active day", never to a wrong one.
+    currentDayId: ids.has(raw.currentDayId) ? raw.currentDayId : null,
+    days,
+  };
 }
