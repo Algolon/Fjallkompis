@@ -856,6 +856,126 @@ test('day-plan migration is idempotent and never mutates its input', () => {
   assert.equal(JSON.stringify(state), frozen, 'input object untouched');
 });
 
+// ---- Day plan recovery (a stored plan that could not be loaded) -------------
+//
+// A malformed legacy plan must NOT be destroyed by normalisation: the very
+// first save after loading would overwrite the only stored copy. The
+// original is set aside VERBATIM in `dayPlanRecovery`; the active plan is
+// null; everything else keeps working; only the user's explicit removal (a
+// store action, fenced in day-plan-store.test.mjs) ends it.
+
+/** A v9 plan the released model could not have persisted (over-consumption). */
+function malformedV9Plan() {
+  return {
+    direction: FORWARD,
+    startDate: '2026-09-03',
+    currentDayId: 'day_x2',
+    days: [
+      { id: 'day_x1', activities: [{ kind: 'hiking', stages: 5 }], mystery: 'kept?' },
+      { id: 'day_x2', activities: [{ kind: 'hiking', stages: 5 }] },
+    ],
+  };
+}
+
+test('a malformed v9 plan is set aside VERBATIM, never discarded', () => {
+  const source = { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: malformedV9Plan() };
+  const s = normalizeState(source, 'd1', STAGE_COUNT);
+  assert.equal(s.dayPlan, null, 'the active plan cannot render, so it is null');
+  assert.ok(s.dayPlanRecovery, 'the original is preserved');
+  assert.equal(s.dayPlanRecovery.reason, 'migration-failed');
+  // Byte-for-byte: unknown fields, malformed counts and all.
+  assert.equal(
+    JSON.stringify(s.dayPlanRecovery.dayPlan),
+    JSON.stringify(malformedV9Plan()),
+    'the exact persisted value survives',
+  );
+  // Unrelated state is untouched and usable.
+  assert.equal(s.currentStageId, 'd2');
+  assert.deepEqual(s.trip, source.trip);
+  assert.ok(s.packing.length > 0);
+});
+
+test('a reload (re-normalising the saved output) preserves the recovery verbatim', () => {
+  const source = { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: malformedV9Plan() };
+  const once = normalizeState(source, 'd1', STAGE_COUNT);
+  // What saveState writes is what the next launch reads.
+  const reloaded = normalizeState(JSON.parse(JSON.stringify(once)), 'd1', STAGE_COUNT);
+  assert.deepEqual(reloaded, once, 'normalisation is a fixpoint with a recovery present');
+  assert.equal(
+    JSON.stringify(reloaded.dayPlanRecovery.dayPlan),
+    JSON.stringify(malformedV9Plan()),
+  );
+});
+
+test('an unreadable non-legacy plan is preserved too, marked unreadable', () => {
+  const draft = { direction: FORWARD, firstDate: '2026-09-03', groups: [1, 1, 2, 1, 1, 1] };
+  const s = normalizeState({ ...v6State(), routeDirection: FORWARD, dayPlan: draft }, 'd1', STAGE_COUNT);
+  assert.equal(s.dayPlan, null);
+  assert.equal(s.dayPlanRecovery.reason, 'unreadable');
+  assert.equal(JSON.stringify(s.dayPlanRecovery.dayPlan), JSON.stringify(draft));
+});
+
+test('a VALID migration creates no recovery payload', () => {
+  const s = normalizeState(
+    { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() },
+    'd1',
+    STAGE_COUNT,
+  );
+  assert.ok(s.dayPlan, 'the plan loaded');
+  assert.equal(s.dayPlanRecovery, null, 'nothing was set aside');
+});
+
+test('valid v10 state and the default state carry no recovery either', () => {
+  assert.equal(defaultState('d1').dayPlanRecovery, null);
+  const migrated = normalizeState(
+    { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() },
+    'd1',
+    STAGE_COUNT,
+  );
+  assert.equal(normalizeState(migrated, 'd1', STAGE_COUNT).dayPlanRecovery, null);
+});
+
+test('an EXISTING recovery survives normalisation and is never replaced', () => {
+  const original = malformedV9Plan();
+  const withRecovery = {
+    ...v6State(),
+    routeDirection: FORWARD,
+    dayPlan: null,
+    dayPlanRecovery: { reason: 'migration-failed', dayPlan: original },
+  };
+  const s = normalizeState(withRecovery, 'd1', STAGE_COUNT);
+  assert.equal(JSON.stringify(s.dayPlanRecovery.dayPlan), JSON.stringify(original));
+  // Even when a LATER plan also fails, the first preserved original wins —
+  // it is the copy the user has not yet decided about.
+  const secondFailure = {
+    ...withRecovery,
+    dayPlan: { direction: FORWARD, firstDate: 'x', groups: [7] },
+  };
+  const kept = normalizeState(secondFailure, 'd1', STAGE_COUNT);
+  assert.equal(JSON.stringify(kept.dayPlanRecovery.dayPlan), JSON.stringify(original));
+  assert.equal(kept.dayPlanRecovery.reason, 'migration-failed');
+});
+
+test('a recovery entry with nothing recoverable in it drops without a crash', () => {
+  for (const bad of [null, 42, 'copy', [], {}, { reason: 'migration-failed' }]) {
+    const s = normalizeState(
+      { ...v6State(), routeDirection: FORWARD, dayPlanRecovery: bad },
+      'd1',
+      STAGE_COUNT,
+    );
+    assert.equal(s.dayPlanRecovery, null, JSON.stringify(bad));
+  }
+});
+
+test('removing the recovery is representable without touching anything else', () => {
+  const source = { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: malformedV9Plan() };
+  const withRecovery = normalizeState(source, 'd1', STAGE_COUNT);
+  // What the store's removeDayPlanRecovery action persists:
+  const removed = normalizeState({ ...withRecovery, dayPlanRecovery: null }, 'd1', STAGE_COUNT);
+  assert.equal(removed.dayPlanRecovery, null);
+  assert.deepEqual({ ...removed, dayPlanRecovery: withRecovery.dayPlanRecovery }, withRecovery);
+});
+
 test('a legacy payload from any older schema still lands on dayPlan: null', () => {
   for (const legacy of [V1_STATE, { ...V1_STATE, schemaVersion: 3 }]) {
     const s = normalizeState(legacy, 'd1', STAGE_COUNT);

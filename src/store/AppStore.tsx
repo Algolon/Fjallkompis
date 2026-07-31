@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type {
   DayActivityKind,
+  DayPlanRecovery,
   DayPlanState,
   HikingLegOrientation,
   JournalEntry,
@@ -169,6 +170,19 @@ interface AppStore {
   resetDayPlan: () => void;
   /** Destructive: drop the plan entirely (back to the default state). */
   removeDayPlan: () => void;
+  /**
+   * A stored Day plan that could not be loaded, preserved verbatim (see
+   * PersistentState.dayPlanRecovery). Null in every ordinary state. The UI
+   * offers exporting it and the explicit removal below — nothing else in
+   * the app reads or interprets it.
+   */
+  dayPlanRecovery: DayPlanRecovery | null;
+  /**
+   * Destructive, explicitly confirmed in the UI: delete the set-aside
+   * original of a Day plan that failed to load. Touches nothing else —
+   * an active plan, route progress and all unrelated state survive.
+   */
+  removeDayPlanRecovery: () => void;
   /**
    * Clear the manual current-day override so Today follows the plan's dates
    * again (or the generic fallback outside them). Touches ONLY the pointer
@@ -531,6 +545,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const removeDayPlanRecovery = useCallback(() => {
+    setState((s) => (s.dayPlanRecovery ? { ...s, dayPlanRecovery: null } : s));
+  }, []);
+
   const removeDayPlan = useCallback(() => {
     // Only the plan goes: the current stage, packing, trip, journal and notes
     // are untouched, so the app returns exactly to its default state. The
@@ -820,6 +838,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setDayOvernight,
     resetDayPlan,
     removeDayPlan,
+    dayPlanRecovery: state.dayPlanRecovery,
+    removeDayPlanRecovery,
     followPlanDates,
     getStopNote,
     setStopNote,

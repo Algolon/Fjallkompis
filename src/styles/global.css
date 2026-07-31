@@ -5554,6 +5554,24 @@ span.trip-attach-open {
   color: var(--ink-faint);
 }
 
+/* Day plan recovery notice: a stored plan that could not be migrated was
+   set aside verbatim. Calm card tones — information and two actions, not
+   an alarm. */
+.dayplan-recovery {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--cloudberry);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.dayplan-recovery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 /* Coverage summary: how the plan differs from the full route. Information,
    never an alarm — quiet card tones, a native disclosure for the detail. */
 .dayplan-coverage {

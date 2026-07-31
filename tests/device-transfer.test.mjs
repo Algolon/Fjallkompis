@@ -304,6 +304,40 @@ test('a backup from a device walking the OTHER direction never reuses its plan',
   assert.equal(restored.currentStageId, 'd3', 'route progress is untouched');
 });
 
+test('a set-aside Day plan recovery rides the export verbatim', () => {
+  // The recovery copy is ordinary PersistentState, so the full-state JSON
+  // export carries the original data honestly and a new device preserves it.
+  const original = {
+    direction: 'abisko-to-nikkaluokta',
+    startDate: '2026-08-23',
+    currentDayId: 'day_b1',
+    days: [{ id: 'day_b1', activities: [{ kind: 'hiking', stages: 99 }], note: 'over-consumed' }],
+  };
+  const state = { ...populatedState(), dayPlanRecovery: { reason: 'migration-failed', dayPlan: original } };
+  const restored = exportImportRoundTrip(state);
+  assert.equal(restored.dayPlan, null);
+  assert.equal(restored.dayPlanRecovery.reason, 'migration-failed');
+  assert.equal(JSON.stringify(restored.dayPlanRecovery.dayPlan), JSON.stringify(original));
+  assert.equal(restored.currentStageId, 'd3', 'everything else rides as before');
+});
+
+test('a malformed v9 export lands on a new device as recovery, not as loss', () => {
+  const state = { ...populatedState(), schemaVersion: 9 };
+  state.dayPlan = {
+    direction: 'abisko-to-nikkaluokta',
+    startDate: '2026-08-23',
+    currentDayId: null,
+    days: [{ id: 'day_u1', activities: [{ kind: 'hiking', stages: 3 }] }], // under-consumption
+  };
+  const restored = exportImportRoundTrip(state);
+  assert.equal(restored.dayPlan, null, 'the plan cannot load');
+  assert.equal(
+    JSON.stringify(restored.dayPlanRecovery.dayPlan),
+    JSON.stringify(state.dayPlan),
+    'the original crossed the device boundary intact',
+  );
+});
+
 test('a corrupt day plan never blocks the rest of the import', () => {
   const state = populatedState();
   state.dayPlan = { direction: 'abisko-to-nikkaluokta', startDate: 'whenever', days: 'x' };

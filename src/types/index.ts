@@ -1064,4 +1064,33 @@ export interface PersistentState {
    * answer both questions.
    */
   dayPlan: DayPlanState | null;
+  /**
+   * A stored Day plan that could not be loaded — most importantly a v9
+   * stage-count plan the v10 migration refused — preserved VERBATIM instead
+   * of being discarded. Null in every ordinary state (no plan, or a plan
+   * that loaded). Never rendered, repaired or reinterpreted: the app treats
+   * it as an opaque original the user can export or explicitly remove
+   * (Settings → Day plan). Rides the JSON backup and device transfer like
+   * every other PersistentState field, and survives normalisation untouched
+   * — only the user's confirmed removal (or a later successful load of the
+   * same data elsewhere) ends it.
+   */
+  dayPlanRecovery: DayPlanRecovery | null;
+}
+
+/**
+ * The set-aside original of a Day plan that failed to load. `dayPlan` is the
+ * exact persisted value, byte-for-byte — unknown fields, malformed counts
+ * and all — because a recovery copy that has been "cleaned" is no longer
+ * the user's data.
+ */
+export interface DayPlanRecovery {
+  /**
+   * Why it was set aside: 'migration-failed' for a legacy stage-count plan
+   * the v9 → v10 migration refused; 'unreadable' for anything else that
+   * did not validate (a corrupt or foreign-direction payload).
+   */
+  reason: 'migration-failed' | 'unreadable';
+  /** The original persisted value, verbatim. */
+  dayPlan: unknown;
 }

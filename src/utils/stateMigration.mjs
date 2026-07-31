@@ -84,6 +84,15 @@
  *     feature's own default — with all unrelated state untouched. The
  *     normaliser now needs the canonical stage TOPOLOGY (ids + endpoints)
  *     instead of a bare stage count.
+ *   - `dayPlanRecovery` is added: when a STORED plan cannot be loaded (a
+ *     legacy plan the migration refused, or an unreadable payload), the
+ *     original value is set aside here VERBATIM instead of being discarded
+ *     — the active `dayPlan` becomes null, everything else keeps working,
+ *     and Settings offers exporting or explicitly removing the copy. An
+ *     existing recovery passes through every normalisation untouched (it is
+ *     never re-validated, "repaired" or replaced by a later failure), so
+ *     the first original survives until the user decides otherwise. Null in
+ *     every ordinary state; a successful load never creates one.
  *
  * v8 → v9 (per-unit worn):
  *   - `worn: boolean` becomes `wornQuantity: number` (0 ≤ wornQuantity ≤
@@ -122,6 +131,7 @@ import {
 import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
 import { normalizeTripItems } from '../trip/tripModel.mjs';
 import { normalizeDayPlan } from '../plan/dayPlan.mjs';
+import { planUsesLegacyHiking } from '../plan/dayPlanMigration.mjs';
 
 export const SCHEMA_VERSION = 10;
 
@@ -141,6 +151,7 @@ export function defaultState(defaultStageId) {
     packingTemplateVersion: PACKING_TEMPLATE_VERSION,
     trip: [],
     dayPlan: null,
+    dayPlanRecovery: null,
   };
 }
 
@@ -337,6 +348,42 @@ export function normalizeState(raw, defaultStageId, topology) {
   // the other way) is repaired here rather than silently applied.
   const direction = normalizeDirection(raw.routeDirection);
 
+  const dayPlan = normalizeDayPlan(
+    raw.dayPlan,
+    direction,
+    topology,
+    // Only consumed by the v9 → v10 migration, to derive the current-leg
+    // pointer from the released current-stage / current-day pair.
+    typeof raw.currentStageId === 'string' ? raw.currentStageId : null,
+  );
+
+  // An existing recovery copy survives every normalisation VERBATIM — it is
+  // the user's original data, never re-validated or "repaired", and only
+  // their explicit removal ends it. A malformed entry (no dayPlan value at
+  // all) carries nothing recoverable and drops.
+  const existingRecovery =
+    isObject(raw.dayPlanRecovery) && raw.dayPlanRecovery.dayPlan !== undefined
+      ? {
+          reason:
+            raw.dayPlanRecovery.reason === 'migration-failed' ? 'migration-failed' : 'unreadable',
+          dayPlan: raw.dayPlanRecovery.dayPlan,
+        }
+      : null;
+  // A STORED plan that failed to load is set aside verbatim rather than
+  // discarded — the destructive alternative would overwrite the only copy
+  // on the very first save after this normalisation. The first preserved
+  // original wins over a later failure: it is the copy the user has not yet
+  // decided about.
+  const failedToLoad = raw.dayPlan != null && dayPlan === null;
+  const dayPlanRecovery =
+    existingRecovery ??
+    (failedToLoad
+      ? {
+          reason: planUsesLegacyHiking(raw.dayPlan) ? 'migration-failed' : 'unreadable',
+          dayPlan: raw.dayPlan,
+        }
+      : null);
+
   return {
     schemaVersion: SCHEMA_VERSION,
     currentStageId:
@@ -354,13 +401,7 @@ export function normalizeState(raw, defaultStageId, topology) {
         : normalizeOwnedPacking(raw.packing),
     packingTemplateVersion: PACKING_TEMPLATE_VERSION,
     trip: normalizeTripItems(raw.trip),
-    dayPlan: normalizeDayPlan(
-      raw.dayPlan,
-      direction,
-      topology,
-      // Only consumed by the v9 → v10 migration, to derive the current-leg
-      // pointer from the released current-stage / current-day pair.
-      typeof raw.currentStageId === 'string' ? raw.currentStageId : null,
-    ),
+    dayPlan,
+    dayPlanRecovery,
   };
 }

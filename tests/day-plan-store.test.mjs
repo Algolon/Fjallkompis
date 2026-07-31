@@ -336,6 +336,20 @@ test('reset rebuilds the default plan and keeps the start date', () => {
   assert.match(action, /buildDayPlan\(\s*s\.routeDirection,\s*s\.dayPlan\.startDate,/);
 });
 
+test('recovery removal is explicit, isolated, and the only writer', () => {
+  const action = stripComments(
+    /const removeDayPlanRecovery = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0],
+  );
+  assert.match(action, /s\.dayPlanRecovery \? \{ \.\.\.s, dayPlanRecovery: null \} : s/);
+  assert.ok(!/dayPlan:|currentStageId|packing|journal|trip:/.test(action), 'touches nothing else');
+  // Nothing else in the app clears the recovery copy: the literal clearing
+  // write exists exactly once, inside this action.
+  const writers = store.match(/dayPlanRecovery: null/g) ?? [];
+  assert.equal(writers.length, 1, 'the one clearing write');
+  // The recovery value is exposed read-only and never interpreted.
+  assert.match(store, /dayPlanRecovery: state\.dayPlanRecovery,/);
+});
+
 test('removal drops the plan and nothing else', () => {
   const action = stripComments(
     /const removeDayPlan = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0],

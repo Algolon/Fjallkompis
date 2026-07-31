@@ -383,6 +383,26 @@ test('the coverage summary is informational, edit-mode only, and never mutates',
     'differences are never framed as errors');
 });
 
+test('the recovery notice is calm, offers export, and removal needs confirming', () => {
+  assert.match(card, /function RecoveryNotice\(\)/);
+  assert.match(card, /if \(!dayPlanRecovery\) return null;/, 'invisible in every ordinary state');
+  assert.match(card, /Your saved Day plan could not be migrated to this version\./);
+  assert.match(card, /The original was set aside untouched and nothing else was affected\./);
+  assert.match(card, /Download original plan/);
+  assert.match(card, /downloadJson\('fjallkompis-day-plan-recovery\.json'/);
+  assert.match(card, /dayPlan: dayPlanRecovery\.dayPlan,/, 'the export carries the verbatim value');
+  // Removal is explicit: a confirmation dialog naming permanence, then the
+  // one store action. Nothing here renders or interprets the payload.
+  assert.match(card, /Remove recovery copy/);
+  assert.match(card, /Remove the recovery copy\?/);
+  assert.match(card, /deleted permanently — download it first if you want to keep it\./);
+  assert.match(card, /removeDayPlanRecovery\(\);/);
+  const notice = card.slice(card.indexOf('function RecoveryNotice('), card.indexOf('/** Compact activity glyphs'));
+  assert.ok(!/\.days|\.legs|stages|normalize/.test(notice), 'the payload is opaque to the UI');
+  // Present in BOTH branches — with and without an active plan.
+  assert.equal((card.match(/<RecoveryNotice \/>/g) ?? []).length, 2);
+});
+
 test('a deleted Trip stay is reported honestly, never rendered as a name', () => {
   assert.match(card, /Stay no longer in your Trip plan/);
   assert.match(sheet, /Stay no longer in your Trip plan/);

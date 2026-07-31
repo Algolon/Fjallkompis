@@ -3,6 +3,7 @@ import { BedDouble, BusFront, Coffee, Eye, Footprints, Pencil, Plus } from 'luci
 import { useStore } from '../store/AppStore';
 import { DateField } from './DateField';
 import { ConfirmDialog } from './ConfirmDialog';
+import { downloadJson } from '../utils/exportImport';
 import { DayPlanDaySheet } from './DayPlanDaySheet';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
@@ -62,6 +63,7 @@ export function DayPlanCard({
   if (!dayPlan) {
     return (
       <>
+        <RecoveryNotice />
         <p className="card-sub" style={{ marginTop: 0 }}>
           Plan what happens on each day of your journey. Route stages, guides
           and route data never change.
@@ -88,6 +90,7 @@ export function DayPlanCard({
 
   return (
     <>
+      <RecoveryNotice />
       <div className="row-between" style={{ marginTop: 0 }}>
         <span className="card-sub" style={{ marginTop: 0 }}>
           {plannedDays.length} days
@@ -220,6 +223,60 @@ const shortName = (stopId: string) => {
   const stop = STOPS_BY_ID[stopId];
   return stop ? stopShortName(stop) : stopId;
 };
+
+/**
+ * The set-aside original of a Day plan that could not be loaded (most
+ * importantly: a v9 stage-count plan the v10 migration refused). One calm
+ * notice, two actions: export the original data, or remove the copy after
+ * an explicit confirmation. The payload itself is never rendered, repaired
+ * or reinterpreted — it is the user's data, held verbatim until they
+ * decide. Nothing here mutates anything except the confirmed removal.
+ */
+function RecoveryNotice() {
+  const { dayPlanRecovery, removeDayPlanRecovery } = useStore();
+  const [confirming, setConfirming] = useState(false);
+  if (!dayPlanRecovery) return null;
+
+  const download = () =>
+    downloadJson('fjallkompis-day-plan-recovery.json', {
+      app: 'fjallkompis',
+      kind: 'day-plan-recovery',
+      reason: dayPlanRecovery.reason,
+      exportedAt: new Date().toISOString(),
+      dayPlan: dayPlanRecovery.dayPlan,
+    });
+
+  return (
+    <div className="dayplan-recovery" role="status">
+      <p className="card-sub" style={{ marginTop: 0 }}>
+        <strong>Your saved Day plan could not be migrated to this version.</strong>{' '}
+        The original was set aside untouched and nothing else was affected.
+        Download it to keep a copy, or remove it if you no longer need it.
+      </p>
+      <div className="dayplan-recovery__actions">
+        <button type="button" className="btn" onClick={download}>
+          Download original plan
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => setConfirming(true)}>
+          Remove recovery copy
+        </button>
+      </div>
+      {confirming ? (
+        <ConfirmDialog
+          title="Remove the recovery copy?"
+          body="The original Day plan data is deleted permanently — download it first if you want to keep it. Your current plan, route progress and everything else are not affected."
+          primaryLabel="Remove copy"
+          destructive
+          onConfirm={() => {
+            removeDayPlanRecovery();
+            setConfirming(false);
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 /** "Abisko → Abiskojaure" for a canonical stage id (canonical orientation). */
 const sectionName = (stageId: string) => {
