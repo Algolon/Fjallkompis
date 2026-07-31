@@ -128,14 +128,18 @@ test('Today renders itinerary-ordered stages and days, and the oriented silhouet
 });
 
 test('Stages uses the itinerary for order, geometry, guides and header', () => {
-  assert.match(stages, /const \{ state, itinerary, stages, currentStage, setCurrentStage \} = useStore\(\)/);
+  assert.match(
+    stages,
+    /const \{ state, itinerary, stages, currentStage, setCurrentStage, plannedDays \} = useStore\(\)/,
+  );
   assert.match(stages, /stages\.map\(\(stage\) =>/);
   assert.match(stages, /stageGuide\(stage\.id, itinerary\.direction\)/);
   assert.match(stages, /\{itinerary\.displayName\}/);
   // Header is direction-aware (no hard-coded "Abisko to Nikkaluokta").
   assert.match(stages, /from \{startName\} to \{endName\}/);
-  // Set-as-current still stores the stable physical id.
-  assert.match(stages, /setCurrentStage\(stage\.id\)/);
+  // Set-as-current still stores the stable physical id (via the occurrence
+  // rule: unambiguous stages go straight through the store).
+  assert.match(stages, /setCurrentStage\(stageId\)/);
 });
 
 test('Stops renders itinerary order with start-relative distances', () => {
