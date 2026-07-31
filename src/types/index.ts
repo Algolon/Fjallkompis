@@ -890,6 +890,42 @@ export interface PlannedDayRecord {
 }
 
 /**
+ * Absolute orientation of a hiking leg over its PHYSICAL canonical stage:
+ * 'canonical' walks the stage as stored (the north-to-south generation
+ * order), 'opposite' walks the same verified route in reverse. Deliberately
+ * NOT relative to the app's selected route direction — re-reading a plan can
+ * never reinterpret a leg (see src/plan/hikingLegs.mjs).
+ */
+export type HikingLegOrientation = 'canonical' | 'opposite';
+
+/**
+ * One explicit hiking leg: a reference to a physical canonical stage plus an
+ * absolute orientation. `id` is a stable identity (`leg_…`, unique across the
+ * whole plan) that survives unrelated edits and reloads — repeated walks of
+ * the same stage are DIFFERENT legs. The one supported kind is
+ * 'canonical-stage'; a verified custom-route member may be added later, but
+ * nothing free-form is ever representable.
+ */
+export interface CanonicalHikingLeg {
+  id: string;
+  kind: 'canonical-stage';
+  stageId: string;
+  orientation: HikingLegOrientation;
+}
+
+/**
+ * The minimal per-stage topology the pure plan modules validate against:
+ * canonical stage id and its canonical-direction endpoints. Derived from the
+ * verified route data by the caller (src/utils/storage.ts) — the plan modules
+ * stay free of route-data imports, the stateMigration.mjs convention.
+ */
+export interface StageTopologyEntry {
+  id: string;
+  fromStopId: string;
+  toStopId: string;
+}
+
+/**
  * A supported activity. Deliberately closed: no custom or free-form variant.
  *  - hiking: covers `stages` ADJACENT canonical stages, taken in route order
  *    from the running cursor. Across every day these counts sum to exactly the
