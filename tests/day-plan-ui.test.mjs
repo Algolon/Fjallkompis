@@ -432,9 +432,9 @@ test('Today carries NO expanded stage-detail section', () => {
 });
 
 test('the day-type indicator is icons in the existing eyebrow row', () => {
-  assert.match(onRoute, /function DayTypeBadge\(\{ kinds \}/);
+  assert.match(onRoute, /function DayTypeBadge\(\{ kinds, reversed \}/);
   assert.match(onRoute, /<span className="hero-day__type" aria-hidden>/);
-  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} \/>/);
+  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} reversed=\{contraryLegCount > 0\} \/>/);
   // The words are always in the hero's accessible name, in stored order.
   assert.match(onRoute, /const kindWords = activityOrderPhrase\(day\);/);
   assert.match(onRoute, /aria-label=\{`\$\{previewing \? 'Previewing' : 'Today'\}: day \$\{day\.number\} of \$\{dayCount\}/);
@@ -455,7 +455,7 @@ test('previewing keeps the ordered activity glyphs visible (v0.26.2 regression)'
   assert.ok(!/visibility:\s*hidden/.test(previewTypeRule), 'nor make them invisible');
   assert.match(previewTypeRule, /white-space: nowrap/);
   // The badge itself is unconditional in the hero — not gated on previewing.
-  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} \/>/);
+  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} reversed=\{contraryLegCount > 0\} \/>/);
   assert.ok(
     !/previewing[^]{0,80}<DayTypeBadge/.test(onRoute),
     'the badge must not sit inside a previewing conditional',
@@ -610,16 +610,21 @@ test('a mixed day never hides its travel when no Trip item matches the date', ()
   assert.match(row, /travelLine\?\.position === 'only' && travelLine\.isEmpty/);
 });
 
-test('a leg walked against the route direction is stated, never hidden', () => {
-  // The hero title's endpoints already run the other way; this line names WHY
-  // they disagree with the Stages screen's own section cards. Counted for a
-  // partly-reversed day (an out-and-back), plain for a fully reversed one.
+test('a leg walked against the route direction is stated, height-neutrally', () => {
+  // The marker rides the EXISTING eyebrow badge (no new line, the same rule
+  // the activity glyphs follow); the exact count rides the accessible name;
+  // and the oriented title endpoints plus the leg editor tell the full
+  // story. A hero-via sentence measured +36px at 375×667 — a new variant
+  // may not introduce overflow, so the words live in the label, not a row.
   assert.match(onRoute, /const naturalOrientation = isReversed\(routeDirection\) \? 'opposite' : 'canonical';/);
   assert.match(onRoute, /l\.orientation !== naturalOrientation/);
-  assert.match(onRoute, /Walked in reverse — Stages shows this section the other way round/);
-  assert.match(onRoute, /of \$\{day\.legs\.length\} legs walked in reverse/);
-  // Rendered only for a walking day that actually has such a leg.
-  assert.match(onRoute, /\{hiking && contraryLegCount > 0 \? \(/);
+  assert.match(onRoute, /reversed=\{contraryLegCount > 0\}/);
+  assert.match(onRoute, /\{reversed \? <ArrowUpDown size=\{14\}/);
+  assert.match(onRoute, /Walked in reverse of the route direction\./);
+  assert.match(onRoute, /legs walked in reverse of the route direction\./);
+  assert.match(onRoute, /\}\. \$\{kindWords\}\.\$\{reversedWords\}`\}/);
+  // No standalone hero row for it — the height-neutral rule.
+  assert.ok(!/hero-via">[^<]*reverse/.test(onRoute), 'never a dedicated via line');
 });
 
 test('a rest day names where it is based and opens Stop info', () => {
