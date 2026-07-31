@@ -521,7 +521,8 @@ snapshot behind `packingTemplateVersion`: seed items can be renamed, moved,
 and deleted, and template additions reach existing users through an explicit
 one-time migration, never a re-merge on load).
 
-**Trail Wallet documents** (Lists → Wallet) are the one deliberate exception:
+**Trail Wallet documents** (Lists → Trip, standalone Documents — the tab
+was renamed from Wallet in v0.23.0) are the one deliberate exception:
 metadata AND file blobs live together in a dedicated IndexedDB database
 (`fjallkompis-wallet`, two object stores — `documents` and `files` — every
 mutation in one transaction spanning both; `src/wallet/walletStore.mjs`
