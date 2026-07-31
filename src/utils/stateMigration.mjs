@@ -84,6 +84,8 @@
  *     feature's own default — with all unrelated state untouched. The
  *     normaliser now needs the canonical stage TOPOLOGY (ids + endpoints)
  *     instead of a bare stage count.
+ *     When migration refuses the plan, the active `dayPlan` becomes null;
+ *     the original is retained by the recovery field described next.
  *   - `dayPlanRecovery` is added: when a STORED plan cannot be loaded (a
  *     legacy plan the migration refused, or an unreadable payload), the
  *     original value is set aside here VERBATIM instead of being discarded
@@ -326,7 +328,7 @@ function migrateLegacyPacking(raw) {
 
 /**
  * Validate + normalise an unknown blob into the current schema. Accepts v1
- * through v8 payloads (and anything malformed in between). Unknown/missing
+ * through v10 payloads (and anything malformed in between). Unknown/missing
  * fields fall back to defaults rather than throwing, so a partially-corrupt
  * or older payload still loads instead of wiping the app. Retired fields
  * (v1 shopOverride, v2 checklist) are ignored, never a parse failure.
