@@ -250,11 +250,13 @@ function PlannedDayHero({
       ) : null}
       <div className="hero-content">
         <span className="hero-day">
-          {/* While previewing, the eyebrow trades "of N" and the decorative
-              type glyphs for the PREVIEW marker so the line stays single at
-              375px (height-neutral rule). Journey, one card below, still
-              reads "Day N of M", and the hero's accessible name keeps the
-              full phrase in both modes. */}
+          {/* While previewing, the eyebrow trades "of N" for the PREVIEW
+              marker so the line stays single at 375px (height-neutral rule).
+              The activity glyphs are NOT traded: what the day is stays
+              visible in both modes, and on very narrow viewports the badge
+              wraps under the exit pill's reserved corner rather than hide.
+              Journey, one card below, still reads "Day N of M", and the
+              hero's accessible name keeps the full ordered phrase. */}
           {previewing ? (
             <>
               <span className="hero-day__preview">Preview · </span>Day {day.number}

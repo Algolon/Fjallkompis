@@ -384,6 +384,34 @@ test('the day-type indicator is icons in the existing eyebrow row', () => {
   assert.match(css, /\.hero-day__type \{[^}]*margin-left: 8px;/s);
 });
 
+test('previewing keeps the ordered activity glyphs visible (v0.26.2 regression)', () => {
+  // v0.26.2 shipped `.hero--preview .hero-day__type { display: none }`: a
+  // previewed day no longer said whether it was Hiking, Travel, Rest or a
+  // mixed day. The badge renders unconditionally — including while
+  // previewing — and no preview rule may hide it again. Narrow viewports
+  // WRAP the badge (kept whole via nowrap) under the exit pill's reserved
+  // corner; hiding the day's meaning is not a layout strategy.
+  const previewTypeRule =
+    css.match(/\.hero--preview \.hero-day__type \{[^}]*\}/s)?.[0] ?? '';
+  assert.ok(!/display:\s*none/.test(previewTypeRule), 'preview must not hide the glyphs');
+  assert.ok(!/visibility:\s*hidden/.test(previewTypeRule), 'nor make them invisible');
+  assert.match(previewTypeRule, /white-space: nowrap/);
+  // The badge itself is unconditional in the hero — not gated on previewing.
+  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} \/>/);
+  assert.ok(
+    !/previewing[^]{0,80}<DayTypeBadge/.test(onRoute),
+    'the badge must not sit inside a previewing conditional',
+  );
+  // Glyph order is the stored activity order (Hiking→Travel ≠ Travel→Hiking),
+  // and the ordered words stay in the accessible name in both modes.
+  assert.match(onRoute, /\{kinds\.map\(\(kind\) => \{/);
+  assert.match(onRoute, /const kindWords = activityOrderPhrase\(day\);/);
+  // The exit control names its ACTION (never a "Preview" state label), and
+  // previewing still adds no standalone row (height-neutral rule).
+  assert.match(onRoute, /aria-hidden \/> Exit\s*<\/button>/);
+  assert.match(onRoute, /aria-label="Exit preview — return to today’s own view"/);
+});
+
 test('a multi-stage day offers one honest action and no whole-day map claim', () => {
   const combined = stripComments(
     onRoute.slice(

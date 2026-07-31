@@ -5600,11 +5600,13 @@ span.trip-attach-open {
   padding-right: 76px;
 }
 .hero--preview .hero-day__type {
-  /* The decorative activity glyphs yield their eyebrow space to the PREVIEW
-     marker so the line stays single at 375px — previewing must stay
-     height-neutral, and the day's activities are already stated by the hero
-     body and the accessible name. */
-  display: none;
+  /* The ordered activity glyphs stay VISIBLE while previewing: what a day IS
+     must never disappear behind the PREVIEW marker. At 375px the marker, day,
+     date and both glyphs of a mixed day share one line (measured: ~243px of
+     the ~311px available). On narrower viewports the block eyebrow wraps the
+     badge onto a second line under the reserved exit-pill corner instead of
+     hiding it — wrapping beats losing the day's meaning. */
+  white-space: nowrap;
 }
 .hero-exit {
   position: absolute;
