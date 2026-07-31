@@ -115,7 +115,7 @@ test('an active manual override is named and offers exactly one way back', () =>
   // A pointer set via Stages → "Set as current" never expires on its own, so
   // while one is active Today must SAY the day was chosen manually and offer
   // the return to date-following — outside the day-edit action hierarchy.
-  assert.match(onRoute, /\) : todaySource === 'override' \? \(/);
+  assert.match(onRoute, /\{todaySource === 'override' \? \(/);
   assert.match(onRoute, /Manually selected day/);
   assert.match(onRoute, /Follow plan dates/);
   assert.match(onRoute, /onClick=\{followPlanDates\}/);
@@ -571,16 +571,34 @@ test('the row marker distinguishes previewing, today and unrelated rows', () => 
 });
 
 test('Today names the preview and offers exactly one way out', () => {
-  assert.match(onRoute, /\{previewing \? \(/);
-  assert.match(onRoute, /Previewing planned day/);
-  assert.match(onRoute, /Exit preview/);
-  assert.match(onRoute, /onClick=\{exitDayPreview\}/);
-  // Reuses the manual-override row's scale — same class, same slot, before
-  // Journey — and the two rows are mutually exclusive branches of ONE ternary.
-  const previewAt = onRoute.indexOf('Previewing planned day');
-  const journeyAt = onRoute.indexOf('<PlannedJourney');
-  assert.ok(previewAt > 0 && previewAt < journeyAt, 'the status row precedes Journey');
-  assert.match(onRoute, /previewing \? \([\s\S]*?today-override[\s\S]*?\) : todaySource === 'override' \? \(/);
+  // HEIGHT-NEUTRAL by construction: the marker rides the hero's existing
+  // eyebrow line and the exit pill floats in the hero's corner. Previewing
+  // must never add a standalone vertical section — the planned variants
+  // already spend the whole 375x667 budget (measured: a one-stage hero plus
+  // a 50px status row overflowed `main` by 23px).
+  assert.match(onRoute, /hero\$\{previewing \? ' hero--preview' : ''\}/);
+  assert.match(onRoute, /hero-day__preview/);
+  assert.match(onRoute, /Preview · /);
+  assert.match(onRoute, /className="hero-exit"/);
+  assert.match(onRoute, /onClick=\{onExitPreview\}/);
+  assert.match(onRoute, /onExitPreview=\{exitDayPreview\}/);
+  assert.match(onRoute, /aria-label="Exit preview — return to today’s own view"/);
+  // The exit control lives INSIDE the hero, not as a sibling row, and the
+  // old standalone status row must not come back in any wording.
+  const hero = onRoute.slice(
+    onRoute.indexOf('function PlannedDayHero('),
+    onRoute.indexOf('function PlannedJourney('),
+  );
+  assert.match(hero, /hero-exit/);
+  assert.ok(!onRoute.includes('Previewing planned day'), 'no standalone preview row');
+  // The override row keeps its own single conditional slot (one occurrence).
+  assert.equal((onRoute.match(/today-override /g) ?? []).length, 1);
+  // The CSS enforces the same rule: an absolutely positioned corner pill
+  // (out of flow) with a ≥44px touch target, and eyebrow space reserved so
+  // narrow viewports wrap under the pill instead of colliding with it.
+  assert.match(css, /\.hero-exit \{[^}]*position: absolute;/s);
+  assert.match(css, /\.hero-exit::after \{[^}]*inset: -9px;/s);
+  assert.match(css, /\.hero--preview \.hero-day \{[^}]*padding-right: \d+px;/s);
 });
 
 test('a previewed day is never announced as actual progress', () => {

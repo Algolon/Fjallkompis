@@ -296,7 +296,10 @@ test('the remembered in-session Map context is only overwritten explicitly', () 
 });
 
 test('the block keeps its fixed responsibility — no dashboard creep', () => {
-  const hero = today.slice(today.indexOf('className="hero"'), today.indexOf('function PlannedJourney'));
+  const hero = today.slice(
+    today.indexOf('function PlannedDayHero('),
+    today.indexOf('function PlannedJourney'),
+  );
   // At most two follow-up actions at a time. A single canonical stage keeps
   // Stage Guide + View Route; a day covering several stages shows ONE action
   // instead (either alone would open just one of them — narrower than the

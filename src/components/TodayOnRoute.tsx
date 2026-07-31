@@ -8,6 +8,7 @@ import {
   Mountain,
   Route,
   TriangleAlert,
+  X,
 } from 'lucide-react';
 import { FacilityIcon } from './FacilityIcon';
 import { MembershipQuickAccess } from './MembershipQuickAccess';
@@ -122,24 +123,10 @@ export function TodayOnRoute({
         dayCount={plannedDays.length}
         routeDirection={routeDirection}
         previewing={previewing}
+        onExitPreview={exitDayPreview}
         onNavigate={onNavigate}
       />
-      {previewing ? (
-        // The preview's one honest line: what this is, and the way out.
-        // Exiting clears ONLY the transient pointer — Today reverts to the
-        // manual override, the date match, or the generic view.
-        <div className="today-override today-glass today-glass--light">
-          <span className="today-override__label">Previewing planned day</span>
-          <button
-            type="button"
-            className="stage-set-pill"
-            onClick={exitDayPreview}
-            aria-label="Exit preview — return to today’s own view"
-          >
-            Exit preview
-          </button>
-        </div>
-      ) : todaySource === 'override' ? (
+      {todaySource === 'override' ? (
         <div className="today-override today-glass today-glass--light">
           <span className="today-override__label">Manually selected day</span>
           <button
@@ -202,6 +189,7 @@ function PlannedDayHero({
   dayCount,
   routeDirection,
   previewing,
+  onExitPreview,
   onNavigate,
 }: {
   day: PlannedDay;
@@ -209,6 +197,8 @@ function PlannedDayHero({
   routeDirection: RouteDirection;
   /** True when this day is a transient preview, not the user's actual day. */
   previewing: boolean;
+  /** Clears the transient preview (only rendered while previewing). */
+  onExitPreview: () => void;
   onNavigate: Navigate;
 }) {
   const dayDate = day.date ? formatDayDate(day.date) : null;
@@ -235,7 +225,7 @@ function PlannedDayHero({
 
   return (
     <section
-      className="hero"
+      className={`hero${previewing ? ' hero--preview' : ''}`}
       // A previewed day must never CLAIM to be today — the accessible name
       // leads with what it actually is.
       aria-label={`${previewing ? 'Previewing' : 'Today'}: day ${day.number} of ${dayCount}${
@@ -243,9 +233,35 @@ function PlannedDayHero({
       }. ${kindWords}.`}
     >
       {hiking ? <HeroSilhouette profile={day.elevationProfile} /> : null}
+      {/* Preview is HEIGHT-NEUTRAL: the marker rides the existing eyebrow
+          line and the exit action floats in the hero's top corner — no
+          standalone status row, so every variant keeps its exact height and
+          the one-viewport budget is untouched. Exiting clears ONLY the
+          transient pointer; Today reverts to override / date / generic. */}
+      {previewing ? (
+        <button
+          type="button"
+          className="hero-exit"
+          onClick={onExitPreview}
+          aria-label="Exit preview — return to today’s own view"
+        >
+          <X size={13} strokeWidth={2.4} aria-hidden /> Exit
+        </button>
+      ) : null}
       <div className="hero-content">
         <span className="hero-day">
-          Day {day.number} of {dayCount}
+          {/* While previewing, the eyebrow trades "of N" and the decorative
+              type glyphs for the PREVIEW marker so the line stays single at
+              375px (height-neutral rule). Journey, one card below, still
+              reads "Day N of M", and the hero's accessible name keeps the
+              full phrase in both modes. */}
+          {previewing ? (
+            <>
+              <span className="hero-day__preview">Preview · </span>Day {day.number}
+            </>
+          ) : (
+            <>Day {day.number} of {dayCount}</>
+          )}
           {dayDate ? <span className="hero-day__date"> · {dayDate}</span> : null}
           <DayTypeBadge kinds={day.kinds} />
         </span>
