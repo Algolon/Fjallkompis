@@ -23,6 +23,7 @@ import {
   stopShortName,
 } from '../data/stops';
 import { shopTypeForStop } from '../data/shops.mjs';
+import { staysLinkedToPlace } from '../data/journeyPlaces.mjs';
 import { transportLinkForStop } from '../data/transport.mjs';
 import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
@@ -375,11 +376,12 @@ export function StopsScreen({
   // when one exists the chip opens it instead of creating an accidental
   // duplicate (more instances can still be added inside the Trip section).
   const trackStay = (stop: TrailStop) => {
-    const linked = state.trip.find((i) => i.kind === 'stay' && i.linkedStopId === stop.id);
+    const linked = staysLinkedToPlace(state.trip, stop.id);
     onNavigate('checklist', {
-      lists: linked
-        ? { section: 'trip', tripItemId: linked.id }
-        : { section: 'trip', trackStayStopId: stop.id },
+      lists:
+        linked.length > 0
+          ? { section: 'trip', tripItemId: linked[0].id }
+          : { section: 'trip', trackStayPlaceId: stop.id },
     });
   };
 
@@ -461,9 +463,7 @@ export function StopsScreen({
             onHeaderKeyDown={onHeaderKeyDown(i)}
             onOpenShop={openShop}
             onOpenTransport={openTransport}
-            stayTracked={state.trip.some(
-              (it) => it.kind === 'stay' && it.linkedStopId === stop.id,
-            )}
+            stayTracked={staysLinkedToPlace(state.trip, stop.id).length > 0}
             onTrackStay={() => trackStay(stop)}
           />
         ))}

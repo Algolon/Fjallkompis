@@ -19,7 +19,6 @@ import {
   normalizeTripItems,
   sortStayItems,
   sortTravelItems,
-  stayPrefillFromStop,
   transportPrefillFromEntry,
   tripPlanSummary,
   tripStatusTitle,
@@ -117,7 +116,7 @@ test('a valid stay item normalises verbatim (idempotent)', () => {
     checkOutDate: '2026-08-26',
     bookingReference: 'STF-1',
     attachmentIds: [],
-    linkedStopId: 'salka',
+    linkedPlaceId: 'salka',
     createdAt: 100,
     updatedAt: 100,
   };
@@ -160,10 +159,21 @@ test('optional empty strings are removed, not persisted', () => {
     provider: '',
     notes: ' ',
     bookingReference: '',
+    linkedTransportId: '',
+  });
+  for (const key of ['from', 'to', 'provider', 'notes', 'bookingReference', 'linkedTransportId']) {
+    assert.ok(!(key in t), `${key} removed`);
+  }
+  const s = normalizeTripItem({
+    id: 'b',
+    kind: 'stay',
+    title: 'x',
+    location: '',
+    linkedPlaceId: '',
     linkedStopId: '',
   });
-  for (const key of ['from', 'to', 'provider', 'notes', 'bookingReference', 'linkedStopId']) {
-    assert.ok(!(key in t), `${key} removed`);
+  for (const key of ['location', 'linkedPlaceId', 'linkedStopId']) {
+    assert.ok(!(key in s), `${key} removed`);
   }
 });
 
@@ -406,34 +416,84 @@ test('a degenerate entry still prefills without crashing', () => {
   assert.ok(!('linkedTransportId' in prefill));
 });
 
-// ---- Stay prefill (Track stay) ----------------------------------------------
+// The "Track stay" prefill was generalised into the Journey Place prefill —
+// its behaviour (route stops AND curated off-route places) is covered in
+// tests/journey-places.test.mjs.
 
-test('Track stay maps verified stop facts to a linked planned stay', () => {
-  const prefill = stayPrefillFromStop({
-    id: 'salka',
-    name: 'Sälka Mountain Cabin',
-    type: 'mountain-cabin',
-  });
-  assert.deepEqual(prefill, {
+// ---- Place-link normalisation (v9 → v10 compatibility) ------------------------
+
+test('a v9 stay with linkedStopId migrates to linkedPlaceId — same stable id, never unlinked', () => {
+  const migrated = normalizeTripItem({
+    id: 'trip_s1',
     kind: 'stay',
-    title: 'Sälka Mountain Cabin',
+    title: 'Sälka hut',
+    status: 'confirmed',
     stayType: 'mountain-hut',
-    status: 'planned',
+    checkInDate: '2026-08-25',
+    checkOutDate: '2026-08-26',
+    bookingReference: 'STF-1',
+    notes: 'Bunk near the window',
+    attachmentIds: ['doc_1'],
     linkedStopId: 'salka',
+    createdAt: 100,
+    updatedAt: 200,
   });
-  assert.equal(
-    stayPrefillFromStop({ id: 'abisko', name: 'Abisko', type: 'mountain-station' }).stayType,
-    'mountain-station',
-  );
-  assert.equal(
-    stayPrefillFromStop({ id: 'nikkaluokta', name: 'Nikkaluokta', type: 'village' }).stayType,
-    'other',
-  );
+  assert.equal(migrated.linkedPlaceId, 'salka', 'route place ids preserve stable stop ids');
+  assert.ok(!('linkedStopId' in migrated), 'never both fields in normalised output');
+  // Every personal field survives the migration untouched.
+  assert.equal(migrated.title, 'Sälka hut');
+  assert.equal(migrated.status, 'confirmed');
+  assert.equal(migrated.checkInDate, '2026-08-25');
+  assert.equal(migrated.bookingReference, 'STF-1');
+  assert.equal(migrated.notes, 'Bunk near the window');
+  assert.deepEqual(migrated.attachmentIds, ['doc_1']);
+  assert.deepEqual(normalizeTripItem(migrated), migrated, 'idempotent');
 });
 
-test('the stay link uses the stable physical stop id — direction cannot corrupt it', () => {
-  // The prefill takes the stop record itself; there is no day-number or
-  // direction input at all, so reversing the route cannot change the link.
-  const prefill = stayPrefillFromStop({ id: 'salka', name: 'Sälka', type: 'mountain-cabin' });
-  assert.equal(prefill.linkedStopId, 'salka');
+test('a record carrying BOTH link fields keeps linkedPlaceId and drops the legacy field', () => {
+  const item = normalizeTripItem({
+    id: 'trip_s2',
+    kind: 'stay',
+    title: 'Kiruna night',
+    linkedPlaceId: 'stf-kiruna',
+    linkedStopId: 'abisko',
+  });
+  assert.equal(item.linkedPlaceId, 'stf-kiruna');
+  assert.ok(!('linkedStopId' in item));
+});
+
+test('an unknown but syntactically valid linkedPlaceId is PRESERVED, never validated away', () => {
+  // Removing or renaming curated data must not silently destroy the
+  // association — the UI shows an honest unavailable state instead.
+  const item = normalizeTripItem({
+    id: 'trip_s3',
+    kind: 'stay',
+    title: 'Somewhere',
+    linkedPlaceId: 'retired-place-2027',
+  });
+  assert.equal(item.linkedPlaceId, 'retired-place-2027');
+  assert.deepEqual(normalizeTripItem(item), item, 'idempotent');
+});
+
+test('wrong-kind link fields are stripped: transport never carries a Place link and vice versa', () => {
+  const transport = normalizeTripItem({
+    id: 'trip_t1',
+    kind: 'transport',
+    title: 'Bus',
+    linkedTransportId: 'line-91',
+    linkedStopId: 'salka',
+    linkedPlaceId: 'stf-kiruna',
+  });
+  assert.equal(transport.linkedTransportId, 'line-91');
+  assert.ok(!('linkedStopId' in transport), 'stay-only legacy link stripped from transport');
+  assert.ok(!('linkedPlaceId' in transport), 'stay-only place link stripped from transport');
+  const stay = normalizeTripItem({
+    id: 'trip_s4',
+    kind: 'stay',
+    title: 'Hut',
+    linkedTransportId: 'line-91',
+    linkedStopId: 'salka',
+  });
+  assert.equal(stay.linkedPlaceId, 'salka');
+  assert.ok(!('linkedTransportId' in stay), 'transport provenance stripped from stay');
 });

@@ -31,10 +31,10 @@ export interface ListsDeepLink {
   shopType?: ShopCategory;
   transportId?: string;
   transportContext?: TransportContext;
-  /** Trip opens this item's editor (from a stop's View stay action). */
+  /** Trip opens this item's editor (from a place's View stay action). */
   tripItemId?: string;
-  /** Trip opens a prefilled Stay form for this stop (Track stay). */
-  trackStayStopId?: string;
+  /** Trip opens a prefilled Stay form for this Journey Place (Track stay). */
+  trackStayPlaceId?: string;
 }
 
 // --------------------------------------------------------------- Packing view
@@ -691,14 +691,14 @@ function initialSectionFor(link?: ListsDeepLink): ListsSection {
   if (!link) return 'packing';
   if (link.shopType) return 'shops';
   if (link.transportId || link.transportContext) return 'transport';
-  if (link.tripItemId || link.trackStayStopId) return 'trip';
+  if (link.tripItemId || link.trackStayPlaceId) return 'trip';
   return link.section ?? 'packing';
 }
 
 /** The one-shot Trip launch a deep link carries, if any. */
 function initialTripLaunchFor(link?: ListsDeepLink): TripLaunch | null {
   if (link?.tripItemId) return { kind: 'item', itemId: link.tripItemId };
-  if (link?.trackStayStopId) return { kind: 'add-stay', stopId: link.trackStayStopId };
+  if (link?.trackStayPlaceId) return { kind: 'add-stay', placeId: link.trackStayPlaceId };
   return null;
 }
 

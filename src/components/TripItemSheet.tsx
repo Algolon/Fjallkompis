@@ -36,7 +36,6 @@ import {
   validateWalletFile,
 } from '../wallet/walletModel.mjs';
 import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
-import { STOPS } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DateField } from './DateField';
@@ -95,6 +94,13 @@ export interface TripItemDraft {
   location?: string;
   checkInDate?: string;
   checkOutDate?: string;
+  /**
+   * The stay's Place association as edited in this draft: a place id, or
+   * undefined for "Not linked". Always present on a stay draft — an omitted
+   * link IS the explicit unlinked state, applied on Save like every other
+   * field. Never set on transport drafts.
+   */
+  linkedPlaceId?: string;
 }
 
 /** Add-mode prefill (Add to Trip / Track stay) — verified source facts only. */
@@ -106,7 +112,8 @@ export interface TripItemPrefill {
   to?: string;
   provider?: string;
   stayType?: TripStayType;
-  linkedStopId?: string;
+  location?: string;
+  linkedPlaceId?: string;
   linkedTransportId?: string;
 }
 
@@ -190,9 +197,13 @@ export function TripItemSheet({
   const [stayType, setStayType] = useState<TripStayType>(
     stay?.stayType ?? prefill?.stayType ?? 'mountain-hut',
   );
-  const [location, setLocation] = useState(stay?.location ?? '');
+  const [location, setLocation] = useState(stay?.location ?? prefill?.location ?? '');
   const [checkInDate, setCheckInDate] = useState(stay?.checkInDate ?? '');
   const [checkOutDate, setCheckOutDate] = useState(stay?.checkOutDate ?? '');
+  // The stay's Place association — part of the draft transaction exactly
+  // like every other field ('' = not linked; applied on Save, Cancel keeps
+  // the stored link).
+  const [linkedPlaceId] = useState(stay?.linkedPlaceId ?? prefill?.linkedPlaceId ?? '');
 
   const [attachmentIds, setAttachmentIds] = useState<string[]>(item?.attachmentIds ?? []);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -207,25 +218,17 @@ export function TripItemSheet({
     return () => opener?.focus();
   }, []);
 
-  // Linked source context — display only, never editable here. The link
-  // degrades gracefully when the source record no longer exists.
-  const linkedTransportId = item?.linkedTransportId ?? prefill?.linkedTransportId;
-  const linkedStopId = item?.linkedStopId ?? prefill?.linkedStopId;
+  // Linked transport context — display only, never editable here. The link
+  // degrades gracefully when the source record no longer exists. (A stay's
+  // editable Place link renders as the Linked place control below instead.)
+  const linkedTransportId = transport?.linkedTransportId ?? prefill?.linkedTransportId;
   const linkedSourceText = useMemo(() => {
-    if (linkedTransportId) {
-      const entry = TRANSPORT_ENTRIES.find((e) => e.id === linkedTransportId);
-      return entry
-        ? `Linked to the timetable “${entry.title}”. Times and dates there are the general schedule — the plan here is yours.`
-        : 'Linked to a timetable that is no longer in the app.';
-    }
-    if (linkedStopId) {
-      const stop = STOPS.find((s) => s.id === linkedStopId);
-      return stop
-        ? `Linked to the route stop ${stop.name}.`
-        : 'Linked to a route stop that is no longer in the app.';
-    }
-    return null;
-  }, [linkedTransportId, linkedStopId]);
+    if (kind !== 'transport' || !linkedTransportId) return null;
+    const entry = TRANSPORT_ENTRIES.find((e) => e.id === linkedTransportId);
+    return entry
+      ? `Linked to the timetable “${entry.title}”. Times and dates there are the general schedule — the plan here is yours.`
+      : 'Linked to a timetable that is no longer in the app.';
+  }, [kind, linkedTransportId]);
 
   const documentById = useMemo(() => {
     const map = new Map<string, WalletDocument>();
@@ -286,6 +289,7 @@ export function TripItemSheet({
             location: clean(location),
             checkInDate: clean(checkInDate),
             checkOutDate: clean(checkOutDate),
+            linkedPlaceId: clean(linkedPlaceId),
           }),
     };
     try {

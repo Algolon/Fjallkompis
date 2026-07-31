@@ -651,10 +651,6 @@ export interface TripItemBase {
   bookingReference?: string;
   /** Wallet document ids — references only, never blobs. */
   attachmentIds: string[];
-  /** Stable route-stop id (physical, direction-safe) — provenance, not owned. */
-  linkedStopId?: string;
-  /** Stable Transport reference entry id — provenance, not owned. */
-  linkedTransportId?: string;
   /** ms epoch — immutable after creation. */
   createdAt: number;
   /** ms epoch — changes on every edit. */
@@ -672,6 +668,8 @@ export interface TransportTripItem extends TripItemBase {
   departureTime?: string;
   arrivalTime?: string;
   provider?: string;
+  /** Stable Transport reference entry id — provenance, not owned, immutable. */
+  linkedTransportId?: string;
 }
 
 export interface StayTripItem extends TripItemBase {
@@ -680,6 +678,16 @@ export interface StayTripItem extends TripItemBase {
   location?: string;
   checkInDate?: string;
   checkOutDate?: string;
+  /**
+   * Stable Journey Place id (a route-stop id or a curated off-route id such
+   * as 'stf-kiruna') — the Stay's optional, EDITABLE association with one
+   * known reference place (src/data/journeyPlaces.mjs). Successor of the v9
+   * `linkedStopId` field, whose values remain valid verbatim because route
+   * Place ids preserve the stable stop ids. An id the current registry no
+   * longer resolves is PRESERVED (the UI shows an honest unavailable state)
+   * so curated-data changes can never silently destroy the association.
+   */
+  linkedPlaceId?: string;
 }
 
 export type TripItem = TransportTripItem | StayTripItem;

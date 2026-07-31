@@ -193,17 +193,43 @@ test('an older export without a direction imports as the canonical default', () 
 
 // ---- Trip plan (schema v5) --------------------------------------------------
 
-test('full-state transfer preserves travel and stay items verbatim', () => {
+test('full-state transfer preserves travel and stay items — legacy stop links migrate, never drop', () => {
   const original = populatedState();
   const restored = exportImportRoundTrip(original);
-  assert.deepEqual(restored.trip, original.trip);
   const bus = restored.trip.find((i) => i.id === 'trip_bus');
+  assert.deepEqual(bus, original.trip[0], 'transport survives verbatim');
   assert.equal(bus.status, 'confirmed');
   assert.equal(bus.bookingReference, 'LTN-778');
   assert.equal(bus.linkedTransportId, 'line-91');
+  // The seeded stay carries the v9 linkedStopId shape: the transfer lands it
+  // on the v10 Place field with the SAME stable id and every personal field
+  // intact — an old device's export can never arrive unlinked.
   const salka = restored.trip.find((i) => i.id === 'trip_salka');
-  assert.equal(salka.linkedStopId, 'salka');
+  assert.equal(salka.linkedPlaceId, 'salka');
+  assert.ok(!('linkedStopId' in salka), 'only the v10 field survives normalisation');
   assert.equal(salka.checkInDate, '2026-08-25');
+  assert.equal(salka.title, 'Sälka hut');
+});
+
+test('a v10 export with linkedPlaceId (including an off-route place) transfers verbatim', () => {
+  const original = populatedState();
+  original.trip.push({
+    id: 'trip_kiruna',
+    kind: 'stay',
+    title: 'Night before the train home',
+    status: 'planned',
+    stayType: 'hotel-hostel',
+    location: 'Kiruna',
+    checkInDate: '2026-08-31',
+    attachmentIds: [],
+    linkedPlaceId: 'stf-kiruna',
+    createdAt: 1751400000000,
+    updatedAt: 1751400000000,
+  });
+  const restored = exportImportRoundTrip(original);
+  const kiruna = restored.trip.find((i) => i.id === 'trip_kiruna');
+  assert.deepEqual(kiruna, original.trip[original.trip.length - 1]);
+  assert.equal(kiruna.linkedPlaceId, 'stf-kiruna');
 });
 
 test('attachment REFERENCES ride the backup; the restored item keeps them so the UI can flag the missing file honestly', () => {

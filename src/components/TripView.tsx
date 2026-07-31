@@ -17,10 +17,10 @@ import type { StayTripItem, TransportTripItem, TripItem, WalletDocument } from '
 import {
   sortStayItems,
   sortTravelItems,
-  stayPrefillFromStop,
   transportPrefillFromEntry,
   tripStatusTitle,
 } from '../trip/tripModel.mjs';
+import { journeyPlaceById, placeStayPrefill } from '../data/journeyPlaces.mjs';
 import {
   applyMembershipMetadata,
   defaultTitleFromFilename,
@@ -58,13 +58,13 @@ function formatTripDate(iso: string): string {
 
 /**
  * One-shot launch instruction from another screen or tab (Add to Trip on a
- * Transport reference, Track stay on a route stop, a deep link to one item).
- * In-memory only — a refresh opens the plain Trip section.
+ * Transport reference, Track stay on a Journey Place, a deep link to one
+ * item). In-memory only — a refresh opens the plain Trip section.
  */
 export type TripLaunch =
   | { kind: 'item'; itemId: string }
   | { kind: 'add-transport'; entryId: string }
-  | { kind: 'add-stay'; stopId: string };
+  | { kind: 'add-stay'; placeId: string };
 
 type EditorState =
   | { mode: 'chooser' }
@@ -85,8 +85,10 @@ function initialEditorFor(launch: TripLaunch | undefined, items: TripItem[]): Ed
       ? { mode: 'add', kind: 'transport', prefill: transportPrefillFromEntry(entry) }
       : { mode: 'add', kind: 'transport' };
   }
-  const stop = STOPS_BY_ID[launch.stopId];
-  return stop ? { mode: 'add', kind: 'stay', prefill: stayPrefillFromStop(stop) } : { mode: 'add', kind: 'stay' };
+  // Track stay on any Journey Place — a route stop or a curated off-route
+  // place. Verified facts only; an unresolvable id opens a plain blank Stay.
+  const prefill = placeStayPrefill(journeyPlaceById(launch.placeId, STOPS_BY_ID), STOPS_BY_ID);
+  return prefill ? { mode: 'add', kind: 'stay', prefill } : { mode: 'add', kind: 'stay' };
 }
 
 /**
@@ -202,6 +204,9 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
     if (editor?.mode === 'edit') {
       updateTripItem(editor.item.id, { ...draft, attachmentIds } as Partial<TripItem>);
     } else if (editor?.mode === 'add') {
+      // A stay draft carries its own `linkedPlaceId` (the editor's Linked
+      // place control owns it, prefilled or user-chosen); transport
+      // provenance still comes from the launch prefill only.
       addTripItem({
         kind: editor.kind,
         ...draft,
@@ -209,7 +214,6 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
         ...(editor.prefill?.linkedTransportId
           ? { linkedTransportId: editor.prefill.linkedTransportId }
           : {}),
-        ...(editor.prefill?.linkedStopId ? { linkedStopId: editor.prefill.linkedStopId } : {}),
       } as Omit<TripItem, 'id' | 'createdAt' | 'updatedAt'>);
     }
   };
