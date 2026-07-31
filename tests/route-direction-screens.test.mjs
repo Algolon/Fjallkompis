@@ -114,10 +114,14 @@ test('Today renders itinerary-ordered stages and days, and the oriented silhouet
   assert.match(today, /<HeroSilhouette profile=\{day\.elevationProfile\} \/>/);
   // Highlights are direction-aware.
   assert.match(today, /stageHighlights\(stage\.id, undefined, routeDirection\)/);
-  // A planned day's chips come from that DAY's own stage, not the global
-  // route pointer, so they stay direction-aware without ever describing a
-  // stage the day does not walk.
-  assert.match(today, /stageHighlights\(leadStage\.id, undefined, routeDirection\)/);
+  // A planned day's chips come from that DAY's own leg, read in the LEG's
+  // absolute orientation — an opposite leg on a forward journey describes
+  // the climb the walker actually makes, never the mirror of it.
+  assert.match(today, /stageHighlights\(leadStage\.id, undefined, leadLegDirection\)/);
+  assert.match(
+    today,
+    /leadLeg\?\.orientation === 'opposite' \? REVERSE_DIRECTION : DEFAULT_DIRECTION/,
+  );
   // Journey legend reads from the ordered stages (flips with direction).
   assert.match(today, /stages\[0\]\.fromHutId/);
   assert.match(today, /stages\[stages\.length - 1\]\.toHutId/);

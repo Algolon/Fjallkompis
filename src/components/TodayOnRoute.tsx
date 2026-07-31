@@ -24,6 +24,7 @@ import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
 import { activityOrderPhrase, travelPresentation } from '../plan/dayPresentation.mjs';
+import { DEFAULT_DIRECTION, REVERSE_DIRECTION, isReversed } from '../route/direction.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
 import type { DayActivityKind, RouteDirection, TripItem } from '../types';
@@ -211,13 +212,24 @@ function PlannedDayHero({
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
   const kindWords = activityOrderPhrase(day);
+  // The day's own first LEG: its absolute orientation decides which way the
+  // verified content is read. A leg walked against the app's route direction
+  // ('opposite' on a forward journey) reads its highlights in ITS direction —
+  // climb and descent chips must describe the walk the day actually makes.
+  const leadLeg = day.legs[0] ?? null;
+  const leadLegDirection =
+    leadLeg?.orientation === 'opposite' ? REVERSE_DIRECTION : DEFAULT_DIRECTION;
+  // Legs walked AGAINST the active route direction — the Stages screen shows
+  // those sections the other way round, so the difference is stated plainly.
+  const naturalOrientation = isReversed(routeDirection) ? 'opposite' : 'canonical';
+  const contraryLegCount = day.legs.filter((l) => l.orientation !== naturalOrientation).length;
   // Chips only on a plain single-stage hiking day. A combined day would have
   // to merge two capped lists into one capped list, silently dropping half
   // the metadata; a mixed day already spends that line on the transfer. Both
   // cases also need the height — the hero has none spare at 375x667.
   const highlights =
     hiking && !multiStage && !travel && leadStage
-      ? stageHighlights(leadStage.id, undefined, routeDirection)
+      ? stageHighlights(leadStage.id, undefined, leadLegDirection)
       : [];
   // One shared helper decides the wording AND the position, so Today and the
   // Settings planner can never disagree about which happened first.
@@ -288,6 +300,17 @@ function PlannedDayHero({
         {multiStage ? (
           <p className="hero-via">
             via {day.viaStopIds.map((id) => stopShortName(STOPS_BY_ID[id])).join(' and ')}
+          </p>
+        ) : null}
+
+        {/* A leg walked against the route direction is said out loud: the
+            title's endpoints already run the other way, and this names WHY
+            they disagree with the Stages screen's own section cards. */}
+        {hiking && contraryLegCount > 0 ? (
+          <p className="hero-via">
+            {contraryLegCount === day.legs.length
+              ? 'Walked in reverse — Stages shows this section the other way round'
+              : `${contraryLegCount} of ${day.legs.length} legs walked in reverse`}
           </p>
         ) : null}
 

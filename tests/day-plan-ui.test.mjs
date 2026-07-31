@@ -610,6 +610,18 @@ test('a mixed day never hides its travel when no Trip item matches the date', ()
   assert.match(row, /travelLine\?\.position === 'only' && travelLine\.isEmpty/);
 });
 
+test('a leg walked against the route direction is stated, never hidden', () => {
+  // The hero title's endpoints already run the other way; this line names WHY
+  // they disagree with the Stages screen's own section cards. Counted for a
+  // partly-reversed day (an out-and-back), plain for a fully reversed one.
+  assert.match(onRoute, /const naturalOrientation = isReversed\(routeDirection\) \? 'opposite' : 'canonical';/);
+  assert.match(onRoute, /l\.orientation !== naturalOrientation/);
+  assert.match(onRoute, /Walked in reverse — Stages shows this section the other way round/);
+  assert.match(onRoute, /of \$\{day\.legs\.length\} legs walked in reverse/);
+  // Rendered only for a walking day that actually has such a leg.
+  assert.match(onRoute, /\{hiking && contraryLegCount > 0 \? \(/);
+});
+
 test('a rest day names where it is based and opens Stop info', () => {
   assert.match(onRoute, /Based at \$\{stopShortName\(STOPS_BY_ID\[day\.overnight\.stopId\]\)\}/);
   assert.match(onRoute, /Stop info/);
