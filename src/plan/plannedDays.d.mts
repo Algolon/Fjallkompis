@@ -1,4 +1,10 @@
-import type { DayActivity, DayActivityKind, DayPlanState, TripItem } from '../types';
+import type {
+  DayActivity,
+  DayActivityKind,
+  DayPlanState,
+  HikingLegOrientation,
+  TripItem,
+} from '../types';
 import type { ItineraryStage } from '../route/activeItinerary';
 import type { ElevationSample } from '../route/types';
 
@@ -10,6 +16,31 @@ export interface ResolvedOvernight {
   /** explicit = the user set it; hiking = the day's endpoint; carried = the
       previous day's (a rest day stays where it was); derived = nothing. */
   source: 'explicit' | 'hiking' | 'carried' | 'derived';
+}
+
+/**
+ * One derived hiking leg: the persisted leg identity resolved to the ORIENTED
+ * stage view it references. `stage` is the forward itinerary's stage for a
+ * 'canonical' orientation and the reverse itinerary's for an 'opposite' one —
+ * both verified transforms of the same physical segment, never recomputed.
+ */
+export interface DerivedHikingLeg {
+  /** The persisted stable leg id. */
+  id: string;
+  /** The physical canonical stage this leg walks. */
+  stageId: string;
+  /** The absolute orientation it is walked in. */
+  orientation: HikingLegOrientation;
+  /** The oriented stage view (endpoints, statistics, geometry, profile). */
+  stage: ItineraryStage;
+  /** True when this leg is the plan's active occurrence. */
+  isCurrent: boolean;
+}
+
+/** The oriented stage views the derivation resolves legs against. */
+export interface OrientedStageViews {
+  canonical: Record<string, ItineraryStage>;
+  opposite: Record<string, ItineraryStage>;
 }
 
 /**
@@ -30,15 +61,17 @@ export interface PlannedDay {
   activities: DayActivity[];
   /** The activity kinds, in order — what the day indicator reads. */
   kinds: DayActivityKind[];
-  /** Canonical stages this day walks, in route order. Empty when it does not. */
+  /** The day's ordered derived legs. Empty when it does no walking. */
+  legs: DerivedHikingLeg[];
+  /** The legs' oriented stage views, in leg order (repeats appear twice). */
   stages: ItineraryStage[];
-  /** First stage's start stop, or null on a non-hiking day. */
+  /** First leg's oriented start stop, or null on a non-hiking day. */
   fromStopId: string | null;
-  /** Last stage's end stop, or null on a non-hiking day. */
+  /** Last leg's oriented end stop, or null on a non-hiking day. */
   toStopId: string | null;
-  /** Intermediate canonical boundaries; empty unless several stages. */
+  /** Intermediate oriented boundaries; empty unless several legs. */
   viaStopIds: string[];
-  /** Hiking aggregates. Zero / null on a non-hiking day. */
+  /** Hiking aggregates over the day's LEGS. Zero / null on a non-hiking day. */
   distanceKm: number;
   totalAscentM: number | null;
   totalDescentM: number | null;
@@ -60,40 +93,15 @@ export interface PlannedDay {
   isCurrent: boolean;
 }
 
-/** One legal endpoint for a hiking day, with the consequence of choosing it. */
-export interface HikingEndpointOption {
-  stopId: string;
-  stages: number;
-  distanceKm: number;
-  isCurrent: boolean;
-  effect: 'none' | 'merge' | 'split';
-  /** Following hiking days whose walking this option absorbs entirely. */
-  absorbedDays: number;
-  /** True when one further day is left shorter rather than absorbed. */
-  shortensNextDay: boolean;
-  /** Stages this option takes from the days after it (a merge). */
-  takenStages: number;
-  /** Stages this option hands to a new day after this one (a split). */
-  releasedStages: number;
-}
-
 export declare function buildPlannedDays(
-  stages: readonly ItineraryStage[],
+  orientedStages: OrientedStageViews,
   dayPlan: DayPlanState | null,
   tripItems?: readonly TripItem[],
 ): PlannedDay[];
 
 export declare function currentPlannedDayOf(days: PlannedDay[]): PlannedDay | null;
-export declare function plannedDayForStage(
+export declare function plannedDaysForStage(
   days: PlannedDay[],
   stageId: string | null,
-): PlannedDay | null;
-export declare function currentPartIndex(
-  day: PlannedDay | null,
-  currentStageId: string | null,
-): number;
-export declare function hikingEndpointOptions(
-  days: readonly PlannedDay[],
-  dayIndex: number,
-  stages: readonly ItineraryStage[],
-): HikingEndpointOption[];
+): PlannedDay[];
+export declare function currentLegIndex(day: PlannedDay | null): number;

@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/AppStore';
 import {
+  ArrowUpDown,
   BookOpen,
   BusFront,
   ChevronRight,
@@ -24,11 +26,14 @@ import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
 import { activityOrderPhrase, travelPresentation } from '../plan/dayPresentation.mjs';
+import { DEFAULT_DIRECTION, REVERSE_DIRECTION, isReversed } from '../route/direction.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
 import type { DayActivityKind, RouteDirection, TripItem } from '../types';
 import type { NavPayload } from '../screens/TodayScreen';
 import type { TabId } from './TabBar';
+import type { TodaySource } from '../plan/effectiveToday.mjs';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 type Navigate = (t: TabId, payload?: NavPayload) => void;
 
@@ -38,7 +43,8 @@ type Navigate = (t: TabId, payload?: NavPayload) => void;
  * dates from numeric parts only. Nothing here reads the clock: the day shown
  * is the one the user selected, never today's system date.
  */
-function formatDayDate(iso: string): string | null {
+function formatDayDate(iso: string | null): string | null {
+  if (!iso) return null;
   const label = formatDateFieldLabel(iso);
   return label ? label.split(' ').slice(0, 3).join(' ') : null;
 }
@@ -82,7 +88,7 @@ export function TodayOnRoute({
   // to return to following the plan's dates; a transient preview (Settings →
   // Preview) says so the same way and offers Exit preview. The two sources
   // are mutually exclusive, so at most one status row ever renders.
-  const { todaySource, followPlanDates, exitDayPreview } = useStore();
+  const { todaySource, exitDayPreview, dayPlan } = useStore();
   const previewing = todaySource === 'preview';
 
   // A plan alone is not enough: today has to BE one of its days. Without one
@@ -123,26 +129,16 @@ export function TodayOnRoute({
         dayCount={plannedDays.length}
         routeDirection={routeDirection}
         previewing={previewing}
+        source={todaySource}
         onExitPreview={exitDayPreview}
         onNavigate={onNavigate}
       />
-      {todaySource === 'override' ? (
-        <div className="today-override today-glass today-glass--light">
-          <span className="today-override__label">Manually selected day</span>
-          <button
-            type="button"
-            className="stage-set-pill"
-            onClick={followPlanDates}
-            aria-label="Follow plan dates — show the planned day for today’s date again"
-          >
-            Follow plan dates
-          </button>
-        </div>
-      ) : null}
       <PlannedJourney
         day={day}
         plannedDays={plannedDays}
         previewing={previewing}
+        journeyActive={dayPlan?.journeyActive === true}
+        source={todaySource}
         onNavigate={onNavigate}
       />
       {overnightStopId ? (
@@ -164,13 +160,18 @@ const ACTIVITY_ICON: Record<DayActivityKind, typeof Footprints> = {
   travel: BusFront,
   rest: Coffee,
 };
-function DayTypeBadge({ kinds }: { kinds: DayActivityKind[] }) {
+function DayTypeBadge({ kinds, reversed }: { kinds: DayActivityKind[]; reversed?: boolean }) {
   return (
     <span className="hero-day__type" aria-hidden>
       {kinds.map((kind) => {
         const Icon = ACTIVITY_ICON[kind];
         return <Icon key={kind} size={14} strokeWidth={2.1} />;
       })}
+      {/* A leg walked against the route direction: marked on the SAME line
+          (height-neutral, like the activity glyphs); the words ride the
+          hero's accessible name, and the oriented title endpoints plus the
+          leg editor carry the full story. */}
+      {reversed ? <ArrowUpDown size={14} strokeWidth={2.1} /> : null}
     </span>
   );
 }
@@ -189,6 +190,7 @@ function PlannedDayHero({
   dayCount,
   routeDirection,
   previewing,
+  source,
   onExitPreview,
   onNavigate,
 }: {
@@ -197,6 +199,7 @@ function PlannedDayHero({
   routeDirection: RouteDirection;
   /** True when this day is a transient preview, not the user's actual day. */
   previewing: boolean;
+  source: TodaySource;
   /** Clears the transient preview (only rendered while previewing). */
   onExitPreview: () => void;
   onNavigate: Navigate;
@@ -211,17 +214,56 @@ function PlannedDayHero({
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
   const kindWords = activityOrderPhrase(day);
+  // The day's own first LEG: its absolute orientation decides which way the
+  // verified content is read. A leg walked against the app's route direction
+  // ('opposite' on a forward journey) reads its highlights in ITS direction —
+  // climb and descent chips must describe the walk the day actually makes.
+  const leadLeg = day.legs[0] ?? null;
+  const leadLegDirection =
+    leadLeg?.orientation === 'opposite' ? REVERSE_DIRECTION : DEFAULT_DIRECTION;
+  // Legs walked AGAINST the active route direction — the Stages screen shows
+  // those sections the other way round, so the difference is stated: an
+  // eyebrow marker (height-neutral) plus the exact count in the accessible
+  // name. The oriented title endpoints already run the other way.
+  const naturalOrientation = isReversed(routeDirection) ? 'opposite' : 'canonical';
+  const contraryLegCount = day.legs.filter((l) => l.orientation !== naturalOrientation).length;
+  // The guide deep links open the LEAD stage's canonical card; when the lead
+  // leg walks it the other way the card carries a contextual note (the guide
+  // prose itself is never mirrored — a documented deferral).
+  const leadLegReversed = leadLeg != null && leadLeg.orientation !== naturalOrientation;
+  const reversedWords =
+    contraryLegCount === 0
+      ? ''
+      : contraryLegCount === day.legs.length
+        ? ' Walked in reverse of the route direction.'
+        : ` ${contraryLegCount} of ${day.legs.length} legs walked in reverse of the route direction.`;
   // Chips only on a plain single-stage hiking day. A combined day would have
   // to merge two capped lists into one capped list, silently dropping half
   // the metadata; a mixed day already spends that line on the transfer. Both
   // cases also need the height — the hero has none spare at 375x667.
   const highlights =
     hiking && !multiStage && !travel && leadStage
-      ? stageHighlights(leadStage.id, undefined, routeDirection)
+      ? stageHighlights(leadStage.id, undefined, leadLegDirection)
       : [];
   // One shared helper decides the wording AND the position, so Today and the
   // Settings planner can never disagree about which happened first.
   const travelLine = travelPresentation(day);
+  const sourceLabel =
+    source === 'manual'
+      ? 'Selected'
+      : source === 'before-plan'
+        ? 'Up next'
+        : source === 'after-plan'
+          ? 'Plan ended'
+          : null;
+  const sourceWords =
+    source === 'manual'
+      ? ' Manually selected planned day.'
+      : source === 'before-plan'
+        ? ' Up next: the plan has not started yet.'
+        : source === 'after-plan'
+          ? ' Plan ended: showing the final planned day.'
+          : '';
 
   return (
     <section
@@ -230,7 +272,7 @@ function PlannedDayHero({
       // leads with what it actually is.
       aria-label={`${previewing ? 'Previewing' : 'Today'}: day ${day.number} of ${dayCount}${
         dayDate ? `, ${dayDate}` : ''
-      }. ${kindWords}.`}
+      }. ${kindWords}.${sourceWords}${reversedWords}`}
     >
       {hiking ? <HeroSilhouette profile={day.elevationProfile} /> : null}
       {/* Preview is HEIGHT-NEUTRAL: the marker rides the existing eyebrow
@@ -262,10 +304,10 @@ function PlannedDayHero({
               <span className="hero-day__preview">Preview · </span>Day {day.number}
             </>
           ) : (
-            <>Day {day.number} of {dayCount}</>
+            <>{sourceLabel ? <span className="hero-day__source">{sourceLabel} · </span> : null}Day {day.number} of {dayCount}</>
           )}
           {dayDate ? <span className="hero-day__date"> · {dayDate}</span> : null}
-          <DayTypeBadge kinds={day.kinds} />
+          <DayTypeBadge kinds={day.kinds} reversed={contraryLegCount > 0} />
         </span>
 
         {/* Travel BEFORE the walk sits above it: the hero's line order is the
@@ -290,6 +332,7 @@ function PlannedDayHero({
             via {day.viaStopIds.map((id) => stopShortName(STOPS_BY_ID[id])).join(' and ')}
           </p>
         ) : null}
+
 
         {/* A travel leg after the walk is one quiet line below it. It renders
             even when nothing in Lists → Trip matches the date, so a mixed day
@@ -338,7 +381,7 @@ function PlannedDayHero({
             // this day's FIRST stage is where it opens.
             <button
               className="hero-action hero-action--primary"
-              onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
+              onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
               aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
             >
               <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
@@ -347,7 +390,7 @@ function PlannedDayHero({
             <>
               <button
                 className="hero-action hero-action--primary"
-                onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
+                onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
                 aria-label="Stage Guide — open today’s full day guide in Stages"
               >
                 <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
@@ -394,14 +437,38 @@ function PlannedJourney({
   day,
   plannedDays,
   previewing,
+  journeyActive,
+  source,
   onNavigate,
 }: {
   day: PlannedDay;
   plannedDays: PlannedDay[];
   /** True when the highlighted day is a preview, not actual progress. */
   previewing: boolean;
+  journeyActive: boolean;
+  source: TodaySource;
   onNavigate: Navigate;
 }) {
+  const [choosing, setChoosing] = useState(false);
+  const chooserTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const openChooser = (trigger: HTMLButtonElement) => {
+    chooserTriggerRef.current = trigger;
+    setChoosing(true);
+  };
+  const closeChooser = () => {
+    setChoosing(false);
+    window.requestAnimationFrame(() => chooserTriggerRef.current?.focus());
+  };
+  const context =
+    source === 'preview'
+      ? 'Preview'
+      : source === 'manual'
+        ? 'Selected'
+        : source === 'before-plan'
+          ? 'Up next'
+          : source === 'after-plan'
+            ? 'Plan ended'
+            : 'Following dates';
   const label = (d: PlannedDay) => {
     if (d.fromStopId && d.toStopId) {
       return `${stopShortName(STOPS_BY_ID[d.fromStopId])} to ${stopShortName(
@@ -413,11 +480,20 @@ function PlannedJourney({
   const first = plannedDays.find((d) => d.fromStopId);
   const last = [...plannedDays].reverse().find((d) => d.toStopId);
   return (
-    <section className="card today-glass today-glass--light" aria-label="Journey progress">
+    <section className="card today-glass today-glass--light" aria-label={`${journeyActive ? 'Personal Day plan Journey' : 'Previewed Day plan Journey'} progress`}>
       <div className="row-between">
-        <span className="card-title">Journey</span>
+        {journeyActive ? (
+          <button
+            type="button"
+            className="journey-choose"
+            onClick={(e) => openChooser(e.currentTarget)}
+            aria-label="Choose the planned day shown on Today"
+          >
+            <span className="card-title">Journey</span><ChevronRight size={16} aria-hidden />
+          </button>
+        ) : <span className="card-title">Journey</span>}
         <span className="card-sub tnum" style={{ marginTop: 0 }}>
-          Day {day.number} of {plannedDays.length}
+          {context} · Day {day.number} of {plannedDays.length}
         </span>
       </div>
       <div className="journey" role="list">
@@ -429,12 +505,12 @@ function PlannedJourney({
               key={d.id}
               role="listitem"
               className={`journey-step is-${status}${d.stages.length === 0 ? ' is-off-trail' : ''}`}
-              onClick={() => onNavigate('stages')}
+              onClick={(e) => journeyActive ? openChooser(e.currentTarget) : onNavigate('stages')}
               // A previewed day is highlighted but never announced as actual
               // progress: "(previewing)", and no aria-current step claim.
               aria-label={`Day ${d.number}: ${label(d)}${
                 status === 'current' ? (previewing ? ' (previewing)' : ' (current day)') : ''
-              }. Opens Stages.`}
+              }. ${journeyActive ? 'Opens planned-day chooser.' : 'Opens Stages.'}`}
               aria-current={status === 'current' && !previewing ? 'step' : undefined}
             >
               <span className="journey-dot tnum">{d.number}</span>
@@ -446,7 +522,95 @@ function PlannedJourney({
         <span>{first ? stopShortName(STOPS_BY_ID[first.fromStopId as string]) : ''}</span>
         <span>{last ? stopShortName(STOPS_BY_ID[last.toStopId as string]) : ''}</span>
       </div>
+      {choosing ? (
+        <PlannedDayChooser
+          days={plannedDays}
+          shownDay={day}
+          source={source}
+          onClose={closeChooser}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function PlannedDayChooser({
+  days,
+  shownDay,
+  source,
+  onClose,
+}: {
+  days: PlannedDay[];
+  shownDay: PlannedDay;
+  source: TodaySource;
+  onClose: () => void;
+}) {
+  const { dayPlan, setCurrentPlannedDay, followPlanDates } = useStore();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={dialogRef}
+      className="sheet planned-day-chooser"
+      aria-labelledby="planned-day-chooser-title"
+      onClose={onClose}
+      onCancel={(e) => { e.preventDefault(); onClose(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      }}
+      onClick={(e) => { if (e.target === dialogRef.current) onClose(); }}
+    >
+      <div className="sheet-body">
+        <div className="row-between sheet-head">
+          <h2 id="planned-day-chooser-title">Choose current day</h2>
+          <button type="button" className="ctx-help-close" onClick={onClose} aria-label="Close planned-day chooser">✕</button>
+        </div>
+        <ol className="planned-day-chooser__list">
+          {days.map((d) => {
+            const route = d.fromStopId && d.toStopId
+              ? `${stopShortName(STOPS_BY_ID[d.fromStopId])} to ${stopShortName(STOPS_BY_ID[d.toStopId])}`
+              : null;
+            const current = d.id === shownDay.id && source !== 'preview';
+            return (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  className="planned-day-choice"
+                  // This is the day currently SHOWN by the personal Journey,
+                  // not necessarily the device's current calendar date (it
+                  // may be manual or clamped), so use the generic current-item
+                  // value rather than the misleading `date` token.
+                  aria-current={current ? 'true' : undefined}
+                  aria-label={`Day ${d.number}, ${formatDayDate(d.date) ?? 'date unavailable'}, ${activityOrderPhrase(d)}${route ? `, ${route}` : ''}${current ? ', current' : ''}`}
+                  onClick={() => { setCurrentPlannedDay(d.id); onClose(); }}
+                >
+                  <span className="planned-day-choice__number tnum">{d.number}</span>
+                  <span className="planned-day-choice__copy">
+                    <strong>{formatDayDate(d.date) ?? `Day ${d.number}`}</strong>
+                    <span><DayTypeBadge kinds={d.kinds} />{activityOrderPhrase(d)}{route ? ` · ${route}` : ''}</span>
+                  </span>
+                  {current ? <span className="pill pill-current">Current</span> : null}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <button
+          type="button"
+          className="btn btn-block"
+          disabled={dayPlan?.currentDayId == null && dayPlan?.currentLegId == null}
+          onClick={() => { followPlanDates(); onClose(); }}
+        >
+          Follow plan dates
+        </button>
+      </div>
+    </dialog>
   );
 }
 

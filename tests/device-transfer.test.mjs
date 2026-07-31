@@ -91,8 +91,16 @@ function populatedState() {
   return s;
 }
 
-/** Canonical Kungsleden stage count — what src/utils/storage.ts passes through. */
-const STAGE_COUNT = 7;
+/** Canonical Kungsleden stage topology — what src/utils/storage.ts passes through. */
+const STAGE_COUNT = [
+  { id: 'd1', fromStopId: 'abisko', toStopId: 'abiskojaure' },
+  { id: 'd2', fromStopId: 'abiskojaure', toStopId: 'alesjaure' },
+  { id: 'd3', fromStopId: 'alesjaure', toStopId: 'tjaktja' },
+  { id: 'd4', fromStopId: 'tjaktja', toStopId: 'salka' },
+  { id: 'd5', fromStopId: 'salka', toStopId: 'singi' },
+  { id: 'd6', fromStopId: 'singi', toStopId: 'kebnekaise' },
+  { id: 'd7', fromStopId: 'kebnekaise', toStopId: 'nikkaluokta' },
+];
 
 /** Mirrors buildExport + parseImport (src/utils/exportImport.ts). */
 function exportImportRoundTrip(state) {
@@ -185,17 +193,43 @@ test('an older export without a direction imports as the canonical default', () 
 
 // ---- Trip plan (schema v5) --------------------------------------------------
 
-test('full-state transfer preserves travel and stay items verbatim', () => {
+test('full-state transfer preserves travel and stay items — legacy stop links migrate, never drop', () => {
   const original = populatedState();
   const restored = exportImportRoundTrip(original);
-  assert.deepEqual(restored.trip, original.trip);
   const bus = restored.trip.find((i) => i.id === 'trip_bus');
+  assert.deepEqual(bus, original.trip[0], 'transport survives verbatim');
   assert.equal(bus.status, 'confirmed');
   assert.equal(bus.bookingReference, 'LTN-778');
   assert.equal(bus.linkedTransportId, 'line-91');
+  // The seeded stay carries the v9 linkedStopId shape: the transfer lands it
+  // on the v10 Place field with the SAME stable id and every personal field
+  // intact — an old device's export can never arrive unlinked.
   const salka = restored.trip.find((i) => i.id === 'trip_salka');
-  assert.equal(salka.linkedStopId, 'salka');
+  assert.equal(salka.linkedPlaceId, 'salka');
+  assert.ok(!('linkedStopId' in salka), 'only the v10 field survives normalisation');
   assert.equal(salka.checkInDate, '2026-08-25');
+  assert.equal(salka.title, 'Sälka hut');
+});
+
+test('a v10 export with linkedPlaceId (including an off-route place) transfers verbatim', () => {
+  const original = populatedState();
+  original.trip.push({
+    id: 'trip_kiruna',
+    kind: 'stay',
+    title: 'Night before the train home',
+    status: 'planned',
+    stayType: 'hotel-hostel',
+    location: 'Kiruna',
+    checkInDate: '2026-08-31',
+    attachmentIds: [],
+    linkedPlaceId: 'stf-kiruna',
+    createdAt: 1751400000000,
+    updatedAt: 1751400000000,
+  });
+  const restored = exportImportRoundTrip(original);
+  const kiruna = restored.trip.find((i) => i.id === 'trip_kiruna');
+  assert.deepEqual(kiruna, original.trip[original.trip.length - 1]);
+  assert.equal(kiruna.linkedPlaceId, 'stf-kiruna');
 });
 
 test('attachment REFERENCES ride the backup; the restored item keeps them so the UI can flag the missing file honestly', () => {
@@ -215,8 +249,40 @@ test('an older export without trip data imports as an empty trip plan', () => {
   assert.ok(restored.packing.some((i) => i.id === 'custom_abc'), 'personal data survives');
 });
 
-test('full-state transfer preserves a configured day plan verbatim', () => {
+test('full-state transfer preserves a configured day plan (v10 legs) verbatim', () => {
   const state = populatedState();
+  state.routeDirection = 'abisko-to-nikkaluokta';
+  state.dayPlan = {
+    direction: 'abisko-to-nikkaluokta',
+    startDate: '2026-08-23',
+    journeyActive: true,
+    currentDayId: 'day_a2',
+    currentLegId: 'leg_a2_1',
+    days: [
+      { id: 'day_a1', activities: [{ kind: 'travel' }], overnight: { kind: 'stop', stopId: 'abisko' } },
+      { id: 'day_a2', activities: [{ kind: 'hiking', legs: [
+        { id: 'leg_a2_1', kind: 'canonical-stage', stageId: 'd1', orientation: 'canonical' },
+        { id: 'leg_a2_2', kind: 'canonical-stage', stageId: 'd2', orientation: 'canonical' },
+      ] }] },
+      { id: 'day_a3', activities: [{ kind: 'rest' }] },
+      { id: 'day_a4', activities: [{ kind: 'hiking', legs: [
+        { id: 'leg_a4_1', kind: 'canonical-stage', stageId: 'd7', orientation: 'canonical' },
+        { id: 'leg_a4_2', kind: 'canonical-stage', stageId: 'd7', orientation: 'opposite' },
+      ] }, { kind: 'travel' }],
+        overnight: { kind: 'stay', tripItemId: 'trip_salka' } },
+    ],
+  };
+  const restored = exportImportRoundTrip(state);
+  assert.deepEqual(restored.dayPlan, state.dayPlan, 'legs, pointers and overnights ride verbatim');
+  // The plan rides alongside everything else — nothing is traded for it.
+  assert.equal(restored.currentStageId, 'd3');
+  assert.equal(restored.hutData.salka.notes, 'Sauna coins!');
+  assert.equal(restored.trip.length, 2);
+});
+
+test('a v9 (stage-count) export imports as the deterministically migrated plan', () => {
+  const state = populatedState();
+  state.schemaVersion = 9;
   state.routeDirection = 'abisko-to-nikkaluokta';
   state.dayPlan = {
     direction: 'abisko-to-nikkaluokta',
@@ -231,11 +297,16 @@ test('full-state transfer preserves a configured day plan verbatim', () => {
     ],
   };
   const restored = exportImportRoundTrip(state);
-  assert.deepEqual(restored.dayPlan, state.dayPlan);
-  // The plan rides alongside everything else — nothing is traded for it.
+  assert.deepEqual(
+    restored.dayPlan.days.map((d) =>
+      d.activities.filter((a) => a.kind === 'hiking').flatMap((a) => a.legs.map((l) => l.stageId)),
+    ),
+    [[], ['d1', 'd2'], [], ['d3', 'd4', 'd5', 'd6', 'd7']],
+  );
+  assert.equal(restored.dayPlan.currentDayId, 'day_a2');
+  assert.equal(restored.dayPlan.days[1].activities[0].legs[0].id, 'leg_day_a2_d1');
   assert.equal(restored.currentStageId, 'd3');
   assert.equal(restored.hutData.salka.notes, 'Sauna coins!');
-  assert.equal(restored.trip.length, 2);
 });
 
 test('an older export without a day plan imports as no plan (the default state)', () => {
@@ -258,6 +329,40 @@ test('a backup from a device walking the OTHER direction never reuses its plan',
   const restored = exportImportRoundTrip(state);
   assert.equal(restored.dayPlan, null, 'discarded, never mirrored or rebuilt');
   assert.equal(restored.currentStageId, 'd3', 'route progress is untouched');
+});
+
+test('a set-aside Day plan recovery rides the export verbatim', () => {
+  // The recovery copy is ordinary PersistentState, so the full-state JSON
+  // export carries the original data honestly and a new device preserves it.
+  const original = {
+    direction: 'abisko-to-nikkaluokta',
+    startDate: '2026-08-23',
+    currentDayId: 'day_b1',
+    days: [{ id: 'day_b1', activities: [{ kind: 'hiking', stages: 99 }], note: 'over-consumed' }],
+  };
+  const state = { ...populatedState(), dayPlanRecovery: { reason: 'migration-failed', dayPlan: original } };
+  const restored = exportImportRoundTrip(state);
+  assert.equal(restored.dayPlan, null);
+  assert.equal(restored.dayPlanRecovery.reason, 'migration-failed');
+  assert.equal(JSON.stringify(restored.dayPlanRecovery.dayPlan), JSON.stringify(original));
+  assert.equal(restored.currentStageId, 'd3', 'everything else rides as before');
+});
+
+test('a malformed v9 export lands on a new device as recovery, not as loss', () => {
+  const state = { ...populatedState(), schemaVersion: 9 };
+  state.dayPlan = {
+    direction: 'abisko-to-nikkaluokta',
+    startDate: '2026-08-23',
+    currentDayId: null,
+    days: [{ id: 'day_u1', activities: [{ kind: 'hiking', stages: 3 }] }], // under-consumption
+  };
+  const restored = exportImportRoundTrip(state);
+  assert.equal(restored.dayPlan, null, 'the plan cannot load');
+  assert.equal(
+    JSON.stringify(restored.dayPlanRecovery.dayPlan),
+    JSON.stringify(state.dayPlan),
+    'the original crossed the device boundary intact',
+  );
 });
 
 test('a corrupt day plan never blocks the rest of the import', () => {

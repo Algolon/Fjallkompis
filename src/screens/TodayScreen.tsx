@@ -11,10 +11,26 @@ import type { ListsDeepLink } from './ListsScreen';
 import type { SettingsDeepLinkSection } from './SettingsScreen';
 
 export interface NavPayload {
+  /** Stops & places: open this route stop (existing Today/Map deep links). */
   stopId?: string;
+  /**
+   * Stops & places: open this Journey Place — route stop OR curated
+   * off-route place (a linked stay's View place). Generalises `stopId`;
+   * when both are present the place id wins.
+   */
+  placeId?: string;
   mapStageId?: string | null;
   /** Stages: open (and scroll to) this stage's day guide on arrival. */
   guideStageId?: string;
+  /**
+   * Stages: the opened guide was reached from a planned leg that walks the
+   * stage in the OPPOSITE direction. The card then carries a contextual
+   * note saying so — the canonical guide itself is never rewritten or
+   * presented as editorially reversed (direction-aware guide content is a
+   * documented deferral). Presentation context only: the screen still
+   * reads no plan data.
+   */
+  guideReversed?: boolean;
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
   /** Settings: one-shot deep link opening a section (Prepare's readiness card). */

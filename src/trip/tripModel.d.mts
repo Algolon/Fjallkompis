@@ -49,16 +49,6 @@ export interface TransportTripPrefill {
   to?: string;
 }
 
-/** Prefill (not yet an item — no id/timestamps) for "Track stay". */
-export interface StayTripPrefill {
-  kind: 'stay';
-  title: string;
-  stayType: StayTripItem['stayType'];
-  status: TripItemStatus;
-  linkedStopId?: string;
-}
-
 export declare function transportPrefillFromEntry(entry: unknown): TransportTripPrefill;
-export declare function stayPrefillFromStop(stop: unknown): StayTripPrefill;
 
 export type { TripItem, TransportTripItem, StayTripItem };

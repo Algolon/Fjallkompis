@@ -50,13 +50,13 @@ test('Wallet terminology is fully replaced by Trip terminology in the Lists UI',
 test('no new primary route: the trip plan lives inside the Lists screen only', () => {
   const routes = read('src/navigation/routes.mjs');
   assert.ok(!/['"]trip['"]|#\/trip/i.test(routes), 'navigation route table untouched');
-  assert.match(lists, /\{mode === 'trip' \? <TripView launch=\{tripLaunch\} \/> : null\}/);
+  assert.match(lists, /\{mode === 'trip' \? \(\s*<TripView\s+launch=\{tripLaunch\}/);
 });
 
 test('deep links open Trip: section id, a specific item, or a Track-stay prefill', () => {
   assert.match(lists, /tripItemId\?: string/);
-  assert.match(lists, /trackStayStopId\?: string/);
-  assert.match(lists, /if \(link\.tripItemId \|\| link\.trackStayStopId\) return 'trip'/);
+  assert.match(lists, /trackStayPlaceId\?: string/);
+  assert.match(lists, /if \(link\.tripItemId \|\| link\.trackStayPlaceId\) return 'trip'/);
   // One-shot: choosing a tab by hand clears any pending launch payload.
   assert.match(lists, /setTripLaunch\(null\)/);
 });
@@ -226,12 +226,21 @@ test('deleting a document clears stale item references through the store', () =>
   assert.match(store, /removeTripAttachmentReferences/);
 });
 
-test('item identity and provenance are immutable through ordinary patches', () => {
+test('item identity and transport provenance are immutable through ordinary patches', () => {
   assert.match(store, /id: i\.id/);
   assert.match(store, /kind: i\.kind/);
   assert.match(store, /createdAt: i\.createdAt/);
-  assert.match(store, /linkedStopId: i\.linkedStopId/);
-  assert.match(store, /linkedTransportId: i\.linkedTransportId/);
+  assert.match(
+    store,
+    /i\.kind === 'transport' \? \{ linkedTransportId: i\.linkedTransportId \} : \{\}/,
+    'transport provenance stays pinned',
+  );
+  // A Stay's Place link is deliberately NOT pinned: the Linked place control
+  // edits it through the same draft transaction as every other stay field.
+  assert.ok(
+    !/linkedPlaceId: i\.linkedPlaceId/.test(store),
+    'the stay place link is patch-editable',
+  );
   assert.match(store, /updatedAt: Date\.now\(\)/);
 });
 
@@ -254,16 +263,16 @@ test('the prefill flow copies verified facts only — personal fields stay perso
 
 // ---- Stops integration --------------------------------------------------------
 
-test('every stop offers Track stay (or View stay in Trip when already tracked)', () => {
-  assert.match(stopsScreen, /Track stay/);
-  assert.match(stopsScreen, /View stay in Trip/);
-  assert.match(stopsScreen, /trackStayStopId: stop\.id/);
-  assert.match(stopsScreen, /tripItemId: linked\.id/);
-  assert.match(stopsScreen, /i\.kind === 'stay' && i\.linkedStopId === stop\.id/);
+test('every place offers Track stay / View stay in Trip / an N-stays chooser', () => {
+  assert.match(stopsScreen, /'Track stay'/);
+  assert.match(stopsScreen, /'View stay in Trip'/);
+  assert.match(stopsScreen, /\$\{count\} stays in Trip/);
+  assert.match(stopsScreen, /trackStayPlaceId: placeId/);
+  assert.match(stopsScreen, /staysLinkedToPlace\(state\.trip, stop\.id\)/);
 });
 
-test('the stay prefill uses the stable stop id and verified stop facts only', () => {
-  assert.match(tripView, /stayPrefillFromStop\(stop\)/);
+test('the stay prefill resolves through the Journey Place model — verified facts only', () => {
+  assert.match(tripView, /placeStayPrefill\(journeyPlaceById\(launch\.placeId, STOPS_BY_ID\), STOPS_BY_ID\)/);
 });
 
 // ---- Legacy document categories -----------------------------------------------

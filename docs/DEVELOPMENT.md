@@ -510,16 +510,22 @@ facts were checked. Update `src/data/stops.ts` after re-verifying. Optional
 licensed photos go in `public/images/stops/` (see the README there) — without
 one, cards render a generated route-silhouette fallback.
 
-Personal data stays separate: per-stop **trip notes** and the **packing
-list** live in one versioned `localStorage` blob
-(`src/utils/stateMigration.mjs`, schema v5; defensive migration of every
+Personal data stays separate: per-stop **trip notes**, the **packing
+list**, the **Trip plan** and the optional **Day plan** live in one
+versioned `localStorage` blob
+(`src/utils/stateMigration.mjs`, schema v10; defensive migration of every
 older payload covered by `tests/state-migration.test.mjs` — v3 drops the
 archived Daily checklist's data while preserving everything else (see
 [archived-features/daily-checklist.md](archived-features/daily-checklist.md)),
-v4 adds `routeDirection`, and v5 makes the packing list a fully user-owned
-snapshot behind `packingTemplateVersion`: seed items can be renamed, moved,
-and deleted, and template additions reach existing users through an explicit
-one-time migration, never a re-merge on load).
+v4 adds `routeDirection`, v5 makes the packing list a fully user-owned
+snapshot behind `packingTemplateVersion` (seed items can be renamed, moved,
+and deleted; template additions reach existing users through an explicit
+one-time migration, never a re-merge on load), v6 adds the Trip plan's
+structured items, v7 the optional Day plan, v8–v9 worn-clothing tracking
+(per-unit from v9), and v10 rebuilds hiking days on explicit ordered legs,
+adds the `journeyActive` Today switch and renames stay links to
+`linkedPlaceId` — a stored Day plan that cannot migrate safely is preserved
+verbatim in `dayPlanRecovery`, never guessed at or dropped).
 
 **Trail Wallet documents** (Lists → Wallet) are the one deliberate exception:
 metadata AND file blobs live together in a dedicated IndexedDB database
@@ -735,3 +741,26 @@ Release checklist for a meaningful user-facing PR (also in the
 3. Did [ROADMAP.md](../ROADMAP.md) priorities or statuses change?
 4. Are `package.json` and `package-lock.json` still aligned?
    (`npm run check:version` verifies this.)
+
+### Release integration branches (multi-slice milestones)
+
+Every push to `main` deploys production (see **Deploy**), so a milestone
+built as several PRs — v0.27.0 is the first — must NOT land its slices on
+`main` individually: an intermediate slice can carry a persisted-schema
+bump (v10) without the finished user-facing feature set.
+
+The pattern:
+
+- `v<milestone>-integration` (e.g. `v0.27.0-integration`) is created from
+  the released `main` and never deploys — `deploy.yml` triggers only on
+  pushes to `main`.
+- Every slice PR targets the integration branch, never `main`. Later slice
+  branches start from the integration branch's current head.
+- `pr-ci.yml` runs for PRs against `main` AND `v*-integration`, so every
+  slice PR still passes the full test/typecheck/build gate.
+- When all slices are accepted, ONE release PR merges the integration
+  branch into `main` — that PR carries the version bump, the CHANGELOG
+  release entry, and the final release checklist; merging it is the deploy.
+
+Nothing about versioning changes: `package.json` stays at the released
+version on the integration branch until the release PR.

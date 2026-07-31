@@ -119,8 +119,78 @@ test('the two interactions stay independent — no whole-card click target', () 
   // The card is an <article>; only the set-pill and the guide toggle handle
   // clicks, so expanding a guide can never set the stage or vice versa.
   assert.match(screen, /<article\s+className=\{`card stage-card/);
-  const setHandlers = screen.match(/onClick=\{\(\) => setCurrentStage\(stage\.id\)\}/g) ?? [];
-  assert.equal(setHandlers.length, 1, 'exactly one setCurrentStage click target per card');
+  const setHandlers = screen.match(/onClick=\{\(\) => requestSetCurrent\(stage\.id\)\}/g) ?? [];
+  assert.equal(setHandlers.length, 1, 'exactly one set-as-current click target per card');
   const toggleHandlers = screen.match(/onClick=\{\(\) => toggleGuide\(stage\.id\)\}/g) ?? [];
   assert.equal(toggleHandlers.length, 1, 'exactly one guide toggle per card');
+});
+
+// ---- Set as current: planned occurrences ------------------------------------
+//
+// A v10 Day plan may walk one stage on several days (or twice on one).
+// Selecting by stage id alone would then be a guess, so ambiguity opens a
+// chooser and NO pointer moves until the user picks; zero or one occurrence
+// goes straight through the store rule. The first occurrence is never
+// assumed.
+
+test('an ambiguous stage opens the occurrence chooser instead of selecting', () => {
+  assert.match(screen, /const requestSetCurrent = \(stageId: string\) => \{/);
+  assert.match(screen, /if \(occurrencesOf\(stageId\)\.length > 1\) \{/);
+  assert.match(screen, /setChoosingStageId\(stageId\);\s*\n\s*return;/);
+  assert.match(screen, /setCurrentStage\(stageId\);/, 'zero/one falls through to the store rule');
+  // The chooser mounts only while a stage is being disambiguated.
+  assert.match(screen, /\{choosingStage \? \(\s*\n\s*<OccurrenceChooserSheet/);
+});
+
+test('each occurrence option states day, date, oriented route, reverse and current', () => {
+  const chooser = screen.slice(screen.indexOf('function OccurrenceChooserSheet('));
+  assert.match(chooser, /Day \{day\.number\}/);
+  assert.match(chooser, /formatDateFieldLabel\(day\.date\)/);
+  assert.match(chooser, /leg\.stage\.fromHutId/);
+  assert.match(chooser, /leg\.stage\.toHutId/);
+  assert.match(chooser, /walks the section in reverse/);
+  assert.match(chooser, /leg\.orientation !== natural/);
+  assert.match(chooser, /aria-current=\{leg\.isCurrent \? 'true' : undefined\}/);
+  assert.match(chooser, /Currently selected/);
+});
+
+test('choosing selects the occurrence atomically; cancelling changes nothing', () => {
+  const chooser = screen.slice(screen.indexOf('function OccurrenceChooserSheet('));
+  // The ONLY pointer write is the occurrence-specific store action.
+  assert.match(chooser, /setCurrentLeg\(day\.id, leg\.id\);/);
+  assert.ok(!/setCurrentStage\(/.test(chooser), 'the chooser never falls back to a stage-id write');
+  // Cancel / backdrop / Escape only close the sheet.
+  assert.match(chooser, /Cancel/);
+  assert.match(chooser, /onClose=\{onClose\}/);
+  assert.ok(!/setState|currentStageId/.test(chooser), 'no other write path exists');
+});
+
+// ---- Opposite-leg guide context ---------------------------------------------
+//
+// A canonical Stage Guide may open from a planned leg that walks the section
+// the OTHER way. The card then says so contextually; the guide prose itself
+// is never rewritten, mirrored or presented as editorially reversed —
+// direction-aware guide content is a documented deferral
+// (docs/proposals/day-plan-explicit-legs.md).
+
+test('a reversed-leg deep link adds the contextual note to the opened card', () => {
+  assert.match(screen, /initialGuideReversed\?: boolean;/);
+  assert.match(screen, /initialGuideReversed && stage\.id === initialGuideStageId/);
+  assert.match(screen, /Your planned leg walks this section in the opposite\s+direction/);
+  assert.match(screen, /The guide below describes the \{stopShortName\(from\)\}/);
+  assert.match(screen, /Today shows your leg’s own\s+direction, distances and climb\./);
+  // The note NEVER swaps or rewrites guide content: the guide lookup stays
+  // keyed on the active itinerary direction, unconditionally.
+  assert.match(screen, /stageGuide\(stage\.id, itinerary\.direction\)/);
+  assert.ok(!/stageGuide\([^)]*Reversed/.test(screen), 'no reversed guide variant is fetched');
+});
+
+test('Today passes the flag only from the day-owned lead leg', () => {
+  const today = readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8');
+  assert.match(today, /const leadLegReversed = leadLeg != null && leadLeg\.orientation !== naturalOrientation;/);
+  const flags = today.match(/guideStageId: leadStage\.id, guideReversed: leadLegReversed/g) ?? [];
+  assert.equal(flags.length, 2, 'both guide deep links carry the context');
+  // The generic no-plan hero never sends it.
+  const generic = today.slice(today.indexOf('function StageHero('), today.indexOf('function StageJourney('));
+  assert.ok(!/guideReversed/.test(generic), 'generic mode knows nothing of legs');
 });

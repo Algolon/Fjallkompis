@@ -2,7 +2,10 @@ name: Pull request CI
 
 on:
   pull_request:
-    branches: [main]
+    # Slice PRs for a multi-PR milestone target its integration branch
+    # (docs/DEVELOPMENT.md → "Release integration branches") and must pass
+    # the same gate as PRs against main. Deploy stays main-only.
+    branches: [main, 'v*-integration']
 
 permissions:
   contents: read

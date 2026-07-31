@@ -90,7 +90,7 @@ test('marker accessible names identify the stop and the preview action', () => {
 test('popup action label names the destination', () => {
   assert.equal(
     popupActionLabel('Abiskojaure'),
-    'Open Abiskojaure details in Huts & Stations',
+    'Open Abiskojaure details in Stops & places',
   );
 });
 

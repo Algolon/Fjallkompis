@@ -9,13 +9,16 @@
  *      memory, is never persisted, and implies nothing about where the user
  *      actually is — it exists so a future or past planned day can be
  *      inspected in its Today presentation.
- *   2. `currentDayId` points at a planned day  → that day, as an explicit
+ *   2. personal Journey is active and `currentDayId` points at a planned day
+ *      → that day, as an explicit
  *      MANUAL OVERRIDE. The user chose it (Stages → "Set as current"), so it
  *      outranks the calendar.
- *   3. the device's local calendar date equals a planned day's date → that
+ *   3. personal Journey is active and the device's local calendar date equals a planned day's date → that
  *      day. Derived only: nothing is written back, and the plan is never
  *      created, moved or reshaped by the system clock.
- *   4. otherwise → no planned day, and Today renders its original,
+ *   4. personal Journey is active and the date is before/after the plan →
+ *      the first/final planned day, without writing a pointer;
+ *   5. otherwise → no planned day, and Today renders its original,
  *      date-independent experience from `currentStageId`.
  *
  * So a plan that has not started yet, one that has finished, a gap date inside
@@ -43,9 +46,7 @@ import { isRealIsoDate } from '../utils/dateTimeField.mjs';
  *   'date'     the device's local calendar date matched a planned day;
  *   'generic'  no planned day applies — the date-independent Today.
  */
-export const TODAY_SOURCES = ['preview', 'override', 'date', 'generic'];
-
-const NONE = { day: null, source: 'generic' };
+export const TODAY_SOURCES = ['preview', 'manual', 'date', 'before-plan', 'after-plan', 'generic'];
 
 /** The planned day whose derived date is exactly `iso`, or null. */
 export function plannedDayForDate(days, iso) {
@@ -70,25 +71,48 @@ function dayById(days, id) {
  * @param {string|null} todayIso        The device's local calendar date.
  * @returns {{ day: object|null, source: 'preview'|'override'|'date'|'generic' }}
  */
-export function resolveEffectiveToday(days, previewDayId, currentDayId, todayIso) {
-  if (!Array.isArray(days) || days.length === 0) return NONE;
+export function resolveEffectiveToday(
+  days,
+  previewDayId,
+  journeyActive,
+  currentDayId,
+  todayIso,
+  currentStageId = null,
+) {
+  const generic = { kind: 'generic', stageId: currentStageId, day: null, source: 'generic' };
+  if (!Array.isArray(days) || days.length === 0) return generic;
 
   // 1. A transient preview outranks everything WHILE it is being shown — it
   //    is presentation, not progress, and exiting it reveals 2–4 unchanged.
   //    A dangling preview id (the previewed day was deleted) falls through
   //    silently, exactly like a dangling manual pointer.
   const previewed = dayById(days, previewDayId);
-  if (previewed) return { day: previewed, source: 'preview' };
+  if (previewed) return { kind: 'planned', dayId: previewed.id, day: previewed, source: 'preview' };
+
+  // An existing plan and even a legacy manual pointer are inert until the
+  // user explicitly enables personal-Journey mode.
+  if (journeyActive !== true) return generic;
 
   // 2. An explicit manual override wins — including over a different date
   //    matching, which is the whole point of being able to override.
   const chosen = dayById(days, currentDayId);
-  if (chosen) return { day: chosen, source: 'override' };
+  if (chosen) return { kind: 'planned', dayId: chosen.id, day: chosen, source: 'manual' };
 
   // 3. Today's local calendar date, matched exactly against a planned date.
   const matched = plannedDayForDate(days, todayIso);
-  if (matched) return { day: matched, source: 'date' };
+  if (matched) return { kind: 'planned', dayId: matched.id, day: matched, source: 'date' };
 
-  // 4. Before the plan, after it, or on a date it does not cover.
-  return NONE;
+  // Consecutive planned days mean every valid non-matching local date lies
+  // before or after the plan. Malformed dates cannot be ordered safely.
+  if (isRealIsoDate(todayIso)) {
+    const first = days.find((d) => isRealIsoDate(d.date)) ?? null;
+    const last = [...days].reverse().find((d) => isRealIsoDate(d.date)) ?? null;
+    if (first && todayIso < first.date) {
+      return { kind: 'planned', dayId: first.id, day: first, source: 'before-plan' };
+    }
+    if (last && todayIso > last.date) {
+      return { kind: 'planned', dayId: last.id, day: last, source: 'after-plan' };
+    }
+  }
+  return generic;
 }

@@ -9,7 +9,9 @@ import {
 } from 'react';
 import type {
   DayActivityKind,
+  DayPlanRecovery,
   DayPlanState,
+  HikingLegOrientation,
   JournalEntry,
   OvernightRef,
   PlannedDayRecord,
@@ -33,25 +35,37 @@ import {
   resetPackingProgress as resetPackingProgressItems,
 } from '../utils/packingModel.mjs';
 import { newTripItemId, normalizeTripItem } from '../trip/tripModel.mjs';
-import { normalizeDirection } from '../route/direction.mjs';
+import {
+  DEFAULT_DIRECTION,
+  REVERSE_DIRECTION,
+  normalizeDirection,
+} from '../route/direction.mjs';
 import { getActiveItinerary } from '../route/activeItinerary';
 import type { ActiveItinerary, ItineraryStage } from '../route/activeItinerary';
 import { isRealIsoDate } from '../utils/dateTimeField.mjs';
+import { STAGE_TOPOLOGY } from '../data/stages';
 import {
+  addLegToDay,
   createDayPlan as buildDayPlan,
-  currentDayIdAfterEdit,
   dayIndexById,
-  dayIndexForStageIndex,
+  dropHikingFromDay as dropHikingFromDayIn,
+  hikingLegsOf,
   insertDay,
   isDefaultDays,
+  moveLegInDay,
+  pointersAfterEdit,
   removeDay as removeDayFromPlan,
+  removeLegFromDay,
   reorderDayActivities,
+  repeatLegInDay,
+  reverseLegInDay,
   setDayActivities as setDayActivitiesIn,
   setDayOvernight as setDayOvernightIn,
-  setHikingStages,
+  stageOccurrences,
 } from '../plan/dayPlan.mjs';
+import type { NewDayStartLeg } from '../plan/dayPlan.mjs';
 import { buildPlannedDays } from '../plan/plannedDays.mjs';
-import type { PlannedDay } from '../plan/plannedDays.mjs';
+import type { OrientedStageViews, PlannedDay } from '../plan/plannedDays.mjs';
 import { resolveEffectiveToday } from '../plan/effectiveToday.mjs';
 import type { TodaySource } from '../plan/effectiveToday.mjs';
 import { todayIso } from '../utils/format';
@@ -97,7 +111,7 @@ interface AppStore {
    * written back to the plan (see src/plan/effectiveToday.mjs).
    */
   currentPlannedDay: PlannedDay | null;
-  /** How `currentPlannedDay` was resolved: preview, override, date, generic. */
+  /** How `currentPlannedDay` was resolved. */
   todaySource: TodaySource;
   /**
    * TRANSIENT planned-day preview (Settings → Preview). Runtime React state
@@ -116,18 +130,54 @@ interface AppStore {
   dayPlanIsDefault: boolean;
   /** Create the default plan (one hiking day per stage) from a start date. */
   createDayPlan: (startDate: string) => void;
+  /** Explicitly choose whether Today uses the personal calendar Journey. */
+  setDayPlanJourneyActive: (active: boolean) => void;
+  /** Select a calendar day without inventing a hiking occurrence or Stage. */
+  setCurrentPlannedDay: (dayId: string) => void;
   /** Move an existing plan's journey start date. Invalid input is ignored. */
   setStartDate: (startDate: string) => void;
-  /** Insert a day at `index` with the given activity kinds. */
-  addPlannedDay: (index: number, kinds: DayActivityKind[]) => void;
-  /** Remove a day by stable id; its walking passes to a neighbouring day. */
+  /**
+   * Insert a day at `index` with the given activity kinds. A hiking day
+   * walks the EXPLICITLY chosen `startLeg` — the UI proposes or asks via
+   * `newDayLegCandidates`; the model never picks a section (and so never
+   * silently repeats a stage) by itself.
+   */
+  addPlannedDay: (index: number, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => void;
+  /** Remove a day by stable id; its walking is removed with it, never reassigned. */
   removePlannedDay: (dayId: string) => void;
-  /** Replace a day's activity composition (kinds, in the order given). */
-  setDayActivities: (dayId: string, kinds: DayActivityKind[]) => void;
+  /**
+   * Replace a day's activity composition (kinds, in the order given).
+   * Taking hiking ON requires the explicitly chosen `startLeg`, exactly
+   * like `addPlannedDay`.
+   */
+  setDayActivities: (dayId: string, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => void;
   /** Swap a two-activity day's order (hike-then-travel ⇄ travel-then-hike). */
   swapDayActivities: (dayId: string) => void;
-  /** Set how many adjacent canonical stages a hiking day covers. */
-  setHikingDayStages: (dayId: string, stages: number) => void;
+  // Hiking-leg edits. Each one touches EXACTLY the named day; a change the
+  // model refuses (a disconnecting add/remove/reverse/move, the final leg)
+  // leaves the plan untouched — the UI disables those controls and says why.
+  /** Add a physically connecting leg at the start or end of a day's walk. */
+  addHikingLeg: (
+    dayId: string,
+    stageId: string,
+    orientation: HikingLegOrientation,
+    position: 'start' | 'end',
+  ) => void;
+  /** Remove a leg (refused for the day's final leg — see dropDayHiking). */
+  removeHikingLeg: (dayId: string, legId: string) => void;
+  /** Flip a leg's absolute orientation where the sequence stays connected. */
+  reverseHikingLeg: (dayId: string, legId: string) => void;
+  /** Walk a leg's stage again: a SECOND occurrence, back the other way. */
+  repeatHikingLeg: (dayId: string, legId: string) => void;
+  /** Reorder a day's legs where the moved sequence stays connected. */
+  moveHikingLeg: (dayId: string, fromIndex: number, toIndex: number) => void;
+  /**
+   * The EXPLICIT removal of a day's walking: drops the hiking activity and
+   * its legs, replacing the day's composition with `replacementKinds`. The
+   * UI names the route being removed and confirms first. No other day
+   * changes — the coverage difference becomes a diagnostic, never a repair.
+   */
+  dropDayHiking: (dayId: string, replacementKinds: DayActivityKind[]) => void;
   /** Set (or clear back to derived, with undefined) a day's overnight. */
   setDayOvernight: (dayId: string, ref: OvernightRef | undefined) => void;
   /** Back to one hiking day per stage; the start date and direction are kept. */
@@ -135,11 +185,26 @@ interface AppStore {
   /** Destructive: drop the plan entirely (back to the default state). */
   removeDayPlan: () => void;
   /**
+   * A stored Day plan that could not be loaded, preserved verbatim (see
+   * PersistentState.dayPlanRecovery). Null in every ordinary state. The UI
+   * offers exporting it and the explicit removal below — nothing else in
+   * the app reads or interprets it.
+   */
+  dayPlanRecovery: DayPlanRecovery | null;
+  /**
+   * Destructive, explicitly confirmed in the UI: delete the set-aside
+   * original of a Day plan that failed to load. Touches nothing else —
+   * an active plan, route progress and all unrelated state survive.
+   */
+  removeDayPlanRecovery: () => void;
+  /**
    * Clear the manual current-day override so Today follows the plan's dates
-   * again (or the generic fallback outside them). Touches ONLY
-   * `dayPlan.currentDayId`; route progress (`currentStageId`), the plan's
-   * days and dates, and everything else are preserved. A no-op with no plan
-   * or no override — the UI offers it only while one is active.
+   * again (or the generic fallback outside them). Touches ONLY the pointer
+   * pair `dayPlan.currentDayId` + `dayPlan.currentLegId` (the leg names an
+   * occurrence within the active day, so it cannot outlive the override);
+   * route progress (`currentStageId`), the plan's days and dates, and
+   * everything else are preserved. A no-op with no plan or no override —
+   * the UI offers it only while one is active.
    */
   followPlanDates: () => void;
 
@@ -148,6 +213,13 @@ interface AppStore {
   currentStage: ItineraryStage | null;
   nextHutId: string | null;
   setCurrentStage: (stageId: string) => void;
+  /**
+   * Select a specific hiking OCCURRENCE — one leg of one planned day — as
+   * where the user is. Writes `currentLegId`, `currentDayId` and
+   * `currentStageId` ATOMICALLY (the leg determines its canonical stage), so
+   * the three pointers cannot drift apart. A no-op for an unknown day/leg.
+   */
+  setCurrentLeg: (dayId: string, legId: string) => void;
 
   // Stop trip notes (persisted under the legacy hutData key)
   getStopNote: (stopId: string) => string;
@@ -224,9 +296,19 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   /**
    * Select a canonical stage (the Stages screen's "Set as current"). When a
-   * Day plan exists, the calendar day containing that stage becomes the active
-   * day in the SAME update — the two pointers are written together, never
-   * separately, so they cannot drift apart.
+   * Day plan exists, the pointers follow the stage's planned OCCURRENCES:
+   *
+   *   - exactly ONE leg in the plan walks this stage → that occurrence
+   *     becomes current: `currentDayId` and `currentLegId` are written with
+   *     `currentStageId` in the SAME update, so the pointers cannot drift;
+   *   - NO leg walks it (the stage is not in the plan) → only route progress
+   *     moves; the calendar day stays, but the active-leg pointer clears —
+   *     the previous occurrence is no longer where the user says they are;
+   *   - SEVERAL legs walk it → only route progress moves. Picking one
+   *     occurrence because its stage id matches would be arbitrary; the
+   *     occurrence-specific choice belongs to `setCurrentLeg`. (Which
+   *     surface offers that choice is a decision for the personal-Journey
+   *     slice — see docs/proposals/day-plan-explicit-legs.md.)
    *
    * An explicit progress choice also ENDS any transient preview: the user is
    * saying "this is where I am", and a preview left on top would hide the
@@ -236,13 +318,42 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setPreviewDayId(null);
     setState((s) => {
       if (!s.dayPlan) return { ...s, currentStageId: stageId };
-      const stageIndex = getActiveItinerary(s.routeDirection).stages.findIndex(
-        (st) => st.id === stageId,
-      );
-      const dayIndex = stageIndex === -1 ? -1 : dayIndexForStageIndex(s.dayPlan.days, stageIndex);
-      const currentDayId =
-        dayIndex === -1 ? s.dayPlan.currentDayId : s.dayPlan.days[dayIndex].id;
-      return { ...s, currentStageId: stageId, dayPlan: { ...s.dayPlan, currentDayId } };
+      const occurrences = stageOccurrences(s.dayPlan.days, stageId);
+      if (occurrences.length === 1) {
+        return {
+          ...s,
+          currentStageId: stageId,
+          dayPlan: {
+            ...s.dayPlan,
+            currentDayId: occurrences[0].dayId,
+            currentLegId: occurrences[0].legId,
+          },
+        };
+      }
+      return {
+        ...s,
+        currentStageId: stageId,
+        dayPlan: { ...s.dayPlan, currentLegId: null },
+      };
+    });
+  }, []);
+
+  /**
+   * Select a specific hiking occurrence. The leg determines its canonical
+   * stage, so all three pointers move together — atomically, in one update.
+   */
+  const setCurrentLeg = useCallback((dayId: string, legId: string) => {
+    setPreviewDayId(null);
+    setState((s) => {
+      if (!s.dayPlan) return s;
+      const day = s.dayPlan.days.find((d) => d.id === dayId);
+      const leg = day ? hikingLegsOf(day).find((l) => l.id === legId) : undefined;
+      if (!day || !leg) return s;
+      return {
+        ...s,
+        currentStageId: leg.stageId,
+        dayPlan: { ...s.dayPlan, currentDayId: day.id, currentLegId: leg.id },
+      };
     });
   }, []);
 
@@ -274,35 +385,22 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   // questions; keeping both writes here is what stops them diverging.
 
   /**
-   * Apply a day-list edit and repair the active-day pointer.
+   * Apply a day-list edit and repair the pointer pair.
    *
-   * An edit can move a canonical stage from one calendar day to another —
-   * splitting a two-stage day hands its second stage to a brand-new day, and
-   * merging hands a following day's stage back. When the active day was the
-   * one WALKING the current stage, it follows that stage to whichever day now
-   * owns it; the walker's own position on the route never changes, so the day
-   * shown must be the day that contains it.
+   * A v10 edit never moves walking between days, so the rule is simple
+   * honesty (src/plan/dayPlan.mjs pointersAfterEdit): the active day
+   * survives while it exists and degrades to "no active day" when the edit
+   * removed it — never to a different day — and the active leg survives
+   * while it is still one of the active day's own legs.
    *
-   * Ownership is answered by `dayIndexForStageIndex` — the same derivation
-   * `setCurrentStage` uses — never by re-deriving the stage allocation here.
-   *
-   * `currentStageId` is never moved to preserve the previously active day: a
-   * travel or rest day carries no stage, so it simply stays active while it
-   * exists, and degrades to "no active day" when the edit removed it.
+   * `currentStageId` is never moved here: route progress is not something a
+   * calendar edit may rewrite.
    */
   const patchDays = useCallback(
     (s: PersistentState, days: PlannedDayRecord[]): PersistentState => {
       if (!s.dayPlan) return s;
-      const stageIndex = getActiveItinerary(s.routeDirection).stages.findIndex(
-        (st) => st.id === s.currentStageId,
-      );
-      const currentDayId = currentDayIdAfterEdit(
-        s.dayPlan.days,
-        days,
-        s.dayPlan.currentDayId,
-        stageIndex,
-      );
-      return { ...s, dayPlan: { ...s.dayPlan, days, currentDayId } };
+      const pointers = pointersAfterEdit(days, s.dayPlan.currentDayId, s.dayPlan.currentLegId);
+      return { ...s, dayPlan: { ...s.dayPlan, days, ...pointers } };
     },
     [],
   );
@@ -310,12 +408,39 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const createDayPlan = useCallback((startDate: string) => {
     setState((s) => {
       if (s.dayPlan) return s;
-      const plan = buildDayPlan(
-        s.routeDirection,
-        startDate,
-        getActiveItinerary(s.routeDirection).stages.length,
-      );
+      const plan = buildDayPlan(s.routeDirection, startDate, STAGE_TOPOLOGY);
       return plan ? { ...s, dayPlan: plan } : s;
+    });
+  }, []);
+
+  const setDayPlanJourneyActive = useCallback((active: boolean) => {
+    // A mode change must be immediately visible, never hidden by Preview.
+    setPreviewDayId(null);
+    setState((s) => {
+      if (!s.dayPlan || s.dayPlan.journeyActive === active) return s;
+      return {
+        ...s,
+        dayPlan: {
+          ...s.dayPlan,
+          journeyActive: active,
+          // Entering and leaving both start cleanly. In particular, enabling
+          // old v10 data cannot revive a pointer saved before activation
+          // existed, and re-enabling cannot revive a disabled override.
+          currentDayId: null,
+          currentLegId: null,
+        },
+      };
+    });
+  }, []);
+
+  const setCurrentPlannedDay = useCallback((dayId: string) => {
+    setPreviewDayId(null);
+    setState((s) => {
+      if (!s.dayPlan?.journeyActive || !s.dayPlan.days.some((d) => d.id === dayId)) return s;
+      return {
+        ...s,
+        dayPlan: { ...s.dayPlan, currentDayId: dayId, currentLegId: null },
+      };
     });
   }, []);
 
@@ -329,8 +454,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addPlannedDay = useCallback(
-    (index: number, kinds: DayActivityKind[]) => {
-      setState((s) => (s.dayPlan ? patchDays(s, insertDay(s.dayPlan.days, index, kinds)) : s));
+    (index: number, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => {
+      setState((s) =>
+        s.dayPlan
+          ? patchDays(s, insertDay(s.dayPlan.days, index, kinds, STAGE_TOPOLOGY, startLeg))
+          : s,
+      );
     },
     [patchDays],
   );
@@ -348,12 +477,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const setDayActivities = useCallback(
-    (dayId: string, kinds: DayActivityKind[]) => {
+    (dayId: string, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => {
       setState((s) => {
         if (!s.dayPlan) return s;
         const index = dayIndexById(s.dayPlan.days, dayId);
         if (index === -1) return s;
-        return patchDays(s, setDayActivitiesIn(s.dayPlan.days, index, kinds));
+        return patchDays(
+          s,
+          setDayActivitiesIn(s.dayPlan.days, index, kinds, STAGE_TOPOLOGY, startLeg),
+        );
       });
     },
     [patchDays],
@@ -371,16 +503,66 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [patchDays],
   );
 
-  const setHikingDayStages = useCallback(
-    (dayId: string, stages: number) => {
+  // The leg edits share one shape: resolve the day, apply the pure model
+  // operation, repair the pointers. A refusal at the model level (the change
+  // would disconnect the day's walk, remove its final leg, or reference an
+  // unknown id) comes back as an unchanged day list and therefore no update.
+  const patchDayLegs = useCallback(
+    (dayId: string, apply: (days: PlannedDayRecord[], index: number) => PlannedDayRecord[]) => {
       setState((s) => {
         if (!s.dayPlan) return s;
         const index = dayIndexById(s.dayPlan.days, dayId);
         if (index === -1) return s;
-        return patchDays(s, setHikingStages(s.dayPlan.days, index, stages));
+        return patchDays(s, apply(s.dayPlan.days, index));
       });
     },
     [patchDays],
+  );
+
+  const addHikingLeg = useCallback(
+    (dayId: string, stageId: string, orientation: HikingLegOrientation, position: 'start' | 'end') => {
+      patchDayLegs(dayId, (days, index) =>
+        addLegToDay(days, index, stageId, orientation, position, STAGE_TOPOLOGY),
+      );
+    },
+    [patchDayLegs],
+  );
+
+  const removeHikingLeg = useCallback(
+    (dayId: string, legId: string) => {
+      patchDayLegs(dayId, (days, index) => removeLegFromDay(days, index, legId, STAGE_TOPOLOGY));
+    },
+    [patchDayLegs],
+  );
+
+  const reverseHikingLeg = useCallback(
+    (dayId: string, legId: string) => {
+      patchDayLegs(dayId, (days, index) => reverseLegInDay(days, index, legId, STAGE_TOPOLOGY));
+    },
+    [patchDayLegs],
+  );
+
+  const repeatHikingLeg = useCallback(
+    (dayId: string, legId: string) => {
+      patchDayLegs(dayId, (days, index) => repeatLegInDay(days, index, legId, STAGE_TOPOLOGY));
+    },
+    [patchDayLegs],
+  );
+
+  const moveHikingLeg = useCallback(
+    (dayId: string, fromIndex: number, toIndex: number) => {
+      patchDayLegs(dayId, (days, index) =>
+        moveLegInDay(days, index, fromIndex, toIndex, STAGE_TOPOLOGY),
+      );
+    },
+    [patchDayLegs],
+  );
+
+  const dropDayHiking = useCallback(
+    (dayId: string, replacementKinds: DayActivityKind[]) => {
+      patchDayLegs(dayId, (days, index) => dropHikingFromDayIn(days, index, replacementKinds));
+    },
+    [patchDayLegs],
   );
 
   const setDayOvernight = useCallback(
@@ -400,13 +582,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setPreviewDayId(null);
     setState((s) => {
       if (!s.dayPlan) return s;
-      const fresh = buildDayPlan(
-        s.routeDirection,
-        s.dayPlan.startDate,
-        getActiveItinerary(s.routeDirection).stages.length,
-      );
+      const fresh = buildDayPlan(s.routeDirection, s.dayPlan.startDate, STAGE_TOPOLOGY);
       return fresh ? { ...s, dayPlan: fresh } : s;
     });
+  }, []);
+
+  const removeDayPlanRecovery = useCallback(() => {
+    setState((s) => (s.dayPlanRecovery ? { ...s, dayPlanRecovery: null } : s));
   }, []);
 
   const removeDayPlan = useCallback(() => {
@@ -425,9 +607,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
    * or the generic fallback outside the plan. Nothing else is touched.
    */
   const followPlanDates = useCallback(() => {
+    setPreviewDayId(null);
     setState((s) => {
-      if (!s.dayPlan || s.dayPlan.currentDayId == null) return s;
-      return { ...s, dayPlan: { ...s.dayPlan, currentDayId: null } };
+      if (!s.dayPlan || (s.dayPlan.currentDayId == null && s.dayPlan.currentLegId == null)) return s;
+      // The leg pointer names an occurrence WITHIN the active day, so it
+      // cannot outlive the override that made that day active.
+      return { ...s, dayPlan: { ...s.dayPlan, currentDayId: null, currentLegId: null } };
     });
   }, []);
 
@@ -522,14 +707,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const merged = {
           ...i,
           ...patch,
-          // Immutable through ordinary field patching: identity, provenance
-          // and creation time. The linked source ids can only change when the
-          // UI explicitly changes the link (no such UI exists yet).
+          // Immutable through ordinary field patching: identity, transport
+          // provenance and creation time. A Stay's `linkedPlaceId` is
+          // deliberately NOT pinned — the Place link is user-editable, and
+          // the Stay editor's draft sets, moves or removes it explicitly
+          // (an omitted key keeps the current link via the spread above).
           id: i.id,
           kind: i.kind,
           createdAt: i.createdAt,
-          linkedStopId: i.linkedStopId,
-          linkedTransportId: i.linkedTransportId,
+          ...(i.kind === 'transport' ? { linkedTransportId: i.linkedTransportId } : {}),
           updatedAt: Date.now(),
         };
         return normalizeTripItem(merged) ?? i;
@@ -605,9 +791,21 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   // days at all, so no screen can accidentally show a date or an activity
   // indicator. Trip items ride along read-only so a travel day can name the
   // movements the user already recorded — matched by date, never copied.
+  // Both oriented stage views, keyed by STABLE physical stage id. A leg
+  // resolves against the view its own absolute orientation names — the
+  // forward itinerary's stages for 'canonical', the reverse itinerary's for
+  // 'opposite' — both verified transforms of the same canonical data,
+  // memoised module-side (getActiveItinerary caches per direction).
+  const orientedStages = useMemo<OrientedStageViews>(
+    () => ({
+      canonical: getActiveItinerary(DEFAULT_DIRECTION).stageById,
+      opposite: getActiveItinerary(REVERSE_DIRECTION).stageById,
+    }),
+    [],
+  );
   const plannedDays = useMemo<PlannedDay[]>(
-    () => buildPlannedDays(itinerary.stages, state.dayPlan, state.trip),
-    [itinerary, state.dayPlan, state.trip],
+    () => buildPlannedDays(orientedStages, state.dayPlan, state.trip),
+    [orientedStages, state.dayPlan, state.trip],
   );
   // A previewed day that stops existing (removed by a day-list edit, a plan
   // reset, or the plan's removal) clears the transient pointer instead of
@@ -630,14 +828,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       resolveEffectiveToday(
         plannedDays,
         previewDayId,
+        state.dayPlan?.journeyActive === true,
         state.dayPlan?.currentDayId ?? null,
         localToday,
+        state.currentStageId,
       ),
     [plannedDays, previewDayId, state.dayPlan, localToday],
   );
   const currentPlannedDay = effectiveToday.day;
   const dayPlanIsDefault =
-    state.dayPlan != null && isDefaultDays(state.dayPlan.days, itinerary.stages.length);
+    state.dayPlan != null &&
+    isDefaultDays(state.dayPlan.days, state.dayPlan.direction, STAGE_TOPOLOGY);
 
   const getStopNote = useCallback(
     (stopId: string): string => state.hutData[stopId]?.notes ?? '',
@@ -659,6 +860,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     currentStage,
     nextHutId,
     setCurrentStage,
+    setCurrentLeg,
     dayPlan: state.dayPlan,
     plannedDays,
     currentPlannedDay,
@@ -668,15 +870,24 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     exitDayPreview,
     dayPlanIsDefault,
     createDayPlan,
+    setDayPlanJourneyActive,
+    setCurrentPlannedDay,
     setStartDate,
     addPlannedDay,
     removePlannedDay,
     setDayActivities,
     swapDayActivities,
-    setHikingDayStages,
+    addHikingLeg,
+    removeHikingLeg,
+    reverseHikingLeg,
+    repeatHikingLeg,
+    moveHikingLeg,
+    dropDayHiking,
     setDayOvernight,
     resetDayPlan,
     removeDayPlan,
+    dayPlanRecovery: state.dayPlanRecovery,
+    removeDayPlanRecovery,
     followPlanDates,
     getStopNote,
     setStopNote,

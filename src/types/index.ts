@@ -651,10 +651,6 @@ export interface TripItemBase {
   bookingReference?: string;
   /** Wallet document ids — references only, never blobs. */
   attachmentIds: string[];
-  /** Stable route-stop id (physical, direction-safe) — provenance, not owned. */
-  linkedStopId?: string;
-  /** Stable Transport reference entry id — provenance, not owned. */
-  linkedTransportId?: string;
   /** ms epoch — immutable after creation. */
   createdAt: number;
   /** ms epoch — changes on every edit. */
@@ -672,6 +668,8 @@ export interface TransportTripItem extends TripItemBase {
   departureTime?: string;
   arrivalTime?: string;
   provider?: string;
+  /** Stable Transport reference entry id — provenance, not owned, immutable. */
+  linkedTransportId?: string;
 }
 
 export interface StayTripItem extends TripItemBase {
@@ -680,6 +678,16 @@ export interface StayTripItem extends TripItemBase {
   location?: string;
   checkInDate?: string;
   checkOutDate?: string;
+  /**
+   * Stable Journey Place id (a route-stop id or a curated off-route id such
+   * as 'stf-kiruna') — the Stay's optional, EDITABLE association with one
+   * known reference place (src/data/journeyPlaces.mjs). Successor of the v9
+   * `linkedStopId` field, whose values remain valid verbatim because route
+   * Place ids preserve the stable stop ids. An id the current registry no
+   * longer resolves is PRESERVED (the UI shows an honest unavailable state)
+   * so curated-data changes can never silently destroy the association.
+   */
+  linkedPlaceId?: string;
 }
 
 export type TripItem = TransportTripItem | StayTripItem;
@@ -854,10 +862,10 @@ export interface PackingCategory {
  *
  * A journey is a sequence of CALENDAR DAYS; only some of them contain walking.
  * A day holds one or more ordered {@link DayActivity} entries and, optionally,
- * an explicit overnight reference. Canonical route stages are never modified,
- * merged, split, skipped, duplicated or reordered by any of this: a hiking
- * activity records only HOW MANY adjacent stages that day covers, and the
- * stages themselves are derived by walking the days in order.
+ * an explicit overnight reference. Canonical route stages are never modified
+ * by any of this: a hiking activity owns explicit LEGS that reference the
+ * verified stages (schema v10), and the referenced assets — geometry,
+ * statistics, guides, highlights, detours — stay stage-owned and immutable.
  *
  * Planning is strictly OPT-IN. `PersistentState.dayPlan` is null until the user
  * creates a plan in Settings, and null means the app behaves exactly as it did
@@ -869,12 +877,28 @@ export interface PackingCategory {
  * is DERIVED at runtime (src/plan/plannedDays.mjs).
  */
 export interface DayPlanState {
-  /** The walking direction this plan's hiking allocation was authored for. */
+  /** The walking direction this plan's journey was authored for. */
   direction: RouteDirection;
   /** ISO date (yyyy-mm-dd) of day 1 of the JOURNEY — not of the first hike. */
   startDate: string;
+  /**
+   * Whether Today uses this personal calendar journey instead of the generic
+   * canonical seven-stage progression. Explicit and persisted: a manual day
+   * pointer is progress within the mode, never the mode switch itself.
+   */
+  journeyActive: boolean;
   /** Stable id of the active calendar day, or null. Never an array index. */
   currentDayId: string | null;
+  /**
+   * Stable id of the active hiking OCCURRENCE — one specific leg of the
+   * current day — or null. A stage may be walked several times in a v10
+   * plan, so a stage id alone cannot name where the user is; this pointer
+   * can. Only ever honoured together with `currentDayId` (the leg must be
+   * one of the current day's own legs) and written atomically with it and
+   * `currentStageId` (see setCurrentStage / setCurrentLeg in AppStore).
+   * Travel and rest days are current without one.
+   */
+  currentLegId: string | null;
   /** Ordered, consecutive calendar days. At least one. */
   days: PlannedDayRecord[];
 }
@@ -890,17 +914,55 @@ export interface PlannedDayRecord {
 }
 
 /**
+ * Absolute orientation of a hiking leg over its PHYSICAL canonical stage:
+ * 'canonical' walks the stage as stored (the north-to-south generation
+ * order), 'opposite' walks the same verified route in reverse. Deliberately
+ * NOT relative to the app's selected route direction — re-reading a plan can
+ * never reinterpret a leg (see src/plan/hikingLegs.mjs).
+ */
+export type HikingLegOrientation = 'canonical' | 'opposite';
+
+/**
+ * One explicit hiking leg: a reference to a physical canonical stage plus an
+ * absolute orientation. `id` is a stable identity (`leg_…`, unique across the
+ * whole plan) that survives unrelated edits and reloads — repeated walks of
+ * the same stage are DIFFERENT legs. The one supported kind is
+ * 'canonical-stage'; a verified custom-route member may be added later, but
+ * nothing free-form is ever representable.
+ */
+export interface CanonicalHikingLeg {
+  id: string;
+  kind: 'canonical-stage';
+  stageId: string;
+  orientation: HikingLegOrientation;
+}
+
+/**
+ * The minimal per-stage topology the pure plan modules validate against:
+ * canonical stage id and its canonical-direction endpoints. Derived from the
+ * verified route data by the caller (src/utils/storage.ts) — the plan modules
+ * stay free of route-data imports, the stateMigration.mjs convention.
+ */
+export interface StageTopologyEntry {
+  id: string;
+  fromStopId: string;
+  toStopId: string;
+}
+
+/**
  * A supported activity. Deliberately closed: no custom or free-form variant.
- *  - hiking: covers `stages` ADJACENT canonical stages, taken in route order
- *    from the running cursor. Across every day these counts sum to exactly the
- *    canonical stage count, which is what makes a skipped, duplicated,
- *    non-adjacent or reordered stage structurally unrepresentable.
+ *  - hiking: owns an ORDERED list of explicit legs, each referencing one
+ *    physical canonical stage with an absolute orientation (schema v10 —
+ *    src/plan/hikingLegs.mjs). Legs must connect physically end-to-start
+ *    within the activity; there is NO full-route partition invariant, so a
+ *    stage may be skipped, repeated or walked in reverse, and editing one
+ *    day never changes another. At least one leg, always.
  *  - travel: presence only. The movement's details live in Lists → Trip and
  *    are matched by date, never copied here.
  *  - rest: presence only, and exclusive — a rest day holds nothing else.
  */
 export type DayActivity =
-  | { kind: 'hiking'; stages: number }
+  | { kind: 'hiking'; legs: CanonicalHikingLeg[] }
   | { kind: 'travel' }
   | { kind: 'rest' };
 
@@ -966,6 +1028,9 @@ export interface HutUserData {
  * Schema v7 added `dayPlan` (the personal Day plan); older payloads — and
  * every existing user — normalise to `null`, which is exactly the app's
  * pre-v7 behaviour (no dates, no planned days, no activity indicators).
+ * Schema v10 replaced the hiking stage-count allocation with explicit legs
+ * (and added `dayPlan.currentLegId`); v9 payloads migrate deterministically
+ * (see src/plan/dayPlanMigration.mjs).
  */
 export interface PersistentState {
   schemaVersion: number;
@@ -1013,4 +1078,33 @@ export interface PersistentState {
    * answer both questions.
    */
   dayPlan: DayPlanState | null;
+  /**
+   * A stored Day plan that could not be loaded — most importantly a v9
+   * stage-count plan the v10 migration refused — preserved VERBATIM instead
+   * of being discarded. Null in every ordinary state (no plan, or a plan
+   * that loaded). Never rendered, repaired or reinterpreted: the app treats
+   * it as an opaque original the user can export or explicitly remove
+   * (Settings → Day plan). Rides the JSON backup and device transfer like
+   * every other PersistentState field, and survives normalisation untouched
+   * — only the user's confirmed removal (or a later successful load of the
+   * same data elsewhere) ends it.
+   */
+  dayPlanRecovery: DayPlanRecovery | null;
+}
+
+/**
+ * The set-aside original of a Day plan that failed to load. `dayPlan` is the
+ * exact persisted value, byte-for-byte — unknown fields, malformed counts
+ * and all — because a recovery copy that has been "cleaned" is no longer
+ * the user's data.
+ */
+export interface DayPlanRecovery {
+  /**
+   * Why it was set aside: 'migration-failed' for a legacy stage-count plan
+   * the v9 → v10 migration refused; 'unreadable' for anything else that
+   * did not validate (a corrupt or foreign-direction payload).
+   */
+  reason: 'migration-failed' | 'unreadable';
+  /** The original persisted value, verbatim. */
+  dayPlan: unknown;
 }

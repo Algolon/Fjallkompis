@@ -21,16 +21,20 @@ outdoor platform.
 
 ## Current state
 
-Offline-first Kungsleden hiking companion PWA (beta, v0.20.0). The core trip
+Offline-first Kungsleden hiking companion PWA (beta, v0.27.0). The core trip
 loop works end to end and offline, in either walking direction (Abisko →
 Nikkaluokta or the reverse, chosen in Settings): verified route with stage
 statistics and
 elevation profiles, researched per-stage day guides (sources and verification
 dates auditable in the repo), along-route GPS progress on the current stage,
 an offline vector basemap with hillshade and contour relief, plus an optional
-Sentinel-2 satellite layer (all independently downloadable), a curated stops
-guide, a packing list (the Daily checklist is archived —
-docs/archived-features/daily-checklist.md), offline shop-info and transport
+Sentinel-2 satellite layer (all independently downloadable), a curated
+Stops & places guide (the eight route stops plus curated Before & after trail
+places, with stays linkable to either), an optional personal Day plan whose
+explicit hiking legs can drive Today as the active Journey (the generic
+seven-Stage Today remains the default —
+docs/proposals/day-plan-explicit-legs.md), a packing list (the Daily
+checklist is archived — docs/archived-features/daily-checklist.md), offline shop-info and transport
 reference in Lists (STF cabin-shop assortments with 2025 reference prices;
 route buses, boats and the train as validity-bound 2026 planning snapshots —
 never live), a personal Trip plan in Lists — structured travel and stay
@@ -88,14 +92,6 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Next
 
-3. **Hiking-allocation redesign** — the Day plan's persisted model records
-   only how many adjacent stages a day covers, so a route section can never
-   be reassigned to a specific day directly; v0.26.1 therefore *refuses*
-   edits that would orphan a day's walking rather than silently handing it
-   to a neighbour. The redesign decides the explicit reassignment UX (and
-   any model change behind it): where a freed section goes, how the user
-   chooses, and whether backtracking, repeated stages or partial-stage days
-   ever become representable.
 4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
    capabilities: import a standalone packing list; import or create custom
@@ -113,6 +109,13 @@ cross-device synchronization is deliberately far down this roadmap.
    ("1 of 3 worn") was implemented directly, superseding both deferred
    items (the seed worn/spares split is unnecessary once a row can wear
    some units and carry the rest).
+7. **Personal Journey and Places follow-ups (deliberately deferred)** —
+   explicitly kept out of v0.27.0 and not yet scheduled: a dedicated
+   wildcamp model (a wildcamp is recorded as a plain Other stay today),
+   user-created Places, whole-day multi-leg Map routes for a personal day,
+   custom GPX import, and independently researched reverse-direction guide
+   prose (reverse guides remain reoriented from the verified forward
+   facts). Cross-device sync stays in *Much later*, unchanged.
 
 ## Later
 
@@ -144,6 +147,28 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Personal Journey and Places (v0.27.0)**: the Day plan's hiking model
+  records explicit ordered legs — each one canonical stage walked in a
+  stated direction — replacing the adjacent-stage count, so repeated
+  stages, backtracking, reversed sections, skips and an out-and-back day
+  are all representable and editing one day can never change another
+  (persisted schema v9 → v10, deterministic migration; a stored plan that
+  cannot migrate safely is preserved verbatim behind a Settings recovery
+  notice with Download original plan / Remove recovery copy, never guessed
+  at). The planner reports coverage differences — sections not planned,
+  walked more than once, walked in reverse, non-continuing starts, an
+  early finish — as information, never errors. An explicit persisted
+  **Use Day plan on Today** switch makes the personal calendar Today's
+  active Journey (resolution Preview → manual day → local date → honest
+  before/after view → generic), with a compact day chooser and **Follow
+  plan dates**; the generic seven-Stage experience remains the default.
+  Stops became **Stops & places**, adding STF Kiruna as the first curated
+  Before & after trail place; a Stay can be linked, relinked or unlinked
+  to a known place (legacy `linkedStopId` route links migrate on the same
+  stable ids), zero/one/several linked stays per place get an explicit
+  chooser instead of a guessed first match, and Place ↔ Trip navigation
+  is bidirectional. A wildcamp or uncatalogued night remains a plain
+  Other stay. Design record: docs/proposals/day-plan-explicit-legs.md.
 - **Defect-fix release (v0.26.3)**: three reproduced live defects in the
   v0.26 experience, fixed without any schema or model change. The
   planned-day preview shows the ordered activity glyphs again (they were
