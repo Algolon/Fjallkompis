@@ -2829,6 +2829,19 @@ button.stop-fac:focus-visible {
 .today-screen .today-glass .card-sub {
   color: #3f4f45;
 }
+/* Mobile one-viewport budget: reclaim 8px from internal padding rather than
+   hiding or truncating any source/date/activity meaning. Applies equally to
+   generic and personal Journey variants. */
+@media (max-width: 899px) {
+  .today-screen .hero-content {
+    padding-top: 16px;
+    padding-bottom: 14px;
+  }
+  .today-screen section.card[aria-label$='Journey progress'] {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+}
 
 /* Journey card contrast on glass: endpoint labels a step darker than the
    default faint ink so they stay readable over the photo. */
@@ -5327,6 +5340,66 @@ span.trip-attach-open {
   flex-direction: column;
 }
 
+.dayplan-journey-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.dayplan-journey-toggle__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+.dayplan-journey-toggle__copy strong {
+  font-size: 14px;
+  color: var(--ink);
+}
+.dayplan-journey-toggle__copy em {
+  color: var(--spruce-700);
+  font-style: normal;
+  font-weight: 700;
+}
+.setting-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 50px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  padding: 9px 3px;
+}
+.setting-switch::before {
+  content: '';
+  position: absolute;
+  inset: 9px 3px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  transition: background 0.15s ease;
+}
+.setting-switch__thumb {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.25);
+  transform: translateX(0);
+  transition: transform 0.15s ease;
+}
+.setting-switch[aria-checked='true']::before { background: var(--spruce-700); }
+.setting-switch[aria-checked='true'] .setting-switch__thumb { transform: translateX(22px); }
+.setting-switch:focus-visible { outline: 2px solid var(--glacier-700); outline-offset: 1px; }
+.dayplan-day__actions { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
 .dayplan-day {
   background: var(--paper-2);
   border: 1px solid var(--line);
@@ -5687,6 +5760,9 @@ span.trip-attach-open {
 .hero-day__preview {
   color: #f5c97b;
 }
+.hero-day__source {
+  color: #f5c97b;
+}
 .hero--preview .hero-day {
   /* Reserve the exit pill's corner so the eyebrow wraps under it instead of
      running beneath the control on narrow viewports. Sized to the pill's
@@ -5744,10 +5820,68 @@ span.trip-attach-open {
 .journey-step.is-off-trail .journey-dot {
   border-style: dashed;
 }
+.journey-choose {
+  min-height: 44px;
+  margin: -10px 0;
+  padding: 8px 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: inherit;
+}
+.planned-day-chooser__list {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.planned-day-choice {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  text-align: left;
+}
+.planned-day-choice[aria-current] {
+  border-color: var(--cloudberry);
+  background: var(--cloudberry-soft);
+}
+.planned-day-choice__number {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--spruce-700);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.planned-day-choice__copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.planned-day-choice__copy strong { color: var(--ink); font-size: 13px; }
+@media (max-width: 340px) {
+  .hero-day__source { white-space: normal; }
+  .dayplan-journey-toggle { align-items: flex-start; }
+  .planned-day-choice { align-items: flex-start; }
+}
 .hero-via {
   margin: 4px 0 0;
   font-size: 13.5px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.72);
 }
-

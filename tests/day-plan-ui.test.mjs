@@ -40,6 +40,43 @@ test('the Settings section is called "Day plan" and follows Route direction', ()
   assert.match(settings, /<DayPlanCard onNavigate=\{onNavigate\} \/>/);
 });
 
+test('the Day plan has one accessible persistent Today switch only when a plan exists', () => {
+  assert.match(card, /Use Day plan on Today/);
+  assert.match(card, /Show your planned calendar days instead of the generic seven-stage journey\./);
+  assert.match(card, /role="switch"/);
+  assert.match(card, /aria-checked=\{dayPlan\.journeyActive\}/);
+  assert.match(card, /setDayPlanJourneyActive\(!dayPlan\.journeyActive\)/);
+  assert.match(card, /Currently used by Today\./);
+  assert.match(css, /\.setting-switch \{[^}]*height: 44px;/s);
+  const noPlan = card.slice(card.indexOf('if (!dayPlan) {'), card.indexOf('const lastDay'));
+  assert.ok(!noPlan.includes('role="switch"'), 'no switch exists until a plan exists');
+});
+
+test('the planned-day chooser is modal, cancellable and separates selection from Preview', () => {
+  assert.match(onRoute, /function PlannedDayChooser\(/);
+  assert.match(onRoute, /className="sheet planned-day-chooser"/);
+  assert.match(onRoute, /showModal\(\)/);
+  assert.match(onRoute, /chooserTriggerRef\.current\?\.focus\(\)/);
+  assert.match(onRoute, /onClose=\{onClose\}/);
+  assert.match(onRoute, /onCancel=\{\(e\) => \{ e\.preventDefault\(\); onClose\(\); \}\}/);
+  assert.match(onRoute, /if \(e\.key === 'Escape'\)/);
+  assert.match(onRoute, /e\.target === dialogRef\.current/);
+  assert.match(onRoute, /setCurrentPlannedDay\(d\.id\)/);
+  assert.match(onRoute, /Follow plan dates/);
+  assert.match(onRoute, /disabled=\{dayPlan\?\.currentDayId == null && dayPlan\?\.currentLegId == null\}/);
+  assert.match(card, /Set current day/);
+  assert.match(card, /Preview day/);
+});
+
+test('manual and clamped sources use height-neutral, accessible wording', () => {
+  for (const copy of ['Selected', 'Up next', 'Plan ended']) assert.ok(onRoute.includes(copy), copy);
+  assert.match(onRoute, /Manually selected planned day/);
+  assert.match(onRoute, /the plan has not started yet/);
+  assert.match(onRoute, /showing the final planned day/);
+  assert.match(onRoute, /hero-day__source/);
+  assert.ok(!onRoute.includes('today-source-row'), 'no standalone Today status row');
+});
+
 test('the feature is never named Itinerary, Trip plan, Journey or Schedule', () => {
   const copy = stripComments(card).replace(/\b\w+(\.\w+)+/g, '');
   for (const forbidden of [/\bitinerar/i, /\bjourney plan\b/i, /\bschedule\b/i]) {
@@ -111,20 +148,21 @@ test('the effective day comes from the store resolution, not from isCurrent', ()
   assert.ok(!/todayIso|localIsoDate|isCurrent/.test(screen));
 });
 
-test('an active manual override is named and offers exactly one way back', () => {
+test('a manually selected day is named and the chooser offers date following', () => {
   // A pointer set via Stages → "Set as current" never expires on its own, so
   // while one is active Today must SAY the day was chosen manually and offer
   // the return to date-following — outside the day-edit action hierarchy.
-  assert.match(onRoute, /\{todaySource === 'override' \? \(/);
-  assert.match(onRoute, /Manually selected day/);
+  assert.match(onRoute, /source === 'manual'/);
+  assert.match(onRoute, /'Selected'/);
+  assert.match(onRoute, /Manually selected planned day/);
   assert.match(onRoute, /Follow plan dates/);
-  assert.match(onRoute, /onClick=\{followPlanDates\}/);
+  assert.match(onRoute, /followPlanDates\(\); onClose\(\);/);
   // Gated on the RESOLVED source, never re-derived from the pointer or the
   // clock — and rendered only in the planned branch, so no-plan mode (where
   // the source is always 'generic') cannot show it. Exactly one gate.
-  assert.equal((onRoute.match(/todaySource === 'override'/g) ?? []).length, 1);
+  assert.equal((onRoute.match(/source === 'manual'/g) ?? []).length, 3);
   const generic = onRoute.slice(onRoute.indexOf('if (!planned) {'), onRoute.indexOf('// ---- Planned state'));
-  assert.ok(!/todaySource|followPlanDates/.test(generic), 'the generic branch is untouched');
+  assert.ok(!/followPlanDates/.test(generic), 'the generic branch is untouched');
   // It stays out of the edit sheet: this is not a day-editing action.
   assert.ok(!sheet.includes('Follow plan dates'));
   assert.ok(!sheet.includes('followPlanDates'));
@@ -669,7 +707,7 @@ test('a leg walked against the route direction is stated, height-neutrally', () 
   assert.match(onRoute, /\{reversed \? <ArrowUpDown size=\{14\}/);
   assert.match(onRoute, /Walked in reverse of the route direction\./);
   assert.match(onRoute, /legs walked in reverse of the route direction\./);
-  assert.match(onRoute, /\}\. \$\{kindWords\}\.\$\{reversedWords\}`\}/);
+  assert.match(onRoute, /\}\. \$\{kindWords\}\.\$\{sourceWords\}\$\{reversedWords\}`\}/);
   // No standalone hero row for it — the height-neutral rule.
   assert.ok(!/hero-via">[^<]*reverse/.test(onRoute), 'never a dedicated via line');
 });
@@ -723,13 +761,14 @@ test('view mode offers a small explicit Preview action, never the whole row', ()
   }
 });
 
-test('the row marker distinguishes previewing, today and unrelated rows', () => {
+test('the row marker distinguishes previewing, current and unrelated rows', () => {
   const row = card.slice(card.indexOf('function DayRow('), card.indexOf('function AddDayRow('));
   // Previewing replaces the Preview action on the previewed row; the REAL
   // (manual or date-resolved) day keeps its Today pill; other rows Preview.
   assert.match(row, /marker === 'previewing' \? \(/);
   assert.match(row, /Previewing/);
-  assert.match(row, /marker === 'today' \? \(/);
+  assert.match(row, /marker === 'current' \? \(/);
+  assert.match(row, /Set current day/);
   // The marker derives from the ONE store resolution, never a local re-derive.
   assert.match(card, /day\.id === currentPlannedDay\?\.id/);
   assert.match(card, /todaySource === 'preview'/);
@@ -759,8 +798,8 @@ test('Today names the preview and offers exactly one way out', () => {
   );
   assert.match(hero, /hero-exit/);
   assert.ok(!onRoute.includes('Previewing planned day'), 'no standalone preview row');
-  // The override row keeps its own single conditional slot (one occurrence).
-  assert.equal((onRoute.match(/today-override /g) ?? []).length, 1);
+  // Source context stays in the existing eyebrow; no standalone status row.
+  assert.equal((onRoute.match(/today-override /g) ?? []).length, 0);
   // The CSS enforces the same rule: an absolutely positioned corner pill
   // (out of flow) with a ≥44px touch target, and eyebrow space reserved so
   // narrow viewports wrap under the pill instead of colliding with it.

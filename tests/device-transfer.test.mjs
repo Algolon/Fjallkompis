@@ -229,6 +229,7 @@ test('full-state transfer preserves a configured day plan (v10 legs) verbatim', 
   state.dayPlan = {
     direction: 'abisko-to-nikkaluokta',
     startDate: '2026-08-23',
+    journeyActive: true,
     currentDayId: 'day_a2',
     currentLegId: 'leg_a2_1',
     days: [

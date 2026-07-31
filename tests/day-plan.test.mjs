@@ -271,6 +271,7 @@ test('createDayPlan builds the default plan with no active day or leg', () => {
   const plan = createDayPlan(FORWARD, '2026-09-03', TOPOLOGY);
   assert.equal(plan.direction, FORWARD);
   assert.equal(plan.startDate, '2026-09-03');
+  assert.equal(plan.journeyActive, false, 'creating a plan never activates personal Today');
   assert.equal(plan.currentDayId, null, 'nothing is activated automatically');
   assert.equal(plan.currentLegId, null);
   assert.equal(plan.days.length, 7);
@@ -661,8 +662,9 @@ test('the journey fixture survives normalisation verbatim', () => {
   assert.equal(out.startDate, '2026-09-03');
   assert.deepEqual(
     Object.keys(out).sort(),
-    ['currentDayId', 'currentLegId', 'days', 'direction', 'startDate'],
+    ['currentDayId', 'currentLegId', 'days', 'direction', 'journeyActive', 'startDate'],
   );
+  assert.equal(out.journeyActive, false);
 });
 
 test('a v9 stage-count plan migrates during normalisation', () => {
@@ -684,6 +686,17 @@ test('a v9 stage-count plan migrates during normalisation', () => {
   );
   assert.equal(out.days[1].activities[0].legs[0].id, 'leg_day_b_d1', 'deterministic ids');
   assert.equal(out.currentLegId, null);
+  assert.equal(out.journeyActive, false, 'a successful v9 migration remains inactive');
+});
+
+test('journey activation is explicit boolean-only normalisation', () => {
+  const source = plan(journeyDays());
+  assert.equal(normalizeDayPlan({ ...source, journeyActive: true }, FORWARD, TOPOLOGY).journeyActive, true);
+  for (const bad of [undefined, null, false, 0, 1, 'true', {}, []]) {
+    const candidate = { ...source };
+    if (bad !== undefined) candidate.journeyActive = bad;
+    assert.equal(normalizeDayPlan(candidate, FORWARD, TOPOLOGY).journeyActive, false, String(bad));
+  }
 });
 
 test('a malformed v9 plan lands on null with nothing half-migrated', () => {

@@ -873,6 +873,12 @@ export interface DayPlanState {
   direction: RouteDirection;
   /** ISO date (yyyy-mm-dd) of day 1 of the JOURNEY — not of the first hike. */
   startDate: string;
+  /**
+   * Whether Today uses this personal calendar journey instead of the generic
+   * canonical seven-stage progression. Explicit and persisted: a manual day
+   * pointer is progress within the mode, never the mode switch itself.
+   */
+  journeyActive: boolean;
   /** Stable id of the active calendar day, or null. Never an array index. */
   currentDayId: string | null;
   /**

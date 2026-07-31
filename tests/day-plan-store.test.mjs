@@ -161,7 +161,8 @@ test('followPlanDates clears ONLY the override — the way back to date-followin
   // Without it a pointer set via Stages → "Set as current" would outrank the
   // calendar forever: precedence 1 never expires on its own.
   const action = /const followPlanDates = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
-  assert.match(action, /if \(!s\.dayPlan \|\| s\.dayPlan\.currentDayId == null\) return s;/);
+  assert.match(action, /setPreviewDayId\(null\)/, 'date following immediately ends Preview');
+  assert.match(action, /s\.dayPlan\.currentDayId == null && s\.dayPlan\.currentLegId == null/);
   assert.match(action, /dayPlan: \{ \.\.\.s\.dayPlan, currentDayId: null, currentLegId: null \}/);
   // ONLY the pointer: route progress, the plan's days/dates and every other
   // field survive untouched — and nothing here needs the network, so the
@@ -172,11 +173,35 @@ test('followPlanDates clears ONLY the override — the way back to date-followin
   }
 });
 
+test('personal Journey activation and manual-day actions preserve canonical Stage context', () => {
+  const toggle = /const setDayPlanJourneyActive = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.match(toggle, /setPreviewDayId\(null\)/);
+  assert.match(toggle, /journeyActive: active/);
+  assert.match(toggle, /currentDayId: null/);
+  assert.match(toggle, /currentLegId: null/);
+  assert.ok(!stripComments(toggle).includes('currentStageId'), 'mode changes preserve the canonical Stage');
+
+  const select = /const setCurrentPlannedDay = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.match(select, /s\.dayPlan\?\.journeyActive/);
+  assert.match(select, /currentDayId: dayId, currentLegId: null/);
+  assert.match(select, /setPreviewDayId\(null\)/);
+  assert.ok(!stripComments(select).includes('currentStageId'), 'calendar selection does not invent a Stage');
+});
+
+test('reset creates a fresh inactive plan while removal drops it', () => {
+  const reset = /const resetDayPlan = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.match(reset, /return fresh \? \{ \.\.\.s, dayPlan: fresh \} : s;/);
+  assert.match(reset, /setPreviewDayId\(null\)/);
+  const remove = /const removeDayPlan = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.match(remove, /dayPlan: null/);
+  assert.match(remove, /setPreviewDayId\(null\)/);
+});
+
 test('the store resolves the effective Today with ONE clock read, read-only', () => {
   assert.match(store, /from '\.\.\/plan\/effectiveToday\.mjs'/);
   assert.match(
     store,
-    /resolveEffectiveToday\(\s*plannedDays,\s*previewDayId,\s*state\.dayPlan\?\.currentDayId \?\? null,\s*localToday,\s*\)/,
+    /resolveEffectiveToday\(\s*plannedDays,\s*previewDayId,\s*state\.dayPlan\?\.journeyActive === true,\s*state\.dayPlan\?\.currentDayId \?\? null,\s*localToday,\s*state\.currentStageId,\s*\)/,
   );
   assert.match(store, /const localToday = todayIso\(\);/);
   // The clock steers DISPLAY only: no plan action reads it, and neither a
@@ -286,7 +311,7 @@ test('no component writes the persisted pointers directly', () => {
     if (!/\.tsx?$/.test(rel)) continue;
     const src = read(rel);
     assert.ok(
-      !/currentDayId\s*[:=]/.test(src),
+      !/currentDayId\s*:/.test(src),
       `${rel} must not write currentDayId — that belongs to the store`,
     );
     assert.ok(

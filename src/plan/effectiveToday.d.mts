@@ -1,13 +1,16 @@
 import type { PlannedDay } from './plannedDays.mjs';
 
 /** How the day Today shows was resolved. */
-export type TodaySource = 'preview' | 'override' | 'date' | 'generic';
+export type TodaySource = 'preview' | 'manual' | 'date' | 'before-plan' | 'after-plan' | 'generic';
 
-export interface EffectiveToday {
-  /** The planned day Today shows, or null for the generic Today. */
-  day: PlannedDay | null;
-  source: TodaySource;
-}
+export type EffectiveToday =
+  | { kind: 'generic'; stageId: string | null; day: null; source: 'generic' }
+  | {
+      kind: 'planned';
+      dayId: string;
+      day: PlannedDay;
+      source: Exclude<TodaySource, 'generic'>;
+    };
 
 export declare const TODAY_SOURCES: TodaySource[];
 
@@ -19,6 +22,8 @@ export declare function plannedDayForDate(
 export declare function resolveEffectiveToday(
   days: ReadonlyArray<PlannedDay>,
   previewDayId: string | null,
+  journeyActive: boolean,
   currentDayId: string | null,
   todayIso: string | null,
+  currentStageId?: string | null,
 ): EffectiveToday;

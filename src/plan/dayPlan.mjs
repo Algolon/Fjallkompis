@@ -239,6 +239,7 @@ export function createDayPlan(direction, startDate, topology) {
   return {
     direction: normalizeDirection(direction),
     startDate,
+    journeyActive: false,
     currentDayId: null,
     currentLegId: null,
     days,
@@ -609,6 +610,9 @@ export function normalizeDayPlan(raw, activeDirection, topology, currentStageId 
   return {
     direction: source.direction,
     startDate: source.startDate,
+    // Additive schema-v10 field: old/malformed values are deliberately off.
+    // A pointer in an old payload is not consent to replace generic Today.
+    journeyActive: source.journeyActive === true,
     currentDayId,
     currentLegId,
     days,
