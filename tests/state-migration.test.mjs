@@ -20,6 +20,9 @@ import {
   PACKING_TEMPLATE_VERSION,
   SEED_PACKING_ITEMS,
 } from '../src/data/packingSeed.mjs';
+import { buildPlannedDays } from '../src/plan/plannedDays.mjs';
+import { resolveEffectiveToday } from '../src/plan/effectiveToday.mjs';
+import { staysLinkedToPlace } from '../src/data/journeyPlaces.mjs';
 
 /** A realistic schema v1 blob, as the old app persisted it. */
 const V1_STATE = {
@@ -774,6 +777,196 @@ test('v9 → v10: agreeing released pointers derive the current leg', () => {
   const elsewhere = normalizeState({ ...state, currentStageId: 'd6' }, 'd1', STAGE_COUNT);
   assert.equal(elsewhere.dayPlan.currentLegId, null);
   assert.equal(elsewhere.dayPlan.currentDayId, plan.days[3].id, 'the day pointer still holds');
+});
+
+test('v9 → v10: one realistic full-state startup migration is coherent across every slice', () => {
+  const plan = journeyPlan();
+  plan.currentDayId = plan.days[3].id; // the two-leg d3 + d4 Hiking day
+  plan.days[7].overnight = { kind: 'stay', tripItemId: 'trip_departure' };
+
+  const source = {
+    ...v6State(),
+    schemaVersion: 9,
+    routeDirection: FORWARD,
+    currentStageId: 'd4',
+    hutData: { salka: { notes: 'Sauna coins and food parcel' } },
+    journal: [{ id: 'journal_cross_slice', stageId: 'd4', reflection: 'Keep this.' }],
+    packing: v6State().packing.map((item, index) =>
+      index === 0 ? { ...item, status: 'packed', quantity: 2 } : item,
+    ),
+    trip: [
+      {
+        id: 'trip_arrival',
+        kind: 'transport',
+        title: 'Night train north',
+        status: 'confirmed',
+        mode: 'train',
+        from: 'Stockholm',
+        to: 'Abisko',
+        date: '2026-09-03',
+        attachmentIds: ['doc_train_ticket'],
+        linkedTransportId: 'train-vy-nattag-94',
+        createdAt: 100,
+        updatedAt: 101,
+      },
+      {
+        id: 'trip_route_stay',
+        kind: 'stay',
+        title: 'My Sälka booking',
+        status: 'confirmed',
+        stayType: 'mountain-hut',
+        location: 'Upper bunk',
+        checkInDate: '2026-09-07',
+        checkOutDate: '2026-09-08',
+        bookingReference: 'SALKA-42',
+        notes: 'Vegetarian dinner',
+        attachmentIds: ['doc_salka_booking'],
+        linkedStopId: 'salka',
+        walletMetaId: 'wallet_meta_reference',
+        createdAt: 102,
+        updatedAt: 103,
+      },
+      {
+        id: 'trip_departure',
+        kind: 'stay',
+        title: 'Personal Kiruna night',
+        status: 'planned',
+        stayType: 'hotel-hostel',
+        location: 'My chosen room',
+        checkInDate: '2026-09-10',
+        attachmentIds: ['doc_kiruna_booking'],
+        linkedStopId: 'stf-kiruna',
+        createdAt: 104,
+        updatedAt: 105,
+      },
+      {
+        id: 'trip_wildcamp',
+        kind: 'stay',
+        title: 'Lake-side wildcamp',
+        status: 'planned',
+        stayType: 'other',
+        location: 'Flat ground near the lake',
+        attachmentIds: ['doc_wildcamp_note'],
+        createdAt: 106,
+        updatedAt: 107,
+      },
+    ],
+    dayPlan: plan,
+  };
+  const sourceSnapshot = structuredClone(source);
+
+  const migrated = normalizeState(source, 'd1', STAGE_COUNT);
+  assert.equal(migrated.schemaVersion, 10);
+  assert.equal(migrated.currentStageId, 'd4', 'canonical Stage context survives');
+  assert.equal(migrated.dayPlan.journeyActive, false, 'migration never activates personal Journey');
+  assert.equal(migrated.dayPlan.currentDayId, plan.days[3].id);
+  assert.equal(migrated.dayPlan.currentLegId, `leg_${plan.days[3].id}_d4`);
+  assert.deepEqual(migratedLegs(migrated.dayPlan), [
+    [],
+    ['d1:canonical'],
+    ['d2:canonical'],
+    ['d3:canonical', 'd4:canonical'],
+    ['d5:canonical'],
+    ['d6:canonical'],
+    [],
+    ['d7:canonical'],
+    [],
+  ]);
+  assert.deepEqual(
+    migrated.dayPlan.days.map((day) => day.id),
+    plan.days.map((day) => day.id),
+    'calendar identities and order survive',
+  );
+  assert.deepEqual(
+    migrated.dayPlan.days[7].overnight,
+    { kind: 'stay', tripItemId: 'trip_departure' },
+    'overnight keeps the same Trip Stay identity',
+  );
+
+  assert.deepEqual(
+    migrated.trip.map((item) => item.id),
+    source.trip.map((item) => item.id),
+    'Trip identities survive',
+  );
+  assert.equal(migrated.trip[1].linkedPlaceId, 'salka');
+  assert.equal(migrated.trip[2].linkedPlaceId, 'stf-kiruna');
+  assert.equal(staysLinkedToPlace(migrated.trip, 'salka')[0].id, 'trip_route_stay');
+  assert.equal(staysLinkedToPlace(migrated.trip, 'stf-kiruna')[0].id, 'trip_departure');
+  assert.ok(migrated.trip.every((item) => !('linkedStopId' in item)));
+  assert.deepEqual(migrated.trip[1].attachmentIds, ['doc_salka_booking']);
+  assert.equal(migrated.trip[1].walletMetaId, 'wallet_meta_reference');
+  assert.equal(migrated.trip[1].title, 'My Sälka booking');
+  assert.equal(migrated.trip[3].linkedPlaceId, undefined, 'Other stay creates no Place link');
+  assert.equal(migrated.trip[3].location, 'Flat ground near the lake');
+  assert.deepEqual(migrated.hutData, source.hutData);
+  assert.deepEqual(migrated.journal, source.journal);
+  assert.equal(migrated.packing[0].status, 'packed');
+  assert.equal(migrated.packing[0].quantity, 2);
+  assert.deepEqual(source, sourceSnapshot, 'startup migration never mutates its input');
+
+  const oriented = {
+    canonical: Object.fromEntries(
+      STAGE_COUNT.map((stage) => [stage.id, {
+        id: stage.id,
+        fromHutId: stage.fromStopId,
+        toHutId: stage.toStopId,
+        distanceKm: 10,
+        estimatedHours: 4,
+        totalAscentM: 100,
+        totalDescentM: 90,
+        minimumElevationM: 400,
+        maximumElevationM: 900,
+        points: [],
+        elevationProfile: [],
+      }]),
+    ),
+    opposite: Object.fromEntries(
+      STAGE_COUNT.map((stage) => [stage.id, {
+        id: stage.id,
+        fromHutId: stage.toStopId,
+        toHutId: stage.fromStopId,
+        distanceKm: 10,
+        estimatedHours: 4,
+        totalAscentM: 90,
+        totalDescentM: 100,
+        minimumElevationM: 400,
+        maximumElevationM: 900,
+        points: [],
+        elevationProfile: [],
+      }]),
+    ),
+  };
+  const days = buildPlannedDays(oriented, migrated.dayPlan, migrated.trip);
+  assert.equal(days.length, 9, 'the complete Journey derives after the one migration');
+  assert.equal(days[3].legs[1].id, migrated.dayPlan.currentLegId);
+  assert.equal(days[3].legs[1].isCurrent, true);
+  assert.equal(days[7].overnight.tripItemId, 'trip_departure');
+  assert.deepEqual(days[0].travelItems.map((item) => item.id), ['trip_arrival']);
+
+  const inactiveToday = resolveEffectiveToday(
+    days,
+    null,
+    migrated.dayPlan.journeyActive,
+    migrated.dayPlan.currentDayId,
+    '2026-09-06',
+    migrated.currentStageId,
+  );
+  assert.deepEqual(inactiveToday, {
+    kind: 'generic', stageId: 'd4', day: null, source: 'generic',
+  });
+  const activePlan = { ...migrated.dayPlan, journeyActive: true };
+  const activeDays = buildPlannedDays(oriented, activePlan, migrated.trip);
+  const activeToday = resolveEffectiveToday(
+    activeDays,
+    null,
+    true,
+    activePlan.currentDayId,
+    '2026-09-06',
+    migrated.currentStageId,
+  );
+  assert.equal(activeToday.source, 'manual');
+  assert.equal(activeToday.dayId, plan.days[3].id);
+  assert.deepEqual(normalizeState(migrated, 'd1', STAGE_COUNT), migrated, 'v10 is a fixpoint');
 });
 
 test('v10 roundtrip: an already-migrated plan persists verbatim', () => {
