@@ -35,18 +35,31 @@ export function activityOrderPhrase(day) {
 }
 
 /**
- * The transport a day's Trip items describe: "Nikkaluokta → Kiruna", several
- * legs joined. Endpoints are the user's own free text and are never invented —
- * a leg missing one end renders "?" rather than a guess, and a leg missing
- * both is dropped.
+ * The transport a day's Trip items describe: several movements joined in the
+ * order given (the derivation already sorted them by departure time). ONE
+ * shared rule per movement, so every surface acknowledges the same items:
+ *
+ *   1. both endpoints         → "Nikkaluokta → Kiruna";
+ *   2. one endpoint           → "Kiruna → ?" / "? → Abisko" — the known end
+ *                               shown honestly, the other never invented;
+ *   3. no endpoints, a title  → the item's own title, verbatim. A movement
+ *                               recorded as "Bus Nikkaluokta to Kiruna" with
+ *                               empty endpoint fields is real travel and must
+ *                               never be reported as "no travel added yet";
+ *   4. neither                → the entry is dropped (nothing usable to say).
+ *
+ * Everything shown is the user's own free text — never a guess.
  */
 export function travelItemsText(items) {
   if (!Array.isArray(items)) return '';
   return items
     .filter((i) => i?.kind === 'transport')
-    .map((i) => [i.from, i.to])
-    .filter(([a, b]) => a || b)
-    .map(([a, b]) => `${a ?? '?'} → ${b ?? '?'}`)
+    .map((i) => {
+      if (i.from || i.to) return `${i.from ?? '?'} → ${i.to ?? '?'}`;
+      const title = typeof i.title === 'string' ? i.title.trim() : '';
+      return title !== '' ? title : null;
+    })
+    .filter((text) => text !== null)
     .join(', ');
 }
 

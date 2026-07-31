@@ -372,6 +372,26 @@ test('trip data is referenced, never copied into the derived day', () => {
   assert.equal(days[0].travelItems[0], TRIP_ITEMS[0]);
 });
 
+test('a movement added after the fact appears on re-derivation — no reload step', () => {
+  // The reactive chain: the store re-derives plannedDays whenever state.trip
+  // changes, so this pure re-derivation IS what the user sees immediately
+  // after saving a Trip item with Settings still open. A title-only bus (the
+  // reproduced v0.26.2 shape) must match like any other movement.
+  const journeyDays = journey();
+  const before = buildPlannedDays(forwardStages, plan(journeyDays), []);
+  assert.equal(before[0].travelItems.length, 0);
+  const bus = {
+    id: 't_late_bus',
+    kind: 'transport',
+    title: 'Bus Nikkaluokta to Kiruna',
+    date: '2026-09-03',
+    departureTime: '16:40',
+    attachmentIds: [],
+  };
+  const after = buildPlannedDays(forwardStages, plan(journeyDays), [bus]);
+  assert.deepEqual(after[0].travelItems.map((i) => i.id), ['t_late_bus']);
+});
+
 // ---- Current day ------------------------------------------------------------
 
 test('the active day comes from the plan’s stable id, not a position', () => {

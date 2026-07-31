@@ -491,6 +491,24 @@ test('both surfaces read activity order from ONE shared helper', () => {
   }
 });
 
+test('all three surfaces acknowledge a title-only movement (v0.26.2 regression)', () => {
+  // The reproduced defect: the day sheet listed the matched movement by its
+  // own title while the compact Day plan row and Today — both fed by the
+  // shared presenter — dropped an item whose from/to were empty and said
+  // "no travel added yet". The presenter's title fallback is unit-tested in
+  // day-presentation.test.mjs; here the SHEET must keep rendering the same
+  // derived day.travelItems by title, so the three surfaces cannot disagree
+  // about a title-only bus again.
+  assert.match(sheet, /\{day\.travelItems\.map\(\(item\) => \(/);
+  assert.match(sheet, /<strong>\{item\.title\}<\/strong>/);
+  // The sheet reads the derived day's matched items — the exact array the
+  // presenter summarises — never a private re-match of state.trip by date.
+  assert.ok(
+    !/state\.trip[^]{0,60}\.filter\([^]{0,80}date/.test(stripComments(sheet)),
+    'the sheet never re-matches trip items itself',
+  );
+});
+
 test('Today places the travel line by the stored order, not by a fixed slot', () => {
   const hero = onRoute.slice(
     onRoute.indexOf('function PlannedDayHero('),
