@@ -10,6 +10,34 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Changed
+
+- **A hiking day now owns its exact route legs.** The Day plan's hiking
+  model stores explicit ordered legs — each referencing one canonical
+  stage with an absolute direction over it — instead of a count of
+  adjacent stages consumed from a shared cursor (persisted schema
+  v9 → v10; existing plans migrate automatically and render identically).
+  A stage can now be skipped, walked twice, walked in reverse, or walked
+  on two different days; an out-and-back day (Kebnekaise → Nikkaluokta →
+  Kebnekaise) is finally representable; and editing one day can never
+  change another day. The route stages themselves — geometry, statistics,
+  guides — remain immutable and verified.
+- **"Change endpoint" became a focused leg editor.** A hiking day's sheet
+  now lists its exact ordered legs and offers only physically connecting
+  additions (with route, distance, direction and whether the section is
+  already planned elsewhere), plus explicit Reverse, Walk again, reorder
+  and remove actions. Removing a day's walking is its own confirmed step —
+  never a silent side effect of an activity toggle.
+
+### Added
+
+- **The plan says how it differs from the full route.** Edit mode shows
+  one compact, informational summary (sections not planned, walked more
+  than once, walked in reverse, days that start away from where the
+  previous one ended, an early finish) with the specifics behind a
+  disclosure. Differences are personal choices, not errors: nothing is
+  auto-repaired and no edit is blocked by them.
+
 ## [0.26.3] - 2026-07-31
 
 ### Fixed

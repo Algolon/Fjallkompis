@@ -88,14 +88,19 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Next
 
-3. **Hiking-allocation redesign** — the Day plan's persisted model records
-   only how many adjacent stages a day covers, so a route section can never
-   be reassigned to a specific day directly; v0.26.1 therefore *refuses*
-   edits that would orphan a day's walking rather than silently handing it
-   to a neighbour. The redesign decides the explicit reassignment UX (and
-   any model change behind it): where a freed section goes, how the user
-   chooses, and whether backtracking, repeated stages or partial-stage days
-   ever become representable.
+3. **Hiking-allocation redesign** — IN PROGRESS (first v0.27.0 slice on
+   branch `v0.27.0-explicit-hiking-legs`, unreleased). The persisted model
+   now records explicit per-day hiking LEGS — each a reference to one
+   canonical stage with an absolute orientation — replacing the adjacent-
+   stage count and its full-route partition invariant (schema v9 → v10,
+   deterministic migration; docs/proposals/day-plan-explicit-legs.md).
+   Backtracking, repeated stages, reversed sections, skips and early
+   finishes are representable; editing one day never changes another; the
+   planner reports coverage differences as information, never errors.
+   Remaining v0.27.0 slices: the active personal-Journey/Today mode
+   (including the occurrence-selection UX for `Set as current` on repeated
+   stages), a Places model with STF Kiruna, editable Stay ↔ Place linking,
+   wildcamp overnights, and final integration/release.
 4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
    capabilities: import a standalone packing list; import or create custom
