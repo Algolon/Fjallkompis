@@ -144,6 +144,20 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Defect-fix release (v0.26.3)**: three reproduced live defects in the
+  v0.26 experience, fixed without any schema or model change. The
+  planned-day preview shows the ordered activity glyphs again (they were
+  hidden by preview CSS; now visible at 375px on one height-neutral line,
+  wrapping — never hiding — on narrower screens). Title-only Travel items
+  are acknowledged by every surface (the shared summary fell back to
+  nothing when From/To were empty while the day sheet showed the title; it
+  now falls back to the title). And linking an existing Wallet document is
+  one step (choosing stages it immediately — the choose → Link → Save chain
+  silently lost un-Linked choices), the picker distinguishes loading from
+  unavailable, and metadata whose file was evicted stays visible and
+  linkable, marked "file unavailable on this device", instead of silently
+  disappearing. The v0.27.0 personal-journey/Hiking-leg redesign (§Next)
+  remains separate.
 - **Worn clothing, per unit (v0.26.2)**: packing items in the wearable
   categories can be marked Worn — on the body instead of in the backpack —
   and multi-quantity rows track it per UNIT (`wornQuantity`, schema v8→v9:

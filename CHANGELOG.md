@@ -10,6 +10,42 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.26.3] - 2026-07-31
+
+### Fixed
+
+- **A previewed day shows what it is again.** The planned-day preview's top
+  line traded the Hiking / Travel / Rest & explore glyphs away for the
+  PREVIEW marker, so a previewed day no longer said what kind of day it was
+  — or, for a mixed day, in which order. The glyphs are back on the same
+  line (the eyebrow reads **PREVIEW · DAY N · date** followed by the day's
+  activity icons in their stored order), previewing stays height-neutral at
+  375×667 with no icon/Exit collision, and very narrow screens wrap the
+  icons under the Exit control instead of hiding them. The ordered
+  activities remain spoken in the hero's accessible name.
+- **Travel recorded by title only is no longer reported as missing.** A
+  movement like "Bus Nikkaluokta to Kiruna" saved with empty From/To fields
+  appeared when you opened the day's sheet but the compact Day plan row and
+  Today both claimed "no travel added yet". All surfaces now share one rule:
+  both endpoints show as "From → To", a single known endpoint is shown
+  without inventing the other, and a movement with no endpoints falls back
+  to its own title — so the three surfaces can never disagree about the
+  same bus again. Several movements on one date keep their departure-time
+  order, and edits in Lists → Trip still show up everywhere immediately.
+- **Linking an existing document can no longer lose your choice.** Attaching
+  a stored document to a Travel or Stay item used to take three steps —
+  choose it in the picker, press Link, press Save — and pressing Save
+  without Link silently discarded the chosen document. Choosing a document
+  now adds it to the item immediately (Save persists as before, Cancel
+  still discards everything); the separate Link button is gone. The picker
+  is also honest about its states: it says "Loading documents…" during the
+  first read instead of claiming storage is unavailable, and a document
+  whose file has been removed by the browser is no longer silently hidden —
+  it stays listed and linkable, marked "file unavailable on this device",
+  since re-adding the file restores it. One document can back several
+  travel and stay items at once; unlinking from one item never touches the
+  others and never deletes the document.
+
 ## [0.26.2] - 2026-07-30
 
 ### Added
