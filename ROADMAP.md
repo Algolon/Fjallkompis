@@ -144,6 +144,21 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Worn clothing, per unit (v0.26.2)**: packing items in the wearable
+  categories can be marked Worn — on the body instead of in the backpack —
+  and multi-quantity rows track it per UNIT (`wornQuantity`, schema v8→v9:
+  "1 of 3 worn" with the other units still packed). Backpack weight counts
+  only carried units; the header names the worn count and weight; a Worn
+  filter appears once anything is worn. Rows marked with the short-lived
+  all-or-nothing v8 model migrate to one worn unit each.
+- **Planned-day preview (v0.26.2)**: the missing Day plan → Today
+  connection. A small **Preview** action on each Settings day row opens that
+  day in the unchanged Today presentation; resolution precedence is now
+  preview → manual override → date match → generic. The preview pointer is
+  transient runtime state — never persisted, never exported, cleared by
+  reload, replaced by Stages → Set as current — so inspecting a future day
+  can never masquerade as route progress. Completes the v0.26 Day plan
+  experience; the Hiking-allocation redesign (§Next) remains separate.
 - **Day plan hotfix (v0.26.1)**: Today never goes empty because a plan
   exists. The day shown resolves in one fixed order — explicit current day,
   else the planned day dated today (device-local calendar date, display-only,

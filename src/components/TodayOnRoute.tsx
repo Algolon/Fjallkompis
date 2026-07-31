@@ -8,6 +8,7 @@ import {
   Mountain,
   Route,
   TriangleAlert,
+  X,
 } from 'lucide-react';
 import { FacilityIcon } from './FacilityIcon';
 import { MembershipQuickAccess } from './MembershipQuickAccess';
@@ -75,11 +76,14 @@ export function TodayOnRoute({
   trip: TripItem[];
   onNavigate: Navigate;
 }) {
-  // How the shown day was resolved, and the way back from a manual override.
-  // A pointer set via Stages → "Set as current" never expires by itself, so
-  // while one is active Today says so and offers ONE quiet action to return
-  // to following the plan's dates. Hidden the moment no override is active.
-  const { todaySource, followPlanDates } = useStore();
+  // How the shown day was resolved, and the way back from each temporary
+  // state. A pointer set via Stages → "Set as current" never expires by
+  // itself, so while one is active Today says so and offers ONE quiet action
+  // to return to following the plan's dates; a transient preview (Settings →
+  // Preview) says so the same way and offers Exit preview. The two sources
+  // are mutually exclusive, so at most one status row ever renders.
+  const { todaySource, followPlanDates, exitDayPreview } = useStore();
+  const previewing = todaySource === 'preview';
 
   // A plan alone is not enough: today has to BE one of its days. Without one
   // the generic view runs, fully populated, exactly as it does with no plan.
@@ -118,6 +122,8 @@ export function TodayOnRoute({
         day={day}
         dayCount={plannedDays.length}
         routeDirection={routeDirection}
+        previewing={previewing}
+        onExitPreview={exitDayPreview}
         onNavigate={onNavigate}
       />
       {todaySource === 'override' ? (
@@ -133,7 +139,12 @@ export function TodayOnRoute({
           </button>
         </div>
       ) : null}
-      <PlannedJourney day={day} plannedDays={plannedDays} onNavigate={onNavigate} />
+      <PlannedJourney
+        day={day}
+        plannedDays={plannedDays}
+        previewing={previewing}
+        onNavigate={onNavigate}
+      />
       {overnightStopId ? (
         <TonightCard stopId={overnightStopId} onNavigate={onNavigate} />
       ) : overnightStay ? (
@@ -177,11 +188,17 @@ function PlannedDayHero({
   day,
   dayCount,
   routeDirection,
+  previewing,
+  onExitPreview,
   onNavigate,
 }: {
   day: PlannedDay;
   dayCount: number;
   routeDirection: RouteDirection;
+  /** True when this day is a transient preview, not the user's actual day. */
+  previewing: boolean;
+  /** Clears the transient preview (only rendered while previewing). */
+  onExitPreview: () => void;
   onNavigate: Navigate;
 }) {
   const dayDate = day.date ? formatDayDate(day.date) : null;
@@ -208,15 +225,43 @@ function PlannedDayHero({
 
   return (
     <section
-      className="hero"
-      aria-label={`Today: day ${day.number} of ${dayCount}${
+      className={`hero${previewing ? ' hero--preview' : ''}`}
+      // A previewed day must never CLAIM to be today — the accessible name
+      // leads with what it actually is.
+      aria-label={`${previewing ? 'Previewing' : 'Today'}: day ${day.number} of ${dayCount}${
         dayDate ? `, ${dayDate}` : ''
       }. ${kindWords}.`}
     >
       {hiking ? <HeroSilhouette profile={day.elevationProfile} /> : null}
+      {/* Preview is HEIGHT-NEUTRAL: the marker rides the existing eyebrow
+          line and the exit action floats in the hero's top corner — no
+          standalone status row, so every variant keeps its exact height and
+          the one-viewport budget is untouched. Exiting clears ONLY the
+          transient pointer; Today reverts to override / date / generic. */}
+      {previewing ? (
+        <button
+          type="button"
+          className="hero-exit"
+          onClick={onExitPreview}
+          aria-label="Exit preview — return to today’s own view"
+        >
+          <X size={13} strokeWidth={2.4} aria-hidden /> Exit
+        </button>
+      ) : null}
       <div className="hero-content">
         <span className="hero-day">
-          Day {day.number} of {dayCount}
+          {/* While previewing, the eyebrow trades "of N" and the decorative
+              type glyphs for the PREVIEW marker so the line stays single at
+              375px (height-neutral rule). Journey, one card below, still
+              reads "Day N of M", and the hero's accessible name keeps the
+              full phrase in both modes. */}
+          {previewing ? (
+            <>
+              <span className="hero-day__preview">Preview · </span>Day {day.number}
+            </>
+          ) : (
+            <>Day {day.number} of {dayCount}</>
+          )}
           {dayDate ? <span className="hero-day__date"> · {dayDate}</span> : null}
           <DayTypeBadge kinds={day.kinds} />
         </span>
@@ -346,10 +391,13 @@ function PlannedDayHero({
 function PlannedJourney({
   day,
   plannedDays,
+  previewing,
   onNavigate,
 }: {
   day: PlannedDay;
   plannedDays: PlannedDay[];
+  /** True when the highlighted day is a preview, not actual progress. */
+  previewing: boolean;
   onNavigate: Navigate;
 }) {
   const label = (d: PlannedDay) => {
@@ -380,10 +428,12 @@ function PlannedJourney({
               role="listitem"
               className={`journey-step is-${status}${d.stages.length === 0 ? ' is-off-trail' : ''}`}
               onClick={() => onNavigate('stages')}
+              // A previewed day is highlighted but never announced as actual
+              // progress: "(previewing)", and no aria-current step claim.
               aria-label={`Day ${d.number}: ${label(d)}${
-                status === 'current' ? ' (current day)' : ''
+                status === 'current' ? (previewing ? ' (previewing)' : ' (current day)') : ''
               }. Opens Stages.`}
-              aria-current={status === 'current' ? 'step' : undefined}
+              aria-current={status === 'current' && !previewing ? 'step' : undefined}
             >
               <span className="journey-dot tnum">{d.number}</span>
             </button>

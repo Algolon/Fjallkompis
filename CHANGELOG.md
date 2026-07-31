@@ -10,8 +10,24 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.26.2] - 2026-07-30
+
 ### Added
 
+- **Preview any planned day on Today.** Each day in Settings → Day plan now
+  carries a small **Preview** action (view mode) that opens that day —
+  future or past — in the normal Today presentation: hero, Journey, Tonight
+  and all its actions, for every day type. The preview is clearly labelled
+  without costing any space — the hero's own top line reads
+  **PREVIEW · DAY N · date** with an **Exit** control in its corner, and the
+  previewed row in Settings says "Previewing" — and it changes nothing: your
+  current stage, the current day, the plan, trips, packing, notes and
+  documents are untouched.
+  Exiting the preview returns Today to what it was showing — the day matching
+  today's date, a manually selected day (with its Follow plan dates row), or
+  the generic view. The preview is temporary by design: reloading or
+  restarting the app clears it, and choosing a stage in Stages replaces it
+  with real progress.
 - **Worn clothing, per unit.** Clothing, Rain & insulation and Footwear
   items can now be marked as **Worn** — on the body instead of in the
   backpack — and for multi-quantity rows the marking is per UNIT: "Hiking

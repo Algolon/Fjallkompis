@@ -23,6 +23,7 @@ import {
 } from '../components/OfflineMapCard';
 import { CreditsSheet } from '../components/CreditsSheet';
 import { DayPlanCard } from '../components/DayPlanCard';
+import type { TabId } from '../components/TabBar';
 import { InstallCard, installStatusText } from '../components/InstallCard';
 import { useTrailReadiness } from '../hooks/useTrailReadiness';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
@@ -292,10 +293,14 @@ function RouteDirectionCard() {
 
 export function SettingsScreen({
   initialSection = null,
+  onNavigate,
 }: {
   /** One-shot deep link (e.g. Today Prepare's readiness card): open this
    *  section on arrival. Plain tab navigation keeps everything collapsed. */
   initialSection?: SettingsDeepLinkSection | null;
+  /** The app's tab navigator — used by exactly one control: the Day plan's
+   *  "Preview", which opens the previewed planned day on Today. */
+  onNavigate?: (tab: TabId) => void;
 }) {
   const { state, replaceState, resetAll, routeDirection, dayPlan, plannedDays } =
     useStore();
@@ -415,7 +420,7 @@ export function SettingsScreen({
         open={dayPlanOpen}
         onToggle={() => setDayPlanOpen((current) => !current)}
       >
-        <DayPlanCard />
+        <DayPlanCard onNavigate={onNavigate} />
       </SettingsAccordion>
 
       <TrailReadinessCard

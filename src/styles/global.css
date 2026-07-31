@@ -5586,6 +5586,49 @@ span.trip-attach-open {
   font-weight: 600;
   letter-spacing: 0.04em;
 }
+/* Planned-day preview — HEIGHT-NEUTRAL by construction: the marker is inline
+   on the existing eyebrow line and the exit pill is absolutely positioned in
+   the hero's top-right corner, so previewing adds no vertical section and no
+   Today variant grows past its non-preview height. */
+.hero-day__preview {
+  color: #f5c97b;
+}
+.hero--preview .hero-day {
+  /* Reserve the exit pill's corner so the eyebrow wraps under it instead of
+     running beneath the control on narrow viewports. */
+  display: block;
+  padding-right: 76px;
+}
+.hero--preview .hero-day__type {
+  /* The decorative activity glyphs yield their eyebrow space to the PREVIEW
+     marker so the line stays single at 375px — previewing must stay
+     height-neutral, and the day's activities are already stated by the hero
+     body and the accessible name. */
+  display: none;
+}
+.hero-exit {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 11px;
+  border: 1px solid rgba(244, 248, 245, 0.32);
+  border-radius: 999px;
+  background: rgba(244, 248, 245, 0.14);
+  color: #f4f8f5;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.hero-exit::after {
+  /* Keep the visual pill quiet but the touch target at least 44px. */
+  content: '';
+  position: absolute;
+  inset: -9px;
+}
 /* Intermediate stops of a combined day — context under the endpoints, never
    competing with the title. */
 .hero-day__type {
