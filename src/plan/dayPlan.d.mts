@@ -55,18 +55,31 @@ export declare function pointersAfterEdit(
   currentLegId: string | null,
 ): { currentDayId: string | null; currentLegId: string | null };
 
-export declare function defaultLegsForNewDay(
+/** An explicitly chosen starting section for a day taking on hiking. */
+export interface NewDayStartLeg {
+  stageId: string;
+  orientation: HikingLegOrientation;
+}
+
+/** One candidate starting section, with whether the plan already walks it. */
+export interface NewDayLegCandidate extends NewDayStartLeg {
+  fromStopId: string;
+  toStopId: string;
+  alreadyPlanned: boolean;
+}
+
+export declare function newDayLegCandidates(
   days: unknown,
   index: number,
   direction: RouteDirection | string,
   topology: readonly StageTopologyEntry[],
-): CanonicalHikingLeg[];
+): NewDayLegCandidate[];
 export declare function insertDay(
   days: readonly PlannedDayRecord[],
   index: number,
   kinds: readonly DayActivityKind[],
-  direction: RouteDirection | string,
   topology: readonly StageTopologyEntry[],
+  startLeg?: NewDayStartLeg | null,
 ): PlannedDayRecord[];
 export declare function removeDay(
   days: readonly PlannedDayRecord[],
@@ -77,8 +90,8 @@ export declare function setDayActivities(
   days: readonly PlannedDayRecord[],
   index: number,
   kinds: readonly DayActivityKind[],
-  direction: RouteDirection | string,
   topology: readonly StageTopologyEntry[],
+  startLeg?: NewDayStartLeg | null,
 ): PlannedDayRecord[];
 export declare function dropHikingFromDay(
   days: readonly PlannedDayRecord[],

@@ -332,8 +332,10 @@ test('removing a day\'s walking is explicit, confirmed and names the route', () 
   // changes — the coverage gap becomes a diagnostic, not a repair.
   assert.match(sheet, /setConfirmingDrop\(\['rest'\]\)/);
   assert.match(sheet, /Remove the day’s walking\?/);
-  assert.match(sheet, /This removes the day's walking/);
-  assert.match(sheet, /No other day changes/);
+  // The finalised copy: name the legs and the route, and state BOTH that no
+  // other planned day changes and that no walking is redistributed.
+  assert.match(sheet, /This removes the day's walking — \$\{\s*\n?\s*dropLegs === 1 \? 'its one leg' : `all \$\{dropLegs\} legs`\s*\n?\s*\}/);
+  assert.match(sheet, /No other planned day changes and no walking moves to another day/);
   assert.match(sheet, /dropDayHiking\(day\.id, confirmingDrop\)/);
   // The leg editor offers the same explicit exit for the final leg.
   assert.match(sheet, /Remove walking from this day/);
@@ -351,9 +353,34 @@ test('a blocked activity toggle is disabled and says why', () => {
   assert.match(sheet, /disabled=\{blocked !== null\}/);
   // And a blocked toggle never reaches the store.
   assert.match(sheet, /if \(kindBlocked\(kind\)\) return;/);
-  // Taking on walking names the leg the day would start with, up front.
+  // Taking on walking names the proposed section up front — and ONLY
+  // auto-proceeds when exactly one not-yet-planned candidate exists; every
+  // other case (a fork, or only repeats) opens the explicit chooser.
   assert.match(sheet, /Adding hiking starts this day with/);
-  assert.match(sheet, /defaultLegsForNewDay\(plannedDays, day\.index/);
+  assert.match(sheet, /the connecting section not yet in your plan/);
+  assert.match(sheet, /newDayLegCandidates\(plannedDays, day\.index/);
+  assert.match(sheet, /startUnplanned\.length === 1 \? startUnplanned\[0\] : null/);
+  assert.match(sheet, /setChoosingStart\(kinds\)/);
+  assert.match(sheet, /<StartLegOptions/);
+  assert.match(sheet, /asks which connecting section this day starts with/);
+});
+
+test('a new hiking day never repeats a stage silently', () => {
+  // Add-day: the fast path exists only for the single not-yet-planned
+  // candidate; forks and repeat-only cases open the chooser, with repeats
+  // marked. The shared options component is the one place that renders a
+  // candidate, so the two surfaces cannot diverge.
+  assert.match(card, /const unplanned = candidates\.filter\(\(c\) => !c\.alreadyPlanned\);/);
+  assert.match(card, /unplanned\.length === 1 \? unplanned\[0\] : null/);
+  assert.match(card, /proposed \? onAdd\(\['hiking'\], proposed\) : setChoosingStart\(true\)/);
+  assert.match(card, /the connecting\s+section not yet in your plan/);
+  assert.match(card, /Sections already in your plan\s*\n?\s*are marked\./);
+  const options = read('src/components/StartLegOptions.tsx');
+  assert.match(options, /Already planned/);
+  assert.match(options, /choosing\s*\n?\s*it walks the section again/);
+  assert.match(options, /walks the section in reverse/);
+  assert.match(options, /formatDistanceKm/);
+  assert.ok(!/stageGuide|stageHighlights/.test(options), 'decision info only');
 });
 
 test('a destructive confirmation is never offered for a mutation that no-ops', () => {

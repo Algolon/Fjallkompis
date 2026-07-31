@@ -8,7 +8,9 @@ import { DayPlanDaySheet } from './DayPlanDaySheet';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
-import { DAY_ACTIVITY_LABELS, defaultLegsForNewDay, hikingLegsOf } from '../plan/dayPlan.mjs';
+import { DAY_ACTIVITY_LABELS, hikingLegsOf, newDayLegCandidates } from '../plan/dayPlan.mjs';
+import type { NewDayLegCandidate, NewDayStartLeg } from '../plan/dayPlan.mjs';
+import { StartLegOptions } from './StartLegOptions';
 import {
   coverageSummaryLines,
   dayPlanCoverageDiagnostics,
@@ -194,8 +196,8 @@ export function DayPlanCard({
       {addAt !== null ? (
         <AddDaySheet
           index={addAt}
-          onAdd={(kinds) => {
-            addPlannedDay(addAt, kinds);
+          onAdd={(kinds, startLeg) => {
+            addPlannedDay(addAt, kinds, startLeg);
             setAddAt(null);
           }}
           onClose={() => setAddAt(null)}
@@ -537,11 +539,12 @@ function AddDayRow({ index, onOpen }: { index: number; onOpen: () => void }) {
 }
 
 /**
- * Choose what a newly inserted day is. A hiking day starts with its
- * deterministic CONTINUATION leg — the section that physically connects to
- * the walking around the insertion point — named up front. No stage is taken
- * from any other day: the new day walks its own leg, even when that repeats
- * a section another day already walks.
+ * Choose what a newly inserted day is. A hiking day walks an EXPLICITLY
+ * chosen connecting section: when exactly one candidate is not yet in the
+ * plan it is proposed by name up front, and in every other case — several
+ * possibilities, or only sections the plan already walks — a chooser asks,
+ * with repeats marked. A stage is never repeated silently, and no stage is
+ * taken from any other day: the new day walks its own leg.
  */
 function AddDaySheet({
   index,
@@ -549,22 +552,27 @@ function AddDaySheet({
   onClose,
 }: {
   index: number;
-  onAdd: (kinds: DayActivityKind[]) => void;
+  onAdd: (kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => void;
   onClose: () => void;
 }) {
   const { dayPlan, plannedDays } = useStore();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useOverlayScrollLock();
-  // What the new hiking day would walk — derived by the same pure rule the
-  // model applies, so the sheet can state it before anything changes.
-  const startLeg =
-    defaultLegsForNewDay(plannedDays, index, dayPlan?.direction ?? '', STAGE_TOPOLOGY)[0] ?? null;
-  const startStage = startLeg ? STAGE_TOPOLOGY.find((s) => s.id === startLeg.stageId) : null;
-  const canHike = startLeg !== null && startStage != null;
-  const legSection = startStage
-    ? startLeg?.orientation === 'opposite'
-      ? `${shortName(startStage.toStopId)} → ${shortName(startStage.fromStopId)}`
-      : `${shortName(startStage.fromStopId)} → ${shortName(startStage.toStopId)}`
+  // Every physically valid starting section — the same pure rule the model
+  // validates against, so the sheet states the choice before anything
+  // changes. Auto-proceed ONLY when exactly one candidate is not yet
+  // planned; a repeat always requires the explicit selection below.
+  const candidates = newDayLegCandidates(
+    plannedDays,
+    index,
+    dayPlan?.direction ?? '',
+    STAGE_TOPOLOGY,
+  );
+  const unplanned = candidates.filter((c) => !c.alreadyPlanned);
+  const proposed: NewDayLegCandidate | null = unplanned.length === 1 ? unplanned[0] : null;
+  const [choosingStart, setChoosingStart] = useState(false);
+  const proposedSection = proposed
+    ? `${shortName(proposed.fromStopId)} → ${shortName(proposed.toStopId)}`
     : null;
 
   useEffect(() => {
@@ -582,36 +590,68 @@ function AddDaySheet({
     >
       <div className="sheet-body">
         <div className="row-between sheet-head">
-          <h2>Add a day</h2>
+          <h2>{choosingStart ? 'Starts with' : 'Add a day'}</h2>
           <button className="ctx-help-close" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
-        <p className="card-sub" style={{ marginTop: 0 }}>
-          The new day becomes day {index + 1}. Later days move one day later.
-        </p>
-        <div className="dayplan-add-choices">
-          <button type="button" className="btn btn-block" onClick={() => onAdd(['travel'])}>
-            <BusFront size={16} strokeWidth={2} aria-hidden /> Travel day
-          </button>
-          <button type="button" className="btn btn-block" onClick={() => onAdd(['rest'])}>
-            <Coffee size={16} strokeWidth={2} aria-hidden /> Rest &amp; explore day
-          </button>
-          <button
-            type="button"
-            className="btn btn-block"
-            disabled={!canHike}
-            onClick={() => onAdd(['hiking'])}
-          >
-            <Footprints size={16} strokeWidth={2} aria-hidden /> Hiking day
-          </button>
-        </div>
-        {canHike ? (
-          <p className="card-sub" style={{ marginTop: 10 }}>
-            A hiking day starts with {legSection}, continuing the walking
-            around it — no other day changes. Edit its legs afterwards.
-          </p>
-        ) : null}
+        {choosingStart ? (
+          <>
+            <p className="card-sub" style={{ marginTop: 0 }}>
+              Choose which connecting section the new hiking day walks first.
+              No other day changes; edit its legs afterwards.
+            </p>
+            <StartLegOptions
+              candidates={candidates}
+              onChoose={(candidate) => onAdd(['hiking'], candidate)}
+            />
+            <button
+              type="button"
+              className="btn btn-block"
+              style={{ marginTop: 12 }}
+              onClick={() => setChoosingStart(false)}
+            >
+              Back
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="card-sub" style={{ marginTop: 0 }}>
+              The new day becomes day {index + 1}. Later days move one day later.
+            </p>
+            <div className="dayplan-add-choices">
+              <button type="button" className="btn btn-block" onClick={() => onAdd(['travel'])}>
+                <BusFront size={16} strokeWidth={2} aria-hidden /> Travel day
+              </button>
+              <button type="button" className="btn btn-block" onClick={() => onAdd(['rest'])}>
+                <Coffee size={16} strokeWidth={2} aria-hidden /> Rest &amp; explore day
+              </button>
+              <button
+                type="button"
+                className="btn btn-block"
+                disabled={candidates.length === 0}
+                onClick={() =>
+                  proposed ? onAdd(['hiking'], proposed) : setChoosingStart(true)
+                }
+              >
+                <Footprints size={16} strokeWidth={2} aria-hidden /> Hiking day
+              </button>
+            </div>
+            {proposed ? (
+              <p className="card-sub" style={{ marginTop: 10 }}>
+                A hiking day starts with {proposedSection} — the connecting
+                section not yet in your plan. No other day changes; edit its
+                legs afterwards.
+              </p>
+            ) : candidates.length > 0 ? (
+              <p className="card-sub" style={{ marginTop: 10 }}>
+                Several connecting sections are possible — choosing Hiking day
+                asks which one to start with. Sections already in your plan
+                are marked.
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
     </dialog>
   );

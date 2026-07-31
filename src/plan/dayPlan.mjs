@@ -32,6 +32,7 @@
 import { addDays, isRealIsoDate, parseIsoDate, toIsoDate } from '../utils/dateTimeField.mjs';
 import { isRouteDirection, isReversed, normalizeDirection } from '../route/direction.mjs';
 import {
+  isHikingLegOrientation,
   isValidHikingLegs,
   legCandidatesFrom,
   legCandidatesTo,
@@ -289,72 +290,82 @@ export function pointersAfterEdit(nextDays, currentDayId, currentLegId) {
 }
 
 /**
- * The default legs a day gets when it TAKES ON walking (a new hiking day, or
- * a travel/rest day switched to hiking): the physically connecting
- * continuation of the journey around it, chosen deterministically and
- * WITHOUT touching any other day.
+ * The physically valid STARTING sections a day could walk when it takes on
+ * hiking at `index` (a new hiking day, or a travel/rest day switched to
+ * hiking) — the candidates the UI must put in front of the user, never a
+ * silent automatic pick:
  *
- *   1. the nearest hiking day BEFORE the insertion point ends somewhere; the
- *      new day continues from there — preferring the candidate that walks a
- *      DIFFERENT stage (onward) over the turn-around;
- *   2. else the nearest hiking day AFTER starts somewhere; the new day walks
- *      the connecting stage INTO that start, same preference;
+ *   1. the nearest hiking day BEFORE the insertion point ends somewhere:
+ *      every section departing from there;
+ *   2. else the nearest hiking day AFTER starts somewhere: every section
+ *      arriving there;
  *   3. else (no hiking day at all) the plan direction's first stage.
  *
- * A candidate always exists at every stop on a linear route, so 1 and 2
- * cannot come up empty once a reference day is found.
+ * Each candidate carries `alreadyPlanned`: whether some leg in the plan
+ * already walks that stage. Repeating a stage is always the user's explicit
+ * selection — a caller may auto-proceed ONLY when exactly one candidate is
+ * not yet planned, and must open a chooser otherwise.
  */
-export function defaultLegsForNewDay(days, index, direction, topology) {
+export function newDayLegCandidates(days, index, direction, topology) {
   if (!Array.isArray(topology) || topology.length === 0) return [];
   const list = Array.isArray(days) ? days : [];
   const at = Math.max(0, Math.min(Number.isInteger(index) ? index : list.length, list.length));
-
-  const fresh = (candidate) => [
-    {
-      id: newHikingLegId(),
-      kind: 'canonical-stage',
-      stageId: candidate.stageId,
-      orientation: candidate.orientation,
-    },
-  ];
-  const preferOnward = (candidates, adjacentStageId) =>
-    candidates.find((c) => c.stageId !== adjacentStageId) ?? candidates[0] ?? null;
+  const withPlanned = (candidate) => ({
+    ...candidate,
+    alreadyPlanned: stageOccurrences(list, candidate.stageId).length > 0,
+  });
 
   for (let i = at - 1; i >= 0; i--) {
     const legs = hikingLegsOf(list[i]);
     if (legs.length === 0) continue;
-    const last = legs[legs.length - 1];
-    const end = orientedLegEndpoints(last, topology);
-    if (!end) return [];
-    const candidate = preferOnward(legCandidatesFrom(topology, end.toStopId), last.stageId);
-    return candidate ? fresh(candidate) : [];
+    const end = orientedLegEndpoints(legs[legs.length - 1], topology);
+    return end ? legCandidatesFrom(topology, end.toStopId).map(withPlanned) : [];
   }
   for (let i = at; i < list.length; i++) {
     const legs = hikingLegsOf(list[i]);
     if (legs.length === 0) continue;
-    const first = legs[0];
-    const start = orientedLegEndpoints(first, topology);
-    if (!start) return [];
-    const candidate = preferOnward(legCandidatesTo(topology, start.fromStopId), first.stageId);
-    return candidate ? fresh(candidate) : [];
+    const start = orientedLegEndpoints(legs[0], topology);
+    return start ? legCandidatesTo(topology, start.fromStopId).map(withPlanned) : [];
   }
   const reversed = isReversed(direction);
   const stage = reversed ? topology[topology.length - 1] : topology[0];
-  return fresh({ stageId: stage.id, orientation: reversed ? 'opposite' : 'canonical' });
+  return [
+    withPlanned({
+      stageId: stage.id,
+      orientation: reversed ? 'opposite' : 'canonical',
+      fromStopId: reversed ? stage.toStopId : stage.fromStopId,
+      toStopId: reversed ? stage.fromStopId : stage.toStopId,
+    }),
+  ];
+}
+
+/** A fresh leg from an EXPLICITLY chosen starting section, or null. */
+function legFromStart(startLeg, topology) {
+  if (startLeg == null || typeof startLeg !== 'object') return null;
+  if (!topologyStage(topology, startLeg.stageId)) return null;
+  if (!isHikingLegOrientation(startLeg.orientation)) return null;
+  return {
+    id: newHikingLegId(),
+    kind: 'canonical-stage',
+    stageId: startLeg.stageId,
+    orientation: startLeg.orientation,
+  };
 }
 
 /**
- * Insert a day at `index`. A travel or rest day is free. A hiking day starts
- * with its deterministic default continuation leg (`defaultLegsForNewDay`) —
- * no stage is taken from, or given to, any other day.
+ * Insert a day at `index`. A travel or rest day is free. A hiking day walks
+ * the EXPLICITLY chosen `startLeg` ({ stageId, orientation }) — the model
+ * never picks a section by itself, so a repeated stage can only ever be the
+ * user's own selection (see `newDayLegCandidates`). Refused (unchanged)
+ * without a resolvable start. No other day is touched either way.
  */
-export function insertDay(days, index, kinds, direction, topology) {
+export function insertDay(days, index, kinds, topology, startLeg) {
   if (!Array.isArray(days)) return [];
   const at = Math.max(0, Math.min(Number.isInteger(index) ? index : days.length, days.length));
   const wantsHiking = Array.isArray(kinds) && kinds.includes('hiking');
-  const legs = wantsHiking ? defaultLegsForNewDay(days, at, direction, topology) : [];
-  if (wantsHiking && legs.length === 0) return cloneDays(days);
-  const activities = buildActivities(kinds, legs);
+  const leg = wantsHiking ? legFromStart(startLeg, topology) : null;
+  if (wantsHiking && !leg) return cloneDays(days);
+  const activities = buildActivities(kinds, leg ? [leg] : []);
   if (!isValidActivities(activities, topology)) return cloneDays(days);
   const out = cloneDays(days);
   out.splice(at, 0, { id: newPlannedDayId(), activities });
@@ -388,10 +399,12 @@ export function canRemoveDay(days, index) {
  * data loss, not a toggle. The explicit path is `dropHikingFromDay`, which
  * the UI reaches through its own named, confirmed action.
  *
- * Taking walking ON is allowed: the day starts with its deterministic
- * continuation leg (`defaultLegsForNewDay`) and no other day changes.
+ * Taking walking ON needs an EXPLICITLY chosen `startLeg` — the model
+ * never picks a section by itself (see `newDayLegCandidates`), so a
+ * repeated stage can only be the user's own selection. No other day
+ * changes either way.
  */
-export function setDayActivities(days, index, kinds, direction, topology) {
+export function setDayActivities(days, index, kinds, topology, startLeg) {
   if (!Array.isArray(days)) return [];
   const out = cloneDays(days);
   const day = out[index];
@@ -399,13 +412,12 @@ export function setDayActivities(days, index, kinds, direction, topology) {
   const currentLegs = hikingLegsOf(day);
   const keepsHiking = Array.isArray(kinds) && kinds.includes('hiking');
   if (currentLegs.length > 0 && !keepsHiking) return out; // refuse: explicit removal only
-  const legs =
-    currentLegs.length > 0
-      ? currentLegs
-      : keepsHiking
-        ? defaultLegsForNewDay(days, index, direction, topology)
-        : [];
-  if (keepsHiking && legs.length === 0) return out;
+  let legs = currentLegs;
+  if (currentLegs.length === 0 && keepsHiking) {
+    const leg = legFromStart(startLeg, topology);
+    if (!leg) return out; // refuse: no silent section pick
+    legs = [leg];
+  }
   const activities = buildActivities(kinds, legs);
   if (!isValidActivities(activities, topology)) return out;
   out[index] = { ...day, activities };

@@ -17,10 +17,12 @@ import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { formatDistanceKm } from '../utils/format';
 import { isReversed } from '../route/direction.mjs';
 import {
-  defaultLegsForNewDay,
   hikingLegsOf,
+  newDayLegCandidates,
   stageOccurrences,
 } from '../plan/dayPlan.mjs';
+import type { NewDayLegCandidate } from '../plan/dayPlan.mjs';
+import { StartLegOptions } from './StartLegOptions';
 import {
   canRemoveLeg,
   canReverseLeg,
@@ -74,6 +76,10 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
   // The replacement composition the day gets when its walking is removed —
   // non-null while the explicit "remove walking" confirmation is up.
   const [confirmingDrop, setConfirmingDrop] = useState<DayActivityKind[] | null>(null);
+  // The composition waiting on a starting-section choice — non-null while
+  // the day is taking hiking ON and no single unplanned candidate exists,
+  // so the section (and any repeat) is always the user's explicit pick.
+  const [choosingStart, setChoosingStart] = useState<DayActivityKind[] | null>(null);
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -103,11 +109,30 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
     return null;
   };
 
+  // Every physically valid starting section, should this day take hiking ON
+  // — the same pure rule the model validates against. The toggle proceeds
+  // by itself ONLY when exactly one candidate is not yet planned; any other
+  // case (a fork, or only repeats) opens the explicit chooser, so a
+  // repeated stage is always the user's own selection.
+  const startCandidates: NewDayLegCandidate[] = !hasHiking
+    ? newDayLegCandidates(plannedDays, day.index, dayPlan?.direction ?? '', STAGE_TOPOLOGY)
+    : [];
+  const startUnplanned = startCandidates.filter((c) => !c.alreadyPlanned);
+  const proposedStart = startUnplanned.length === 1 ? startUnplanned[0] : null;
+
+  const takeOnHiking = (kinds: DayActivityKind[]) => {
+    if (proposedStart) {
+      setDayActivities(day.id, kinds, proposedStart);
+      return;
+    }
+    setChoosingStart(kinds);
+  };
+
   const toggleKind = (kind: DayActivityKind) => {
     if (kindBlocked(kind)) return; // the control is disabled; belt and braces
     if (kind === 'rest') {
       if (isRest) {
-        setDayActivities(day.id, ['hiking']);
+        takeOnHiking(['hiking']);
         return;
       }
       // Rest is exclusive: on a walking day this REMOVES the day's legs,
@@ -128,31 +153,29 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
     const next = day.kinds.filter((k) => k !== 'rest');
     const kinds = next.includes(kind) ? next.filter((k) => k !== kind) : [...next, kind];
     if (kinds.length === 0) return;
+    if (kind === 'hiking') {
+      takeOnHiking(kinds);
+      return;
+    }
     setDayActivities(day.id, kinds);
   };
 
-  // What walking ON would start with — named BEFORE the toggle is pressed,
-  // so taking on hiking is never a surprise. Derived days carry the same
-  // activities their records do, so the pure helper answers directly.
-  const wouldStartWith = !hasHiking
-    ? (defaultLegsForNewDay(plannedDays, day.index, dayPlan?.direction ?? '', STAGE_TOPOLOGY)[0] ??
-      null)
+  // What walking ON would do — named BEFORE the toggle is pressed, so
+  // taking on hiking is never a surprise and never a silent repeat.
+  const addHikingNote = !hasHiking
+    ? proposedStart
+      ? `Adding hiking starts this day with ${stopName(proposedStart.fromStopId)} → ${stopName(
+          proposedStart.toStopId,
+        )} — the connecting section not yet in your plan. Edit its legs afterwards.`
+      : startCandidates.length > 0
+        ? 'Adding hiking asks which connecting section this day starts with — sections already in your plan are marked.'
+        : null
     : null;
-  const wouldStartWithStage = wouldStartWith
-    ? STAGE_TOPOLOGY.find((s) => s.id === wouldStartWith.stageId)
-    : null;
-  const addHikingNote =
-    !isRest && !hasHiking && wouldStartWith && wouldStartWithStage
-      ? `Adding hiking starts this day with ${
-          wouldStartWith.orientation === 'opposite'
-            ? `${stopName(wouldStartWithStage.toStopId)} → ${stopName(wouldStartWithStage.fromStopId)}`
-            : `${stopName(wouldStartWithStage.fromStopId)} → ${stopName(wouldStartWithStage.toStopId)}`
-        } — edit its legs afterwards.`
-      : null;
 
-  const dropBody = `This removes the day's walking${
-    routeSection(day) ? ` (${routeSection(day)})` : ''
-  }. No other day changes — a route section this plan no longer covers is simply reported in the plan overview.`;
+  const dropLegs = day.legs.length;
+  const dropBody = `This removes the day's walking — ${
+    dropLegs === 1 ? 'its one leg' : `all ${dropLegs} legs`
+  }${routeSection(day) ? `, ${routeSection(day)}` : ''}. No other planned day changes and no walking moves to another day; a route section this plan no longer covers is simply reported in the plan overview.`;
 
   return (
     <dialog
@@ -174,7 +197,32 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
           </button>
         </div>
 
-        {view === 'day' ? (
+        {view === 'day' && choosingStart !== null ? (
+          <>
+            <span className="section-label">Starts with</span>
+            <p className="card-sub" style={{ marginTop: 0 }}>
+              Choose which connecting section this day walks first. No other
+              day changes; edit its legs afterwards.
+            </p>
+            <StartLegOptions
+              candidates={startCandidates}
+              onChoose={(candidate) => {
+                setDayActivities(day.id, choosingStart, candidate);
+                setChoosingStart(null);
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn-block"
+              style={{ marginTop: 12 }}
+              onClick={() => setChoosingStart(null)}
+            >
+              Back
+            </button>
+          </>
+        ) : null}
+
+        {view === 'day' && choosingStart === null ? (
           <>
             <span className="section-label">This day includes</span>
             <div className="dayplan-kinds" role="group" aria-label="Day activities">

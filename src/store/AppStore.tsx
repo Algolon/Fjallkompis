@@ -63,6 +63,7 @@ import {
   setDayOvernight as setDayOvernightIn,
   stageOccurrences,
 } from '../plan/dayPlan.mjs';
+import type { NewDayStartLeg } from '../plan/dayPlan.mjs';
 import { buildPlannedDays } from '../plan/plannedDays.mjs';
 import type { OrientedStageViews, PlannedDay } from '../plan/plannedDays.mjs';
 import { resolveEffectiveToday } from '../plan/effectiveToday.mjs';
@@ -131,12 +132,21 @@ interface AppStore {
   createDayPlan: (startDate: string) => void;
   /** Move an existing plan's journey start date. Invalid input is ignored. */
   setStartDate: (startDate: string) => void;
-  /** Insert a day at `index` with the given activity kinds. */
-  addPlannedDay: (index: number, kinds: DayActivityKind[]) => void;
+  /**
+   * Insert a day at `index` with the given activity kinds. A hiking day
+   * walks the EXPLICITLY chosen `startLeg` — the UI proposes or asks via
+   * `newDayLegCandidates`; the model never picks a section (and so never
+   * silently repeats a stage) by itself.
+   */
+  addPlannedDay: (index: number, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => void;
   /** Remove a day by stable id; its walking passes to a neighbouring day. */
   removePlannedDay: (dayId: string) => void;
-  /** Replace a day's activity composition (kinds, in the order given). */
-  setDayActivities: (dayId: string, kinds: DayActivityKind[]) => void;
+  /**
+   * Replace a day's activity composition (kinds, in the order given).
+   * Taking hiking ON requires the explicitly chosen `startLeg`, exactly
+   * like `addPlannedDay`.
+   */
+  setDayActivities: (dayId: string, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => void;
   /** Swap a two-activity day's order (hike-then-travel ⇄ travel-then-hike). */
   swapDayActivities: (dayId: string) => void;
   // Hiking-leg edits. Each one touches EXACTLY the named day; a change the
@@ -409,13 +419,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addPlannedDay = useCallback(
-    (index: number, kinds: DayActivityKind[]) => {
+    (index: number, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => {
       setState((s) =>
         s.dayPlan
-          ? patchDays(
-              s,
-              insertDay(s.dayPlan.days, index, kinds, s.dayPlan.direction, STAGE_TOPOLOGY),
-            )
+          ? patchDays(s, insertDay(s.dayPlan.days, index, kinds, STAGE_TOPOLOGY, startLeg))
           : s,
       );
     },
@@ -435,14 +442,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const setDayActivities = useCallback(
-    (dayId: string, kinds: DayActivityKind[]) => {
+    (dayId: string, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => {
       setState((s) => {
         if (!s.dayPlan) return s;
         const index = dayIndexById(s.dayPlan.days, dayId);
         if (index === -1) return s;
         return patchDays(
           s,
-          setDayActivitiesIn(s.dayPlan.days, index, kinds, s.dayPlan.direction, STAGE_TOPOLOGY),
+          setDayActivitiesIn(s.dayPlan.days, index, kinds, STAGE_TOPOLOGY, startLeg),
         );
       });
     },

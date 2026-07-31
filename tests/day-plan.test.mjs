@@ -25,7 +25,7 @@ import {
   dateForDayIndex,
   dayIndexById,
   defaultDays,
-  defaultLegsForNewDay,
+  newDayLegCandidates,
   dropHikingFromDay,
   hikingLegsOf,
   insertDay,
@@ -287,64 +287,105 @@ test('createDayPlan refuses an unreal date or an impossible topology', () => {
 
 test('a travel or rest day inserts freely and walks nothing', () => {
   const base = defaultDays(FORWARD, TOPOLOGY);
-  const withTravel = insertDay(base, 0, ['travel'], FORWARD, TOPOLOGY);
+  const withTravel = insertDay(base, 0, ['travel'], TOPOLOGY);
   assert.equal(withTravel.length, 8);
   assert.equal(hikingLegsOf(withTravel[0]).length, 0);
-  const withRest = insertDay(withTravel, 4, ['rest'], FORWARD, TOPOLOGY);
+  const withRest = insertDay(withTravel, 4, ['rest'], TOPOLOGY);
   assert.equal(withRest.length, 9);
   assert.ok(isValidDays(withRest, TOPOLOGY));
   // Every original day is byte-identical — nothing was borrowed or donated.
   assert.deepEqual(withRest.filter((d) => hikingLegsOf(d).length > 0), base);
 });
 
-test('an inserted hiking day continues from the previous day — no donor', () => {
+test('an inserted hiking day walks the EXPLICITLY chosen section — no auto-pick', () => {
   const base = defaultDays(FORWARD, TOPOLOGY);
-  const after = insertDay(base, 3, ['hiking'], FORWARD, TOPOLOGY);
+  // The chosen candidate (a repeat of d4, walked onward from day 3's end):
+  const after = insertDay(base, 3, ['hiking'], TOPOLOGY, {
+    stageId: 'd4',
+    orientation: 'canonical',
+  });
   assert.equal(after.length, 8);
-  // Day 3 walks d3 (ends at tjaktja); the new day continues onward with d4 —
-  // a REPEAT of what the old day 4 also walks. The old days are untouched.
   assert.deepEqual(
     hikingLegsOf(after[3]).map((l) => `${l.stageId}:${l.orientation}`),
     ['d4:canonical'],
   );
   assert.deepEqual(after.filter((_, i) => i !== 3), base, 'no other day changed');
-  assert.equal(stageOccurrences(after, 'd4').length, 2, 'd4 is now walked twice');
+  assert.equal(stageOccurrences(after, 'd4').length, 2, 'the repeat was the caller’s choice');
 });
 
-test('an inserted hiking day at the very start connects INTO the first day', () => {
+test('a hiking day WITHOUT a chosen section is refused — never silently picked', () => {
   const base = defaultDays(FORWARD, TOPOLOGY);
-  const after = insertDay(base, 0, ['hiking'], FORWARD, TOPOLOGY);
-  // Nothing precedes it; the first hiking day starts at abisko, and the only
-  // section arriving there is d1 walked opposite... except preferring an
-  // ONWARD stage over the mirror of the adjacent one is impossible at the
-  // route end, so the mirror it honestly is.
+  assert.deepEqual(insertDay(base, 3, ['hiking'], TOPOLOGY), base, 'no startLeg');
+  assert.deepEqual(insertDay(base, 3, ['hiking'], TOPOLOGY, null), base);
   assert.deepEqual(
-    hikingLegsOf(after[0]).map((l) => `${l.stageId}:${l.orientation}`),
-    ['d1:opposite'],
+    insertDay(base, 3, ['hiking'], TOPOLOGY, { stageId: 'd9', orientation: 'canonical' }),
+    base,
+    'unknown stage',
+  );
+  assert.deepEqual(
+    insertDay(base, 3, ['hiking'], TOPOLOGY, { stageId: 'd4', orientation: 'backwards' }),
+    base,
+    'unknown orientation',
   );
 });
 
-test('an inserted hiking day into an empty-walking plan uses the direction default', () => {
-  const days = [day([travel()]), day([rest()])];
-  const forward = insertDay(days, 1, ['hiking'], FORWARD, TOPOLOGY);
-  assert.deepEqual(
-    hikingLegsOf(forward[1]).map((l) => `${l.stageId}:${l.orientation}`),
-    ['d1:canonical'],
-  );
-  const reverse = insertDay(days, 1, ['hiking'], REVERSE, TOPOLOGY);
-  assert.deepEqual(
-    hikingLegsOf(reverse[1]).map((l) => `${l.stageId}:${l.orientation}`),
-    ['d7:opposite'],
-  );
-});
-
-test('defaultLegsForNewDay prefers onward over the turn-around mid-route', () => {
+test('newDayLegCandidates lists every connecting section with repeat status', () => {
+  // After a day ending at Tjäktja (d3): continue with d4, or walk d3 back.
   const base = [day([hiking(leg('d3'))])];
-  const legs = defaultLegsForNewDay(base, 1, FORWARD, TOPOLOGY);
-  assert.equal(legs.length, 1);
-  assert.equal(legs[0].stageId, 'd4', 'continue, not walk d3 back');
-  assert.equal(legs[0].orientation, 'canonical');
-  assert.match(legs[0].id, /^leg_/);
+  assert.deepEqual(newDayLegCandidates(base, 1, FORWARD, TOPOLOGY), [
+    {
+      stageId: 'd3',
+      orientation: 'opposite',
+      fromStopId: 'tjaktja',
+      toStopId: 'alesjaure',
+      alreadyPlanned: true,
+    },
+    {
+      stageId: 'd4',
+      orientation: 'canonical',
+      fromStopId: 'tjaktja',
+      toStopId: 'salka',
+      alreadyPlanned: false,
+    },
+  ]);
+});
+
+test('candidates at the very start connect INTO the first hiking day', () => {
+  const base = defaultDays(FORWARD, TOPOLOGY);
+  // The first day starts at Abisko; the only section arriving there is d1
+  // walked opposite — and the plan already walks d1, so it is a marked
+  // repeat the caller must choose explicitly.
+  assert.deepEqual(newDayLegCandidates(base, 0, FORWARD, TOPOLOGY), [
+    {
+      stageId: 'd1',
+      orientation: 'opposite',
+      fromStopId: 'abiskojaure',
+      toStopId: 'abisko',
+      alreadyPlanned: true,
+    },
+  ]);
+});
+
+test('candidates in an empty-walking plan are the direction default', () => {
+  const days = [day([travel()]), day([rest()])];
+  assert.deepEqual(newDayLegCandidates(days, 1, FORWARD, TOPOLOGY), [
+    {
+      stageId: 'd1',
+      orientation: 'canonical',
+      fromStopId: 'abisko',
+      toStopId: 'abiskojaure',
+      alreadyPlanned: false,
+    },
+  ]);
+  assert.deepEqual(newDayLegCandidates(days, 1, REVERSE, TOPOLOGY), [
+    {
+      stageId: 'd7',
+      orientation: 'opposite',
+      fromStopId: 'nikkaluokta',
+      toStopId: 'kebnekaise',
+      alreadyPlanned: false,
+    },
+  ]);
 });
 
 test('removing a day removes its walking WITH it — no heir, no inheritance', () => {
@@ -371,7 +412,7 @@ test('the only day cannot be removed', () => {
 test('a hiking day gains travel while keeping its exact legs', () => {
   const base = defaultDays(FORWARD, TOPOLOGY);
   const legsBefore = hikingLegsOf(base[6]);
-  const after = setDayActivities(base, 6, ['hiking', 'travel'], FORWARD, TOPOLOGY);
+  const after = setDayActivities(base, 6, ['hiking', 'travel'], TOPOLOGY);
   assert.deepEqual(after[6].activities, [{ kind: 'hiking', legs: legsBefore }, travel()]);
 });
 
@@ -387,21 +428,26 @@ test('a day that walks refuses to stop walking through the kind toggle', () => {
   // Dropping legs silently is data loss; the explicit path is
   // dropHikingFromDay, reached through its own named, confirmed action.
   const base = defaultDays(FORWARD, TOPOLOGY);
-  assert.deepEqual(setDayActivities(base, 3, ['rest'], FORWARD, TOPOLOGY), base, 'refused');
-  assert.deepEqual(setDayActivities(base, 2, ['travel'], FORWARD, TOPOLOGY), base, 'refused');
-  const mixed = setDayActivities(base, 2, ['hiking', 'travel'], FORWARD, TOPOLOGY);
-  assert.deepEqual(setDayActivities(mixed, 2, ['travel'], FORWARD, TOPOLOGY), mixed, 'refused');
+  assert.deepEqual(setDayActivities(base, 3, ['rest'], TOPOLOGY), base, 'refused');
+  assert.deepEqual(setDayActivities(base, 2, ['travel'], TOPOLOGY), base, 'refused');
+  const mixed = setDayActivities(base, 2, ['hiking', 'travel'], TOPOLOGY);
+  assert.deepEqual(setDayActivities(mixed, 2, ['travel'], TOPOLOGY), mixed, 'refused');
 });
 
-test('a travel day can take on walking — the default continuation leg', () => {
+test('a travel day takes on walking only with an explicitly chosen section', () => {
   const days = [day([hiking(leg('d2'))]), day([travel()])];
-  const after = setDayActivities(days, 1, ['travel', 'hiking'], FORWARD, TOPOLOGY);
+  const after = setDayActivities(days, 1, ['travel', 'hiking'], TOPOLOGY, {
+    stageId: 'd3',
+    orientation: 'canonical',
+  });
   assert.equal(after[1].activities[0].kind, 'travel', 'order preserved');
   assert.deepEqual(
     hikingLegsOf(after[1]).map((l) => `${l.stageId}:${l.orientation}`),
     ['d3:canonical'],
   );
   assert.deepEqual(after[0], days[0], 'the day it continues FROM is untouched');
+  // Without a chosen section the change is refused — never silently picked.
+  assert.deepEqual(setDayActivities(days, 1, ['travel', 'hiking'], TOPOLOGY), days);
 });
 
 test('dropHikingFromDay is the explicit way a walking day stops walking', () => {
@@ -413,6 +459,19 @@ test('dropHikingFromDay is the explicit way a walking day stops walking', () => 
   // To rest:
   const rested = dropHikingFromDay(days, 0, ['rest']);
   assert.deepEqual(rested[0].activities, [rest()]);
+  // Pointer repair: only pointers INTO the removed activity change. A
+  // current leg that belonged to the dropped walking clears; the day stays
+  // current; pointers into the other day are untouched entirely.
+  const droppedLegId = hikingLegsOf(days[0])[0].id;
+  assert.deepEqual(pointersAfterEdit(rested, days[0].id, droppedLegId), {
+    currentDayId: days[0].id,
+    currentLegId: null,
+  });
+  const otherLegId = hikingLegsOf(days[1])[0].id;
+  assert.deepEqual(pointersAfterEdit(rested, days[1].id, otherLegId), {
+    currentDayId: days[1].id,
+    currentLegId: otherLegId,
+  });
 });
 
 test('dropHikingFromDay refuses to leave a day empty or keep hiking', () => {
@@ -513,9 +572,9 @@ test('reverse, repeat and reorder work through the day wrappers', () => {
 test('every edit returns a new list and never mutates the input', () => {
   const days = journeyDays();
   const snapshot = JSON.stringify(days);
-  insertDay(days, 2, ['rest'], FORWARD, TOPOLOGY);
+  insertDay(days, 2, ['rest'], TOPOLOGY);
   removeDay(days, 0);
-  setDayActivities(days, 1, ['hiking', 'travel'], FORWARD, TOPOLOGY);
+  setDayActivities(days, 1, ['hiking', 'travel'], TOPOLOGY);
   dropHikingFromDay(days, 1, ['rest']);
   setDayOvernight(days, 1, { kind: 'none' });
   reorderDayActivities(days, 7);
