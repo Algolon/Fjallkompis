@@ -89,7 +89,9 @@ cross-device synchronization is deliberately far down this roadmap.
 ## Next
 
 3. **Hiking-allocation redesign** — IN PROGRESS (first v0.27.0 slice on
-   branch `v0.27.0-explicit-hiking-legs`, unreleased). The persisted model
+   branch `v0.27.0-explicit-hiking-legs`; slices integrate on
+   `v0.27.0-integration` and reach `main` only as one final release PR —
+   docs/DEVELOPMENT.md → "Release integration branches"). The persisted model
    now records explicit per-day hiking LEGS — each a reference to one
    canonical stage with an absolute orientation — replacing the adjacent-
    stage count and its full-route partition invariant (schema v9 → v10,

@@ -735,3 +735,26 @@ Release checklist for a meaningful user-facing PR (also in the
 3. Did [ROADMAP.md](../ROADMAP.md) priorities or statuses change?
 4. Are `package.json` and `package-lock.json` still aligned?
    (`npm run check:version` verifies this.)
+
+### Release integration branches (multi-slice milestones)
+
+Every push to `main` deploys production (see **Deploy**), so a milestone
+built as several PRs — v0.27.0 is the first — must NOT land its slices on
+`main` individually: an intermediate slice can carry a persisted-schema
+bump (v10) without the finished user-facing feature set.
+
+The pattern:
+
+- `v<milestone>-integration` (e.g. `v0.27.0-integration`) is created from
+  the released `main` and never deploys — `deploy.yml` triggers only on
+  pushes to `main`.
+- Every slice PR targets the integration branch, never `main`. Later slice
+  branches start from the integration branch's current head.
+- `pr-ci.yml` runs for PRs against `main` AND `v*-integration`, so every
+  slice PR still passes the full test/typecheck/build gate.
+- When all slices are accepted, ONE release PR merges the integration
+  branch into `main` — that PR carries the version bump, the CHANGELOG
+  release entry, and the final release checklist; merging it is the deploy.
+
+Nothing about versioning changes: `package.json` stays at the released
+version on the integration branch until the release PR.
