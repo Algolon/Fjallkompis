@@ -4,6 +4,7 @@ import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { HighlightsAndDetours } from '../components/StageExperiences';
+import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { stageGuide } from '../data/stageGuides.mjs';
 import type { StageGuide } from '../data/stageGuides.mjs';
@@ -14,9 +15,18 @@ import {
   formatHoursEstimate,
   formatVerifiedDate,
 } from '../utils/format';
+import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
+import { isReversed } from '../route/direction.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
+import type { DerivedHikingLeg, PlannedDay } from '../plan/plannedDays.mjs';
 import type { NavPayload } from './TodayScreen';
 import type { RouteExperience } from '../types';
+
+/** One planned occurrence of a canonical stage: which day, which leg. */
+interface StageOccurrence {
+  day: PlannedDay;
+  leg: DerivedHikingLeg;
+}
 
 /**
  * The expanded day guide: this stage's own elevation profile first, then
@@ -66,14 +76,43 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
 
 export function StagesScreen({
   initialGuideStageId,
+  initialGuideReversed,
   onNavigate,
 }: {
   /** Today's "Stage Guide" deep link: open this stage's guide on arrival. */
   initialGuideStageId?: string | null;
+  /**
+   * The deep-linked guide was reached from a planned leg walking the stage
+   * in the OPPOSITE direction — the opened card carries a contextual note.
+   * One-shot presentation context from the navigation payload; the screen
+   * itself still reads no plan data for its cards.
+   */
+  initialGuideReversed?: boolean;
   /** Router, for the "View on map" one-shot focus deep-link. */
   onNavigate?: (tab: 'map', payload?: NavPayload) => void;
 }) {
-  const { state, itinerary, stages, currentStage, setCurrentStage } = useStore();
+  const { state, itinerary, stages, currentStage, setCurrentStage, plannedDays } = useStore();
+  // "Set as current" and planned OCCURRENCES: a stage may be walked on
+  // several planned days (or twice on one). Selecting by stage id alone
+  // would then be a guess, so ambiguity opens a chooser and NO pointer
+  // moves until the user picks the occurrence. Zero or one occurrence goes
+  // straight through the store rule (one → all three pointers atomically;
+  // zero → route progress only, the leg pointer clears).
+  const [choosingStageId, setChoosingStageId] = useState<string | null>(null);
+  const occurrencesOf = (stageId: string): StageOccurrence[] =>
+    plannedDays.flatMap((d) =>
+      d.legs.filter((l) => l.stageId === stageId).map((leg) => ({ day: d, leg })),
+    );
+  const requestSetCurrent = (stageId: string) => {
+    if (occurrencesOf(stageId).length > 1) {
+      setChoosingStageId(stageId);
+      return;
+    }
+    setCurrentStage(stageId);
+  };
+  const choosingStage = choosingStageId
+    ? (stages.find((s) => s.id === choosingStageId) ?? null)
+    : null;
   const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
   const endStop = itinerary.endStopId ? STOPS_BY_ID[itinerary.endStopId] : null;
   const startName = startStop ? stopShortName(startStop) : 'the start';
@@ -185,7 +224,11 @@ export function StagesScreen({
     <div className="screen screen--stages">
       {/* Stages are the canonical route segments — fixed geography, not
           calendar days. How they are divided across hiking days is personal
-          and lives in Settings; this screen never shows or edits that. */}
+          and lives in Settings; this screen never shows or edits that, with
+          ONE deliberate exception: "Set as current" must know when the plan
+          walks a stage more than once, because selecting an occurrence by
+          stage id alone would be a guess (the chooser below). Cards are
+          never duplicated for repeated occurrences. */}
       <ScreenHeader
         eyebrow={`${stages.length} stages · ${itinerary.orderedStops.length} stops`}
         title="Stages"
@@ -282,7 +325,7 @@ export function StagesScreen({
                   <button
                     type="button"
                     className="stage-set-pill"
-                    onClick={() => setCurrentStage(stage.id)}
+                    onClick={() => requestSetCurrent(stage.id)}
                     aria-label={`Set stage ${stage.day} as the current stage`}
                   >
                     Set as current
@@ -293,6 +336,21 @@ export function StagesScreen({
               <h2 className="card-title stage-card__route">
                 {stopShortName(from)} → {stopShortName(to)}
               </h2>
+
+              {/* Reached from a planned leg walking this section the OTHER
+                  way: say so plainly. The canonical guide below is not
+                  rewritten or mirrored — it describes the walk named in the
+                  card title; the leg's own endpoints, statistics and map
+                  orientation live on Today. */}
+              {initialGuideReversed && stage.id === initialGuideStageId ? (
+                <p className="card-sub stage-card__reversed-note">
+                  Your planned leg walks this section in the opposite
+                  direction ({stopShortName(to)} → {stopShortName(from)}).
+                  The guide below describes the {stopShortName(from)} →{' '}
+                  {stopShortName(to)} walk; Today shows your leg’s own
+                  direction, distances and climb.
+                </p>
+              ) : null}
 
               <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <span className="pill tnum">↗ {stage.totalAscentM ?? '—'} m</span>
@@ -401,6 +459,100 @@ export function StagesScreen({
           Nothing selected yet — pick the day you’re on.
         </p>
       ) : null}
+
+      {choosingStage ? (
+        <OccurrenceChooserSheet
+          stage={choosingStage}
+          occurrences={occurrencesOf(choosingStage.id)}
+          onClose={() => setChoosingStageId(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * Choose WHICH planned occurrence of a stage "Set as current" means, when
+ * the Day plan walks it more than once. Nothing moves until a choice is
+ * made: selecting an occurrence writes the three pointers atomically
+ * through the store's `setCurrentLeg`; cancelling (close, backdrop,
+ * Escape) changes nothing at all. The first occurrence is never assumed.
+ */
+function OccurrenceChooserSheet({
+  stage,
+  occurrences,
+  onClose,
+}: {
+  stage: ItineraryStage;
+  occurrences: StageOccurrence[];
+  onClose: () => void;
+}) {
+  const { itinerary, setCurrentLeg } = useStore();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useOverlayScrollLock();
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+  // A leg walked against the active route direction is named on its option.
+  const natural = isReversed(itinerary.direction) ? 'opposite' : 'canonical';
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="sheet"
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === dialogRef.current) onClose();
+      }}
+    >
+      <div className="sheet-body">
+        <div className="row-between sheet-head">
+          <h2>Which day are you walking it?</h2>
+          <button className="ctx-help-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <p className="card-sub" style={{ marginTop: 0 }}>
+          Your Day plan walks stage {stage.day} more than once. Choose the
+          occurrence you are on — nothing changes until you do.
+        </p>
+        <ul className="dayplan-options" role="list">
+          {occurrences.map(({ day, leg }) => {
+            const from = STOPS_BY_ID[leg.stage.fromHutId];
+            const to = STOPS_BY_ID[leg.stage.toHutId];
+            const dateLabel = day.date ? formatDateFieldLabel(day.date) : null;
+            return (
+              <li key={leg.id}>
+                <button
+                  type="button"
+                  className={`dayplan-option${leg.isCurrent ? ' is-current' : ''}`}
+                  aria-current={leg.isCurrent ? 'true' : undefined}
+                  onClick={() => {
+                    setCurrentLeg(day.id, leg.id);
+                    onClose();
+                  }}
+                >
+                  <span className="dayplan-option__name">
+                    Day {day.number}
+                    {dateLabel ? ` · ${dateLabel}` : ''}
+                  </span>
+                  <span className="dayplan-option__meta">
+                    {from ? stopShortName(from) : leg.stage.fromHutId} →{' '}
+                    {to ? stopShortName(to) : leg.stage.toHutId}
+                    {leg.orientation !== natural ? ' · walks the section in reverse' : ''}
+                  </span>
+                  {leg.isCurrent ? (
+                    <span className="dayplan-option__effect">Currently selected</span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <button type="button" className="btn btn-block" style={{ marginTop: 12 }} onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </dialog>
   );
 }

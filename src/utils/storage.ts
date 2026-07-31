@@ -1,5 +1,5 @@
 import type { PersistentState } from '../types';
-import { DEFAULT_STAGE_ID, STAGES } from '../data/stages';
+import { DEFAULT_STAGE_ID, STAGE_TOPOLOGY } from '../data/stages';
 import {
   SCHEMA_VERSION,
   defaultState as buildDefaultState,
@@ -18,12 +18,12 @@ export function defaultState(): PersistentState {
  * payloads forward (see src/utils/stateMigration.mjs). Unknown or missing
  * fields fall back to defaults rather than throwing.
  *
- * The canonical stage count is passed through so a persisted Day plan
- * can be validated as a partition of the real route; the migration module
- * itself stays free of route-data imports.
+ * The canonical stage topology (ids + endpoints) is passed through so a
+ * persisted Day plan's hiking legs can be validated against the real route;
+ * the migration module itself stays free of route-data imports.
  */
 export function normalizeState(raw: unknown): PersistentState {
-  return normalizeAgainstSchema(raw, DEFAULT_STAGE_ID, STAGES.length);
+  return normalizeAgainstSchema(raw, DEFAULT_STAGE_ID, STAGE_TOPOLOGY);
 }
 
 /** True if localStorage is usable (private-mode / disabled-storage safe). */

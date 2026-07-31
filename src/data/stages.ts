@@ -1,4 +1,4 @@
-import type { Stage } from '../types';
+import type { Stage, StageTopologyEntry } from '../types';
 import { ROUTE, WAYPOINT_TO_HUT } from '../route/routeData';
 import { forwardStageNote, stageEstimatedHours } from './stageEditorial.mjs';
 
@@ -35,3 +35,15 @@ export const STAGES_BY_ID: Record<string, Stage> = Object.fromEntries(
 );
 
 export const DEFAULT_STAGE_ID = STAGES[0].id;
+
+/**
+ * The minimal canonical topology the pure Day-plan modules validate hiking
+ * legs against: stable stage id plus canonical-direction endpoints, in
+ * canonical order. Derived from the verified route data HERE so
+ * stateMigration.mjs / dayPlan.mjs stay free of route-data imports.
+ */
+export const STAGE_TOPOLOGY: StageTopologyEntry[] = STAGES.map((s) => ({
+  id: s.id,
+  fromStopId: s.fromHutId,
+  toStopId: s.toHutId,
+}));

@@ -29,11 +29,12 @@ const stripComments = (src) =>
 
 // ---- Persisted shape --------------------------------------------------------
 
-test('the persisted plan is direction, start date, current day and days', () => {
+test('the persisted plan is direction, start date, the pointer pair and days', () => {
   const declaration = /export interface DayPlanState \{[\s\S]*?\n\}/.exec(types)[0];
   assert.match(declaration, /direction: RouteDirection;/);
   assert.match(declaration, /startDate: string;/);
   assert.match(declaration, /currentDayId: string \| null;/);
+  assert.match(declaration, /currentLegId: string \| null;/);
   assert.match(declaration, /days: PlannedDayRecord\[\];/);
   // Derived values must NOT be part of the persisted state module.
   assert.ok(!/export interface PlannedDay\b/.test(types), 'PlannedDay is derived, not persisted');
@@ -49,14 +50,29 @@ test('a persisted day is a stable id, ordered activities and an optional overnig
   }
 });
 
-test('the activity union is closed — hiking, travel, rest, nothing else', () => {
+test('the activity union is closed — hiking legs, travel, rest, nothing else', () => {
   const union = /export type DayActivity =[\s\S]*?;\n/.exec(types)[0];
-  assert.match(union, /\{ kind: 'hiking'; stages: number \}/);
+  assert.match(union, /\{ kind: 'hiking'; legs: CanonicalHikingLeg\[\] \}/);
   assert.match(union, /\{ kind: 'travel' \}/);
   assert.match(union, /\{ kind: 'rest' \}/);
   assert.ok(!/custom|note|other/i.test(union), 'no free-form activity variant');
+  // The v9 stage-count shape is gone from the persisted union.
+  assert.ok(!/stages: number/.test(union), 'no stage-count allocation any more');
   // Travel details are never copied out of the Trip plan.
   assert.ok(!/from|to|departureTime|provider/.test(union), 'no transport fields on an activity');
+});
+
+test('the persisted leg union is closed — canonical-stage only, absolute orientation', () => {
+  const declaration = /export interface CanonicalHikingLeg \{[\s\S]*?\n\}/.exec(types)[0];
+  assert.match(declaration, /id: string;/);
+  assert.match(declaration, /kind: 'canonical-stage';/);
+  assert.match(declaration, /stageId: string;/);
+  assert.match(declaration, /orientation: HikingLegOrientation;/);
+  assert.match(types, /export type HikingLegOrientation = 'canonical' \| 'opposite';/);
+  // No custom-route member sneaks into this slice, and no geometry is stored.
+  for (const forbidden of ['gpx', 'coordinates', 'points:', 'geometry']) {
+    assert.ok(!declaration.toLowerCase().includes(forbidden), `no ${forbidden} on a leg`);
+  }
 });
 
 test('the overnight union references, and never copies, existing data', () => {
@@ -67,25 +83,26 @@ test('the overnight union references, and never copies, existing data', () => {
   assert.ok(!/name|title|location|address/i.test(union), 'no accommodation details are copied');
 });
 
-test('the two pointers are distinct concepts and both are persisted', () => {
+test('the three pointers are distinct concepts and all are persisted', () => {
   assert.match(types, /currentStageId: string \| null;/);
   assert.match(types, /currentDayId: string \| null;/);
-  // No third pointer, and never an index as identity.
-  for (const forbidden of ['activeDayIndex', 'currentDayIndex', 'currentDay:']) {
+  assert.match(types, /currentLegId: string \| null;/);
+  // Never an index as identity.
+  for (const forbidden of ['activeDayIndex', 'currentDayIndex', 'currentDay:', 'currentLegIndex:']) {
     assert.ok(!types.includes(forbidden), `${forbidden} must not be persisted`);
     assert.ok(!store.includes(forbidden), `${forbidden} must not exist in the store`);
   }
 });
 
-test('the schema is v9 and defaults to no plan', () => {
-  assert.match(migration, /export const SCHEMA_VERSION = 9;/);
+test('the schema is v10 and defaults to no plan', () => {
+  assert.match(migration, /export const SCHEMA_VERSION = 10;/);
   assert.match(migration, /dayPlan: null,/);
-  assert.match(migration, /dayPlan: normalizeDayPlan\(raw\.dayPlan, direction, stageCount\)/);
+  assert.match(migration, /normalizeDayPlan\(\s*raw\.dayPlan,\s*direction,\s*topology,/);
   assert.ok(
     !/routeData|kungsleden-route/.test(migration),
     'the migration module stays free of route-data imports',
   );
-  assert.match(storage, /normalizeAgainstSchema\(raw, DEFAULT_STAGE_ID, STAGES\.length\)/);
+  assert.match(storage, /normalizeAgainstSchema\(raw, DEFAULT_STAGE_ID, STAGE_TOPOLOGY\)/);
 });
 
 // ---- Opt-in ----------------------------------------------------------------
@@ -109,14 +126,23 @@ test('nothing derives, infers or auto-creates a plan', () => {
 test('with no plan the derived days are empty — no implicit calendar days', () => {
   const derived = read('src/plan/plannedDays.mjs');
   assert.match(derived, /if \(!dayPlan \|\| !Array\.isArray\(dayPlan\.days\)[\s\S]*?\) return \[\];/);
-  assert.match(store, /buildPlannedDays\(itinerary\.stages, state\.dayPlan, state\.trip\)/);
+  assert.match(store, /buildPlannedDays\(orientedStages, state\.dayPlan, state\.trip\)/);
+});
+
+test('legs resolve against BOTH oriented views, keyed by stable stage id', () => {
+  // 'canonical' is the forward itinerary's stages, 'opposite' the reverse
+  // itinerary's — the one verified reversal transform, never a local copy.
+  assert.match(store, /canonical: getActiveItinerary\(DEFAULT_DIRECTION\)\.stageById,/);
+  assert.match(store, /opposite: getActiveItinerary\(REVERSE_DIRECTION\)\.stageById,/);
+  assert.ok(!/reversePoints|swapAscentDescent|\.reverse\(\)/.test(stripComments(store)),
+    'the store never reverses geometry itself');
 });
 
 test('the derived days react to Trip changes — the memo depends on state.trip', () => {
   // Saving a Trip item must update the compact Day plan, the day sheet and
   // Today immediately, with no reload: the derivation memo lists state.trip
   // as a dependency, so a trip edit re-derives in the same render pass.
-  assert.match(store, /\[itinerary, state\.dayPlan, state\.trip\]/);
+  assert.match(store, /\[orientedStages, state\.dayPlan, state\.trip\]/);
 });
 
 // ---- Pointer synchronisation ------------------------------------------------
@@ -136,7 +162,7 @@ test('followPlanDates clears ONLY the override — the way back to date-followin
   // calendar forever: precedence 1 never expires on its own.
   const action = /const followPlanDates = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
   assert.match(action, /if \(!s\.dayPlan \|\| s\.dayPlan\.currentDayId == null\) return s;/);
-  assert.match(action, /dayPlan: \{ \.\.\.s\.dayPlan, currentDayId: null \}/);
+  assert.match(action, /dayPlan: \{ \.\.\.s\.dayPlan, currentDayId: null, currentLegId: null \}/);
   // ONLY the pointer: route progress, the plan's days/dates and every other
   // field survive untouched — and nothing here needs the network, so the
   // action works offline exactly like every other localStorage write.
@@ -217,23 +243,35 @@ test('preview clears on progress selection, plan removal, reset and direction ch
   );
 });
 
-test('selecting a stage moves the active day in the SAME update', () => {
+test('selecting a stage follows its occurrences — one, none, or many', () => {
   const action = /const setCurrentStage = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
   assert.match(action, /if \(!s\.dayPlan\) return \{ \.\.\.s, currentStageId: stageId \};/);
-  assert.match(action, /dayIndexForStageIndex\(s\.dayPlan\.days, stageIndex\)/);
-  assert.match(action, /return \{ \.\.\.s, currentStageId: stageId, dayPlan: \{ \.\.\.s\.dayPlan, currentDayId \} \};/);
+  assert.match(action, /stageOccurrences\(s\.dayPlan\.days, stageId\)/);
+  // Exactly one occurrence: all three pointers move together.
+  assert.match(action, /if \(occurrences\.length === 1\)/);
+  assert.match(action, /currentDayId: occurrences\[0\]\.dayId,/);
+  assert.match(action, /currentLegId: occurrences\[0\]\.legId,/);
+  // Zero or several: route progress moves, no occurrence is picked by match.
+  assert.match(action, /dayPlan: \{ \.\.\.s\.dayPlan, currentLegId: null \}/);
+  assert.ok(
+    !/occurrences\[0\]\.dayId(?![\s\S]*length === 1)/.test(action.split('length === 1')[0]),
+    'no first-match selection before the uniqueness check',
+  );
 });
 
-test('a day-list edit repairs the active-day pointer through the shared rule', () => {
+test('selecting a LEG writes all three pointers atomically', () => {
+  const action = /const setCurrentLeg = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
+  assert.match(action, /hikingLegsOf\(day\)\.find\(\(l\) => l\.id === legId\)/);
+  assert.match(action, /currentStageId: leg\.stageId,/);
+  assert.match(action, /currentDayId: day\.id, currentLegId: leg\.id/);
+  assert.match(action, /setPreviewDayId\(null\);/, 'an explicit progress choice ends a preview');
+  assert.match(action, /if \(!day \|\| !leg\) return s;/, 'unknown ids are a safe no-op');
+});
+
+test('a day-list edit repairs the pointer pair through the shared rule', () => {
   const patch = /const patchDays = useCallback\([\s\S]*?\n  \);/.exec(store)[0];
-  // Ownership is answered by the pure model, not re-derived in the store.
-  assert.match(patch, /currentDayIdAfterEdit\(/);
-  assert.match(patch, /s\.dayPlan\.days,\s*\n\s*days,\s*\n\s*s\.dayPlan\.currentDayId,\s*\n\s*stageIndex,/);
-  assert.match(
-    patch,
-    /stages\.findIndex\(\s*\n?\s*\(st\) => st\.id === s\.currentStageId,?\s*\n?\s*\)/,
-    'the current stage is located in the ACTIVE itinerary',
-  );
+  // Survival is answered by the pure model, not re-derived in the store.
+  assert.match(patch, /pointersAfterEdit\(days, s\.dayPlan\.currentDayId, s\.dayPlan\.currentLegId\)/);
   // The edit never rewrites route progress to keep a day alive.
   assert.ok(!/currentStageId:/.test(patch), 'a calendar edit never moves currentStageId');
 });
@@ -269,15 +307,22 @@ test('the store exposes the day-plan actions and no raw-activity API', () => {
     'removePlannedDay',
     'setDayActivities',
     'swapDayActivities',
-    'setHikingDayStages',
+    'addHikingLeg',
+    'removeHikingLeg',
+    'reverseHikingLeg',
+    'repeatHikingLeg',
+    'moveHikingLeg',
+    'dropDayHiking',
     'setDayOvernight',
     'resetDayPlan',
     'removeDayPlan',
     'followPlanDates',
+    'setCurrentLeg',
   ]) {
     assert.ok(store.includes(action), `${action} is exposed`);
   }
   assert.ok(!/setDays\b|replaceDays|setPlanDays/.test(store), 'no raw day-array setter');
+  assert.ok(!/setHikingDayStages/.test(store), 'the stage-count endpoint API is gone');
 });
 
 test('clearing the start date never deletes a plan', () => {
@@ -289,6 +334,20 @@ test('clearing the start date never deletes a plan', () => {
 test('reset rebuilds the default plan and keeps the start date', () => {
   const action = /const resetDayPlan = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0];
   assert.match(action, /buildDayPlan\(\s*s\.routeDirection,\s*s\.dayPlan\.startDate,/);
+});
+
+test('recovery removal is explicit, isolated, and the only writer', () => {
+  const action = stripComments(
+    /const removeDayPlanRecovery = useCallback\([\s\S]*?\}, \[\]\);/.exec(store)[0],
+  );
+  assert.match(action, /s\.dayPlanRecovery \? \{ \.\.\.s, dayPlanRecovery: null \} : s/);
+  assert.ok(!/dayPlan:|currentStageId|packing|journal|trip:/.test(action), 'touches nothing else');
+  // Nothing else in the app clears the recovery copy: the literal clearing
+  // write exists exactly once, inside this action.
+  const writers = store.match(/dayPlanRecovery: null/g) ?? [];
+  assert.equal(writers.length, 1, 'the one clearing write');
+  // The recovery value is exposed read-only and never interpreted.
+  assert.match(store, /dayPlanRecovery: state\.dayPlanRecovery,/);
 });
 
 test('removal drops the plan and nothing else', () => {

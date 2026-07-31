@@ -200,44 +200,82 @@ test('a mixed day can swap its activity order', () => {
   assert.match(sheet, /'Hiking, then travel' : 'Travel, then hiking'/);
 });
 
-test('the endpoint chooser replaces boundary toggles entirely', () => {
-  assert.match(sheet, /Change endpoint/);
-  assert.match(sheet, /hikingEndpointOptions\(plannedDays, day\.index, itinerary\.stages\)/);
-  // The retired interaction must not come back.
-  for (const gone of ['End day at', 'Continue past', 'boundary', 'toggleBoundary']) {
-    assert.ok(!sheet.includes(gone), `the boundary interaction is gone: ${gone}`);
-    assert.ok(!card.includes(gone), `the boundary interaction is gone: ${gone}`);
+test('the leg editor replaces the stage-count endpoint chooser entirely', () => {
+  assert.match(sheet, /Edit route legs/);
+  assert.match(sheet, /function LegEditor\(/);
+  // The retired interactions must not come back.
+  for (const gone of [
+    'Change endpoint',
+    'EndpointChooser',
+    'hikingEndpointOptions',
+    'mergeConsequence',
+    'setHikingDayStages',
+    'End day at',
+    'Continue past',
+    'toggleBoundary',
+  ]) {
+    assert.ok(!sheet.includes(gone), `the stage-count interaction is gone: ${gone}`);
+    assert.ok(!card.includes(gone), `the stage-count interaction is gone: ${gone}`);
   }
   assert.ok(!css.includes('.dayplan-boundary'), 'its CSS is gone too');
 });
 
-test('each endpoint option states its stages, distance and consequence', () => {
-  const chooser = sheet.slice(sheet.indexOf('function EndpointChooser('));
-  assert.match(chooser, /\{option\.stages\} \{option\.stages === 1 \? 'stage' : 'stages'\}/);
-  assert.match(chooser, /formatDistanceKm\(option\.distanceKm\)/);
-  // The consequence is COUNTED, never a fixed sentence: a distant endpoint can
-  // absorb several days, and one about "the following hiking day" understates
-  // it. Both branches carry a singular and a plural form.
-  const merge = sheet.slice(sheet.indexOf('function mergeConsequence('), sheet.indexOf('/**\n * The one place'));
-  assert.match(merge, /the next hiking day/);
-  assert.match(merge, /the next \$\{option\.absorbedDays\} hiking days/);
-  assert.match(merge, /Merges \$\{days\} into this day\./);
-  // A nearer endpoint takes stages without emptying a day, and says so.
-  assert.match(merge, /Takes \$\{stages\} from the next hiking day\./);
-  assert.match(merge, /Merges \$\{days\} into this day and shortens the one after\./);
-  assert.match(chooser, /Creates a new hiking day for the remaining stage\./);
-  assert.match(
-    chooser,
-    /Creates a new hiking day for the remaining \$\{option\.releasedStages\} stages\./,
-  );
-  assert.ok(
-    !/Merges the following hiking day|Splits the rest of the walking/.test(chooser),
-    'the uncounted sentences are gone',
-  );
-  // The one deliberate exception: nothing heavier than distance appears.
-  for (const forbidden of ['totalAscentM', 'estimatedHours', 'stageHighlights', 'guide']) {
-    assert.ok(!chooser.includes(forbidden), `the chooser must not show ${forbidden}`);
+test('the leg editor lists the exact ordered legs with their oriented routes', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  assert.match(editor, /day\.legs\.map\(\(leg, i\) => \{/);
+  assert.match(editor, /\{stopName\(leg\.stage\.fromHutId\)\} → \{stopName\(leg\.stage\.toHutId\)\}/);
+  assert.match(editor, /formatDistanceKm\(leg\.stage\.distanceKm\)/);
+  // A leg walked against the plan's own direction says so, explicitly.
+  assert.match(editor, /walks the section in reverse/);
+  assert.match(editor, /leg\.orientation !== natural/);
+  // A repeated stage names its other occurrences instead of hiding them.
+  assert.match(editor, /Also walked/);
+  assert.match(editor, /stageOccurrences\(plannedDays, leg\.stageId\)/);
+});
+
+test('every leg action is gated on the pure model and touches one day', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  // Reverse / remove / repeat / move are the model's own predicates.
+  assert.match(editor, /canReverseLeg\(rawLegs, leg\.id, STAGE_TOPOLOGY\)/);
+  assert.match(editor, /canRemoveLeg\(rawLegs, leg\.id, STAGE_TOPOLOGY\)/);
+  assert.match(editor, /withLegRepeated\(rawLegs, legId, STAGE_TOPOLOGY\) !== rawLegs/);
+  assert.match(editor, /withLegMoved\(rawLegs, from, to, STAGE_TOPOLOGY\) !== rawLegs/);
+  // Every mutation goes through the store's per-day leg actions.
+  for (const action of [
+    'addHikingLeg(day.id',
+    'removeHikingLeg(day.id',
+    'reverseHikingLeg(day.id',
+    'repeatHikingLeg(day.id',
+    'moveHikingLeg(day.id',
+  ]) {
+    assert.ok(editor.includes(action), `${action} …) is the only write path`);
   }
+  // A blocked control says why rather than accepting a dead tap.
+  assert.match(editor, /would disconnect the day’s walk/);
+  assert.match(editor, /A hiking day walks at least one leg/);
+});
+
+test('add-candidates show from → to, orientation, distance and prior planning', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  assert.match(editor, /legCandidatesTo\(STAGE_TOPOLOGY, day\.fromStopId\)/);
+  assert.match(editor, /legCandidatesFrom\(STAGE_TOPOLOGY, day\.toStopId\)/);
+  assert.match(editor, /Add before the start/);
+  assert.match(editor, /Add after the end/);
+  assert.match(editor, /\{stopName\(candidate\.fromStopId\)\} → \{stopName\(candidate\.toStopId\)\}/);
+  assert.match(editor, /formatDistanceKm\(stageDistanceKm\(candidate\.stageId\)\)/);
+  assert.match(editor, /Already planned on day/);
+  // Concise decision info only — no guide or highlight content in the editor.
+  for (const forbidden of ['stageHighlights', 'stageGuide', 'elevationProfile', 'totalAscentM']) {
+    assert.ok(!editor.includes(forbidden), `the editor must not show ${forbidden}`);
+  }
+});
+
+test('reverse and repeat are explicit about what they do', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  assert.match(editor, /Walk this section the other way round/);
+  assert.match(editor, /a second occurrence, the first stays where it is/);
+  assert.match(editor, /> Reverse\s*<\/button>/);
+  assert.match(editor, /> Walk again\s*<\/button>/);
 });
 
 test('the overnight chooser offers derived, stop, Trip stay and none', () => {
@@ -288,16 +326,24 @@ test('the chooser never lists the derived location twice', () => {
 
 // ---- Invalid edits are refused before they are offered ----------------------
 
-test('every day-sheet control is gated on the model rule, not a local copy', () => {
-  assert.match(sheet, /from '\.\.\/plan\/dayPlan\.mjs'/);
-  assert.match(sheet, /const canTakeAStage = canInsertHikingDay\(plannedDays, day\.index\);/);
-  assert.match(sheet, /const canGiveUpWalking = canDropHikingFromDay\(plannedDays, day\.index\);/);
-  assert.match(sheet, /const canRemove = canRemoveDay\(plannedDays, day\.index\);/);
-  // The superseded approximation must not come back.
-  assert.ok(
-    !/canRemove = plannedDays\.length > 1/.test(sheet),
-    'removal is not gated on the day count alone',
-  );
+test('removing a day\'s walking is explicit, confirmed and names the route', () => {
+  // Rest on a walking day, or toggling hiking off, never silently drops the
+  // legs: the confirmation states what is removed and that no other day
+  // changes — the coverage gap becomes a diagnostic, not a repair.
+  assert.match(sheet, /setConfirmingDrop\(\['rest'\]\)/);
+  assert.match(sheet, /Remove the day’s walking\?/);
+  // The finalised copy: name the legs and the route, and state BOTH that no
+  // other planned day changes and that no walking is redistributed.
+  assert.match(sheet, /This removes the day's walking — \$\{\s*\n?\s*dropLegs === 1 \? 'its one leg' : `all \$\{dropLegs\} legs`\s*\n?\s*\}/);
+  assert.match(sheet, /No other planned day changes and no walking moves to another day/);
+  assert.match(sheet, /dropDayHiking\(day\.id, confirmingDrop\)/);
+  // The leg editor offers the same explicit exit for the final leg.
+  assert.match(sheet, /Remove walking from this day/);
+  // No donor/heir machinery — nothing borrows or inherits stages any more.
+  for (const gone of ['hikingDonorIndex', 'hikingHeirIndex', 'canInsertHikingDay', 'NO_DONOR', 'NO_HEIR']) {
+    assert.ok(!sheet.includes(gone), `${gone} is gone`);
+    assert.ok(!card.includes(gone), `${gone} is gone from the card`);
+  }
 });
 
 test('a blocked activity toggle is disabled and says why', () => {
@@ -305,24 +351,83 @@ test('a blocked activity toggle is disabled and says why', () => {
   assert.match(sheet, /blocked=\{kindBlocked\('travel'\)\}/);
   assert.match(sheet, /blocked=\{kindBlocked\('rest'\)\}/);
   assert.match(sheet, /disabled=\{blocked !== null\}/);
-  assert.match(sheet, /\{blockedNotes\.map\(\(note\) => \(/);
-  // The reason reuses the Add day flow's sentence.
-  assert.match(sheet, /Every stage already has its own hiking day/);
-  assert.match(card, /Every stage already has its own hiking day/);
   // And a blocked toggle never reaches the store.
   assert.match(sheet, /if \(kindBlocked\(kind\)\) return;/);
+  // Taking on walking names the proposed section up front — and ONLY
+  // auto-proceeds when exactly one not-yet-planned candidate exists; every
+  // other case (a fork, or only repeats) opens the explicit chooser.
+  assert.match(sheet, /Adding hiking starts this day with/);
+  assert.match(sheet, /the connecting section not yet in your plan/);
+  assert.match(sheet, /newDayLegCandidates\(plannedDays, day\.index/);
+  assert.match(sheet, /startUnplanned\.length === 1 \? startUnplanned\[0\] : null/);
+  assert.match(sheet, /setChoosingStart\(kinds\)/);
+  assert.match(sheet, /<StartLegOptions/);
+  assert.match(sheet, /asks which connecting section this day starts with/);
+});
+
+test('a new hiking day never repeats a stage silently', () => {
+  // Add-day: the fast path exists only for the single not-yet-planned
+  // candidate; forks and repeat-only cases open the chooser, with repeats
+  // marked. The shared options component is the one place that renders a
+  // candidate, so the two surfaces cannot diverge.
+  assert.match(card, /const unplanned = candidates\.filter\(\(c\) => !c\.alreadyPlanned\);/);
+  assert.match(card, /unplanned\.length === 1 \? unplanned\[0\] : null/);
+  assert.match(card, /proposed \? onAdd\(\['hiking'\], proposed\) : setChoosingStart\(true\)/);
+  assert.match(card, /the connecting\s+section not yet in your plan/);
+  assert.match(card, /Sections already in your plan\s*\n?\s*are marked\./);
+  const options = read('src/components/StartLegOptions.tsx');
+  assert.match(options, /Already planned/);
+  assert.match(options, /choosing\s*\n?\s*it walks the section again/);
+  assert.match(options, /walks the section in reverse/);
+  assert.match(options, /formatDistanceKm/);
+  assert.ok(!/stageGuide|stageHighlights/.test(options), 'decision info only');
 });
 
 test('a destructive confirmation is never offered for a mutation that no-ops', () => {
-  const actions = sheet.slice(sheet.indexOf('<div className="sheet-actions">'), sheet.indexOf('{view === \'endpoint\''));
+  const actions = sheet.slice(sheet.indexOf('<div className="sheet-actions">'), sheet.indexOf("{view === 'legs'"));
   assert.match(actions, /disabled=\{!canRemove\}/);
-  assert.match(actions, /title=\{canRemove \? undefined : removeBlockedReason\}/);
-  assert.match(sheet, /\{removeBlockedReason\}/, 'the reason is visible, not only a tooltip');
-  assert.match(
-    sheet,
-    /plannedDays\.length <= 1 \? 'This is the only day in your plan\.' : NO_HEIR/,
-  );
-  assert.match(sheet, /This is the only day with walking, so its route stages have nowhere to go\./);
+  assert.match(sheet, /This is the only day in your plan\./);
+  // Day removal now states that the walking goes WITH the day.
+  assert.match(sheet, /is removed with it — no other day changes\./);
+});
+
+test('the coverage summary is informational, edit-mode only, and never mutates', () => {
+  // One compact summary; specifics behind a native disclosure. It reads the
+  // pure selector — no local re-derivation — and offers NO repair action.
+  assert.match(card, /function CoverageSummary\(\)/);
+  assert.match(card, /dayPlanCoverageDiagnostics\(plannedDays, dayPlan\?\.direction \?\? '', STAGE_TOPOLOGY\)/);
+  assert.match(card, /if \(!hasCoverageDifferences\(diagnostics\)\) return null;/);
+  assert.match(card, /Your plan differs from the full route/);
+  assert.match(card, /coverageSummaryLines\(diagnostics\)/);
+  // Rendered inside the edit-mode branch only.
+  const editBlock = card.slice(card.indexOf('{editing ? ('), card.indexOf('<ol className="dayplan"'));
+  assert.match(editBlock, /<CoverageSummary \/>/);
+  // Information, not alarm: no repair verbs, no store action in the summary.
+  const summary = card.slice(card.indexOf('function CoverageSummary('), card.indexOf('/** One day in the compact list'));
+  assert.ok(!/setDayActivities|addHikingLeg|removeHikingLeg|dropDayHiking|onClick/.test(summary),
+    'the summary never mutates or offers a one-tap repair');
+  assert.ok(!/error|invalid|fix\b/i.test(summary.replace(/\/\*[\s\S]*?\*\//g, '')),
+    'differences are never framed as errors');
+});
+
+test('the recovery notice is calm, offers export, and removal needs confirming', () => {
+  assert.match(card, /function RecoveryNotice\(\)/);
+  assert.match(card, /if \(!dayPlanRecovery\) return null;/, 'invisible in every ordinary state');
+  assert.match(card, /Your saved Day plan could not be migrated to this version\./);
+  assert.match(card, /The original was set aside untouched and nothing else was affected\./);
+  assert.match(card, /Download original plan/);
+  assert.match(card, /downloadJson\('fjallkompis-day-plan-recovery\.json'/);
+  assert.match(card, /dayPlan: dayPlanRecovery\.dayPlan,/, 'the export carries the verbatim value');
+  // Removal is explicit: a confirmation dialog naming permanence, then the
+  // one store action. Nothing here renders or interprets the payload.
+  assert.match(card, /Remove recovery copy/);
+  assert.match(card, /Remove the recovery copy\?/);
+  assert.match(card, /deleted permanently — download it first if you want to keep it\./);
+  assert.match(card, /removeDayPlanRecovery\(\);/);
+  const notice = card.slice(card.indexOf('function RecoveryNotice('), card.indexOf('/** Compact activity glyphs'));
+  assert.ok(!/\.days|\.legs|stages|normalize/.test(notice), 'the payload is opaque to the UI');
+  // Present in BOTH branches — with and without an active plan.
+  assert.equal((card.match(/<RecoveryNotice \/>/g) ?? []).length, 2);
 });
 
 test('a deleted Trip stay is reported honestly, never rendered as a name', () => {
@@ -374,9 +479,9 @@ test('Today carries NO expanded stage-detail section', () => {
 });
 
 test('the day-type indicator is icons in the existing eyebrow row', () => {
-  assert.match(onRoute, /function DayTypeBadge\(\{ kinds \}/);
+  assert.match(onRoute, /function DayTypeBadge\(\{ kinds, reversed \}/);
   assert.match(onRoute, /<span className="hero-day__type" aria-hidden>/);
-  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} \/>/);
+  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} reversed=\{contraryLegCount > 0\} \/>/);
   // The words are always in the hero's accessible name, in stored order.
   assert.match(onRoute, /const kindWords = activityOrderPhrase\(day\);/);
   assert.match(onRoute, /aria-label=\{`\$\{previewing \? 'Previewing' : 'Today'\}: day \$\{day\.number\} of \$\{dayCount\}/);
@@ -397,7 +502,7 @@ test('previewing keeps the ordered activity glyphs visible (v0.26.2 regression)'
   assert.ok(!/visibility:\s*hidden/.test(previewTypeRule), 'nor make them invisible');
   assert.match(previewTypeRule, /white-space: nowrap/);
   // The badge itself is unconditional in the hero — not gated on previewing.
-  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} \/>/);
+  assert.match(onRoute, /<DayTypeBadge kinds=\{day\.kinds\} reversed=\{contraryLegCount > 0\} \/>/);
   assert.ok(
     !/previewing[^]{0,80}<DayTypeBadge/.test(onRoute),
     'the badge must not sit inside a previewing conditional',
@@ -550,6 +655,23 @@ test('a mixed day never hides its travel when no Trip item matches the date', ()
   );
   const row = card.slice(card.indexOf('function DayRow('), card.indexOf('function AddDayRow('));
   assert.match(row, /travelLine\?\.position === 'only' && travelLine\.isEmpty/);
+});
+
+test('a leg walked against the route direction is stated, height-neutrally', () => {
+  // The marker rides the EXISTING eyebrow badge (no new line, the same rule
+  // the activity glyphs follow); the exact count rides the accessible name;
+  // and the oriented title endpoints plus the leg editor tell the full
+  // story. A hero-via sentence measured +36px at 375×667 — a new variant
+  // may not introduce overflow, so the words live in the label, not a row.
+  assert.match(onRoute, /const naturalOrientation = isReversed\(routeDirection\) \? 'opposite' : 'canonical';/);
+  assert.match(onRoute, /l\.orientation !== naturalOrientation/);
+  assert.match(onRoute, /reversed=\{contraryLegCount > 0\}/);
+  assert.match(onRoute, /\{reversed \? <ArrowUpDown size=\{14\}/);
+  assert.match(onRoute, /Walked in reverse of the route direction\./);
+  assert.match(onRoute, /legs walked in reverse of the route direction\./);
+  assert.match(onRoute, /\}\. \$\{kindWords\}\.\$\{reversedWords\}`\}/);
+  // No standalone hero row for it — the height-neutral rule.
+  assert.ok(!/hero-via">[^<]*reverse/.test(onRoute), 'never a dedicated via line');
 });
 
 test('a rest day names where it is based and opens Stop info', () => {

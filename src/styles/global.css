@@ -5554,6 +5554,100 @@ span.trip-attach-open {
   color: var(--ink-faint);
 }
 
+/* A stage card opened from a planned leg that walks the section the other
+   way: one quiet contextual line under the route title. */
+.stage-card__reversed-note {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--cloudberry);
+}
+
+/* Day plan recovery notice: a stored plan that could not be migrated was
+   set aside verbatim. Calm card tones — information and two actions, not
+   an alarm. */
+.dayplan-recovery {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--cloudberry);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.dayplan-recovery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Coverage summary: how the plan differs from the full route. Information,
+   never an alarm — quiet card tones, a native disclosure for the detail. */
+.dayplan-coverage {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.dayplan-coverage summary {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.dayplan-coverage summary::-webkit-details-marker {
+  display: none;
+}
+.dayplan-coverage__lines {
+  margin-top: 0;
+  font-size: 12.5px;
+}
+.dayplan-coverage__detail {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dayplan-coverage__detail .card-sub {
+  margin-top: 0;
+}
+
+/* The leg editor: one day's ordered legs, each with its own actions. Same
+   tokens as .dayplan-option — the editor is a sibling surface, not a new
+   design. Actions are the small pill (.stage-set-pill) so a leg row stays
+   compact on a 375px sheet. */
+.dayplan-legs {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  counter-reset: leg;
+}
+.dayplan-leg {
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.dayplan-leg__route {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+}
+.dayplan-leg__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dayplan-leg__actions .stage-set-pill:disabled {
+  opacity: 0.45;
+}
+
 .dayplan-add-choices {
   display: flex;
   flex-direction: column;

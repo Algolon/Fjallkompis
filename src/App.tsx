@@ -57,6 +57,7 @@ function Screens({
       return (
         <StagesScreen
           initialGuideStageId={nav.payload?.guideStageId ?? null}
+          initialGuideReversed={nav.payload?.guideReversed === true}
           onNavigate={navigate}
         />
       );

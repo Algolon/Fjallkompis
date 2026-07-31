@@ -47,13 +47,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 9', () => {
-  assert.equal(SCHEMA_VERSION, 9);
+test('schema version is 10', () => {
+  assert.equal(SCHEMA_VERSION, 10);
 });
 
-test('v1 → v9: schemaVersion is bumped and core fields survive', () => {
+test('v1 → v10: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 9);
+  assert.equal(s.schemaVersion, 10);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -186,7 +186,7 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 9);
+    assert.equal(s.schemaVersion, 10);
     assert.equal(s.currentStageId, 'd1');
     assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
@@ -202,7 +202,7 @@ test('v3 → v4: older state without routeDirection defaults to forward', () => 
   // A realistic v3 payload never carried a direction field.
   const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
   const s = normalizeState(v3);
-  assert.equal(s.schemaVersion, 9);
+  assert.equal(s.schemaVersion, 10);
   assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
   // Unrelated data survives untouched.
   assert.equal(s.currentStageId, 'd5');
@@ -489,7 +489,7 @@ function ownedV5State() {
 test('v5 → v6: an owned packing payload gains an empty trip plan, nothing else changes', () => {
   const v5 = ownedV5State();
   const s = normalizeState(v5);
-  assert.equal(s.schemaVersion, 9);
+  assert.equal(s.schemaVersion, 10);
   assert.deepEqual(s.trip, [], 'no trip items are fabricated');
   // The owned snapshot survives field-for-field (plus the v8 worn default):
   // no re-run of the seed merge, no restored deletions, no reset progress.
@@ -604,20 +604,36 @@ test('combined migration is idempotent and never mutates its input', () => {
 
 test('fresh defaultState carries the current template, its version and an empty trip', () => {
   const s = defaultState('d1');
-  assert.equal(s.schemaVersion, 9);
+  assert.equal(s.schemaVersion, 10);
   assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
   assert.deepEqual(s.trip, []);
 });
 
-// ---- Day plan (v6 → v7) -----------------------------------------------------
+// ---- Day plan (v6 → v7, then v9 → v10) --------------------------------------
 //
-// The day plan is validated against the canonical stage count, so the caller
-// supplies it (src/utils/storage.ts passes STAGES.length). These tests use the
-// real Kungsleden count.
+// The day plan's hiking legs are validated against the canonical stage
+// topology, so the caller supplies it (src/utils/storage.ts passes
+// STAGE_TOPOLOGY). These tests spell out the real Kungsleden topology.
 
-const STAGE_COUNT = 7;
+const STAGE_COUNT = [
+  { id: 'd1', fromStopId: 'abisko', toStopId: 'abiskojaure' },
+  { id: 'd2', fromStopId: 'abiskojaure', toStopId: 'alesjaure' },
+  { id: 'd3', fromStopId: 'alesjaure', toStopId: 'tjaktja' },
+  { id: 'd4', fromStopId: 'tjaktja', toStopId: 'salka' },
+  { id: 'd5', fromStopId: 'salka', toStopId: 'singi' },
+  { id: 'd6', fromStopId: 'singi', toStopId: 'kebnekaise' },
+  { id: 'd7', fromStopId: 'kebnekaise', toStopId: 'nikkaluokta' },
+];
 const FORWARD = 'abisko-to-nikkaluokta';
 const REVERSE = 'nikkaluokta-to-abisko';
+
+/** The stages a migrated plan's days walk, as compact "stage:orientation". */
+const migratedLegs = (dayPlan) =>
+  dayPlan.days.map((d) =>
+    d.activities
+      .filter((a) => a.kind === 'hiking')
+      .flatMap((a) => a.legs.map((l) => `${l.stageId}:${l.orientation}`)),
+  );
 
 let daySeq = 0;
 const planDay = (activities, overnight) => ({
@@ -673,7 +689,7 @@ function v6State() {
 test('v6 → v7: an existing payload gains dayPlan: null and nothing else changes', () => {
   const v6 = v6State();
   const s = normalizeState(v6, 'd1', STAGE_COUNT);
-  assert.equal(s.schemaVersion, 9);
+  assert.equal(s.schemaVersion, 10);
   assert.equal(s.dayPlan, null, 'no plan is ever generated for an existing user');
   // Every other field is untouched — the migration paths compose.
   assert.deepEqual(s.packing, withWornDefault(v6.packing));
@@ -695,12 +711,87 @@ test('defaultState starts with no day plan', () => {
   assert.equal(defaultState('d1').dayPlan, null);
 });
 
-test('v7 roundtrip: the mixed journey persists verbatim beside every other field', () => {
-  const state = { ...v6State(), schemaVersion: 7, routeDirection: FORWARD, dayPlan: journeyPlan() };
+test('v9 → v10: the mixed journey migrates to explicit legs, in place', () => {
+  const state = { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() };
   const s = normalizeState(state, 'd1', STAGE_COUNT);
-  assert.deepEqual(s.dayPlan, state.dayPlan);
+  assert.ok(s.dayPlan, 'the released plan loads');
+  // Exactly the stages the released cursor walk consumed, day by day.
+  assert.deepEqual(migratedLegs(s.dayPlan), [
+    [],
+    ['d1:canonical'],
+    ['d2:canonical'],
+    ['d3:canonical', 'd4:canonical'],
+    ['d5:canonical'],
+    ['d6:canonical'],
+    [],
+    ['d7:canonical'],
+    [],
+  ]);
+  // Day ids, order, activity order, overnights, dates — all preserved.
+  assert.deepEqual(
+    s.dayPlan.days.map((d) => d.id),
+    state.dayPlan.days.map((d) => d.id),
+  );
+  assert.deepEqual(
+    s.dayPlan.days.map((d) => d.activities.map((a) => a.kind)),
+    state.dayPlan.days.map((d) => d.activities.map((a) => a.kind)),
+  );
+  assert.deepEqual(s.dayPlan.days[0].overnight, { kind: 'stop', stopId: 'abisko' });
+  assert.deepEqual(s.dayPlan.days[7].overnight, { kind: 'stay', tripItemId: 'trip_kiruna' });
+  assert.equal(s.dayPlan.startDate, '2026-09-03');
+  assert.equal(s.dayPlan.direction, FORWARD);
+  assert.equal(s.dayPlan.currentLegId, null, 'no pointer without released pointers to derive it');
+  // Deterministic leg identity: (day id, stage id), stable across runs.
+  const combined = s.dayPlan.days[3];
+  assert.equal(combined.activities[0].legs[0].id, `leg_${combined.id}_d3`);
+  // Everything else unchanged.
   assert.deepEqual(s.packing, withWornDefault(state.packing));
   assert.deepEqual(s.trip, state.trip);
+});
+
+test('v9 → v10: agreeing released pointers derive the current leg', () => {
+  const plan = journeyPlan();
+  plan.currentDayId = plan.days[3].id; // walks d3 + d4
+  const state = {
+    ...v6State(),
+    schemaVersion: 9,
+    routeDirection: FORWARD,
+    currentStageId: 'd4',
+    dayPlan: plan,
+  };
+  const s = normalizeState(state, 'd1', STAGE_COUNT);
+  assert.equal(s.dayPlan.currentDayId, plan.days[3].id);
+  assert.equal(s.dayPlan.currentLegId, `leg_${plan.days[3].id}_d4`);
+  // Pointers that do NOT intersect derive no current leg — never a guess.
+  const elsewhere = normalizeState({ ...state, currentStageId: 'd6' }, 'd1', STAGE_COUNT);
+  assert.equal(elsewhere.dayPlan.currentLegId, null);
+  assert.equal(elsewhere.dayPlan.currentDayId, plan.days[3].id, 'the day pointer still holds');
+});
+
+test('v10 roundtrip: an already-migrated plan persists verbatim', () => {
+  const migrated = normalizeState(
+    { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() },
+    'd1',
+    STAGE_COUNT,
+  );
+  const again = normalizeState(migrated, 'd1', STAGE_COUNT);
+  assert.deepEqual(again.dayPlan, migrated.dayPlan);
+  assert.deepEqual(again, migrated, 'normalisation is a fixpoint on v10 data');
+});
+
+test('v9 → v10 device transfer: an exported v9 blob imports on a v10 device', () => {
+  // parseImport funnels through the same normalizeState this exercises: an
+  // envelope written by v0.26.x (schema 9) must land as a valid v10 state.
+  const exported = {
+    app: 'fjallkompis',
+    schemaVersion: 9,
+    exportedAt: '2026-07-31T12:00:00.000Z',
+    state: { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() },
+  };
+  const s = normalizeState(exported.state, 'd1', STAGE_COUNT);
+  assert.equal(s.schemaVersion, 10);
+  assert.equal(s.dayPlan.days.length, 9);
+  assert.deepEqual(migratedLegs(s.dayPlan).flat().length, 7, 'every stage exactly once');
 });
 
 test('the EARLIER DRAFT shape normalises to null, never partly interpreted', () => {
@@ -765,10 +856,130 @@ test('day-plan migration is idempotent and never mutates its input', () => {
   assert.equal(JSON.stringify(state), frozen, 'input object untouched');
 });
 
+// ---- Day plan recovery (a stored plan that could not be loaded) -------------
+//
+// A malformed legacy plan must NOT be destroyed by normalisation: the very
+// first save after loading would overwrite the only stored copy. The
+// original is set aside VERBATIM in `dayPlanRecovery`; the active plan is
+// null; everything else keeps working; only the user's explicit removal (a
+// store action, fenced in day-plan-store.test.mjs) ends it.
+
+/** A v9 plan the released model could not have persisted (over-consumption). */
+function malformedV9Plan() {
+  return {
+    direction: FORWARD,
+    startDate: '2026-09-03',
+    currentDayId: 'day_x2',
+    days: [
+      { id: 'day_x1', activities: [{ kind: 'hiking', stages: 5 }], mystery: 'kept?' },
+      { id: 'day_x2', activities: [{ kind: 'hiking', stages: 5 }] },
+    ],
+  };
+}
+
+test('a malformed v9 plan is set aside VERBATIM, never discarded', () => {
+  const source = { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: malformedV9Plan() };
+  const s = normalizeState(source, 'd1', STAGE_COUNT);
+  assert.equal(s.dayPlan, null, 'the active plan cannot render, so it is null');
+  assert.ok(s.dayPlanRecovery, 'the original is preserved');
+  assert.equal(s.dayPlanRecovery.reason, 'migration-failed');
+  // Byte-for-byte: unknown fields, malformed counts and all.
+  assert.equal(
+    JSON.stringify(s.dayPlanRecovery.dayPlan),
+    JSON.stringify(malformedV9Plan()),
+    'the exact persisted value survives',
+  );
+  // Unrelated state is untouched and usable.
+  assert.equal(s.currentStageId, 'd2');
+  assert.deepEqual(s.trip, source.trip);
+  assert.ok(s.packing.length > 0);
+});
+
+test('a reload (re-normalising the saved output) preserves the recovery verbatim', () => {
+  const source = { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: malformedV9Plan() };
+  const once = normalizeState(source, 'd1', STAGE_COUNT);
+  // What saveState writes is what the next launch reads.
+  const reloaded = normalizeState(JSON.parse(JSON.stringify(once)), 'd1', STAGE_COUNT);
+  assert.deepEqual(reloaded, once, 'normalisation is a fixpoint with a recovery present');
+  assert.equal(
+    JSON.stringify(reloaded.dayPlanRecovery.dayPlan),
+    JSON.stringify(malformedV9Plan()),
+  );
+});
+
+test('an unreadable non-legacy plan is preserved too, marked unreadable', () => {
+  const draft = { direction: FORWARD, firstDate: '2026-09-03', groups: [1, 1, 2, 1, 1, 1] };
+  const s = normalizeState({ ...v6State(), routeDirection: FORWARD, dayPlan: draft }, 'd1', STAGE_COUNT);
+  assert.equal(s.dayPlan, null);
+  assert.equal(s.dayPlanRecovery.reason, 'unreadable');
+  assert.equal(JSON.stringify(s.dayPlanRecovery.dayPlan), JSON.stringify(draft));
+});
+
+test('a VALID migration creates no recovery payload', () => {
+  const s = normalizeState(
+    { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() },
+    'd1',
+    STAGE_COUNT,
+  );
+  assert.ok(s.dayPlan, 'the plan loaded');
+  assert.equal(s.dayPlanRecovery, null, 'nothing was set aside');
+});
+
+test('valid v10 state and the default state carry no recovery either', () => {
+  assert.equal(defaultState('d1').dayPlanRecovery, null);
+  const migrated = normalizeState(
+    { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() },
+    'd1',
+    STAGE_COUNT,
+  );
+  assert.equal(normalizeState(migrated, 'd1', STAGE_COUNT).dayPlanRecovery, null);
+});
+
+test('an EXISTING recovery survives normalisation and is never replaced', () => {
+  const original = malformedV9Plan();
+  const withRecovery = {
+    ...v6State(),
+    routeDirection: FORWARD,
+    dayPlan: null,
+    dayPlanRecovery: { reason: 'migration-failed', dayPlan: original },
+  };
+  const s = normalizeState(withRecovery, 'd1', STAGE_COUNT);
+  assert.equal(JSON.stringify(s.dayPlanRecovery.dayPlan), JSON.stringify(original));
+  // Even when a LATER plan also fails, the first preserved original wins —
+  // it is the copy the user has not yet decided about.
+  const secondFailure = {
+    ...withRecovery,
+    dayPlan: { direction: FORWARD, firstDate: 'x', groups: [7] },
+  };
+  const kept = normalizeState(secondFailure, 'd1', STAGE_COUNT);
+  assert.equal(JSON.stringify(kept.dayPlanRecovery.dayPlan), JSON.stringify(original));
+  assert.equal(kept.dayPlanRecovery.reason, 'migration-failed');
+});
+
+test('a recovery entry with nothing recoverable in it drops without a crash', () => {
+  for (const bad of [null, 42, 'copy', [], {}, { reason: 'migration-failed' }]) {
+    const s = normalizeState(
+      { ...v6State(), routeDirection: FORWARD, dayPlanRecovery: bad },
+      'd1',
+      STAGE_COUNT,
+    );
+    assert.equal(s.dayPlanRecovery, null, JSON.stringify(bad));
+  }
+});
+
+test('removing the recovery is representable without touching anything else', () => {
+  const source = { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: malformedV9Plan() };
+  const withRecovery = normalizeState(source, 'd1', STAGE_COUNT);
+  // What the store's removeDayPlanRecovery action persists:
+  const removed = normalizeState({ ...withRecovery, dayPlanRecovery: null }, 'd1', STAGE_COUNT);
+  assert.equal(removed.dayPlanRecovery, null);
+  assert.deepEqual({ ...removed, dayPlanRecovery: withRecovery.dayPlanRecovery }, withRecovery);
+});
+
 test('a legacy payload from any older schema still lands on dayPlan: null', () => {
   for (const legacy of [V1_STATE, { ...V1_STATE, schemaVersion: 3 }]) {
     const s = normalizeState(legacy, 'd1', STAGE_COUNT);
-    assert.equal(s.schemaVersion, 9);
+    assert.equal(s.schemaVersion, 10);
     assert.equal(s.dayPlan, null);
   }
 });

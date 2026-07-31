@@ -260,10 +260,11 @@ test('Stage Guide opens the CURRENT stage’s guide on Stages', () => {
     /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: stage\.id \}\)\}/,
   );
   // With a plan: the day's OWN first stage, so the guide always matches the
-  // route printed above it.
+  // route printed above it — carrying the reverse-context flag when the
+  // lead leg walks the section the other way.
   assert.match(
     today,
-    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: leadStage\.id \}\)\}/,
+    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: leadStage\.id, guideReversed: leadLegReversed \}\)\}/,
   );
   assert.match(today, />\s*Stage Guide\s*</, 'visible Stage Guide label');
   // App.tsx forwards the one-shot payload into StagesScreen.

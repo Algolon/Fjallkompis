@@ -1,5 +1,6 @@
 import { useStore } from '../store/AppStore';
 import {
+  ArrowUpDown,
   BookOpen,
   BusFront,
   ChevronRight,
@@ -24,6 +25,7 @@ import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
 import { activityOrderPhrase, travelPresentation } from '../plan/dayPresentation.mjs';
+import { DEFAULT_DIRECTION, REVERSE_DIRECTION, isReversed } from '../route/direction.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
 import type { DayActivityKind, RouteDirection, TripItem } from '../types';
@@ -164,13 +166,18 @@ const ACTIVITY_ICON: Record<DayActivityKind, typeof Footprints> = {
   travel: BusFront,
   rest: Coffee,
 };
-function DayTypeBadge({ kinds }: { kinds: DayActivityKind[] }) {
+function DayTypeBadge({ kinds, reversed }: { kinds: DayActivityKind[]; reversed?: boolean }) {
   return (
     <span className="hero-day__type" aria-hidden>
       {kinds.map((kind) => {
         const Icon = ACTIVITY_ICON[kind];
         return <Icon key={kind} size={14} strokeWidth={2.1} />;
       })}
+      {/* A leg walked against the route direction: marked on the SAME line
+          (height-neutral, like the activity glyphs); the words ride the
+          hero's accessible name, and the oriented title endpoints plus the
+          leg editor carry the full story. */}
+      {reversed ? <ArrowUpDown size={14} strokeWidth={2.1} /> : null}
     </span>
   );
 }
@@ -211,13 +218,36 @@ function PlannedDayHero({
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
   const kindWords = activityOrderPhrase(day);
+  // The day's own first LEG: its absolute orientation decides which way the
+  // verified content is read. A leg walked against the app's route direction
+  // ('opposite' on a forward journey) reads its highlights in ITS direction —
+  // climb and descent chips must describe the walk the day actually makes.
+  const leadLeg = day.legs[0] ?? null;
+  const leadLegDirection =
+    leadLeg?.orientation === 'opposite' ? REVERSE_DIRECTION : DEFAULT_DIRECTION;
+  // Legs walked AGAINST the active route direction — the Stages screen shows
+  // those sections the other way round, so the difference is stated: an
+  // eyebrow marker (height-neutral) plus the exact count in the accessible
+  // name. The oriented title endpoints already run the other way.
+  const naturalOrientation = isReversed(routeDirection) ? 'opposite' : 'canonical';
+  const contraryLegCount = day.legs.filter((l) => l.orientation !== naturalOrientation).length;
+  // The guide deep links open the LEAD stage's canonical card; when the lead
+  // leg walks it the other way the card carries a contextual note (the guide
+  // prose itself is never mirrored — a documented deferral).
+  const leadLegReversed = leadLeg != null && leadLeg.orientation !== naturalOrientation;
+  const reversedWords =
+    contraryLegCount === 0
+      ? ''
+      : contraryLegCount === day.legs.length
+        ? ' Walked in reverse of the route direction.'
+        : ` ${contraryLegCount} of ${day.legs.length} legs walked in reverse of the route direction.`;
   // Chips only on a plain single-stage hiking day. A combined day would have
   // to merge two capped lists into one capped list, silently dropping half
   // the metadata; a mixed day already spends that line on the transfer. Both
   // cases also need the height — the hero has none spare at 375x667.
   const highlights =
     hiking && !multiStage && !travel && leadStage
-      ? stageHighlights(leadStage.id, undefined, routeDirection)
+      ? stageHighlights(leadStage.id, undefined, leadLegDirection)
       : [];
   // One shared helper decides the wording AND the position, so Today and the
   // Settings planner can never disagree about which happened first.
@@ -230,7 +260,7 @@ function PlannedDayHero({
       // leads with what it actually is.
       aria-label={`${previewing ? 'Previewing' : 'Today'}: day ${day.number} of ${dayCount}${
         dayDate ? `, ${dayDate}` : ''
-      }. ${kindWords}.`}
+      }. ${kindWords}.${reversedWords}`}
     >
       {hiking ? <HeroSilhouette profile={day.elevationProfile} /> : null}
       {/* Preview is HEIGHT-NEUTRAL: the marker rides the existing eyebrow
@@ -265,7 +295,7 @@ function PlannedDayHero({
             <>Day {day.number} of {dayCount}</>
           )}
           {dayDate ? <span className="hero-day__date"> · {dayDate}</span> : null}
-          <DayTypeBadge kinds={day.kinds} />
+          <DayTypeBadge kinds={day.kinds} reversed={contraryLegCount > 0} />
         </span>
 
         {/* Travel BEFORE the walk sits above it: the hero's line order is the
@@ -290,6 +320,7 @@ function PlannedDayHero({
             via {day.viaStopIds.map((id) => stopShortName(STOPS_BY_ID[id])).join(' and ')}
           </p>
         ) : null}
+
 
         {/* A travel leg after the walk is one quiet line below it. It renders
             even when nothing in Lists → Trip matches the date, so a mixed day
@@ -338,7 +369,7 @@ function PlannedDayHero({
             // this day's FIRST stage is where it opens.
             <button
               className="hero-action hero-action--primary"
-              onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
+              onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
               aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
             >
               <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
@@ -347,7 +378,7 @@ function PlannedDayHero({
             <>
               <button
                 className="hero-action hero-action--primary"
-                onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
+                onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
                 aria-label="Stage Guide — open today’s full day guide in Stages"
               >
                 <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
