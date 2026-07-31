@@ -144,6 +144,13 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Completed
 
+- **Worn clothing, per unit (v0.26.2)**: packing items in the wearable
+  categories can be marked Worn — on the body instead of in the backpack —
+  and multi-quantity rows track it per UNIT (`wornQuantity`, schema v8→v9:
+  "1 of 3 worn" with the other units still packed). Backpack weight counts
+  only carried units; the header names the worn count and weight; a Worn
+  filter appears once anything is worn. Rows marked with the short-lived
+  all-or-nothing v8 model migrate to one worn unit each.
 - **Planned-day preview (v0.26.2)**: the missing Day plan → Today
   connection. A small **Preview** action on each Settings day row opens that
   day in the unchanged Today presentation; resolution precedence is now
