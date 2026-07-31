@@ -107,7 +107,9 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
         aria-label={
           packing.total === 0
             ? 'Packing list: no items yet. Opens Lists, Packing.'
-            : `Packing list: ${packing.needed} needed, ${packing.ready} ready, ${packing.packed} packed.` +
+            : `Packing list: ${packing.needed} needed, ${packing.ready} ready, ${packing.packed} packed` +
+              (packing.worn > 0 ? `, ${packing.worn} worn` : '') +
+              '.' +
               (packing.essentialNotPacked > 0
                 ? ` ${packing.essentialNotPacked} essentials still to pack.`
                 : ' All essentials packed.') +
@@ -131,6 +133,14 @@ export function TodayPrepare({ onNavigate }: { onNavigate: Navigate }) {
                 <span className="prepare-count">{packing.ready} Ready</span>
                 <span className="prepare-count__sep" aria-hidden>·</span>
                 <span className="prepare-count">{packing.packed} Packed</span>
+                {/* Worn joins the counts only once it exists — nothing new
+                    to parse for a list that is entirely backpack-bound. */}
+                {packing.worn > 0 ? (
+                  <>
+                    <span className="prepare-count__sep" aria-hidden>·</span>
+                    <span className="prepare-count">{packing.worn} Worn</span>
+                  </>
+                ) : null}
               </span>
               <span className="prepare-card__meta tnum" aria-hidden>
                 {packing.essentialNotPacked > 0 ? (

@@ -77,8 +77,8 @@ test('the two pointers are distinct concepts and both are persisted', () => {
   }
 });
 
-test('the schema is v7 and defaults to no plan', () => {
-  assert.match(migration, /export const SCHEMA_VERSION = 7;/);
+test('the schema is v8 and defaults to no plan', () => {
+  assert.match(migration, /export const SCHEMA_VERSION = 8;/);
   assert.match(migration, /dayPlan: null,/);
   assert.match(migration, /dayPlan: normalizeDayPlan\(raw\.dayPlan, direction, stageCount\)/);
   assert.ok(
@@ -176,8 +176,9 @@ test('the preview pointer is RUNTIME state — never persisted anywhere', () => 
       `${file} must know nothing about the day preview`,
     );
   }
-  // And the schema did not move for it.
-  assert.match(migration, /export const SCHEMA_VERSION = 7;/);
+  // And the preview never became a migration concern: the schema constant is
+  // owned by state-migration tests (v8 = worn clothing), and nothing above
+  // found preview vocabulary in the migration module — which is the fence.
 });
 
 test('previewing mutates neither pointer and no persisted field', () => {

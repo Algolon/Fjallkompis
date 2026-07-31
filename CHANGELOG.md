@@ -28,6 +28,18 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   the generic view. The preview is temporary by design: reloading or
   restarting the app clears it, and choosing a stage in Stages replaces it
   with real progress.
+- **Worn clothing.** Clothing, Rain & insulation and Footwear items can now be
+  marked as **Worn** — on the body instead of in the backpack. The status
+  button cycles Needed → Ready → Packed → Worn for those categories, and the
+  item editor gains a Worn checkbox below Essential item. Packed and Worn are
+  two different locations, so an item can never be both: choosing one always
+  clears the other. The packing progress header counts packed items over
+  backpack items only and names the worn count right beneath it ("6/69
+  packed" over "5 worn"), with a quiet pill for the worn weight — worn
+  items no longer inflate the backpack weight. A Worn filter
+  pill appears once the first item is worn. Existing lists are untouched:
+  every item simply starts un-worn and the screen looks exactly as before
+  until you use the feature.
 
 ## [0.26.1] - 2026-07-30
 
