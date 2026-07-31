@@ -57,6 +57,34 @@ test('Preview has highest precedence whether personal Journey is active or inact
   }
 });
 
+test('Preview outranks an active manual day', () => {
+  const result = resolve({ preview: 'day_1', manual: 'day_3' });
+  assert.equal(result.source, 'preview');
+  assert.equal(result.dayId, 'day_1');
+});
+
+test('Preview outranks an exact local-date match', () => {
+  assert.equal(resolve({ preview: 'day_3', today: '2026-09-04' }).dayId, 'day_3');
+});
+
+test('Preview outranks the before-plan clamp', () => {
+  assert.equal(resolve({ preview: 'day_2', today: '2026-01-01' }).source, 'preview');
+});
+
+test('Preview outranks the after-plan clamp', () => {
+  assert.equal(resolve({ preview: 'day_2', today: '2027-01-01' }).source, 'preview');
+});
+
+test('an inactive manual pointer stays inert before and after the plan', () => {
+  for (const today of ['2026-01-01', '2027-01-01']) {
+    assert.equal(resolve({ active: false, manual: 'day_2', today }).source, 'generic');
+  }
+});
+
+test('generic results retain the canonical current Stage id', () => {
+  assert.equal(resolve({ active: false, stage: 'd7' }).stageId, 'd7');
+});
+
 test('invalid Preview falls through safely', () => {
   assert.equal(resolve({ preview: 'missing', manual: 'day_3' }).source, 'manual');
   assert.equal(resolve({ preview: 'missing', active: false }).source, 'generic');
