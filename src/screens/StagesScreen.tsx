@@ -76,10 +76,18 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
 
 export function StagesScreen({
   initialGuideStageId,
+  initialGuideReversed,
   onNavigate,
 }: {
   /** Today's "Stage Guide" deep link: open this stage's guide on arrival. */
   initialGuideStageId?: string | null;
+  /**
+   * The deep-linked guide was reached from a planned leg walking the stage
+   * in the OPPOSITE direction — the opened card carries a contextual note.
+   * One-shot presentation context from the navigation payload; the screen
+   * itself still reads no plan data for its cards.
+   */
+  initialGuideReversed?: boolean;
   /** Router, for the "View on map" one-shot focus deep-link. */
   onNavigate?: (tab: 'map', payload?: NavPayload) => void;
 }) {
@@ -328,6 +336,21 @@ export function StagesScreen({
               <h2 className="card-title stage-card__route">
                 {stopShortName(from)} → {stopShortName(to)}
               </h2>
+
+              {/* Reached from a planned leg walking this section the OTHER
+                  way: say so plainly. The canonical guide below is not
+                  rewritten or mirrored — it describes the walk named in the
+                  card title; the leg's own endpoints, statistics and map
+                  orientation live on Today. */}
+              {initialGuideReversed && stage.id === initialGuideStageId ? (
+                <p className="card-sub stage-card__reversed-note">
+                  Your planned leg walks this section in the opposite
+                  direction ({stopShortName(to)} → {stopShortName(from)}).
+                  The guide below describes the {stopShortName(from)} →{' '}
+                  {stopShortName(to)} walk; Today shows your leg’s own
+                  direction, distances and climb.
+                </p>
+              ) : null}
 
               <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <span className="pill tnum">↗ {stage.totalAscentM ?? '—'} m</span>

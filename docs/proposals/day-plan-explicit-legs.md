@@ -110,9 +110,30 @@ back"), or the Journey rail could become the occurrence-level selector. The
 current slice deliberately leaves the day/leg pointers untouched in the
 ambiguous case and documents it here rather than inventing UX.
 
-Also documented for that slice: the canonical Stages screen remains a
-canonical route browser (cards are not duplicated for repeated planned
-occurrences, and a leg's card communicates orientation via Today's marker
-and the leg editor, not via reversed guide content), and the Map still
-draws single physical stages — a whole-day multi-leg route line remains
-out of scope until real multi-stage map support exists.
+### Resolved since the first slice (pre-merge corrections)
+
+- **Occurrence chooser** — Stages → "Set as current" on a stage the plan
+  walks more than once opens a chooser (day number, date, oriented route,
+  reverse status, current marker); no pointer moves until the user picks,
+  and the first occurrence is never assumed. Zero occurrences move route
+  progress only and clear the leg pointer.
+- **New-day continuation** — a day taking hiking on never repeats a stage
+  silently: exactly one not-yet-planned connecting section auto-proposes by
+  name; every other case (a fork, or only already-planned sections) opens
+  the explicit StartLegOptions chooser with repeats marked.
+- **Reverse guide context** — an opposite leg's Stage Guide deep link opens
+  the CANONICAL guide with a contextual note ("your planned leg walks this
+  section in the opposite direction; the guide below describes the X → Y
+  walk"). The guide prose is never rewritten or presented as editorially
+  reversed. FULLER direction-aware guide content (true reverse editorial,
+  per-leg prose) remains DEFERRED — it needs researched, verified writing,
+  not a mechanical mirror.
+- **Migration recovery** — a stored plan that cannot load is set aside
+  verbatim in `PersistentState.dayPlanRecovery` with a calm Settings notice
+  (download / confirmed removal); nothing is silently destroyed.
+
+Still open for the personal-Journey slice: the canonical Stages screen
+remains a canonical route browser (cards are not duplicated for repeated
+planned occurrences), and the Map still draws single physical stages — a
+whole-day multi-leg route line remains out of scope until real multi-stage
+map support exists.

@@ -5554,6 +5554,14 @@ span.trip-attach-open {
   color: var(--ink-faint);
 }
 
+/* A stage card opened from a planned leg that walks the section the other
+   way: one quiet contextual line under the route title. */
+.stage-card__reversed-note {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--cloudberry);
+}
+
 /* Day plan recovery notice: a stored plan that could not be migrated was
    set aside verbatim. Calm card tones — information and two actions, not
    an alarm. */

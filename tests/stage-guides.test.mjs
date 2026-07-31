@@ -164,3 +164,33 @@ test('choosing selects the occurrence atomically; cancelling changes nothing', (
   assert.match(chooser, /onClose=\{onClose\}/);
   assert.ok(!/setState|currentStageId/.test(chooser), 'no other write path exists');
 });
+
+// ---- Opposite-leg guide context ---------------------------------------------
+//
+// A canonical Stage Guide may open from a planned leg that walks the section
+// the OTHER way. The card then says so contextually; the guide prose itself
+// is never rewritten, mirrored or presented as editorially reversed —
+// direction-aware guide content is a documented deferral
+// (docs/proposals/day-plan-explicit-legs.md).
+
+test('a reversed-leg deep link adds the contextual note to the opened card', () => {
+  assert.match(screen, /initialGuideReversed\?: boolean;/);
+  assert.match(screen, /initialGuideReversed && stage\.id === initialGuideStageId/);
+  assert.match(screen, /Your planned leg walks this section in the opposite\s+direction/);
+  assert.match(screen, /The guide below describes the \{stopShortName\(from\)\}/);
+  assert.match(screen, /Today shows your leg’s own\s+direction, distances and climb\./);
+  // The note NEVER swaps or rewrites guide content: the guide lookup stays
+  // keyed on the active itinerary direction, unconditionally.
+  assert.match(screen, /stageGuide\(stage\.id, itinerary\.direction\)/);
+  assert.ok(!/stageGuide\([^)]*Reversed/.test(screen), 'no reversed guide variant is fetched');
+});
+
+test('Today passes the flag only from the day-owned lead leg', () => {
+  const today = readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8');
+  assert.match(today, /const leadLegReversed = leadLeg != null && leadLeg\.orientation !== naturalOrientation;/);
+  const flags = today.match(/guideStageId: leadStage\.id, guideReversed: leadLegReversed/g) ?? [];
+  assert.equal(flags.length, 2, 'both guide deep links carry the context');
+  // The generic no-plan hero never sends it.
+  const generic = today.slice(today.indexOf('function StageHero('), today.indexOf('function StageJourney('));
+  assert.ok(!/guideReversed/.test(generic), 'generic mode knows nothing of legs');
+});

@@ -231,6 +231,10 @@ function PlannedDayHero({
   // name. The oriented title endpoints already run the other way.
   const naturalOrientation = isReversed(routeDirection) ? 'opposite' : 'canonical';
   const contraryLegCount = day.legs.filter((l) => l.orientation !== naturalOrientation).length;
+  // The guide deep links open the LEAD stage's canonical card; when the lead
+  // leg walks it the other way the card carries a contextual note (the guide
+  // prose itself is never mirrored — a documented deferral).
+  const leadLegReversed = leadLeg != null && leadLeg.orientation !== naturalOrientation;
   const reversedWords =
     contraryLegCount === 0
       ? ''
@@ -365,7 +369,7 @@ function PlannedDayHero({
             // this day's FIRST stage is where it opens.
             <button
               className="hero-action hero-action--primary"
-              onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
+              onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
               aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
             >
               <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
@@ -374,7 +378,7 @@ function PlannedDayHero({
             <>
               <button
                 className="hero-action hero-action--primary"
-                onClick={() => onNavigate('stages', { guideStageId: leadStage.id })}
+                onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
                 aria-label="Stage Guide — open today’s full day guide in Stages"
               >
                 <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
