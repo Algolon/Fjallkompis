@@ -51,6 +51,8 @@ export function DayPlanCard({
     previewPlannedDay,
     dayPlanIsDefault,
     createDayPlan,
+    setDayPlanJourneyActive,
+    setCurrentPlannedDay,
     setStartDate,
     addPlannedDay,
     resetDayPlan,
@@ -108,6 +110,25 @@ export function DayPlanCard({
         </button>
       </div>
 
+      <div className="dayplan-journey-toggle">
+        <span className="dayplan-journey-toggle__copy">
+          <strong>Use Day plan on Today</strong>
+          <span>Show your planned calendar days instead of the generic seven-stage journey.</span>
+          {dayPlan.journeyActive ? <em>Currently used by Today.</em> : null}
+        </span>
+        <button
+          type="button"
+          className="setting-switch"
+          role="switch"
+          aria-checked={dayPlan.journeyActive}
+          aria-label="Use Day plan on Today"
+          onClick={() => setDayPlanJourneyActive(!dayPlan.journeyActive)}
+        >
+          <span className="setting-switch__thumb" aria-hidden />
+          <span className="sr-only">{dayPlan.journeyActive ? 'On' : 'Off'}</span>
+        </button>
+      </div>
+
       {editing ? (
         <>
           <DateField
@@ -141,7 +162,9 @@ export function DayPlanCard({
                 day.id === currentPlannedDay?.id
                   ? todaySource === 'preview'
                     ? 'previewing'
-                    : 'today'
+                    : dayPlan.journeyActive
+                      ? 'current'
+                      : null
                   : null
               }
               onEdit={() => setOpenDayId(day.id)}
@@ -153,6 +176,14 @@ export function DayPlanCard({
                 onNavigate
                   ? () => {
                       previewPlannedDay(day.id);
+                      onNavigate('today');
+                    }
+                  : undefined
+              }
+              onSelect={
+                dayPlan.journeyActive && day.id !== currentPlannedDay?.id && onNavigate
+                  ? () => {
+                      setCurrentPlannedDay(day.id);
                       onNavigate('today');
                     }
                   : undefined
@@ -402,16 +433,19 @@ function DayRow({
   marker,
   onEdit,
   onPreview,
+  onSelect,
 }: {
   day: PlannedDay;
   trip: TripItem[];
   editing: boolean;
   /** How this row relates to what Today shows: the transient preview, the
    *  real (manual or date-resolved) day, or neither. */
-  marker: 'previewing' | 'today' | null;
+  marker: 'previewing' | 'current' | null;
   onEdit: () => void;
   /** Preview this day on Today (view mode only; absent without a navigator). */
   onPreview?: () => void;
+  /** Persist this calendar day as the current personal day. */
+  onSelect?: () => void;
 }) {
   const dateLabel = day.date ? formatDateFieldLabel(day.date) : null;
   const kindsLabel = activityLabel(day.kinds);
@@ -456,21 +490,33 @@ function DayRow({
           <span className="pill pill-current">
             <span className="dot" /> Previewing
           </span>
-        ) : marker === 'today' ? (
+        ) : marker === 'current' ? (
           <span className="pill pill-current">
-            <span className="dot" /> Today
+            <span className="dot" /> Current
           </span>
-        ) : onPreview ? (
-          // Small explicit action in the slot Edit occupies in edit mode.
-          // Opens this day on Today without touching route progress.
-          <button
-            type="button"
-            className="stage-set-pill"
-            onClick={onPreview}
-            aria-label={`Preview day ${day.number} on Today — ${previewSummary}`}
-          >
-            <Eye size={13} strokeWidth={2.2} aria-hidden /> Preview
-          </button>
+        ) : onPreview || onSelect ? (
+          <span className="dayplan-day__actions">
+            {onSelect ? (
+              <button
+                type="button"
+                className="stage-set-pill"
+                onClick={onSelect}
+                aria-label={`Set current day to day ${day.number} — ${previewSummary}`}
+              >
+                Set current day
+              </button>
+            ) : null}
+            {onPreview ? (
+              <button
+                type="button"
+                className="stage-set-pill"
+                onClick={onPreview}
+                aria-label={`Preview day ${day.number} on Today — ${previewSummary}`}
+              >
+                <Eye size={13} strokeWidth={2.2} aria-hidden /> Preview
+              </button>
+            ) : null}
+          </span>
         ) : null}
       </div>
 

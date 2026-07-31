@@ -1,9 +1,9 @@
 # Day plan: explicit hiking legs (schema v10)
 
-Status: first v0.27.0 implementation slice — merged model documentation.
-Implemented on branch `v0.27.0-explicit-hiking-legs`; later v0.27.0 slices
-(active personal Journey/Today mode, Places/STF Kiruna, editable Stay ↔ Place
-linking, wildcamp, release) build on this and are NOT part of the slice.
+Status: v0.27.0 model proposal — slices 1 and 2 implemented on the integration
+branch. Explicit Hiking legs landed first; the active personal Journey/Today
+mode is the second slice. Places/STF Kiruna, editable Stay ↔ Place linking,
+wildcamp and final integration/release remain separate slices.
 
 ## Why
 
@@ -33,6 +33,7 @@ interface CanonicalHikingLeg {
 interface DayPlanState {
   direction: RouteDirection;
   startDate: string;
+  journeyActive: boolean;           // explicit personal-Today activation
   currentDayId: string | null;      // the active calendar day
   currentLegId: string | null;      // the active hiking OCCURRENCE
   days: PlannedDayRecord[];
@@ -137,3 +138,30 @@ remains a canonical route browser (cards are not duplicated for repeated
 planned occurrences), and the Map still draws single physical stages — a
 whole-day multi-leg route line remains out of scope until real multi-stage
 map support exists.
+
+## Slice 2: active personal Journey on Today
+
+`journeyActive` is the explicit persisted choice behind **Use Day plan on
+Today**. It is not inferred from `currentDayId`: the pointer is a manual day
+selection inside personal mode, while activation chooses between the personal
+calendar Journey and the generic seven-Stage Journey. New plans, migrated v9
+plans, old v10 payloads without the field and malformed values all normalise
+inactive. Schema remains v10 because v10 has not shipped and the new field is
+additive and safely defaultable; `dayPlanRecovery.dayPlan` remains the user's
+verbatim legacy object and is never normalised in place.
+
+Today uses one pure precedence model: valid transient Preview; then, only when
+personal Journey is active, valid manual day, exact local-date match, first day
+before the plan, or final day after it; finally the generic canonical
+`currentStageId`. The resolver only reads and never writes automatic pointers.
+Preview remains transient and outranks both modes; exiting it reveals the
+active personal result or generic Today.
+
+The Day plan overview marks the effective row **Current** and separates
+**Preview** from **Set current day**. Selecting a calendar day stores
+`currentDayId`, clears `currentLegId`, and preserves `currentStageId`; it never
+guesses a Hiking occurrence. Today’s Journey summary opens a planned-day
+chooser with **Follow plan dates**, which clears both personal pointers while
+leaving activation and canonical Stage context intact. Before/after/manual
+context is carried height-neutrally as **Up next**, **Plan ended**, or
+**Selected** in the existing hero/summary lines.

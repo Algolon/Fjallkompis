@@ -111,7 +111,7 @@ interface AppStore {
    * written back to the plan (see src/plan/effectiveToday.mjs).
    */
   currentPlannedDay: PlannedDay | null;
-  /** How `currentPlannedDay` was resolved: preview, override, date, generic. */
+  /** How `currentPlannedDay` was resolved. */
   todaySource: TodaySource;
   /**
    * TRANSIENT planned-day preview (Settings → Preview). Runtime React state
@@ -130,6 +130,10 @@ interface AppStore {
   dayPlanIsDefault: boolean;
   /** Create the default plan (one hiking day per stage) from a start date. */
   createDayPlan: (startDate: string) => void;
+  /** Explicitly choose whether Today uses the personal calendar Journey. */
+  setDayPlanJourneyActive: (active: boolean) => void;
+  /** Select a calendar day without inventing a hiking occurrence or Stage. */
+  setCurrentPlannedDay: (dayId: string) => void;
   /** Move an existing plan's journey start date. Invalid input is ignored. */
   setStartDate: (startDate: string) => void;
   /**
@@ -409,6 +413,37 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setDayPlanJourneyActive = useCallback((active: boolean) => {
+    // A mode change must be immediately visible, never hidden by Preview.
+    setPreviewDayId(null);
+    setState((s) => {
+      if (!s.dayPlan || s.dayPlan.journeyActive === active) return s;
+      return {
+        ...s,
+        dayPlan: {
+          ...s.dayPlan,
+          journeyActive: active,
+          // Entering and leaving both start cleanly. In particular, enabling
+          // old v10 data cannot revive a pointer saved before activation
+          // existed, and re-enabling cannot revive a disabled override.
+          currentDayId: null,
+          currentLegId: null,
+        },
+      };
+    });
+  }, []);
+
+  const setCurrentPlannedDay = useCallback((dayId: string) => {
+    setPreviewDayId(null);
+    setState((s) => {
+      if (!s.dayPlan?.journeyActive || !s.dayPlan.days.some((d) => d.id === dayId)) return s;
+      return {
+        ...s,
+        dayPlan: { ...s.dayPlan, currentDayId: dayId, currentLegId: null },
+      };
+    });
+  }, []);
+
   const setStartDate = useCallback((startDate: string) => {
     setState((s) => {
       // An empty or malformed value is ignored: clearing the field must never
@@ -572,8 +607,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
    * or the generic fallback outside the plan. Nothing else is touched.
    */
   const followPlanDates = useCallback(() => {
+    setPreviewDayId(null);
     setState((s) => {
-      if (!s.dayPlan || s.dayPlan.currentDayId == null) return s;
+      if (!s.dayPlan || (s.dayPlan.currentDayId == null && s.dayPlan.currentLegId == null)) return s;
       // The leg pointer names an occurrence WITHIN the active day, so it
       // cannot outlive the override that made that day active.
       return { ...s, dayPlan: { ...s.dayPlan, currentDayId: null, currentLegId: null } };
@@ -791,8 +827,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       resolveEffectiveToday(
         plannedDays,
         previewDayId,
+        state.dayPlan?.journeyActive === true,
         state.dayPlan?.currentDayId ?? null,
         localToday,
+        state.currentStageId,
       ),
     [plannedDays, previewDayId, state.dayPlan, localToday],
   );
@@ -831,6 +869,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     exitDayPreview,
     dayPlanIsDefault,
     createDayPlan,
+    setDayPlanJourneyActive,
+    setCurrentPlannedDay,
     setStartDate,
     addPlannedDay,
     removePlannedDay,
