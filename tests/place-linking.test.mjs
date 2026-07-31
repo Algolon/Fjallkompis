@@ -120,6 +120,90 @@ test('a resolved link shows as a concise secondary indicator on the Stay card', 
   assert.match(tripView, /\.\.\.\(linked \? \[linked\.text\] : \[\]\),/);
 });
 
+// ---- Stops & places screen ---------------------------------------------------------
+
+const stopsScreen = read('src/screens/StopsScreen.tsx');
+const chooserSrc = read('src/components/LinkedStaysChooser.tsx');
+
+test('the screen is Stops & places and the header stops claiming everything is a route stop', () => {
+  assert.match(stopsScreen, /title="Stops & places"/);
+  assert.match(stopsScreen, /The eight route stops in walking order/);
+  assert.match(stopsScreen, /plus places to stay before and after the trail/);
+  assert.ok(!/Eight stops in walking order\s*\./.test(stopsScreen), 'old absolute claim gone');
+});
+
+test('Before & after trail renders the curated registry — never inside the route section', () => {
+  assert.match(stopsScreen, /Before &amp; after trail/);
+  assert.match(stopsScreen, /const offRoutePlaces = curatedOffRoutePlaces\(\);/);
+  assert.match(stopsScreen, /offRoutePlaces\.map\(\(place, j\) => \(/);
+  // Route counts and the master-detail grid stay route-only.
+  assert.match(stopsScreen, /'--stop-count': stops\.length/);
+  assert.match(
+    stopsScreen,
+    /openId != null && stops\.some\(\(s\) => s\.id === openId\) \? openId : null/,
+    'an open off-route card never reshapes the route grid',
+  );
+});
+
+test('the off-route card carries NO route semantics', () => {
+  const card = stopsScreen.slice(
+    stopsScreen.indexOf('function OffRoutePlaceCard'),
+    stopsScreen.indexOf('export function StopsScreen'),
+  );
+  assert.ok(card.length > 0, 'sliced the off-route card');
+  for (const routeOnly of ['routeKm', 'formatDistanceKm', "'Start'", 'stopDistanceKm', 'Stage']) {
+    assert.ok(!card.includes(routeOnly), `off-route card has no ${routeOnly}`);
+  }
+  // It shows the verified reference facts and the same accessible accordion.
+  for (const fact of [
+    'tripStayTypeTitle(place.stayType)',
+    'place.locationLabel',
+    'place.address',
+    'place.bedCapacity',
+    'place.checkInTime',
+    'place.checkOutTime',
+    'place.source.url',
+    'formatVerifiedDate(place.source.lastVerified)',
+    'aria-expanded={open}',
+    'aria-controls={panelId}',
+  ]) {
+    assert.ok(card.includes(fact), `off-route card renders ${fact}`);
+  }
+});
+
+test('zero/one/several linked stays: prefill, direct open, or the explicit chooser', () => {
+  assert.match(stopsScreen, /if \(linked\.length === 0\) \{/);
+  assert.match(stopsScreen, /\} else if \(linked\.length === 1\) \{/);
+  assert.match(stopsScreen, /setChooser\(\{ placeId, placeName \}\)/);
+  assert.match(stopsScreen, /tripItemId: linked\[0\]\.id/, 'the ONE stay opens directly');
+  // The chooser only ever renders for a real plurality.
+  assert.match(stopsScreen, /chooser && chooserStays\.length > 1 \? \(/);
+});
+
+test('the chooser is a labelled modal listing title, status, dates and type/location', () => {
+  assert.match(chooserSrc, /aria-labelledby=\{headingId\}/);
+  assert.match(chooserSrc, /Stays at \{placeName\}/);
+  assert.match(chooserSrc, /tripStatusTitle\(stay\.status\)/);
+  assert.match(chooserSrc, /formatTripDate\(stay\.checkInDate\)/);
+  assert.match(chooserSrc, /stay\.location \?\? tripStayTypeTitle\(stay\.stayType\)/);
+  assert.match(chooserSrc, /Add another stay/);
+  assert.match(chooserSrc, /aria-label=\{`Add another stay at \$\{placeName\}`\}/);
+  // Focus enters on open and returns to the trigger; backdrop cancels.
+  assert.match(chooserSrc, /dialogRef\.current\?\.showModal\(\)/);
+  assert.match(chooserSrc, /return \(\) => opener\?\.focus\(\)/);
+  assert.match(chooserSrc, /if \(e\.target === dialogRef\.current\) onClose\(\)/);
+});
+
+test('accordion keyboard navigation spans both sections in rendered order', () => {
+  assert.match(stopsScreen, /const headerCount = stops\.length \+ offRoutePlaces\.length;/);
+  assert.match(stopsScreen, /\(i \+ headerCount\) % headerCount/);
+  assert.match(stopsScreen, /headerRefs\.current\[stops\.length \+ j\] = el;/);
+});
+
+test('the map popup names the renamed destination', () => {
+  assert.match(read('src/map/stopMarkers.mjs'), /Open \$\{stopShortName\} details in Stops & places/);
+});
+
 // ---- Reference-data integrity -----------------------------------------------------
 
 test('the canonical STOPS registry knows nothing about off-route places', () => {

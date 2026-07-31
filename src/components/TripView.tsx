@@ -46,15 +46,8 @@ import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
 import { downloadBlobFile } from '../utils/exportImport';
-import { todayIso } from '../utils/format';
+import { formatTripDate, todayIso } from '../utils/format';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
-
-/** "2 Aug 2026" — unambiguous across season boundaries, still compact. */
-function formatTripDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 /**
  * One-shot launch instruction from another screen or tab (Add to Trip on a

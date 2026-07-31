@@ -263,10 +263,11 @@ test('the prefill flow copies verified facts only — personal fields stay perso
 
 // ---- Stops integration --------------------------------------------------------
 
-test('every stop offers Track stay (or View stay in Trip when already tracked)', () => {
-  assert.match(stopsScreen, /Track stay/);
-  assert.match(stopsScreen, /View stay in Trip/);
-  assert.match(stopsScreen, /trackStayPlaceId: stop\.id/);
+test('every place offers Track stay / View stay in Trip / an N-stays chooser', () => {
+  assert.match(stopsScreen, /'Track stay'/);
+  assert.match(stopsScreen, /'View stay in Trip'/);
+  assert.match(stopsScreen, /\$\{count\} stays in Trip/);
+  assert.match(stopsScreen, /trackStayPlaceId: placeId/);
   assert.match(stopsScreen, /staysLinkedToPlace\(state\.trip, stop\.id\)/);
 });
 

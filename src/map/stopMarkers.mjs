@@ -23,7 +23,7 @@ export function markerAriaLabel(waypointName) {
 
 /** Accessible name for the popup's single navigation action. */
 export function popupActionLabel(stopShortName) {
-  return `Open ${stopShortName} details in Huts & Stations`;
+  return `Open ${stopShortName} details in Stops & places`;
 }
 
 /**
