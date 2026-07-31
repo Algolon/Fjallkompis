@@ -204,6 +204,29 @@ test('the map popup names the renamed destination', () => {
   assert.match(read('src/map/stopMarkers.mjs'), /Open \$\{stopShortName\} details in Stops & places/);
 });
 
+// ---- Bidirectional navigation -------------------------------------------------------
+
+test('Trip → Place: View place rides the one-shot payload out to Stops & places', () => {
+  const app = read('src/App.tsx');
+  const lists = read('src/screens/ListsScreen.tsx');
+  const today = read('src/screens/TodayScreen.tsx');
+  // The payload generalises stopId; existing Today/Map stop links unchanged.
+  assert.match(today, /placeId\?: string/);
+  assert.match(app, /nav\.payload\?\.placeId \?\? nav\.payload\?\.stopId \?\? null/);
+  assert.match(app, /onOpenStop=\{\(stopId\) => navigate\('huts', \{ stopId \}\)\}/);
+  // Lists carries the stay editor's View place outward.
+  assert.match(lists, /onNavigate\('huts', \{ placeId \}\)/);
+  // The editor closes cleanly BEFORE the screen switch.
+  assert.match(tripView, /setEditor\(null\);\s*\n\s*onViewPlace\(placeId\);/);
+});
+
+test('Place → scroll: arrival opens route stops AND off-route places by id', () => {
+  const stopsSrc = read('src/screens/StopsScreen.tsx');
+  assert.match(stopsSrc, /initialPlaceId/);
+  assert.match(stopsSrc, /offRoutePlaces\.findIndex\(\(p\) => p\.id === openedFromNav\.current\)/);
+  assert.match(stopsSrc, /scrollIntoView/);
+});
+
 // ---- Reference-data integrity -----------------------------------------------------
 
 test('the canonical STOPS registry knows nothing about off-route places', () => {

@@ -15,6 +15,8 @@ import {
 } from '../utils/packingModel.mjs';
 import { formatGrams } from '../utils/format';
 import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
+import type { TabId } from '../components/TabBar';
+import type { NavPayload } from './TodayScreen';
 
 /** Lists sub-sections: the packing list, the offline reference sections
  *  (Shop info, Transport) and the personal Trip plan. */
@@ -702,7 +704,14 @@ function initialTripLaunchFor(link?: ListsDeepLink): TripLaunch | null {
   return null;
 }
 
-export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
+export function ListsScreen({
+  deepLink,
+  onNavigate,
+}: {
+  deepLink?: ListsDeepLink;
+  /** Outward navigation: a linked stay's View place → Stops & places. */
+  onNavigate?: (tab: TabId, payload?: NavPayload) => void;
+}) {
   // One-shot: the initial section is decided at mount; switching tabs
   // afterwards is ordinary local state, and a refresh (no payload) is Packing.
   const [mode, setMode] = useState<ListsSection>(() => initialSectionFor(deepLink));
@@ -766,7 +775,14 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
           onViewInTrip={viewTripItem}
         />
       ) : null}
-      {mode === 'trip' ? <TripView launch={tripLaunch} /> : null}
+      {mode === 'trip' ? (
+        <TripView
+          launch={tripLaunch}
+          onViewPlace={
+            onNavigate ? (placeId) => onNavigate('huts', { placeId }) : undefined
+          }
+        />
+      ) : null}
     </div>
   );
 }

@@ -50,7 +50,7 @@ test('Wallet terminology is fully replaced by Trip terminology in the Lists UI',
 test('no new primary route: the trip plan lives inside the Lists screen only', () => {
   const routes = read('src/navigation/routes.mjs');
   assert.ok(!/['"]trip['"]|#\/trip/i.test(routes), 'navigation route table untouched');
-  assert.match(lists, /\{mode === 'trip' \? <TripView launch=\{tripLaunch\} \/> : null\}/);
+  assert.match(lists, /\{mode === 'trip' \? \(\s*<TripView\s+launch=\{tripLaunch\}/);
 });
 
 test('deep links open Trip: section id, a specific item, or a Track-stay prefill', () => {

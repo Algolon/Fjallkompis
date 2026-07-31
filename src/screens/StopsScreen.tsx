@@ -521,10 +521,11 @@ function OffRoutePlaceCard({
 }
 
 export function StopsScreen({
-  initialStopId,
+  initialPlaceId,
   onNavigate,
 }: {
-  initialStopId?: string | null;
+  /** One-shot: open (and scroll to) this route stop or off-route place. */
+  initialPlaceId?: string | null;
   onNavigate: (tab: TabId, payload?: NavPayload) => void;
 }) {
   // Stops in the ACTIVE itinerary's walking order, with route-km measured from
@@ -570,9 +571,9 @@ export function StopsScreen({
   // Only one accordion open at a time (deliberate on mobile — keeps the
   // list scannable and the scroll position predictable). The id space spans
   // BOTH sections: stable stop ids and off-route place ids never collide.
-  const [openId, setOpenId] = useState<string | null>(initialStopId ?? null);
+  const [openId, setOpenId] = useState<string | null>(initialPlaceId ?? null);
   const headerRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const openedFromNav = useRef(initialStopId ?? null);
+  const openedFromNav = useRef(initialPlaceId ?? null);
   const headerCount = stops.length + offRoutePlaces.length;
 
   // When arriving from Today's "Next stop" card or a stay's View place,
