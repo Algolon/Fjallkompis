@@ -18,10 +18,12 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   carries a small **Preview** action (view mode) that opens that day —
   future or past — in the normal Today presentation: hero, Journey, Tonight
   and all its actions, for every day type. The preview is clearly labelled
-  ("Previewing planned day", and the previewed row in Settings says
-  "Previewing"), and it changes nothing: your current stage, the current
-  day, the plan, trips, packing, notes and documents are untouched.
-  **Exit preview** returns Today to what it was showing — the day matching
+  without costing any space — the hero's own top line reads
+  **PREVIEW · DAY N · date** with an **Exit** control in its corner, and the
+  previewed row in Settings says "Previewing" — and it changes nothing: your
+  current stage, the current day, the plan, trips, packing, notes and
+  documents are untouched.
+  Exiting the preview returns Today to what it was showing — the day matching
   today's date, a manually selected day (with its Follow plan dates row), or
   the generic view. The preview is temporary by design: reloading or
   restarting the app clears it, and choosing a stage in Stages replaces it
