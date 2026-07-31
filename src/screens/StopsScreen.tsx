@@ -552,6 +552,15 @@ export function StopsScreen({
   const [chooser, setChooser] = useState<{ placeId: string; placeName: string } | null>(null);
   const chooserStays = chooser ? staysLinkedToPlace(state.trip, chooser.placeId) : [];
 
+  // The chooser is valid only while there is still a real choice. A Stay can
+  // be deleted, unlinked or relinked through another state path while this
+  // screen remains mounted; close and DISARM the chooser as soon as its live
+  // list drops below two. Merely hiding the dialog would leave stale chooser
+  // state that could unexpectedly reopen if another Stay later linked here.
+  useEffect(() => {
+    if (chooser && chooserStays.length <= 1) setChooser(null);
+  }, [chooser, chooserStays.length]);
+
   /**
    * The place's stay action, by how many personal stays link it:
    * zero → a new prefilled Stay; one → open exactly that item; several →

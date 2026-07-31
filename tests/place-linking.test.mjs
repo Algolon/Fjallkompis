@@ -184,6 +184,15 @@ test('zero/one/several linked stays: prefill, direct open, or the explicit choos
   assert.match(stopsScreen, /chooser && chooserStays\.length > 1 \? \(/);
 });
 
+test('a live chooser closes and disarms when another state path removes the plurality', () => {
+  assert.match(
+    stopsScreen,
+    /if \(chooser && chooserStays\.length <= 1\) setChooser\(null\);/,
+    'one or zero remaining stays cannot leave a latent chooser that later reopens',
+  );
+  assert.match(stopsScreen, /\[chooser, chooserStays\.length\]/);
+});
+
 test('the chooser is a labelled modal listing title, status, dates and type/location', () => {
   assert.match(chooserSrc, /aria-labelledby=\{headingId\}/);
   assert.match(chooserSrc, /Stays at \{placeName\}/);
