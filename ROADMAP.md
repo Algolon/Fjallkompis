@@ -88,8 +88,7 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Next
 
-3. **Hiking-allocation redesign** — IN PROGRESS (first v0.27.0 slice on
-   branch `v0.27.0-explicit-hiking-legs`; slices integrate on
+3. **Personal Journey redesign** — IN PROGRESS (v0.27.0 slices integrate on
    `v0.27.0-integration` and reach `main` only as one final release PR —
    docs/DEVELOPMENT.md → "Release integration branches"). The persisted model
    now records explicit per-day hiking LEGS — each a reference to one
@@ -99,10 +98,12 @@ cross-device synchronization is deliberately far down this roadmap.
    Backtracking, repeated stages, reversed sections, skips and early
    finishes are representable; editing one day never changes another; the
    planner reports coverage differences as information, never errors.
-   Remaining v0.27.0 slices: the active personal-Journey/Today mode
-   (including the occurrence-selection UX for `Set as current` on repeated
-   stages), a Places model with STF Kiruna, editable Stay ↔ Place linking,
-   wildcamp overnights, and final integration/release.
+   Slice 2 adds an explicit persisted **Use Day plan on Today** choice, a pure
+   Preview → manual → local date → before/after clamp → generic resolver,
+   manual day selection, and a Today planned-day chooser with **Follow plan
+   dates**. The generic seven-Stage experience remains the default. Remaining
+   v0.27.0 slices: a Places model with STF Kiruna, editable Stay ↔ Place
+   linking, wildcamp overnights, and final integration/release.
 4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
    capabilities: import a standalone packing list; import or create custom

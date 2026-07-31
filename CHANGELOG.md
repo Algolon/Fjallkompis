@@ -12,6 +12,16 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Changed
 
+- **Your Day plan can become Today’s active Journey.** A persistent, explicit
+  **Use Day plan on Today** switch replaces the generic seven-Stage progress
+  on Today with personal calendar days without hiding the canonical Stages
+  browser. Personal Today resolves Preview first, then a manually selected
+  day, the matching local date, or an honest first/final-day clamp before or
+  after the trip. The Journey summary opens a compact day chooser; **Follow
+  plan dates** clears manual day/leg pointers without changing the current
+  canonical Stage. New and existing plans stay inactive until switched on,
+  and Preview remains temporary in either mode.
+
 - **A hiking day now owns its exact route legs.** The Day plan's hiking
   model stores explicit ordered legs — each referencing one canonical
   stage with an absolute direction over it — instead of a count of
