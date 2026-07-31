@@ -10,8 +10,20 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-08-01
+
 ### Added
 
+- **Your Day plan can become Today’s active Journey.** A persistent, explicit
+  **Use Day plan on Today** switch replaces the generic seven-Stage progress
+  on Today with your own calendar days — Hiking, Travel, Rest & explore, or a
+  mix, in the order you stored them — without hiding the canonical Stages
+  browser. Personal Today resolves Preview first, then a manually selected
+  day, the matching local date, or an honest first- or final-day view before
+  or after the trip. The Journey summary opens a compact day chooser; **Follow
+  plan dates** clears manual day/leg pointers without changing the current
+  canonical Stage. New and existing plans stay inactive until switched on,
+  and Preview remains temporary in either mode.
 - **Stops became Stops & places, with STF Kiruna as the first place beyond
   the trail.** A separate **Before & after trail** section joins the eight
   route stops (which keep their walking order, kilometres, facilities and
@@ -28,7 +40,10 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   documents, and Day-plan overnights stay exactly where they were.
   Existing route links (`linkedStopId`) migrate automatically and stay on
   the same stable ids; a link to a place a future version no longer ships
-  is kept and shown honestly as unavailable, never silently cleared.
+  is kept and shown honestly as unavailable, never silently cleared. A
+  stay somewhere the app does not catalogue — a wildcamp night, a private
+  address — remains a plain **Other stay** with a free-text location, and
+  works everywhere a linked stay does, including as a Day-plan overnight.
 - **Several stays at one place are now first-class.** A place with no
   linked stay offers **Track stay**, exactly one linked stay opens
   directly with **View stay in Trip**, and several show **"N stays in
@@ -36,18 +51,14 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   another stay**) — the app never guesses at a first match. Linked stay
   cards carry a small "Linked · place" line, and **View place** navigates
   back from a stay to its card on Stops & places.
+- **The plan says how it differs from the full route.** Edit mode shows
+  one compact, informational summary (sections not planned, walked more
+  than once, walked in reverse, days that start away from where the
+  previous one ended, an early finish) with the specifics behind a
+  disclosure. Differences are personal choices, not errors: nothing is
+  auto-repaired and no edit is blocked by them.
 
 ### Changed
-
-- **Your Day plan can become Today’s active Journey.** A persistent, explicit
-  **Use Day plan on Today** switch replaces the generic seven-Stage progress
-  on Today with personal calendar days without hiding the canonical Stages
-  browser. Personal Today resolves Preview first, then a manually selected
-  day, the matching local date, or an honest first/final-day clamp before or
-  after the trip. The Journey summary opens a compact day chooser; **Follow
-  plan dates** clears manual day/leg pointers without changing the current
-  canonical Stage. New and existing plans stay inactive until switched on,
-  and Preview remains temporary in either mode.
 
 - **A hiking day now owns its exact route legs.** The Day plan's hiking
   model stores explicit ordered legs — each referencing one canonical
@@ -65,15 +76,18 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   already planned elsewhere), plus explicit Reverse, Walk again, reorder
   and remove actions. Removing a day's walking is its own confirmed step —
   never a silent side effect of an activity toggle.
-
-### Added
-
-- **The plan says how it differs from the full route.** Edit mode shows
-  one compact, informational summary (sections not planned, walked more
-  than once, walked in reverse, days that start away from where the
-  previous one ended, an early finish) with the specifics behind a
-  disclosure. Differences are personal choices, not errors: nothing is
-  auto-repaired and no edit is blocked by them.
+- **Upgrading is automatic — and cautious.** Opening this version once
+  migrates stored data from persisted schema v9 to v10: every hiking
+  day's stage count becomes the equivalent explicit legs, and existing
+  route-linked stays move to place links on the same stable ids. Trip
+  items, day ids, overnight choices, attached documents, packing and
+  route progress are untouched, and backup export/import and device
+  transfer carry the new shape end to end. A stored Day plan that cannot
+  be migrated safely is never guessed at or discarded: it is set aside
+  verbatim, Settings shows a recovery notice with **Download original
+  plan** and an explicit **Remove recovery copy**, and the rest of the
+  app keeps working. Until **Use Day plan on Today** is switched on,
+  Today keeps the familiar generic seven-Stage experience.
 
 ## [0.26.3] - 2026-07-31
 

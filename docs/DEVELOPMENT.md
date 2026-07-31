@@ -510,16 +510,22 @@ facts were checked. Update `src/data/stops.ts` after re-verifying. Optional
 licensed photos go in `public/images/stops/` (see the README there) — without
 one, cards render a generated route-silhouette fallback.
 
-Personal data stays separate: per-stop **trip notes** and the **packing
-list** live in one versioned `localStorage` blob
-(`src/utils/stateMigration.mjs`, schema v5; defensive migration of every
+Personal data stays separate: per-stop **trip notes**, the **packing
+list**, the **Trip plan** and the optional **Day plan** live in one
+versioned `localStorage` blob
+(`src/utils/stateMigration.mjs`, schema v10; defensive migration of every
 older payload covered by `tests/state-migration.test.mjs` — v3 drops the
 archived Daily checklist's data while preserving everything else (see
 [archived-features/daily-checklist.md](archived-features/daily-checklist.md)),
-v4 adds `routeDirection`, and v5 makes the packing list a fully user-owned
-snapshot behind `packingTemplateVersion`: seed items can be renamed, moved,
-and deleted, and template additions reach existing users through an explicit
-one-time migration, never a re-merge on load).
+v4 adds `routeDirection`, v5 makes the packing list a fully user-owned
+snapshot behind `packingTemplateVersion` (seed items can be renamed, moved,
+and deleted; template additions reach existing users through an explicit
+one-time migration, never a re-merge on load), v6 adds the Trip plan's
+structured items, v7 the optional Day plan, v8–v9 worn-clothing tracking
+(per-unit from v9), and v10 rebuilds hiking days on explicit ordered legs,
+adds the `journeyActive` Today switch and renames stay links to
+`linkedPlaceId` — a stored Day plan that cannot migrate safely is preserved
+verbatim in `dayPlanRecovery`, never guessed at or dropped).
 
 **Trail Wallet documents** (Lists → Wallet) are the one deliberate exception:
 metadata AND file blobs live together in a dedicated IndexedDB database

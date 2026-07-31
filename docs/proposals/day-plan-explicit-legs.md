@@ -1,10 +1,12 @@
 # Day plan: explicit hiking legs (schema v10)
 
-Status: **feature implementation complete on `v0.27.0-integration`**. Explicit
-Hiking legs, active personal Journey/Today, Journey Places and editable Stay ↔
-Place linking are integrated. Integration hardening and the final versioned
-release PR remain; v0.27.0 has not been released. A wildcamp remains a normal
-unlinked `Other stay`, not a separate v0.27.0 feature slice.
+Status: **v0.27.0 release candidate**. Explicit Hiking legs, active personal
+Journey/Today, Journey Places and editable Stay ↔ Place linking are complete,
+integrated and hardened; the release PR (`v0.27.0-release` → `main`) carries
+the version bump and release notes, and merging it deploys v0.27.0 to
+production. A wildcamp remains a normal unlinked `Other stay`, not a separate
+v0.27.0 feature. The slice sections below are the historical implementation
+record of how the milestone was built.
 
 ## Why
 
@@ -170,8 +172,9 @@ the day-plan-relevant facts are:
   plus one curated off-route record, STF Kiruna); a Stay stays the
   user-owned primary record. `linkedStopId` (v9) migrates verbatim into
   the editable `linkedPlaceId` — route Place ids preserve stable stop ids;
-- schema REMAINS v10: v10 has not shipped, the field change is part of the
-  unreleased v10 shape, and v9 → v10 stays the public migration boundary.
+- schema REMAINS v10: v10 had not shipped when this slice landed, so the
+  field change is part of the one released v10 shape and v9 → v10 stays
+  the public migration boundary.
   `dayPlanRecovery` passes through byte-for-byte untouched;
 - Day-plan overnights keep referencing Trip item ids. Linking, relinking
   or unlinking a stay never moves it between days, never changes Tonight,
@@ -182,5 +185,5 @@ the day-plan-relevant facts are:
 - a wildcamp or other uncatalogued accommodation remains a plain
   `Stay type: Other stay` (free-text location, no link, valid overnight).
   A dedicated wildcamp model and user-created Places are documented as
-  possibilities BEYOND v0.27.0 — the remaining release scope is
-  integration hardening and the final version/release PR only.
+  possibilities BEYOND v0.27.0 (ROADMAP → "Personal Journey and Places
+  follow-ups").

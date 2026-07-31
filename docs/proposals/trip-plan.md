@@ -161,7 +161,7 @@ removing a place link never moves a stay between days, never changes
 Tonight, and never touches `dayPlan` at all.
 
 **Deferred beyond v0.27.0** (a future product decision, deliberately not in
-the remaining release scope): user-created custom Places, automatic Place
+the v0.27.0 release scope): user-created custom Places, automatic Place
 creation from free-text locations, Places for arbitrary hotels/campsites,
 and a dedicated wildcamp model with coordinates/overnight rules. Until
 then a wildcamp, campsite or private accommodation stays a plain
