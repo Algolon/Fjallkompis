@@ -813,13 +813,18 @@ export interface PackingItem {
   weightGrams?: number;
   essential: boolean;
   /**
-   * True when the item is worn on the body instead of carried in the
-   * backpack. Only items in worn-eligible categories (clothing, rain &
-   * insulation, footwear — see WORN_CATEGORY_IDS) can carry the mark, and
-   * packed + worn is an impossible state: the two are different locations,
-   * enforced by applyPackingPatch and the state normaliser.
+   * How many of the row's units are worn on the body instead of carried in
+   * the backpack (0 ≤ wornQuantity ≤ quantity). Every unit has exactly one
+   * location: `status` describes the remaining carried units, so
+   * "3 shirts, 1 worn, 2 packed" is a valid row, while `status: 'packed'`
+   * with zero carried units is impossible (enforced by applyPackingPatch
+   * and the state normaliser — packed wins, worn units heal to 0). Only
+   * items in worn-eligible categories (clothing, rain & insulation,
+   * footwear — see WORN_CATEGORY_IDS) can have worn units. "Is this row
+   * worn at all?" is the derived `wornQuantity > 0` — there is no separate
+   * boolean.
    */
-  worn: boolean;
+  wornQuantity: number;
   /**
    * Provenance only: true for user-added items, false for items that came
    * from the seed template. NOT an authorization flag — every item can be

@@ -3431,6 +3431,44 @@ button.stop-fac:focus-visible {
   font-weight: 600;
   color: var(--ink-faint);
 }
+/* Worn-units stepper (item forms, quantity > 1): "Worn [−] 1 [+] of 3".
+   Same row rhythm and label type as a .check--setting toggle, with compact
+   ± buttons shaped like the checkbox box. */
+.worn-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 8px 0;
+}
+.worn-stepper__label {
+  font-size: 15px;
+}
+.worn-stepper__btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--paper);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+.worn-stepper__btn:disabled {
+  opacity: 0.35;
+}
+.worn-stepper__value {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 700;
+}
+.worn-stepper__of {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
 .pack-label {
   flex: 1;
   min-width: 0;

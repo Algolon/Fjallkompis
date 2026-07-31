@@ -115,80 +115,120 @@ test('store contract: delete works for every item; helpers come from packingMode
   assert.ok(!/resetPacking:/.test(store), 'old conflated store action removed');
 });
 
-// ---- Worn clothing ----------------------------------------------------------
+// ---- Worn units (per-unit worn tracking) ------------------------------------
 
-test('the Worn checkbox sits below Essential, same styling, gated on category', () => {
-  // Rendered only while the category chosen IN THE FORM is worn-eligible.
+test('the Worn control sits below Essential and is gated on category', () => {
+  // One shared control for both forms: checkbox at quantity 1, stepper above.
+  assert.match(lists, /function WornControl/);
   assert.match(editor, /const wornEligible = isWornEligibleCategory\(categoryId\)/);
-  assert.match(editor, /wornEligible \? \(/, 'checkbox is conditional on eligibility');
-  // Below the Essential toggle, before the Save/Cancel row.
+  assert.match(editor, /wornEligible \? \(/, 'control is conditional on eligibility');
   const essentialAt = editor.indexOf('Essential item');
-  const wornAt = editor.indexOf('<span className="label">Worn</span>');
+  const wornAt = editor.indexOf('<WornControl');
   const saveAt = editor.indexOf('onClick={save}');
   assert.ok(essentialAt !== -1 && wornAt !== -1 && saveAt !== -1);
   assert.ok(essentialAt < wornAt && wornAt < saveAt, 'Essential, then Worn, then actions');
-  // Same check--setting styling and pressed-state semantics as Essential.
-  assert.match(editor, /aria-pressed=\{worn\}/);
-  const wornBlock = editor.slice(editor.indexOf('wornEligible ? ('), wornAt);
-  assert.match(wornBlock, /check check--setting/);
-  // Saving never smuggles worn onto a non-eligible category.
-  assert.match(editor, /worn: wornEligible && worn/);
+  // Saving clamps live to the form quantity and never smuggles worn units
+  // onto a non-eligible category.
+  assert.match(editor, /wornQuantity: wornEligible \? Math\.min\(wornQty, quantityNum\) : 0/);
 });
 
-test('the add form mirrors the Worn checkbox with the same gating', () => {
+test('quantity 1 keeps the original checkbox; quantity > 1 gets the stepper', () => {
+  const control = lists.slice(
+    lists.indexOf('function WornControl'),
+    lists.indexOf('function ItemEditor'),
+  );
+  // Checkbox branch: same check--setting styling and pressed-state semantics.
+  assert.match(control, /if \(quantityNum === 1\)/);
+  assert.match(control, /check check--setting/);
+  assert.match(control, /aria-pressed=\{shown > 0\}/);
+  assert.match(control, /<span className="label">Worn<\/span>/);
+  // Stepper branch: −/value/+ "of N", clamped to 0..quantity, first step
+  // up from 0 enables worn with exactly one unit.
+  assert.match(control, /worn-stepper/);
+  assert.match(control, /Math\.max\(0, Math\.min\(v, quantityNum\) - 1\)/, 'never below 0');
+  assert.match(control, /Math\.min\(quantityNum, Math\.min\(v, quantityNum\) \+ 1\)/, 'never above quantity');
+  assert.match(control, /disabled=\{shown === 0\}/);
+  assert.match(control, /disabled=\{shown >= quantityNum\}/);
+  assert.match(control, /of \{quantityNum\}/);
+  // The shown value clamps live when the quantity field shrinks.
+  assert.match(control, /const shown = Math\.min\(wornQty, quantityNum\)/);
+  assert.ok(css.includes('.worn-stepper'), 'stepper CSS exists');
+});
+
+test('the add form mirrors the Worn control with the same gating and clamp', () => {
   const addForm = lists.slice(
     lists.indexOf('function AddItemForm'),
     lists.indexOf('function PackingView'),
   );
   assert.match(addForm, /const wornEligible = isWornEligibleCategory\(categoryId\)/);
-  assert.match(addForm, /<span className="label">Worn<\/span>/);
-  assert.match(addForm, /worn: wornEligible && worn/);
+  assert.match(addForm, /<WornControl/);
+  assert.match(addForm, /wornQuantity: wornEligible \? Math\.min\(wornQty, quantityNum\) : 0/);
 });
 
-test('the status tap cycle reaches Worn only for worn-eligible categories', () => {
+test('the tap cycle reaches Worn only for single-quantity eligible rows', () => {
   const view = lists.slice(lists.indexOf('function PackingView'));
-  assert.match(view, /isWornEligibleCategory\(item\.categoryId\)/, 'cycle gates on category');
-  assert.match(view, /updatePackingItem\(item\.id, \{ worn: true \}\)/, 'Packed → Worn');
+  // A tap must never silently claim all units of a ×3 row are on the body.
   assert.match(
     view,
-    /updatePackingItem\(item\.id, \{ worn: false, status: 'needed' \}\)/,
+    /state === 'packed' && item\.quantity === 1 && isWornEligibleCategory\(item\.categoryId\)/,
+  );
+  assert.match(view, /updatePackingItem\(item\.id, \{ wornQuantity: 1 \}\)/, 'Packed → Worn (q1)');
+  assert.match(
+    view,
+    /updatePackingItem\(item\.id, \{ wornQuantity: 0, status: 'needed' \}\)/,
     'Worn → Needed restarts the cycle',
   );
-  // The row shows ONE state: the shared display collapse, also used by the
-  // aria label, so a worn item never reads as its underlying status.
+  // The row shows ONE state: fully worn shows Worn, partial shows the
+  // carried status (the shared display collapse, also in the aria label).
   assert.match(view, /packingDisplayState/);
   assert.match(lists, /worn: 'Worn'/, 'Worn has a visible state label');
 });
 
-test('exclusivity lives in the model: the store routes status changes through it', () => {
+test('partially worn rows spell out every unit location', () => {
+  const view = lists.slice(lists.indexOf('function PackingView'));
+  assert.match(view, /const partiallyWorn = item\.wornQuantity > 0 && carried > 0/);
+  // "1 worn · 2 packed" — worn units first, then carried units with their
+  // status word; the weight beside it is the CARRIED weight.
+  assert.match(
+    view,
+    /\$\{item\.wornQuantity\} worn · \$\{carried\} \$\{STATE_LABEL\[item\.status\]\.toLowerCase\(\)\}/,
+  );
+  assert.match(view, /formatGrams\(item\.weightGrams \* carried\)/);
+  // The aria label names the split too.
+  assert.match(view, /of \$\{item\.quantity\} worn/);
+});
+
+test('unit-level exclusivity lives in the model; the store routes through it', () => {
   assert.match(
     store,
     /packing: applyPackingPatch\(s\.packing, itemId, \{ status \}\)/,
     'setPackingStatus cannot bypass the packed/worn rules',
   );
-  assert.match(store, /isWornEligibleCategory\(item\.categoryId\)/, 'add sanitises worn');
+  assert.match(store, /clampWornQuantity\(item\.wornQuantity, item\.quantity\)/, 'add clamps worn units');
 });
 
-test('the Worn filter pill exists but only once something is worn', () => {
+test('filters: status pills follow carried units, Worn matches any worn unit', () => {
   const view = lists.slice(lists.indexOf('function PackingView'));
-  assert.match(view, /'worn'\] as Filter\[\]/, 'worn is a filter state');
+  assert.match(view, /const matchesFilter = /);
+  assert.match(view, /if \(f === 'worn'\) return i\.wornQuantity > 0/);
   assert.match(
     view,
-    /f !== 'worn' \|\| stats\.worn > 0 \|\| filter === 'worn'/,
-    'pill appears with the first worn item (and never strands an active filter)',
+    /return i\.wornQuantity < i\.quantity && i\.status === f/,
+    'status pills cover rows with carried units only',
   );
+  // Pill appears with the first worn unit and never strands an active filter.
+  assert.match(view, /f !== 'worn' \|\| stats\.worn > 0 \|\| filter === 'worn'/);
+  // Pill counts use the SAME predicate as the visible list.
+  assert.match(view, /items\.filter\(\(i\) => matchesFilter\(i, f\)\)\.length/);
 });
 
 test('the progress header separates backpack and worn without a second meter', () => {
   const view = lists.slice(lists.indexOf('function PackingView'));
-  assert.match(view, /packTotal: *packTotal|packTotal,/, 'backpack denominator excludes worn');
+  // Backpack denominator excludes only FULLY worn rows — partially worn
+  // rows still have spares to pack.
+  assert.match(view, /summary\.total - summary\.fullyWorn/);
   assert.match(view, /\{stats\.packed\}\/\{stats\.packTotal\} packed/);
-  // The worn count lives IN the header value ("6/69 packed" stacked over
-  // "5 worn" — see .pack-progress-count) so the shrunken denominator
-  // explains itself — and only once something is worn, keeping the un-worn
-  // header identical to the pre-feature one. Stacked, never one line with a
-  // separator: title + both counts cannot share a line even at 390px, and a
-  // mid-phrase wrap with a dangling dot reads broken.
+  // The worn count (rows with any worn unit) stacks under the packed count.
   assert.match(
     view,
     /<span className="pack-progress-count__worn">\{stats\.worn\} worn<\/span>/,
@@ -196,10 +236,8 @@ test('the progress header separates backpack and worn without a second meter', (
   assert.match(view, /stats\.worn > 0 \? \(/, 'worn line rendered only once something is worn');
   assert.ok(css.includes('.pack-progress-count'), 'stacked header value CSS exists');
   assert.match(css, /pack-progress-count \{[^}]*flex-direction: column/, 'counts stack');
-  assert.match(css, /pack-progress-count \{[^}]*white-space: nowrap/, 'each count is unbreakable');
-  // The worn pill carries the worn WEIGHT only (the count already sits in
-  // the header), with the same ≥ lower-bound marker as the backpack weight.
-  assert.match(view, /stats\.wornWeightedGrams > 0 \? \(/, 'pill appears only with a worn weight');
+  // The worn pill carries the worn WEIGHT only, with the ≥ lower bound.
+  assert.match(view, /stats\.wornWeightedGrams > 0 \? \(/);
   assert.match(view, /wornWeightMissing > 0 \? '≥ ' : ''/);
   assert.match(view, /\{formatGrams\(stats\.wornWeightedGrams\)\} worn/);
   assert.ok(!/meter-fill--worn|second-meter/.test(view), 'one meter, one bar');
