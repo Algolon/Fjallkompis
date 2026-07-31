@@ -57,6 +57,21 @@ export function normalizeWeightGrams(v) {
 }
 
 /**
+ * Clamp a worn-unit count to the 0..quantity integer range; non-numbers get
+ * the fallback (then the same clamp), so a malformed value can never leave
+ * more units worn than the row has.
+ */
+export function clampWornQuantity(v, quantity, fallback = 0) {
+  const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : fallback;
+  return Math.min(Math.max(0, n), quantity);
+}
+
+/** Units of the row that are carried (in the backpack flow), never negative. */
+export function carriedQuantity(item) {
+  return Math.max(0, item.quantity - item.wornQuantity);
+}
+
+/**
  * Apply a partial edit to one item, field by field, rejecting invalid values
  * instead of ever producing a broken item:
  *   - label: trimmed; empty/non-string keeps the current title;
@@ -66,20 +81,27 @@ export function normalizeWeightGrams(v) {
  *     valid weight is rounded, anything else REMOVES the weight (never NaN);
  *   - essential: booleans only;
  *   - status: must be a known status, else kept;
- *   - worn: booleans only, and only while the item's (possibly just-changed)
+ *   - wornQuantity: clamped to 0..quantity (after any quantity change in the
+ *     same patch), and only while the item's (possibly just-changed)
  *     category is worn-eligible — any move to a non-eligible category clears
- *     the mark;
+ *     the worn units;
  *   - id and custom: immutable, silently ignored if patched.
  * Untouched fields (e.g. status when editing the title) always survive.
  *
- * Packed and worn are two different LOCATIONS (in the backpack / on the
- * body), so `status === 'packed' && worn === true` is an impossible state
- * and can never leave this function:
- *   - a patch that sets status 'packed' takes the item out of worn;
- *   - a patch that sets worn takes a packed item back to 'ready' (it is
- *     still prepared — it just is not in the backpack);
+ * Location semantics — every individual UNIT has exactly one location:
+ * `wornQuantity` units are on the body, the remaining carried units are in
+ * the backpack flow and `status` describes THEM. "3 shirts, 1 worn,
+ * 2 packed" is therefore a perfectly valid row. The only impossible state
+ * is `status === 'packed'` with NO carried units (a pack cannot contain
+ * zero-many of them):
+ *   - a patch that sets status 'packed' on a fully worn row takes every
+ *     unit back into the pack (wornQuantity → 0);
+ *   - a patch that wears the full quantity of a packed row demotes the
+ *     status to 'ready' (still prepared — just not in the backpack);
  *   - a self-contradicting patch asserting both resolves to packed, the
  *     explicit status verb.
+ * For quantity 1 this reduces exactly to the original packed/worn
+ * exclusivity.
  */
 export function applyPackingPatch(items, itemId, patch) {
   if (patch === null || typeof patch !== 'object') return items;
@@ -100,12 +122,16 @@ export function applyPackingPatch(items, itemId, patch) {
     }
     if (typeof patch.essential === 'boolean') next.essential = patch.essential;
     if (isPackingStatus(patch.status)) next.status = patch.status;
-    if (typeof patch.worn === 'boolean') next.worn = patch.worn;
-    if (!isWornEligibleCategory(next.categoryId)) next.worn = false;
-    // Location exclusivity — the explicitly patched side wins; packed wins
-    // a patch that contradicts itself.
-    if (next.status === 'packed' && next.worn) {
-      if (patch.status === 'packed') next.worn = false;
+    if (patch.wornQuantity !== undefined) {
+      next.wornQuantity = clampWornQuantity(patch.wornQuantity, next.quantity, item.wornQuantity);
+    }
+    // A shrunken quantity can never leave more units worn than the row has.
+    next.wornQuantity = clampWornQuantity(next.wornQuantity, next.quantity);
+    if (!isWornEligibleCategory(next.categoryId)) next.wornQuantity = 0;
+    // Unit-location exclusivity — the explicitly patched side wins; packed
+    // wins a patch that contradicts itself.
+    if (next.status === 'packed' && next.wornQuantity >= next.quantity) {
+      if (patch.status === 'packed') next.wornQuantity = 0;
       else next.status = 'ready';
     }
     return next;
@@ -113,25 +139,27 @@ export function applyPackingPatch(items, itemId, patch) {
 }
 
 /**
- * The single user-visible state of an item: its status, or 'worn' when the
- * item is worn on the body. Worn is a location, not a step — a worn item is
- * handled, exactly like a packed one, so the display collapses the two
- * axes into one label the status button can show and cycle.
+ * The single user-visible state of a row: its carried units' status, or
+ * 'worn' when every unit is on the body. A PARTIALLY worn row displays its
+ * carried status — the worn units surface as the row's "1 worn" annotation,
+ * never as a second state, so the status button always shows one label.
  */
 export function packingDisplayState(item) {
-  return item.worn ? 'worn' : item.status;
+  return item.wornQuantity >= item.quantity ? 'worn' : item.status;
 }
 
 /**
- * "Reset progress": every item back to 'needed'. Worn is a location an item
- * currently occupies — progress, not identity — so worn marks are cleared
- * too: after a reset nothing is packed and nothing is worn. Items themselves
- * — custom additions, renames, category moves, quantities, weights,
- * essential flags and deletions — are untouched.
+ * "Reset progress": every item back to 'needed'. Worn units are a location
+ * the row's units currently occupy — progress, not identity — so worn marks
+ * are cleared too: after a reset nothing is packed and nothing is worn.
+ * Items themselves — custom additions, renames, category moves, quantities,
+ * weights, essential flags and deletions — are untouched.
  */
 export function resetPackingProgress(items) {
   return items.map((i) =>
-    i.status === 'needed' && !i.worn ? i : { ...i, status: 'needed', worn: false },
+    i.status === 'needed' && i.wornQuantity === 0
+      ? i
+      : { ...i, status: 'needed', wornQuantity: 0 },
   );
 }
 
@@ -141,22 +169,30 @@ export function resetPackingProgress(items) {
  * two surfaces can never disagree (same pattern as tripPlanSummary).
  *
  * Counting semantics:
- *   - total/needed/ready/packed/worn count item ROWS, not quantities —
- *     matching the Lists progress header ("16 / 56 packed" means rows).
- *   - worn items form their own bucket: a worn item is on the body, outside
- *     the needed → ready → packed backpack flow, so it appears ONLY in
- *     `worn` (never double-counted in needed/ready/packed). The backpack
- *     flow's denominator is therefore `total - worn`.
- *   - essentialNotPacked counts essential rows that are neither packed nor
- *     worn (same definition as the Lists "essential not packed" pill) — an
- *     essential item on the body is accounted for.
- *   - weightedGrams multiplies weightGrams × quantity over BACKPACK rows
- *     (not worn) that HAVE a weight; weightMissing counts backpack rows
- *     without one. Worn rows sum into wornWeightedGrams / wornWeightMissing
- *     instead — worn weight never inflates the backpack weight. Weights are
- *     optional (the seed template ships none), so consumers must treat a
- *     non-zero *WeightMissing as "that total is a lower bound" — never show
- *     a partial sum as the exact weight.
+ *   - total/needed/ready/packed/worn/fullyWorn count item ROWS, not
+ *     quantities — matching the Lists progress header ("16 / 56 packed"
+ *     means rows).
+ *   - needed/ready/packed bucket the rows that still have CARRIED units by
+ *     their status (a partially worn row is a backpack row — its spares
+ *     still travel in the pack); a FULLY worn row is on the body, outside
+ *     the backpack flow, and appears in none of them. The backpack flow's
+ *     denominator is therefore `total - fullyWorn`.
+ *   - worn counts rows with ANY worn unit ("what am I wearing?" includes
+ *     the one shirt of three on your back), so a partially worn row counts
+ *     in BOTH its status bucket and `worn` — the buckets deliberately stop
+ *     being a partition the moment partial wearing exists.
+ *   - essentialNotPacked counts essential rows whose carried units are not
+ *     packed (same definition as the Lists "essential not packed" pill) —
+ *     an essential row fully on the body is accounted for, but essential
+ *     spares still to pack keep warning.
+ *   - weightedGrams multiplies weightGrams × CARRIED units over rows that
+ *     HAVE a weight; weightMissing counts rows with carried units and no
+ *     weight. Worn units sum into wornWeightedGrams (weight ×
+ *     wornQuantity) / wornWeightMissing instead — worn units never inflate
+ *     the backpack weight. Weights are optional (the seed template ships
+ *     none), so consumers must treat a non-zero *WeightMissing as "that
+ *     total is a lower bound" — never show a partial sum as the exact
+ *     weight.
  * Deleted items never appear here: deletion removes the row from state.
  */
 export function packingSummary(items) {
@@ -166,6 +202,7 @@ export function packingSummary(items) {
     ready: 0,
     packed: 0,
     worn: 0,
+    fullyWorn: 0,
     essentialNotPacked: 0,
     weightedGrams: 0,
     weightMissing: 0,
@@ -174,17 +211,24 @@ export function packingSummary(items) {
   };
   for (const item of items) {
     summary.total += 1;
-    if (item.worn) {
+    const carried = carriedQuantity(item);
+    if (item.wornQuantity > 0) {
       summary.worn += 1;
-      if (item.weightGrams != null) summary.wornWeightedGrams += item.weightGrams * item.quantity;
-      else summary.wornWeightMissing += 1;
+      if (item.weightGrams != null) {
+        summary.wornWeightedGrams += item.weightGrams * item.wornQuantity;
+      } else {
+        summary.wornWeightMissing += 1;
+      }
+    }
+    if (carried === 0) {
+      summary.fullyWorn += 1;
       continue;
     }
     if (item.status === 'packed') summary.packed += 1;
     else if (item.status === 'ready') summary.ready += 1;
     else summary.needed += 1;
     if (item.essential && item.status !== 'packed') summary.essentialNotPacked += 1;
-    if (item.weightGrams != null) summary.weightedGrams += item.weightGrams * item.quantity;
+    if (item.weightGrams != null) summary.weightedGrams += item.weightGrams * carried;
     else summary.weightMissing += 1;
   }
   return summary;

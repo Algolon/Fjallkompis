@@ -65,14 +65,29 @@
  *     three compose independently.
  *
  * v7 → v8 (Worn clothing):
- *   - packing items gain `worn` (boolean): the item is worn on the body
+ *   - packing items gained `worn` (boolean): the item is worn on the body
  *     instead of carried in the backpack. Payloads without it — every
- *     existing user — normalise every item to `worn: false`, which is
+ *     existing user — normalise every item to un-worn, which is
  *     behaviourally identical to the app before the field existed. Only
  *     worn-eligible categories (clothing, rain & insulation, footwear) may
- *     carry the mark, and packed + worn is an impossible state: a corrupt
- *     payload asserting both heals to packed (the user's packing progress is
- *     the more precious record), never to both.
+ *     carry the mark.
+ *
+ * v8 → v9 (per-unit worn):
+ *   - `worn: boolean` becomes `wornQuantity: number` (0 ≤ wornQuantity ≤
+ *     quantity): each individual unit has one location, so "3 shirts,
+ *     1 worn, 2 packed" is representable and `status` describes the carried
+ *     units. "Worn at all?" is derived (`wornQuantity > 0`) — the boolean is
+ *     never stored again.
+ *   - v8 payloads migrate `worn: true` → `wornQuantity: 1` (never the whole
+ *     quantity — a v8 "worn" shirts ×3 row almost certainly meant "I wear
+ *     one", and one unit is the conservative, reversible reading) and
+ *     `worn: false` → 0. Pre-v8 payloads normalise to 0 everywhere.
+ *   - Healing: non-numeric worn quantities fall back to 0, values clamp
+ *     into 0..quantity, non-eligible categories force 0, and a fully worn
+ *     row claiming `status: 'packed'` (a pack cannot contain zero-many
+ *     units) heals to packed with 0 worn — the user's packing progress is
+ *     the more precious record. Partially worn packed rows are VALID and
+ *     pass through untouched.
  *
  * Normalisation is idempotent and never throws: malformed fields fall back to
  * defaults instead of wiping the app.
@@ -85,6 +100,7 @@ import {
 } from '../data/packingSeed.mjs';
 import {
   clampQuantity,
+  clampWornQuantity,
   isPackingCategoryId,
   isPackingStatus,
   isWornEligibleCategory,
@@ -94,7 +110,7 @@ import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
 import { normalizeTripItems } from '../trip/tripModel.mjs';
 import { normalizeDayPlan } from '../plan/dayPlan.mjs';
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** Fresh seed packing items (deep-ish copy so callers can't mutate the seed). */
 export function seedPackingItems() {
@@ -168,19 +184,32 @@ function normalizeOwnedPacking(raw) {
     const weight = normalizeWeightGrams(entry.weightGrams);
     const categoryId = isPackingCategoryId(entry.categoryId) ? entry.categoryId : 'comfort';
     const status = isPackingStatus(entry.status) ? entry.status : 'needed';
+    const quantity = clampQuantity(entry.quantity, 1);
+    // v9 payloads carry wornQuantity; v8 payloads carried the boolean, which
+    // migrates conservatively to ONE worn unit (never the whole quantity — a
+    // v8 "worn" shirts ×3 row almost certainly meant "I wear one"). Pre-v8
+    // payloads carry neither → 0. Malformed values fall back to 0 and clamp
+    // into 0..quantity.
+    let wornQuantity =
+      typeof entry.wornQuantity === 'number'
+        ? clampWornQuantity(entry.wornQuantity, quantity)
+        : entry.worn === true
+          ? 1
+          : 0;
+    if (!isWornEligibleCategory(categoryId)) wornQuantity = 0;
+    // A packed row with no carried units is impossible (a pack cannot
+    // contain zero-many of them) — heal to packed, packing progress is the
+    // more precious record. Partially worn packed rows are valid.
+    if (status === 'packed' && wornQuantity >= quantity) wornQuantity = 0;
     out.push({
       id: entry.id,
       label,
       categoryId,
-      quantity: clampQuantity(entry.quantity, 1),
+      quantity,
       status,
       ...(weight != null ? { weightGrams: weight } : {}),
       essential: entry.essential === true,
-      // Absent for every pre-v8 payload → false, a behavioural no-op. Worn
-      // only survives on eligible categories, and packed + worn (impossible:
-      // two different locations) heals to packed — packing progress is the
-      // more precious record.
-      worn: entry.worn === true && isWornEligibleCategory(categoryId) && status !== 'packed',
+      wornQuantity,
       custom: entry.custom === true,
     });
   }
@@ -261,9 +290,9 @@ function migrateLegacyPacking(raw) {
       status: isPackingStatus(p.status) ? p.status : 'needed',
       ...(weight != null ? { weightGrams: weight } : {}),
       essential: p.essential === true,
-      // Legacy payloads predate the worn field entirely — everything starts
+      // Legacy payloads predate worn tracking entirely — everything starts
       // in the backpack, exactly as before the feature existed.
-      worn: false,
+      wornQuantity: 0,
       custom: true,
     });
   }
@@ -273,7 +302,7 @@ function migrateLegacyPacking(raw) {
 
 /**
  * Validate + normalise an unknown blob into the current schema. Accepts v1
- * through v7 payloads (and anything malformed in between). Unknown/missing
+ * through v8 payloads (and anything malformed in between). Unknown/missing
  * fields fall back to defaults rather than throwing, so a partially-corrupt
  * or older payload still loads instead of wiping the app. Retired fields
  * (v1 shopOverride, v2 checklist) are ignored, never a parse failure.

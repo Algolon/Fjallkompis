@@ -12,18 +12,25 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Added
 
-- **Worn clothing.** Clothing, Rain & insulation and Footwear items can now be
-  marked as **Worn** — on the body instead of in the backpack. The status
-  button cycles Needed → Ready → Packed → Worn for those categories, and the
-  item editor gains a Worn checkbox below Essential item. Packed and Worn are
-  two different locations, so an item can never be both: choosing one always
-  clears the other. The packing progress header counts packed items over
-  backpack items only and names the worn count right beneath it ("6/69
-  packed" over "5 worn"), with a quiet pill for the worn weight — worn
-  items no longer inflate the backpack weight. A Worn filter
-  pill appears once the first item is worn. Existing lists are untouched:
-  every item simply starts un-worn and the screen looks exactly as before
-  until you use the feature.
+- **Worn clothing, per unit.** Clothing, Rain & insulation and Footwear
+  items can now be marked as **Worn** — on the body instead of in the
+  backpack — and for multi-quantity rows the marking is per UNIT: "Hiking
+  shirts ×3, 1 worn, 2 packed" is a real, representable state. Single
+  items keep a simple Worn checkbox below Essential item (and Worn in the
+  status button's tap cycle: Needed → Ready → Packed → Worn); rows with
+  more than one unit get a compact "Worn [−] 1 [+] of 3" stepper in the
+  editor, and their row spells out where every unit is ("1 worn ·
+  2 packed"). Every unit has exactly one location: the backpack weight
+  counts only carried units, the worn-weight pill counts only worn units,
+  and wearing all units of a packed row takes it out of the pack. The
+  packing progress header counts packed rows over backpack rows and names
+  the worn count right beneath it ("6/69 packed" over "5 worn"); a Worn
+  filter pill appears once the first unit is worn and shows every row with
+  something on the body — including partially worn ones. Existing lists
+  are untouched: every item simply starts un-worn and the screen looks
+  exactly as before until you use the feature; lists that already used the
+  earlier all-or-nothing Worn marking migrate to one worn unit per marked
+  row, never the whole quantity.
 
 ## [0.26.1] - 2026-07-30
 

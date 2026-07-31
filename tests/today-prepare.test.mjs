@@ -100,7 +100,7 @@ const item = (over = {}) => ({
   quantity: 1,
   status: 'needed',
   essential: false,
-  worn: false,
+  wornQuantity: 0,
   custom: false,
   ...over,
 });
@@ -137,6 +137,7 @@ test('packingSummary: empty list is honest zeros (never “ready”)', () => {
     ready: 0,
     packed: 0,
     worn: 0,
+    fullyWorn: 0,
     essentialNotPacked: 0,
     weightedGrams: 0,
     weightMissing: 0,
@@ -145,40 +146,61 @@ test('packingSummary: empty list is honest zeros (never “ready”)', () => {
   });
 });
 
-test('packingSummary: worn rows form their own bucket, never double-counted', () => {
+test('packingSummary: fully worn rows leave the status buckets; partial rows stay', () => {
   const s = packingSummary([
     item({ status: 'needed' }),
-    item({ status: 'ready', worn: true }),
-    item({ status: 'needed', worn: true }),
+    // Fully worn — outside the backpack flow entirely.
+    item({ status: 'ready', wornQuantity: 1 }),
+    // Partially worn — 1 worn, 2 packed: a backpack row AND a worn row.
+    item({ quantity: 3, status: 'packed', wornQuantity: 1 }),
+    // Partially worn — 1 worn, 4 needed.
+    item({ quantity: 5, status: 'needed', wornQuantity: 1 }),
     item({ status: 'packed' }),
   ]);
   assert.deepEqual(
-    { total: s.total, needed: s.needed, ready: s.ready, packed: s.packed, worn: s.worn },
-    { total: 4, needed: 1, ready: 0, packed: 1, worn: 2 },
-    'worn rows leave the needed/ready/packed buckets entirely',
+    {
+      total: s.total,
+      needed: s.needed,
+      ready: s.ready,
+      packed: s.packed,
+      worn: s.worn,
+      fullyWorn: s.fullyWorn,
+    },
+    { total: 5, needed: 2, ready: 0, packed: 2, worn: 3, fullyWorn: 1 },
+    'worn counts ANY worn unit (overlapping); fullyWorn rows leave needed/ready/packed',
   );
 });
 
-test('packingSummary: worn weight is separate — never in the backpack weight', () => {
+test('packingSummary: weight splits per unit — worn share never in the backpack', () => {
   const s = packingSummary([
-    item({ status: 'packed', weightGrams: 500 }),
-    item({ status: 'needed', weightGrams: 300, quantity: 2 }),
-    item({ worn: true, weightGrams: 1200 }),
-    item({ worn: true }),
+    // 3 shirts à 150 g, 1 worn: 150 g worn, 300 g backpack.
+    item({ quantity: 3, status: 'packed', wornQuantity: 1, weightGrams: 150 }),
+    // 5 socks à 60 g, 1 worn, 4 ready: 60 g worn, 240 g backpack.
+    item({ quantity: 5, status: 'ready', wornQuantity: 1, weightGrams: 60 }),
+    // Fully worn boots à 1400 g: all worn, nothing in the backpack.
+    item({ wornQuantity: 1, weightGrams: 1400 }),
+    // Un-worn row without a weight: missing on the backpack side only.
     item({ status: 'needed' }),
+    // Partially worn row without a weight: missing on BOTH sides.
+    item({ quantity: 7, status: 'needed', wornQuantity: 1 }),
   ]);
-  assert.equal(s.weightedGrams, 1100, 'backpack weight sums only un-worn rows');
-  assert.equal(s.weightMissing, 1, 'only un-worn rows count as missing backpack weight');
-  assert.equal(s.wornWeightedGrams, 1200, 'worn weight sums only worn rows');
-  assert.equal(s.wornWeightMissing, 1, 'worn rows without a weight are counted separately');
+  assert.equal(s.weightedGrams, 540, 'backpack weight = weight × carried units');
+  assert.equal(s.wornWeightedGrams, 1610, 'worn weight = weight × worn units');
+  assert.equal(s.weightMissing, 2, 'rows with carried units and no weight');
+  assert.equal(s.wornWeightMissing, 1, 'rows with worn units and no weight');
 });
 
-test('packingSummary: an essential worn item is accounted for, not a warning', () => {
+test('packingSummary: essential accounting follows the carried units', () => {
   const s = packingSummary([
-    item({ essential: true, worn: true }),
+    // Fully worn essential — on the body, accounted for.
+    item({ essential: true, wornQuantity: 1 }),
+    // Partially worn essential with carried units still needed — warns.
+    item({ essential: true, quantity: 5, status: 'needed', wornQuantity: 1 }),
+    // Partially worn essential whose carried units are packed — no warning.
+    item({ essential: true, quantity: 3, status: 'packed', wornQuantity: 1 }),
     item({ essential: true, status: 'needed' }),
   ]);
-  assert.equal(s.essentialNotPacked, 1, 'worn essentials are on the body — handled');
+  assert.equal(s.essentialNotPacked, 2, 'worn-on-body and packed-spares essentials are handled');
 });
 
 // ---- Compact header mode control --------------------------------------------
