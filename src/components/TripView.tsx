@@ -43,7 +43,7 @@ import {
   type TripItemPrefill,
 } from './TripItemSheet';
 import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
-import { STOPS_BY_ID } from '../data/stops';
+import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
 import { downloadBlobFile } from '../utils/exportImport';
 import { todayIso } from '../utils/format';
@@ -98,7 +98,14 @@ function initialEditorFor(launch: TripLaunch | undefined, items: TripItem[]): Ed
  * device only). Trip items are the primary objects; documents attach to them
  * as supporting material or stay standalone.
  */
-export function TripView({ launch }: { launch?: TripLaunch | null }) {
+export function TripView({
+  launch,
+  onViewPlace,
+}: {
+  launch?: TripLaunch | null;
+  /** Trip → Place navigation (View place in the Stay editor), when wired. */
+  onViewPlace?: (placeId: string) => void;
+}) {
   const { state, addTripItem, updateTripItem, deleteTripItem, removeTripAttachmentReferences } =
     useStore();
   const wallet = useWalletDocuments();
@@ -316,8 +323,26 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
     };
   };
 
+  /**
+   * Concise linked-place indicator for a Stay card — secondary to the
+   * personal title/status/dates, resolved live against the registries. An
+   * unknown id gets an honest unavailable label; unlinked stays show
+   * nothing at all.
+   */
+  const linkedPlaceIndicator = (
+    item: TripItem,
+  ): { text: string; missing: boolean } | null => {
+    if (item.kind !== 'stay' || !item.linkedPlaceId) return null;
+    const place = journeyPlaceById(item.linkedPlaceId, STOPS_BY_ID);
+    if (!place) return { text: 'Linked place unavailable', missing: true };
+    const name =
+      place.kind === 'route-stop' ? stopShortName(STOPS_BY_ID[place.stopId]) : place.name;
+    return { text: `Linked · ${name}`, missing: false };
+  };
+
   const itemCard = (item: TripItem) => {
     const attach = attachmentInfo(item);
+    const linked = linkedPlaceIndicator(item);
     const details: string[] = [];
     if (item.kind === 'transport') {
       if (item.from && item.to) details.push(`${item.from} → ${item.to}`);
@@ -342,6 +367,7 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
     const accessible = [
       `${item.title}, ${tripStatusTitle(item.status)}`,
       ...details,
+      ...(linked ? [linked.text] : []),
       ...(attach ? [attach.text] : []),
     ].join(', ');
     return (
@@ -369,6 +395,11 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
                   {d}
                 </span>
               ))}
+              {linked ? (
+                <span className={`trip-card__detail${linked.missing ? ' trip-card__attach is-missing' : ''}`}>
+                  {linked.text}
+                </span>
+              ) : null}
               {attach ? (
                 <span className={`trip-card__attach${attach.missing ? ' is-missing' : ''}`}>
                   {attach.missing ? (
@@ -571,6 +602,16 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
           onSave={saveTripItem}
           onDelete={editor.mode === 'edit' ? () => deleteItem(editor.item) : undefined}
           onOpenDocument={(doc) => void openDocument(doc)}
+          onViewPlace={
+            onViewPlace
+              ? (placeId) => {
+                  // Close the editor FIRST so the modal never outlives the
+                  // screen switch; leaving is draft-discarding, like Cancel.
+                  setEditor(null);
+                  onViewPlace(placeId);
+                }
+              : undefined
+          }
           onClose={() => setEditor(null)}
         />
       ) : null}

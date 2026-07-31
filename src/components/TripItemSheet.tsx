@@ -6,6 +6,7 @@ import {
   FileUp,
   Hotel,
   House,
+  MapPin,
   Paperclip,
   Plane,
   Route,
@@ -36,6 +37,14 @@ import {
   validateWalletFile,
 } from '../wallet/walletModel.mjs';
 import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
+import {
+  curatedOffRoutePlaces,
+  journeyPlaceById,
+  placeDisplayName,
+  placeStayPrefill,
+} from '../data/journeyPlaces.mjs';
+import { STOPS_BY_ID, stopShortName } from '../data/stops';
+import { useStore } from '../store/AppStore';
 import { formatBytes } from '../map/offlineMap';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DateField } from './DateField';
@@ -145,6 +154,7 @@ export function TripItemSheet({
   onSave,
   onDelete,
   onOpenDocument,
+  onViewPlace,
   onClose,
 }: {
   kind: 'transport' | 'stay';
@@ -165,6 +175,12 @@ export function TripItemSheet({
   onDelete?: () => void;
   /** Open a linked document offline (image viewer / PDF handoff). */
   onOpenDocument: (doc: WalletDocument) => void;
+  /**
+   * Trip → Place navigation: open this Journey Place on the Stops & places
+   * screen (the sheet closes itself first). Offered only for a RESOLVED
+   * linked place — an unavailable link states so instead.
+   */
+  onViewPlace?: (placeId: string) => void;
   onClose: () => void;
 }) {
   const mode = item ? 'edit' : 'add';
@@ -203,7 +219,17 @@ export function TripItemSheet({
   // The stay's Place association — part of the draft transaction exactly
   // like every other field ('' = not linked; applied on Save, Cancel keeps
   // the stored link).
-  const [linkedPlaceId] = useState(stay?.linkedPlaceId ?? prefill?.linkedPlaceId ?? '');
+  const [linkedPlaceId, setLinkedPlaceId] = useState(
+    stay?.linkedPlaceId ?? prefill?.linkedPlaceId ?? '',
+  );
+  // Which stay fields the user has TYPED in this session. Choosing a place
+  // in ADD mode may fill fields that are still untouched (blank-form
+  // convenience) — it must never overwrite anything the user already
+  // edited, and in EDIT mode it changes only the link itself.
+  const touched = useRef({ title: false, stayType: false, location: false });
+
+  // Active-itinerary ordering for the route group; stable ids throughout.
+  const { itinerary } = useStore();
 
   const [attachmentIds, setAttachmentIds] = useState<string[]>(item?.attachmentIds ?? []);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -229,6 +255,30 @@ export function TripItemSheet({
       ? `Linked to the timetable “${entry.title}”. Times and dates there are the general schedule — the plan here is yours.`
       : 'Linked to a timetable that is no longer in the app.';
   }, [kind, linkedTransportId]);
+
+  // The draft's linked place, resolved against the CURRENT registries. An id
+  // that no longer resolves is kept in the draft (and in the select, as its
+  // own honest option) — never silently cleared; the user may relink or
+  // choose Not linked explicitly.
+  const linkedPlace = journeyPlaceById(linkedPlaceId, STOPS_BY_ID);
+  const linkedPlaceName = placeDisplayName(linkedPlace, STOPS_BY_ID);
+  const linkUnavailable = linkedPlaceId !== '' && linkedPlaceName === null;
+
+  /**
+   * Selecting a place changes ONLY the draft link. In add mode it may also
+   * fill title / Stay type / location while those are still untouched —
+   * verified defaults on a blank form — but never a field the user edited,
+   * and in edit mode never any personal field at all.
+   */
+  const choosePlace = (placeId: string) => {
+    setLinkedPlaceId(placeId);
+    if (mode !== 'add') return;
+    const defaults = placeStayPrefill(journeyPlaceById(placeId, STOPS_BY_ID), STOPS_BY_ID);
+    if (!defaults) return;
+    if (!touched.current.title) setTitle(defaults.title);
+    if (!touched.current.stayType) setStayType(defaults.stayType);
+    if (!touched.current.location && defaults.location) setLocation(defaults.location);
+  };
 
   const documentById = useMemo(() => {
     const map = new Map<string, WalletDocument>();
@@ -346,7 +396,10 @@ export function TripItemSheet({
             className="input"
             value={title}
             placeholder={kind === 'transport' ? 'e.g. Bus to Nikkaluokta' : 'e.g. STF Abisko Turiststation'}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              touched.current.title = true;
+              setTitle(e.target.value);
+            }}
           />
         </label>
 
@@ -371,7 +424,10 @@ export function TripItemSheet({
             <select
               className="select"
               value={stayType}
-              onChange={(e) => setStayType(e.target.value as TripStayType)}
+              onChange={(e) => {
+                touched.current.stayType = true;
+                setStayType(e.target.value as TripStayType);
+              }}
             >
               {TRIP_STAY_TYPES.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -450,9 +506,64 @@ export function TripItemSheet({
               <input
                 className="input"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => {
+                  touched.current.location = true;
+                  setLocation(e.target.value);
+                }}
               />
             </label>
+
+            {/* The stay's editable Place association. Reference data only —
+                choosing, moving or removing the link never rewrites the
+                personal fields above (add-mode blank-form fills aside). */}
+            <label className="field">
+              <span>Linked place</span>
+              <select
+                className="select"
+                value={linkedPlaceId}
+                onChange={(e) => choosePlace(e.target.value)}
+              >
+                <option value="">Not linked</option>
+                {linkUnavailable ? (
+                  // The stored id no longer resolves: keep it selectable and
+                  // honestly labelled instead of silently clearing it.
+                  <option value={linkedPlaceId}>Linked place unavailable</option>
+                ) : null}
+                <optgroup label="Along the route">
+                  {itinerary.orderedStops.map((stop) => (
+                    <option key={stop.id} value={stop.id}>
+                      {stopShortName(stop)}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Before & after trail">
+                  {curatedOffRoutePlaces().map((place) => (
+                    <option key={place.id} value={place.id}>
+                      {place.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </label>
+            <p className="trip-linked-note">
+              The place is reference information. Your dates, booking and notes stay personal.
+            </p>
+            {linkUnavailable ? (
+              <p className="trip-linked-note trip-linked-note--warn">
+                <TriangleAlert size={14} strokeWidth={2} aria-hidden /> Linked place is no
+                longer available in this version.
+              </p>
+            ) : null}
+            {linkedPlaceName && onViewPlace ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                onClick={() => onViewPlace(linkedPlaceId)}
+                aria-label={`View place ${linkedPlaceName} in Stops & places`}
+              >
+                <MapPin size={15} strokeWidth={1.9} aria-hidden /> View place
+              </button>
+            ) : null}
             {/* Stay rollout of the app-owned picker (step 2 of the plan in
                 docs/proposals/datetime-picker-system.md §12, after the
                 owner's device pass on the transport pilot). The date-order

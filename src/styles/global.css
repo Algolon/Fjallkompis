@@ -3753,6 +3753,20 @@ button.stop-fac:focus-visible {
   line-height: 1.45;
 }
 
+/* An unavailable linked place — honest warning, never a resolved claim. */
+.trip-linked-note--warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+}
+
+.trip-linked-note--warn svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 /* Attachment link rows inside the item sheet. */
 .trip-attach-list {
   list-style: none;
