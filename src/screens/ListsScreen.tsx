@@ -52,6 +52,69 @@ const STATE_LABEL: Record<DisplayState, string> = {
 type Filter = 'all' | DisplayState;
 
 
+/** The form's quantity string as the 1–99 integer the save would use. */
+function parsedQuantity(quantity: string): number {
+  return Math.min(99, Math.max(1, Math.round(Number(quantity) || 1)));
+}
+
+/**
+ * The Worn control of both item forms. Quantity 1 keeps the original
+ * checkbox (worn is all-or-nothing for a single unit); quantity > 1 swaps it
+ * for a compact stepper — "Worn [−] 1 [+] of 3" — because a row can wear
+ * SOME units (one shirt on the body, two in the pack). The first step up
+ * from 0 enables worn with 1 unit; stepping back to 0 removes it; the shown
+ * value clamps live to the quantity currently in the form.
+ */
+function WornControl({
+  wornQty,
+  setWornQty,
+  quantityNum,
+}: {
+  wornQty: number;
+  setWornQty: (updater: (v: number) => number) => void;
+  quantityNum: number;
+}) {
+  const shown = Math.min(wornQty, quantityNum);
+  if (quantityNum === 1) {
+    return (
+      <button
+        className="check check--setting"
+        aria-pressed={shown > 0}
+        onClick={() => setWornQty((v) => (Math.min(v, quantityNum) > 0 ? 0 : 1))}
+        style={{ marginTop: 4 }}
+      >
+        <span className="box">
+          <IconCheck />
+        </span>
+        <span className="label">Worn</span>
+      </button>
+    );
+  }
+  return (
+    <div className="worn-stepper" role="group" aria-label={`Worn units, ${shown} of ${quantityNum}`}>
+      <span className="worn-stepper__label">Worn</span>
+      <button
+        className="worn-stepper__btn"
+        onClick={() => setWornQty((v) => Math.max(0, Math.min(v, quantityNum) - 1))}
+        disabled={shown === 0}
+        aria-label="One less unit worn"
+      >
+        −
+      </button>
+      <span className="worn-stepper__value tnum">{shown}</span>
+      <button
+        className="worn-stepper__btn"
+        onClick={() => setWornQty((v) => Math.min(quantityNum, Math.min(v, quantityNum) + 1))}
+        disabled={shown >= quantityNum}
+        aria-label="One more unit worn"
+      >
+        +
+      </button>
+      <span className="worn-stepper__of tnum">of {quantityNum}</span>
+    </div>
+  );
+}
+
 /**
  * Inline editor for ANY packing item — seeded or custom. Every field except
  * the stable id and the `custom` provenance flag is editable; the store
@@ -72,27 +135,29 @@ function ItemEditor({
   const [quantity, setQuantity] = useState(String(item.quantity));
   const [weight, setWeight] = useState(item.weightGrams != null ? String(item.weightGrams) : '');
   const [essential, setEssential] = useState(item.essential);
-  const [worn, setWorn] = useState(item.worn);
+  const [wornQty, setWornQty] = useState(item.wornQuantity);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const canSave = label.trim() !== '';
   // Worn follows the category chosen in the form, not the saved one — moving
   // an item out of clothing/rain & insulation/footwear hides (and clears)
-  // the option immediately.
+  // the option immediately. The worn units clamp live to the quantity in
+  // the form, so a shrunken quantity can never save more units worn than
+  // the row has.
   const wornEligible = isWornEligibleCategory(categoryId);
+  const quantityNum = parsedQuantity(quantity);
 
   const save = () => {
     if (!canSave) return;
-    const qty = Math.min(99, Math.max(1, Math.round(Number(quantity) || 1)));
     const w = Number(weight);
     updatePackingItem(item.id, {
       label: label.trim(),
       categoryId,
-      quantity: qty,
+      quantity: quantityNum,
       // Blank/invalid weight clears the field (weightGrams becomes absent).
       weightGrams: weight.trim() !== '' && Number.isFinite(w) && w > 0 ? Math.round(w) : undefined,
       essential,
-      worn: wornEligible && worn,
+      wornQuantity: wornEligible ? Math.min(wornQty, quantityNum) : 0,
     });
     onClose();
   };
@@ -165,17 +230,7 @@ function ItemEditor({
         <span className="label">Essential item</span>
       </button>
       {wornEligible ? (
-        <button
-          className="check check--setting"
-          aria-pressed={worn}
-          onClick={() => setWorn((v) => !v)}
-          style={{ marginTop: 4 }}
-        >
-          <span className="box">
-            <IconCheck />
-          </span>
-          <span className="label">Worn</span>
-        </button>
+        <WornControl wornQty={wornQty} setWornQty={setWornQty} quantityNum={quantityNum} />
       ) : null}
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn btn-primary" style={{ flex: 1 }} onClick={save} disabled={!canSave}>
@@ -215,9 +270,10 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
   const [quantity, setQuantity] = useState('1');
   const [weight, setWeight] = useState('');
   const [essential, setEssential] = useState(false);
-  const [worn, setWorn] = useState(false);
+  const [wornQty, setWornQty] = useState(0);
 
   const wornEligible = isWornEligibleCategory(categoryId);
+  const quantityNum = parsedQuantity(quantity);
 
   const save = () => {
     if (!label.trim()) return;
@@ -225,10 +281,10 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
     addPackingItem({
       label: label.trim(),
       categoryId,
-      quantity: Math.min(99, Math.max(1, Math.round(Number(quantity) || 1))),
+      quantity: quantityNum,
       ...(Number.isFinite(w) && w > 0 ? { weightGrams: Math.round(w) } : {}),
       essential,
-      worn: wornEligible && worn,
+      wornQuantity: wornEligible ? Math.min(wornQty, quantityNum) : 0,
     });
     onClose();
   };
@@ -294,17 +350,7 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
         <span className="label">Essential item</span>
       </button>
       {wornEligible ? (
-        <button
-          className="check check--setting"
-          aria-pressed={worn}
-          onClick={() => setWorn((v) => !v)}
-          style={{ marginTop: 4 }}
-        >
-          <span className="box">
-            <IconCheck />
-          </span>
-          <span className="label">Worn</span>
-        </button>
+        <WornControl wornQty={wornQty} setWornQty={setWornQty} quantityNum={quantityNum} />
       ) : null}
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn btn-primary" style={{ flex: 1 }} onClick={save} disabled={!label.trim()}>
@@ -338,7 +384,9 @@ function PackingView() {
   // exactly as before the feature existed.
   const stats = useMemo(() => {
     const summary = packingSummary(items);
-    const packTotal = summary.total - summary.worn;
+    // Backpack denominator: rows that still have carried units. A partially
+    // worn row stays in — its spares still need packing.
+    const packTotal = summary.total - summary.fullyWorn;
     return {
       ...summary,
       packTotal,
@@ -348,30 +396,46 @@ function PackingView() {
 
   const displayState = (i: PackingItem): DisplayState => packingDisplayState(i) as DisplayState;
 
-  const visible =
-    filter === 'all' ? items : items.filter((i) => displayState(i) === filter);
+  /**
+   * Filter membership. Status pills match rows whose CARRIED units are in
+   * that status; the Worn pill matches rows with ANY worn unit. A partially
+   * worn row (1 worn · 2 packed) therefore appears under BOTH Packed and
+   * Worn — deliberately: at the trailhead, "Worn" must answer "what am I
+   * wearing?" completely, including the one shirt of three. The pills stop
+   * being a partition of All the moment partial wearing exists.
+   */
+  const matchesFilter = (i: PackingItem, f: Filter): boolean => {
+    if (f === 'all') return true;
+    if (f === 'worn') return i.wornQuantity > 0;
+    return i.wornQuantity < i.quantity && i.status === f;
+  };
+
+  const visible = items.filter((i) => matchesFilter(i, filter));
 
   // One tap walks the row through its states. Worn joins the cycle only for
-  // worn-eligible categories, after Packed — the two locations sit side by
-  // side and picking one always clears the other (enforced in the model).
+  // SINGLE-quantity rows in worn-eligible categories — a tap on a ×3 row
+  // must never silently claim all three units are on the body, so partial
+  // wearing lives in the editor's stepper and the tap cycles the carried
+  // units' status. A fully worn row restarts to Needed, as before.
   const cycleStatus = (item: PackingItem) => {
     const state = displayState(item);
     if (state === 'needed') setPackingStatus(item.id, 'ready');
     else if (state === 'ready') setPackingStatus(item.id, 'packed');
-    else if (state === 'packed' && isWornEligibleCategory(item.categoryId))
-      updatePackingItem(item.id, { worn: true });
-    else updatePackingItem(item.id, { worn: false, status: 'needed' });
+    else if (state === 'packed' && item.quantity === 1 && isWornEligibleCategory(item.categoryId))
+      updatePackingItem(item.id, { wornQuantity: 1 });
+    else if (state === 'worn') updatePackingItem(item.id, { wornQuantity: 0, status: 'needed' });
+    else setPackingStatus(item.id, 'needed');
   };
 
   return (
     <>
-      {/* Progress overview — a backpack meter. Worn items are handled but
-          not in the pack, so they leave the packed denominator; the worn
-          count sits IN the header value ("6/69 packed" over "5 worn",
-          stacked — see .pack-progress-count) so the shrunken denominator
-          explains itself without mental subtraction. Worn weight is a
-          separate quiet pill. One number block, one bar, one pill row —
-          and with nothing worn, exactly the old header. */}
+      {/* Progress overview — a backpack meter. FULLY worn rows leave the
+          packed denominator (nothing of them travels in the pack); the worn
+          count — rows with ANY worn unit — sits IN the header value
+          ("6/69 packed" over "5 worn", stacked, see .pack-progress-count).
+          Worn weight (weight × worn units) is a separate quiet pill. One
+          number block, one bar, one pill row — and with nothing worn,
+          exactly the old header. */}
       <div className="card">
         <div className="row-between">
           <span className="card-title">Packing progress</span>
@@ -399,7 +463,7 @@ function PackingView() {
           {stats.weightedGrams > 0 ? (
             <span
               className="pill tnum"
-              title="Backpack weight: items with an entered weight × quantity, worn items excluded"
+              title="Backpack weight: entered weight × carried units — worn units excluded"
             >
               <Scale size={12} strokeWidth={2} aria-hidden />
               {stats.weightMissing > 0 ? '≥ ' : ''}
@@ -409,7 +473,7 @@ function PackingView() {
           {stats.wornWeightedGrams > 0 ? (
             <span
               className="pill tnum"
-              title="Weight worn on the body — items with an entered weight × quantity, never part of the backpack weight"
+              title="Weight worn on the body — entered weight × worn units, never part of the backpack weight"
             >
               <Shirt size={12} strokeWidth={2} aria-hidden />
               {stats.wornWeightMissing > 0 ? '≥ ' : ''}
@@ -425,10 +489,11 @@ function PackingView() {
         ) : null}
       </div>
 
-      {/* Filter — the pills partition every row by its one visible state, so
-          worn needs its own pill (a worn item is in no status bucket and
-          would otherwise be reachable only through All). It appears once the
-          first item is worn: until then the row is exactly the old one. */}
+      {/* Filter — status pills cover rows with carried units in that status;
+          the Worn pill covers rows with ANY worn unit (see matchesFilter for
+          why the pills deliberately overlap on partially worn rows). Worn
+          appears once the first unit is worn: until then the row is exactly
+          the old one. */}
       <div className="stage-chips" role="group" aria-label="Filter packing items" style={{ marginTop: 14 }}>
         {(['all', 'needed', 'ready', 'packed', 'worn'] as Filter[])
           .filter((f) => f !== 'worn' || stats.worn > 0 || filter === 'worn')
@@ -441,7 +506,7 @@ function PackingView() {
             >
               {f === 'all' ? 'All' : STATE_LABEL[f]}
               <span className="tnum" style={{ fontWeight: 500 }}>
-                {f === 'all' ? items.length : items.filter((i) => displayState(i) === f).length}
+                {items.filter((i) => matchesFilter(i, f)).length}
               </span>
             </button>
           ))}
@@ -454,33 +519,58 @@ function PackingView() {
         if (catItems.length === 0) return null;
         const catVisible = visible.filter((i) => i.categoryId === cat.id);
         if (catVisible.length === 0) return null;
-        const catWorn = catItems.filter((i) => i.worn).length;
-        const catPackTotal = catItems.length - catWorn;
-        const catPacked = catItems.filter((i) => !i.worn && i.status === 'packed').length;
+        const catFullyWorn = catItems.filter((i) => i.wornQuantity >= i.quantity).length;
+        const catPackTotal = catItems.length - catFullyWorn;
+        const catPacked = catItems.filter(
+          (i) => i.wornQuantity < i.quantity && i.status === 'packed',
+        ).length;
         return (
           <div key={cat.id}>
             <div className="section-label row-between">
               <span>{cat.title}</span>
-              {/* Same convention as the header: packed over backpack items;
+              {/* Same convention as the header: packed over backpack rows
+                  (partially worn rows stay in — their spares still travel);
                   a category that is entirely worn has no backpack count. */}
               <span className="tnum">
-                {catPackTotal === 0 ? `${catWorn} worn` : `${catPacked}/${catPackTotal}`}
+                {catPackTotal === 0 ? `${catFullyWorn} worn` : `${catPacked}/${catPackTotal}`}
               </span>
             </div>
             <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
-              {catVisible.map((item) => (
+              {catVisible.map((item) => {
+                const state = displayState(item);
+                const carried = item.quantity - item.wornQuantity;
+                const partiallyWorn = item.wornQuantity > 0 && carried > 0;
+                // Partially worn rows spell out where every unit is
+                // ("1 worn · 2 packed"); the weight shown beside it is the
+                // CARRIED weight — the worn share lives in the header pill.
+                const sub = partiallyWorn
+                  ? `${item.wornQuantity} worn · ${carried} ${STATE_LABEL[item.status].toLowerCase()}` +
+                    (item.weightGrams != null
+                      ? ` · ${formatGrams(item.weightGrams * carried)}`
+                      : '')
+                  : (item.quantity > 1 ? `×${item.quantity}` : '') +
+                    (item.weightGrams != null
+                      ? `${item.quantity > 1 ? ' · ' : ''}${formatGrams(item.weightGrams * item.quantity)}`
+                      : '');
+                return (
                 <div key={item.id} className="pack-row-wrap">
                   <div className="pack-row">
                     <button
-                      className={`pack-status is-${displayState(item)}`}
+                      className={`pack-status is-${state}`}
                       onClick={() => cycleStatus(item)}
-                      aria-label={`${item.label}: ${STATE_LABEL[displayState(item)]}. Tap to change status.`}
+                      aria-label={
+                        `${item.label}: ${STATE_LABEL[state]}` +
+                        (partiallyWorn ? `, ${item.wornQuantity} of ${item.quantity} worn` : '') +
+                        '. Tap to change status.'
+                      }
                     >
-                      {STATE_LABEL[displayState(item)]}
+                      {STATE_LABEL[state]}
                     </button>
-                    {/* Worn is as done as packed — same settled label style. */}
+                    {/* Fully worn is as done as packed — same settled label
+                        style; a partially worn row follows its carried
+                        units' status. */}
                     <span
-                      className={`pack-label ${item.status === 'packed' || item.worn ? 'is-packed' : ''}`}
+                      className={`pack-label ${state === 'packed' || state === 'worn' ? 'is-packed' : ''}`}
                     >
                       {item.label}
                       {item.essential ? (
@@ -488,12 +578,7 @@ function PackingView() {
                           ●
                         </span>
                       ) : null}
-                      <span className="pack-sub tnum">
-                        {item.quantity > 1 ? `×${item.quantity}` : ''}
-                        {item.weightGrams != null
-                          ? `${item.quantity > 1 ? ' · ' : ''}${formatGrams(item.weightGrams * item.quantity)}`
-                          : ''}
-                      </span>
+                      <span className="pack-sub tnum">{sub}</span>
                     </span>
                     <button
                       className="pack-edit"
@@ -508,7 +593,8 @@ function PackingView() {
                     <ItemEditor item={item} onClose={() => setEditingId(null)} />
                   ) : null}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );

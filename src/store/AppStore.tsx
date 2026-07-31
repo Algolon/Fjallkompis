@@ -28,6 +28,7 @@ import {
 import { seedPackingItems } from '../utils/stateMigration.mjs';
 import {
   applyPackingPatch,
+  clampWornQuantity,
   isWornEligibleCategory,
   resetPackingProgress as resetPackingProgressItems,
 } from '../utils/packingModel.mjs';
@@ -461,8 +462,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             ...item,
             id,
             status: 'needed',
-            // Worn only exists in worn-eligible categories.
-            worn: item.worn && isWornEligibleCategory(item.categoryId),
+            // Worn units only exist in worn-eligible categories, and never
+            // more of them than the row has.
+            wornQuantity: isWornEligibleCategory(item.categoryId)
+              ? clampWornQuantity(item.wornQuantity, item.quantity)
+              : 0,
             custom: true,
           },
         ],

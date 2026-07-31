@@ -81,8 +81,8 @@ const item = (categoryId, slug, label, opts = {}) => ({
   essential: opts.essential ?? false,
   // Whether an item is worn on the body instead of carried is a personal
   // decision (some hikers pack their fleece, some wear it), so the template
-  // never pre-marks anything as worn.
-  worn: false,
+  // never pre-marks any units as worn.
+  wornQuantity: 0,
   custom: false,
 });
 
