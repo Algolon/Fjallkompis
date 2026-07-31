@@ -5595,9 +5595,14 @@ span.trip-attach-open {
 }
 .hero--preview .hero-day {
   /* Reserve the exit pill's corner so the eyebrow wraps under it instead of
-     running beneath the control on narrow viewports. */
+     running beneath the control on narrow viewports. Sized to the pill's
+     REAL footprint (64px pill + 12px offset + 9px touch inset, measured from
+     the eyebrow's right edge at 343px viewport-x → 56px): at 375px this
+     leaves ~255px of line for the longest marker + day + date (~203px) plus
+     a two-glyph mixed-day badge (~40px) on ONE line. The previous 76px
+     over-reserved by 20px and wrapped exactly that badge. */
   display: block;
-  padding-right: 76px;
+  padding-right: 56px;
 }
 .hero--preview .hero-day__type {
   /* The ordered activity glyphs stay VISIBLE while previewing: what a day IS
