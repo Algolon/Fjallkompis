@@ -72,6 +72,19 @@
  *     worn-eligible categories (clothing, rain & insulation, footwear) may
  *     carry the mark.
  *
+ * v9 → v10 (explicit hiking legs):
+ *   - `dayPlan` hiking activities become explicit ordered LEGS — each one a
+ *     reference to a physical canonical stage plus an absolute orientation —
+ *     replacing the v9 adjacent-stage COUNT and its full-route partition
+ *     invariant (src/plan/hikingLegs.mjs). `dayPlan.currentLegId` is added:
+ *     the active hiking occurrence, needed because a stage may now be walked
+ *     more than once. v9 plans migrate deterministically by replaying the
+ *     released cursor walk (src/plan/dayPlanMigration.mjs); a legacy plan
+ *     the released model could not have persisted normalises to null — the
+ *     feature's own default — with all unrelated state untouched. The
+ *     normaliser now needs the canonical stage TOPOLOGY (ids + endpoints)
+ *     instead of a bare stage count.
+ *
  * v8 → v9 (per-unit worn):
  *   - `worn: boolean` becomes `wornQuantity: number` (0 ≤ wornQuantity ≤
  *     quantity): each individual unit has one location, so "3 shirts,
@@ -110,7 +123,7 @@ import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
 import { normalizeTripItems } from '../trip/tripModel.mjs';
 import { normalizeDayPlan } from '../plan/dayPlan.mjs';
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** Fresh seed packing items (deep-ish copy so callers can't mutate the seed). */
 export function seedPackingItems() {
@@ -307,13 +320,14 @@ function migrateLegacyPacking(raw) {
  * or older payload still loads instead of wiping the app. Retired fields
  * (v1 shopOverride, v2 checklist) are ignored, never a parse failure.
  *
- * `stageCount` is the canonical stage count the day plan must partition. It is
- * supplied by the caller (src/utils/storage.ts passes STAGES.length) because
- * this module is deliberately free of route-data imports. Omitting it means a
- * day plan cannot be validated at all, so it normalises to `null` — the
- * feature's own default, never a crash.
+ * `topology` is the canonical stage topology (ids + endpoints, canonical
+ * order) hiking legs are validated against. It is supplied by the caller
+ * (src/utils/storage.ts passes STAGE_TOPOLOGY) because this module is
+ * deliberately free of route-data imports. Omitting it means a day plan
+ * cannot be validated at all, so it normalises to `null` — the feature's own
+ * default, never a crash.
  */
-export function normalizeState(raw, defaultStageId, stageCount) {
+export function normalizeState(raw, defaultStageId, topology) {
   const base = defaultState(defaultStageId);
   if (!isObject(raw)) return base;
 
@@ -340,6 +354,13 @@ export function normalizeState(raw, defaultStageId, stageCount) {
         : normalizeOwnedPacking(raw.packing),
     packingTemplateVersion: PACKING_TEMPLATE_VERSION,
     trip: normalizeTripItems(raw.trip),
-    dayPlan: normalizeDayPlan(raw.dayPlan, direction, stageCount),
+    dayPlan: normalizeDayPlan(
+      raw.dayPlan,
+      direction,
+      topology,
+      // Only consumed by the v9 → v10 migration, to derive the current-leg
+      // pointer from the released current-stage / current-day pair.
+      typeof raw.currentStageId === 'string' ? raw.currentStageId : null,
+    ),
   };
 }

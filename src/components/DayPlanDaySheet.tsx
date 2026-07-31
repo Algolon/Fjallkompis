@@ -1,85 +1,79 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpDown, BusFront, Coffee, Footprints } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  BusFront,
+  Coffee,
+  Footprints,
+  Repeat2,
+} from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
+import { STAGES_BY_ID, STAGE_TOPOLOGY } from '../data/stages';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { formatDistanceKm } from '../utils/format';
+import { isReversed } from '../route/direction.mjs';
 import {
-  canDropHikingFromDay,
-  canInsertHikingDay,
-  canRemoveDay,
-  hikingDonorIndex,
-  hikingHeirIndex,
+  defaultLegsForNewDay,
+  hikingLegsOf,
+  stageOccurrences,
 } from '../plan/dayPlan.mjs';
-import { hikingEndpointOptions } from '../plan/plannedDays.mjs';
-import type { PlannedDay } from '../plan/plannedDays.mjs';
-import type { DayActivityKind, OvernightRef, TripItem } from '../types';
+import {
+  canRemoveLeg,
+  canReverseLeg,
+  legCandidatesFrom,
+  legCandidatesTo,
+  withLegMoved,
+  withLegRepeated,
+} from '../plan/hikingLegs.mjs';
+import type { HikingLegCandidate } from '../plan/hikingLegs.mjs';
+import type { DerivedHikingLeg, PlannedDay } from '../plan/plannedDays.mjs';
+import type { CanonicalHikingLeg, DayActivityKind, OvernightRef, TripItem } from '../types';
 
-/**
- * Why an edit is unavailable. The route has to stay covered exactly once, so
- * a stage can only move BETWEEN hiking days — there is nowhere else for it to
- * come from or go to. Same wording as the Add day flow, which already says
- * this when every stage has its own day.
- */
-const NO_DONOR =
-  'Every stage already has its own hiking day, so there is no walking to move onto this one.';
-const NO_HEIR =
-  'This is the only day with walking, so its route stages have nowhere to go.';
 const ONLY_ACTIVITY = 'A day has to do something — add another activity first.';
 
-/** "Kebnekaise → Nikkaluokta" — the route section a day carries, or null. */
+/** "Kebnekaise → Nikkaluokta" — the oriented route a day walks, or null. */
 function routeSection(day: Pick<PlannedDay, 'fromStopId' | 'toStopId'>): string | null {
   const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
   return from && to ? `${stopShortName(from)} → ${stopShortName(to)}` : null;
 }
 
-/** "day 4 (Sälka → Singi)" — how another day is named before it is changed. */
-function dayReference(day: PlannedDay): string {
-  const section = routeSection(day);
-  return section ? `day ${day.number} (${section})` : `day ${day.number}`;
-}
-
-/**
- * Why walking cannot be taken OFF this day.
- *
- * The stages a hiking day carries are canonical route sections; handing them
- * to another day changes a day the user is not editing. Until sections can be
- * reassigned explicitly, the change is refused and the section is named, so
- * the sheet says what is in the way instead of quietly rewriting a neighbour.
- */
-function stillWalksReason(day: PlannedDay): string {
-  const section = routeSection(day);
-  return `This day still contains the ${
-    section ?? 'walking'
-  } route section. Reassign that section before changing this day to Rest & explore or Travel.`;
-}
+const stopName = (stopId: string) => {
+  const stop = STOPS_BY_ID[stopId];
+  return stop ? stopShortName(stop) : stopId;
+};
 
 /**
  * Edit one planned day — the app's `.sheet` native <dialog>.
  *
  * Everything a day owns is here and nowhere else, so the plan list itself
- * stays a compact, read-only overview: what the day is, where the walking
- * ends, and where the user stays. Route statistics deliberately appear in
- * exactly ONE place — the endpoint chooser, where "how far do I walk today" is
- * the decision being made.
+ * stays a compact, read-only overview: what the day is, the exact ordered
+ * legs it walks, and where the user stays. EVERY leg edit touches only this
+ * day: no stage is borrowed from or handed to another day, no neighbour is
+ * merged, split or repaired — a coverage difference the edit creates is a
+ * diagnostic on the plan, never a mutation of a day the user did not open.
  */
 export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: () => void }) {
   const {
+    dayPlan,
     plannedDays,
-    itinerary,
     setDayActivities,
     swapDayActivities,
-    setHikingDayStages,
+    dropDayHiking,
     setDayOvernight,
     removePlannedDay,
   } = useStore();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useOverlayScrollLock();
-  const [view, setView] = useState<'day' | 'endpoint' | 'overnight'>('day');
+  const [view, setView] = useState<'day' | 'legs' | 'overnight'>('day');
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  // The replacement composition the day gets when its walking is removed —
+  // non-null while the explicit "remove walking" confirmation is up.
+  const [confirmingDrop, setConfirmingDrop] = useState<DayActivityKind[] | null>(null);
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -89,73 +83,76 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
   const hasHiking = day.kinds.includes('hiking');
   const hasTravel = day.kinds.includes('travel');
   const isRest = day.kinds.includes('rest');
-  const from = day.fromStopId ? STOPS_BY_ID[day.fromStopId] : null;
-  const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
+  const confirming = confirmingRemove || confirmingDrop !== null;
 
-  // Every control below is gated on the MODEL's own rule, asked directly —
-  // never on a local approximation of it. A control the model would refuse is
-  // disabled and says why, rather than accepting a tap that changes nothing.
-  // The derived days carry the same `activities` the records do, so the pure
-  // helpers answer for them unchanged.
-  const canTakeAStage = canInsertHikingDay(plannedDays, day.index);
-  const canGiveUpWalking = canDropHikingFromDay(plannedDays, day.index);
-  const canRemove = canRemoveDay(plannedDays, day.index);
-  const removeBlockedReason =
-    plannedDays.length <= 1 ? 'This is the only day in your plan.' : NO_HEIR;
-
-  // The days on the other side of an allocation change, named BEFORE it
-  // happens: the day a stage would come from, and the day this day's stages
-  // would move to if it were removed.
-  const donor = plannedDays[hikingDonorIndex(plannedDays, day.index)] ?? null;
-  const heir = plannedDays[hikingHeirIndex(plannedDays, day.index)] ?? null;
+  const canRemove = plannedDays.length > 1;
 
   /** Why a kind toggle is unavailable, or null when it is available. */
   const kindBlocked = (kind: DayActivityKind): string | null => {
     if (kind === 'travel') {
-      // Travel needs no stage. Removing the day's only activity would leave it
-      // doing nothing, which is not a state a day can be in. Turning travel
-      // OFF on a day that also walks is fine; turning it on always is.
       if (hasTravel && day.kinds.length === 1) return ONLY_ACTIVITY;
       return null;
     }
     if (kind === 'hiking') {
-      if (!hasHiking) return canTakeAStage ? null : NO_DONOR;
-      if (day.kinds.length === 1) return ONLY_ACTIVITY;
-      return canGiveUpWalking ? null : stillWalksReason(day);
+      // Turning walking ON starts the day with its connecting default leg;
+      // turning it OFF is the explicit, confirmed removal below — blocked
+      // only when nothing would remain.
+      if (hasHiking && day.kinds.length === 1) return ONLY_ACTIVITY;
+      return null;
     }
-    // Rest is exclusive: switching it on drops any walking, switching it off
-    // turns the day back into a hiking day and so needs a stage to take.
-    if (isRest) return canTakeAStage ? null : NO_DONOR;
-    return canGiveUpWalking ? null : stillWalksReason(day);
+    return null;
   };
 
   const toggleKind = (kind: DayActivityKind) => {
     if (kindBlocked(kind)) return; // the control is disabled; belt and braces
     if (kind === 'rest') {
-      setDayActivities(day.id, isRest ? ['hiking'] : ['rest']);
+      if (isRest) {
+        setDayActivities(day.id, ['hiking']);
+        return;
+      }
+      // Rest is exclusive: on a walking day this REMOVES the day's legs,
+      // which is never done silently — the confirmation names the route.
+      if (hasHiking) {
+        setConfirmingDrop(['rest']);
+        return;
+      }
+      setDayActivities(day.id, ['rest']);
+      return;
+    }
+    if (kind === 'hiking' && hasHiking) {
+      const remaining = day.kinds.filter((k) => k !== 'hiking');
+      if (remaining.length === 0) return;
+      setConfirmingDrop(remaining);
       return;
     }
     const next = day.kinds.filter((k) => k !== 'rest');
     const kinds = next.includes(kind) ? next.filter((k) => k !== kind) : [...next, kind];
-    if (kinds.length === 0) return; // a day always does something
+    if (kinds.length === 0) return;
     setDayActivities(day.id, kinds);
   };
 
-  // One quiet note under the row, not three: the reasons repeat across kinds.
-  const blockedNotes = [
-    ...new Set(
-      (['hiking', 'travel', 'rest'] as DayActivityKind[])
-        .map(kindBlocked)
-        .filter((r): r is string => r !== null && r !== ONLY_ACTIVITY),
-    ),
-  ];
-
-  // Taking walking ON shortens another day. It is allowed — but never a
-  // surprise: the day it comes from is named before the toggle is pressed.
-  const donorNote =
-    !hasHiking && donor
-      ? `Adding hiking takes one route stage from ${dayReference(donor)}.`
+  // What walking ON would start with — named BEFORE the toggle is pressed,
+  // so taking on hiking is never a surprise. Derived days carry the same
+  // activities their records do, so the pure helper answers directly.
+  const wouldStartWith = !hasHiking
+    ? (defaultLegsForNewDay(plannedDays, day.index, dayPlan?.direction ?? '', STAGE_TOPOLOGY)[0] ??
+      null)
+    : null;
+  const wouldStartWithStage = wouldStartWith
+    ? STAGE_TOPOLOGY.find((s) => s.id === wouldStartWith.stageId)
+    : null;
+  const addHikingNote =
+    !isRest && !hasHiking && wouldStartWith && wouldStartWithStage
+      ? `Adding hiking starts this day with ${
+          wouldStartWith.orientation === 'opposite'
+            ? `${stopName(wouldStartWithStage.toStopId)} → ${stopName(wouldStartWithStage.fromStopId)}`
+            : `${stopName(wouldStartWithStage.fromStopId)} → ${stopName(wouldStartWithStage.toStopId)}`
+        } — edit its legs afterwards.`
       : null;
+
+  const dropBody = `This removes the day's walking${
+    routeSection(day) ? ` (${routeSection(day)})` : ''
+  }. No other day changes — a route section this plan no longer covers is simply reported in the plan overview.`;
 
   return (
     <dialog
@@ -163,10 +160,10 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
       className="sheet"
       onClose={onClose}
       onCancel={(e) => {
-        if (confirmingRemove) e.preventDefault();
+        if (confirming) e.preventDefault();
       }}
       onClick={(e) => {
-        if (e.target === dialogRef.current && !confirmingRemove) onClose();
+        if (e.target === dialogRef.current && !confirming) onClose();
       }}
     >
       <div className="sheet-body">
@@ -206,14 +203,9 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
                 onToggle={() => toggleKind('rest')}
               />
             </div>
-            {blockedNotes.map((note) => (
-              <p key={note} className="card-sub" style={{ marginTop: 8 }}>
-                {note}
-              </p>
-            ))}
-            {donorNote ? (
+            {addHikingNote ? (
               <p className="card-sub" style={{ marginTop: 8 }}>
-                {donorNote}
+                {addHikingNote}
               </p>
             ) : null}
 
@@ -229,27 +221,24 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
               </button>
             ) : null}
 
-            {hasHiking && from && to ? (
+            {hasHiking && day.fromStopId && day.toStopId ? (
               <>
                 <span className="section-label">Walking</span>
                 <p className="dayplan-sheet__route">
-                  {stopShortName(from)} <span aria-hidden>→</span> {stopShortName(to)}
+                  {stopName(day.fromStopId)} <span aria-hidden>→</span> {stopName(day.toStopId)}
                 </p>
                 {day.viaStopIds.length > 0 ? (
                   <p className="card-sub" style={{ marginTop: 2 }}>
-                    via{' '}
-                    {day.viaStopIds
-                      .map((id) => stopShortName(STOPS_BY_ID[id]))
-                      .join(' and ')}
+                    via {day.viaStopIds.map(stopName).join(' and ')}
                   </p>
                 ) : null}
                 <button
                   type="button"
                   className="btn btn-block"
                   style={{ marginTop: 10 }}
-                  onClick={() => setView('endpoint')}
+                  onClick={() => setView('legs')}
                 >
-                  Change endpoint
+                  Edit route legs
                 </button>
               </>
             ) : null}
@@ -306,10 +295,8 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
               <button
                 className="btn btn-danger"
                 style={{ flex: 1 }}
-                // Gated on the model's own rule: a destructive confirmation
-                // must never be followed by a mutation the model refuses.
                 disabled={!canRemove}
-                title={canRemove ? undefined : removeBlockedReason}
+                title={canRemove ? undefined : 'This is the only day in your plan.'}
                 onClick={() => setConfirmingRemove(true)}
               >
                 Remove day
@@ -317,20 +304,22 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
             </div>
             {canRemove ? null : (
               <p className="card-sub" style={{ marginTop: 8 }}>
-                {removeBlockedReason}
+                This is the only day in your plan.
               </p>
             )}
           </>
         ) : null}
 
-        {view === 'endpoint' ? (
-          <EndpointChooser
+        {view === 'legs' ? (
+          <LegEditor
             day={day}
-            options={hikingEndpointOptions(plannedDays, day.index, itinerary.stages)}
-            onChoose={(stages) => {
-              setHikingDayStages(day.id, stages);
-              setView('day');
-            }}
+            onRemoveWalking={() =>
+              setConfirmingDrop(
+                day.kinds.filter((k) => k !== 'hiking').length > 0
+                  ? day.kinds.filter((k) => k !== 'hiking')
+                  : ['rest'],
+              )
+            }
             onBack={() => setView('day')}
           />
         ) : null}
@@ -351,10 +340,8 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
         <ConfirmDialog
           title="Remove this day?"
           body={
-            day.stages.length > 0 && heir
-              ? `Its route stages move to ${dayReference(
-                  heir,
-                )}, so no stage is lost. Later dates move one day earlier.`
+            day.legs.length > 0
+              ? `Its walking (${routeSection(day) ?? 'the planned legs'}) is removed with it — no other day changes. Later dates move one day earlier.`
               : 'Later dates move one day earlier. Your Trip plan and documents are not affected.'
           }
           primaryLabel="Remove day"
@@ -365,6 +352,21 @@ export function DayPlanDaySheet({ day, onClose }: { day: PlannedDay; onClose: ()
             onClose();
           }}
           onCancel={() => setConfirmingRemove(false)}
+        />
+      ) : null}
+
+      {confirmingDrop !== null ? (
+        <ConfirmDialog
+          title="Remove the day’s walking?"
+          body={dropBody}
+          primaryLabel="Remove walking"
+          destructive
+          onConfirm={() => {
+            dropDayHiking(day.id, confirmingDrop);
+            setConfirmingDrop(null);
+            setView('day');
+          }}
+          onCancel={() => setConfirmingDrop(null)}
         />
       ) : null}
     </dialog>
@@ -393,8 +395,6 @@ function KindToggle({
       className={`dayplan-kind${pressed ? ' is-on' : ''}`}
       aria-pressed={pressed}
       disabled={blocked !== null}
-      // The reason is also printed under the row; on the control itself it
-      // reaches anyone who lands on it without reading ahead.
       title={blocked ?? undefined}
       onClick={onToggle}
       data-kind={kind}
@@ -402,6 +402,223 @@ function KindToggle({
       <Icon size={16} strokeWidth={2} aria-hidden /> {label}
     </button>
   );
+}
+
+// ---- The leg editor ---------------------------------------------------------
+
+/**
+ * The focused editor for ONE day's ordered legs.
+ *
+ * Everything here modifies only the opened day, through the store's leg
+ * actions, and every control is gated on the pure model's own answer —
+ * a reverse, removal or reorder that would disconnect the day's walk is
+ * disabled with its reason, never accepted and repaired. Reverse and repeat
+ * are explicit: a reversed leg SAYS it walks the section the other way, and
+ * a repeat creates a visible second occurrence rather than moving anything.
+ */
+function LegEditor({
+  day,
+  onRemoveWalking,
+  onBack,
+}: {
+  day: PlannedDay;
+  onRemoveWalking: () => void;
+  onBack: () => void;
+}) {
+  const { dayPlan, plannedDays, addHikingLeg, removeHikingLeg, reverseHikingLeg, repeatHikingLeg, moveHikingLeg } =
+    useStore();
+  // The persisted legs (identity + orientation), for the pure predicates.
+  const rawLegs = hikingLegsOf(day) as CanonicalHikingLeg[];
+  // The plan's own natural orientation: legs walked the OTHER way get named.
+  const natural = isReversed(dayPlan?.direction ?? '') ? 'opposite' : 'canonical';
+
+  /** "also on day 5" / "twice on this day" — where else a stage is planned. */
+  const occurrenceNote = (leg: DerivedHikingLeg): string | null => {
+    const all = stageOccurrences(plannedDays, leg.stageId).filter((o) => o.legId !== leg.id);
+    if (all.length === 0) return null;
+    const here = all.filter((o) => o.dayId === day.id).length;
+    const elsewhere = [
+      ...new Set(
+        all
+          .filter((o) => o.dayId !== day.id)
+          .map((o) => plannedDays.find((d) => d.id === o.dayId)?.number)
+          .filter((n): n is number => n != null),
+      ),
+    ];
+    const parts = [];
+    if (here > 0) parts.push('again on this day');
+    if (elsewhere.length > 0) parts.push(`on day ${elsewhere.join(', day ')}`);
+    return `Also walked ${parts.join(' and ')}`;
+  };
+
+  const canRepeat = (legId: string) => withLegRepeated(rawLegs, legId, STAGE_TOPOLOGY) !== rawLegs;
+  const canMove = (from: number, to: number) =>
+    to >= 0 &&
+    to < rawLegs.length &&
+    withLegMoved(rawLegs, from, to, STAGE_TOPOLOGY) !== rawLegs;
+
+  const first = rawLegs[0] ?? null;
+  const last = rawLegs[rawLegs.length - 1] ?? null;
+  const beforeCandidates: HikingLegCandidate[] = day.fromStopId
+    ? legCandidatesTo(STAGE_TOPOLOGY, day.fromStopId)
+    : [];
+  const afterCandidates: HikingLegCandidate[] = day.toStopId
+    ? legCandidatesFrom(STAGE_TOPOLOGY, day.toStopId)
+    : [];
+
+  /** Concise decision info for one add-candidate. */
+  const candidateButton = (candidate: HikingLegCandidate, position: 'start' | 'end') => {
+    const occurrences = stageOccurrences(plannedDays, candidate.stageId);
+    const days = [
+      ...new Set(
+        occurrences
+          .map((o) => plannedDays.find((d) => d.id === o.dayId)?.number)
+          .filter((n): n is number => n != null),
+      ),
+    ];
+    return (
+      <li key={`${candidate.stageId}:${candidate.orientation}`}>
+        <button
+          type="button"
+          className="dayplan-option"
+          onClick={() => addHikingLeg(day.id, candidate.stageId, candidate.orientation, position)}
+        >
+          <span className="dayplan-option__name">
+            {stopName(candidate.fromStopId)} → {stopName(candidate.toStopId)}
+          </span>
+          <span className="dayplan-option__meta tnum">
+            {formatDistanceKm(stageDistanceKm(candidate.stageId))}
+            {candidate.orientation !== natural ? ' · walks the section in reverse' : ''}
+          </span>
+          {days.length > 0 ? (
+            <span className="dayplan-option__effect">
+              Already planned on day {days.join(', day ')}
+            </span>
+          ) : null}
+        </button>
+      </li>
+    );
+  };
+
+  return (
+    <>
+      <span className="section-label">
+        Route legs — walked in this exact order
+      </span>
+      <ol className="dayplan-legs">
+        {day.legs.map((leg, i) => {
+          const note = occurrenceNote(leg);
+          const removable = canRemoveLeg(rawLegs, leg.id, STAGE_TOPOLOGY);
+          const reversible = canReverseLeg(rawLegs, leg.id, STAGE_TOPOLOGY);
+          return (
+            <li key={leg.id} className="dayplan-leg">
+              <div className="dayplan-leg__route">
+                <strong>
+                  {stopName(leg.stage.fromHutId)} → {stopName(leg.stage.toHutId)}
+                </strong>
+                <span className="card-sub tnum">
+                  {formatDistanceKm(leg.stage.distanceKm)}
+                  {leg.orientation !== natural ? ' · walks the section in reverse' : ''}
+                </span>
+                {note ? <span className="card-sub">{note}</span> : null}
+              </div>
+              <div className="dayplan-leg__actions">
+                <button
+                  type="button"
+                  className="stage-set-pill"
+                  disabled={!reversible}
+                  title={
+                    reversible
+                      ? 'Walk this section the other way round'
+                      : 'Reversing this leg would disconnect the day’s walk.'
+                  }
+                  onClick={() => reverseHikingLeg(day.id, leg.id)}
+                >
+                  <ArrowUpDown size={13} strokeWidth={2} aria-hidden /> Reverse
+                </button>
+                <button
+                  type="button"
+                  className="stage-set-pill"
+                  disabled={!canRepeat(leg.id)}
+                  title="Walk this section again, back the other way — a second occurrence, the first stays where it is"
+                  onClick={() => repeatHikingLeg(day.id, leg.id)}
+                >
+                  <Repeat2 size={13} strokeWidth={2} aria-hidden /> Walk again
+                </button>
+                {canMove(i, i - 1) ? (
+                  <button
+                    type="button"
+                    className="stage-set-pill"
+                    aria-label={`Move leg ${i + 1} earlier`}
+                    onClick={() => moveHikingLeg(day.id, i, i - 1)}
+                  >
+                    <ArrowUp size={13} strokeWidth={2} aria-hidden />
+                  </button>
+                ) : null}
+                {canMove(i, i + 1) ? (
+                  <button
+                    type="button"
+                    className="stage-set-pill"
+                    aria-label={`Move leg ${i + 1} later`}
+                    onClick={() => moveHikingLeg(day.id, i, i + 1)}
+                  >
+                    <ArrowDown size={13} strokeWidth={2} aria-hidden />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="stage-set-pill"
+                  disabled={!removable}
+                  title={
+                    removable
+                      ? undefined
+                      : rawLegs.length === 1
+                        ? 'A hiking day walks at least one leg — remove the walking itself below.'
+                        : 'Removing this leg would disconnect the day’s walk.'
+                  }
+                  onClick={() => removeHikingLeg(day.id, leg.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      {first && beforeCandidates.length > 0 ? (
+        <>
+          <span className="section-label">Add before the start</span>
+          <ul className="dayplan-options" role="list">
+            {beforeCandidates.map((c) => candidateButton(c, 'start'))}
+          </ul>
+        </>
+      ) : null}
+      {last && afterCandidates.length > 0 ? (
+        <>
+          <span className="section-label">Add after the end</span>
+          <ul className="dayplan-options" role="list">
+            {afterCandidates.map((c) => candidateButton(c, 'end'))}
+          </ul>
+        </>
+      ) : null}
+
+      <div className="sheet-actions">
+        <button className="btn btn-danger" style={{ flex: 1 }} onClick={onRemoveWalking}>
+          Remove walking from this day
+        </button>
+      </div>
+
+      <button type="button" className="btn btn-block" style={{ marginTop: 12 }} onClick={onBack}>
+        Back
+      </button>
+    </>
+  );
+}
+
+/** Verified stage distance by stable id (direction-independent). */
+function stageDistanceKm(stageId: string): number {
+  return STAGES_BY_ID[stageId]?.distanceKm ?? 0;
 }
 
 /**
@@ -428,86 +645,6 @@ function OvernightSummary({ day }: { day: PlannedDay }) {
   const name = overnightRefName(day.overnight, state.trip);
   if (!name) return <span className="muted">No overnight</span>;
   return <>{name}</>;
-}
-
-/**
- * What walking further does to the days after this one, counted rather than
- * asserted: whole days absorbed, a day merely left shorter, or both.
- */
-function mergeConsequence(option: ReturnType<typeof hikingEndpointOptions>[number]): string {
-  const stages = `${option.takenStages} ${option.takenStages === 1 ? 'stage' : 'stages'}`;
-  if (option.absorbedDays === 0) return `Takes ${stages} from the next hiking day.`;
-  const days =
-    option.absorbedDays === 1 ? 'the next hiking day' : `the next ${option.absorbedDays} hiking days`;
-  return option.shortensNextDay
-    ? `Merges ${days} into this day and shortens the one after.`
-    : `Merges ${days} into this day.`;
-}
-
-/**
- * The one place in the planner that shows distance: choosing where a hiking
- * day ends IS choosing how far to walk, so each option states its stage count
- * and total distance — and what picking it does to the surrounding days.
- */
-function EndpointChooser({
-  day,
-  options,
-  onChoose,
-  onBack,
-}: {
-  day: PlannedDay;
-  options: ReturnType<typeof hikingEndpointOptions>;
-  onChoose: (stages: number) => void;
-  onBack: () => void;
-}) {
-  return (
-    <>
-      <span className="section-label">
-        Ends at — starting from{' '}
-        {day.fromStopId ? stopShortName(STOPS_BY_ID[day.fromStopId]) : 'the start'}
-      </span>
-      <ul className="dayplan-options" role="list">
-        {options.map((option) => {
-          const stop = STOPS_BY_ID[option.stopId];
-          // The real consequence, counted. A distant endpoint can absorb
-          // several days, and "the following hiking day" would understate it;
-          // a nearer one only shortens the next day without absorbing it.
-          const consequence =
-            option.effect === 'merge'
-              ? mergeConsequence(option)
-              : option.effect === 'split'
-                ? option.releasedStages === 1
-                  ? 'Creates a new hiking day for the remaining stage.'
-                  : `Creates a new hiking day for the remaining ${option.releasedStages} stages.`
-                : null;
-          return (
-            <li key={option.stopId}>
-              <button
-                type="button"
-                className={`dayplan-option${option.isCurrent ? ' is-current' : ''}`}
-                aria-current={option.isCurrent ? 'true' : undefined}
-                onClick={() => onChoose(option.stages)}
-              >
-                <span className="dayplan-option__name">
-                  {stop ? stopShortName(stop) : option.stopId}
-                </span>
-                <span className="dayplan-option__meta tnum">
-                  {option.stages} {option.stages === 1 ? 'stage' : 'stages'} ·{' '}
-                  {formatDistanceKm(option.distanceKm)}
-                </span>
-                {consequence ? (
-                  <span className="dayplan-option__effect">{consequence}</span>
-                ) : null}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      <button type="button" className="btn btn-block" style={{ marginTop: 12 }} onClick={onBack}>
-        Back
-      </button>
-    </>
-  );
 }
 
 /**

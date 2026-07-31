@@ -7,7 +7,8 @@ import { DayPlanDaySheet } from './DayPlanDaySheet';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
-import { DAY_ACTIVITY_LABELS, hikingDonorIndex } from '../plan/dayPlan.mjs';
+import { DAY_ACTIVITY_LABELS, defaultLegsForNewDay } from '../plan/dayPlan.mjs';
+import { STAGE_TOPOLOGY } from '../data/stages';
 import { hikingLead, travelPresentation } from '../plan/dayPresentation.mjs';
 import type { PlannedDay, ResolvedOvernight } from '../plan/plannedDays.mjs';
 import type { DayActivityKind, TripItem } from '../types';
@@ -208,6 +209,11 @@ export function DayPlanCard({
   );
 }
 
+const shortName = (stopId: string) => {
+  const stop = STOPS_BY_ID[stopId];
+  return stop ? stopShortName(stop) : stopId;
+};
+
 /** Compact activity glyphs — the words are always in the accessible name. */
 export const ACTIVITY_ICONS: Record<DayActivityKind, typeof Footprints> = {
   hiking: Footprints,
@@ -382,9 +388,11 @@ function AddDayRow({ index, onOpen }: { index: number; onOpen: () => void }) {
 }
 
 /**
- * Choose what a newly inserted day is. A hiking day needs a stage to move onto
- * it, so it is disabled — with the reason stated — when every stage already
- * has its own day.
+ * Choose what a newly inserted day is. A hiking day starts with its
+ * deterministic CONTINUATION leg — the section that physically connects to
+ * the walking around the insertion point — named up front. No stage is taken
+ * from any other day: the new day walks its own leg, even when that repeats
+ * a section another day already walks.
  */
 function AddDaySheet({
   index,
@@ -395,17 +403,20 @@ function AddDaySheet({
   onAdd: (kinds: DayActivityKind[]) => void;
   onClose: () => void;
 }) {
-  const { plannedDays } = useStore();
+  const { dayPlan, plannedDays } = useStore();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useOverlayScrollLock();
-  // The day a new hiking day would take its stage from — named up front, so
-  // adding one never silently shortens a day the user was not looking at.
-  const donor = plannedDays[hikingDonorIndex(plannedDays, index)] ?? null;
-  const canHike = donor !== null;
-  const donorFrom = donor?.fromStopId ? STOPS_BY_ID[donor.fromStopId] : null;
-  const donorTo = donor?.toStopId ? STOPS_BY_ID[donor.toStopId] : null;
-  const donorSection =
-    donorFrom && donorTo ? `${stopShortName(donorFrom)} → ${stopShortName(donorTo)}` : null;
+  // What the new hiking day would walk — derived by the same pure rule the
+  // model applies, so the sheet can state it before anything changes.
+  const startLeg =
+    defaultLegsForNewDay(plannedDays, index, dayPlan?.direction ?? '', STAGE_TOPOLOGY)[0] ?? null;
+  const startStage = startLeg ? STAGE_TOPOLOGY.find((s) => s.id === startLeg.stageId) : null;
+  const canHike = startLeg !== null && startStage != null;
+  const legSection = startStage
+    ? startLeg?.orientation === 'opposite'
+      ? `${shortName(startStage.toStopId)} → ${shortName(startStage.fromStopId)}`
+      : `${shortName(startStage.fromStopId)} → ${shortName(startStage.toStopId)}`
+    : null;
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -448,15 +459,10 @@ function AddDaySheet({
         </div>
         {canHike ? (
           <p className="card-sub" style={{ marginTop: 10 }}>
-            A hiking day takes one route stage from day {donor.number}
-            {donorSection ? ` (${donorSection})` : ''}.
+            A hiking day starts with {legSection}, continuing the walking
+            around it — no other day changes. Edit its legs afterwards.
           </p>
-        ) : (
-          <p className="card-sub" style={{ marginTop: 10 }}>
-            Every stage already has its own hiking day, so there is no walking
-            to move onto a new one.
-          </p>
-        )}
+        ) : null}
       </div>
     </dialog>
   );

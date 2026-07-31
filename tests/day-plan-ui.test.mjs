@@ -200,44 +200,82 @@ test('a mixed day can swap its activity order', () => {
   assert.match(sheet, /'Hiking, then travel' : 'Travel, then hiking'/);
 });
 
-test('the endpoint chooser replaces boundary toggles entirely', () => {
-  assert.match(sheet, /Change endpoint/);
-  assert.match(sheet, /hikingEndpointOptions\(plannedDays, day\.index, itinerary\.stages\)/);
-  // The retired interaction must not come back.
-  for (const gone of ['End day at', 'Continue past', 'boundary', 'toggleBoundary']) {
-    assert.ok(!sheet.includes(gone), `the boundary interaction is gone: ${gone}`);
-    assert.ok(!card.includes(gone), `the boundary interaction is gone: ${gone}`);
+test('the leg editor replaces the stage-count endpoint chooser entirely', () => {
+  assert.match(sheet, /Edit route legs/);
+  assert.match(sheet, /function LegEditor\(/);
+  // The retired interactions must not come back.
+  for (const gone of [
+    'Change endpoint',
+    'EndpointChooser',
+    'hikingEndpointOptions',
+    'mergeConsequence',
+    'setHikingDayStages',
+    'End day at',
+    'Continue past',
+    'toggleBoundary',
+  ]) {
+    assert.ok(!sheet.includes(gone), `the stage-count interaction is gone: ${gone}`);
+    assert.ok(!card.includes(gone), `the stage-count interaction is gone: ${gone}`);
   }
   assert.ok(!css.includes('.dayplan-boundary'), 'its CSS is gone too');
 });
 
-test('each endpoint option states its stages, distance and consequence', () => {
-  const chooser = sheet.slice(sheet.indexOf('function EndpointChooser('));
-  assert.match(chooser, /\{option\.stages\} \{option\.stages === 1 \? 'stage' : 'stages'\}/);
-  assert.match(chooser, /formatDistanceKm\(option\.distanceKm\)/);
-  // The consequence is COUNTED, never a fixed sentence: a distant endpoint can
-  // absorb several days, and one about "the following hiking day" understates
-  // it. Both branches carry a singular and a plural form.
-  const merge = sheet.slice(sheet.indexOf('function mergeConsequence('), sheet.indexOf('/**\n * The one place'));
-  assert.match(merge, /the next hiking day/);
-  assert.match(merge, /the next \$\{option\.absorbedDays\} hiking days/);
-  assert.match(merge, /Merges \$\{days\} into this day\./);
-  // A nearer endpoint takes stages without emptying a day, and says so.
-  assert.match(merge, /Takes \$\{stages\} from the next hiking day\./);
-  assert.match(merge, /Merges \$\{days\} into this day and shortens the one after\./);
-  assert.match(chooser, /Creates a new hiking day for the remaining stage\./);
-  assert.match(
-    chooser,
-    /Creates a new hiking day for the remaining \$\{option\.releasedStages\} stages\./,
-  );
-  assert.ok(
-    !/Merges the following hiking day|Splits the rest of the walking/.test(chooser),
-    'the uncounted sentences are gone',
-  );
-  // The one deliberate exception: nothing heavier than distance appears.
-  for (const forbidden of ['totalAscentM', 'estimatedHours', 'stageHighlights', 'guide']) {
-    assert.ok(!chooser.includes(forbidden), `the chooser must not show ${forbidden}`);
+test('the leg editor lists the exact ordered legs with their oriented routes', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  assert.match(editor, /day\.legs\.map\(\(leg, i\) => \{/);
+  assert.match(editor, /\{stopName\(leg\.stage\.fromHutId\)\} → \{stopName\(leg\.stage\.toHutId\)\}/);
+  assert.match(editor, /formatDistanceKm\(leg\.stage\.distanceKm\)/);
+  // A leg walked against the plan's own direction says so, explicitly.
+  assert.match(editor, /walks the section in reverse/);
+  assert.match(editor, /leg\.orientation !== natural/);
+  // A repeated stage names its other occurrences instead of hiding them.
+  assert.match(editor, /Also walked/);
+  assert.match(editor, /stageOccurrences\(plannedDays, leg\.stageId\)/);
+});
+
+test('every leg action is gated on the pure model and touches one day', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  // Reverse / remove / repeat / move are the model's own predicates.
+  assert.match(editor, /canReverseLeg\(rawLegs, leg\.id, STAGE_TOPOLOGY\)/);
+  assert.match(editor, /canRemoveLeg\(rawLegs, leg\.id, STAGE_TOPOLOGY\)/);
+  assert.match(editor, /withLegRepeated\(rawLegs, legId, STAGE_TOPOLOGY\) !== rawLegs/);
+  assert.match(editor, /withLegMoved\(rawLegs, from, to, STAGE_TOPOLOGY\) !== rawLegs/);
+  // Every mutation goes through the store's per-day leg actions.
+  for (const action of [
+    'addHikingLeg(day.id',
+    'removeHikingLeg(day.id',
+    'reverseHikingLeg(day.id',
+    'repeatHikingLeg(day.id',
+    'moveHikingLeg(day.id',
+  ]) {
+    assert.ok(editor.includes(action), `${action} …) is the only write path`);
   }
+  // A blocked control says why rather than accepting a dead tap.
+  assert.match(editor, /would disconnect the day’s walk/);
+  assert.match(editor, /A hiking day walks at least one leg/);
+});
+
+test('add-candidates show from → to, orientation, distance and prior planning', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  assert.match(editor, /legCandidatesTo\(STAGE_TOPOLOGY, day\.fromStopId\)/);
+  assert.match(editor, /legCandidatesFrom\(STAGE_TOPOLOGY, day\.toStopId\)/);
+  assert.match(editor, /Add before the start/);
+  assert.match(editor, /Add after the end/);
+  assert.match(editor, /\{stopName\(candidate\.fromStopId\)\} → \{stopName\(candidate\.toStopId\)\}/);
+  assert.match(editor, /formatDistanceKm\(stageDistanceKm\(candidate\.stageId\)\)/);
+  assert.match(editor, /Already planned on day/);
+  // Concise decision info only — no guide or highlight content in the editor.
+  for (const forbidden of ['stageHighlights', 'stageGuide', 'elevationProfile', 'totalAscentM']) {
+    assert.ok(!editor.includes(forbidden), `the editor must not show ${forbidden}`);
+  }
+});
+
+test('reverse and repeat are explicit about what they do', () => {
+  const editor = sheet.slice(sheet.indexOf('function LegEditor('));
+  assert.match(editor, /Walk this section the other way round/);
+  assert.match(editor, /a second occurrence, the first stays where it is/);
+  assert.match(editor, /> Reverse\s*<\/button>/);
+  assert.match(editor, /> Walk again\s*<\/button>/);
 });
 
 test('the overnight chooser offers derived, stop, Trip stay and none', () => {
@@ -288,16 +326,22 @@ test('the chooser never lists the derived location twice', () => {
 
 // ---- Invalid edits are refused before they are offered ----------------------
 
-test('every day-sheet control is gated on the model rule, not a local copy', () => {
-  assert.match(sheet, /from '\.\.\/plan\/dayPlan\.mjs'/);
-  assert.match(sheet, /const canTakeAStage = canInsertHikingDay\(plannedDays, day\.index\);/);
-  assert.match(sheet, /const canGiveUpWalking = canDropHikingFromDay\(plannedDays, day\.index\);/);
-  assert.match(sheet, /const canRemove = canRemoveDay\(plannedDays, day\.index\);/);
-  // The superseded approximation must not come back.
-  assert.ok(
-    !/canRemove = plannedDays\.length > 1/.test(sheet),
-    'removal is not gated on the day count alone',
-  );
+test('removing a day\'s walking is explicit, confirmed and names the route', () => {
+  // Rest on a walking day, or toggling hiking off, never silently drops the
+  // legs: the confirmation states what is removed and that no other day
+  // changes — the coverage gap becomes a diagnostic, not a repair.
+  assert.match(sheet, /setConfirmingDrop\(\['rest'\]\)/);
+  assert.match(sheet, /Remove the day’s walking\?/);
+  assert.match(sheet, /This removes the day's walking/);
+  assert.match(sheet, /No other day changes/);
+  assert.match(sheet, /dropDayHiking\(day\.id, confirmingDrop\)/);
+  // The leg editor offers the same explicit exit for the final leg.
+  assert.match(sheet, /Remove walking from this day/);
+  // No donor/heir machinery — nothing borrows or inherits stages any more.
+  for (const gone of ['hikingDonorIndex', 'hikingHeirIndex', 'canInsertHikingDay', 'NO_DONOR', 'NO_HEIR']) {
+    assert.ok(!sheet.includes(gone), `${gone} is gone`);
+    assert.ok(!card.includes(gone), `${gone} is gone from the card`);
+  }
 });
 
 test('a blocked activity toggle is disabled and says why', () => {
@@ -305,24 +349,19 @@ test('a blocked activity toggle is disabled and says why', () => {
   assert.match(sheet, /blocked=\{kindBlocked\('travel'\)\}/);
   assert.match(sheet, /blocked=\{kindBlocked\('rest'\)\}/);
   assert.match(sheet, /disabled=\{blocked !== null\}/);
-  assert.match(sheet, /\{blockedNotes\.map\(\(note\) => \(/);
-  // The reason reuses the Add day flow's sentence.
-  assert.match(sheet, /Every stage already has its own hiking day/);
-  assert.match(card, /Every stage already has its own hiking day/);
   // And a blocked toggle never reaches the store.
   assert.match(sheet, /if \(kindBlocked\(kind\)\) return;/);
+  // Taking on walking names the leg the day would start with, up front.
+  assert.match(sheet, /Adding hiking starts this day with/);
+  assert.match(sheet, /defaultLegsForNewDay\(plannedDays, day\.index/);
 });
 
 test('a destructive confirmation is never offered for a mutation that no-ops', () => {
-  const actions = sheet.slice(sheet.indexOf('<div className="sheet-actions">'), sheet.indexOf('{view === \'endpoint\''));
+  const actions = sheet.slice(sheet.indexOf('<div className="sheet-actions">'), sheet.indexOf("{view === 'legs'"));
   assert.match(actions, /disabled=\{!canRemove\}/);
-  assert.match(actions, /title=\{canRemove \? undefined : removeBlockedReason\}/);
-  assert.match(sheet, /\{removeBlockedReason\}/, 'the reason is visible, not only a tooltip');
-  assert.match(
-    sheet,
-    /plannedDays\.length <= 1 \? 'This is the only day in your plan\.' : NO_HEIR/,
-  );
-  assert.match(sheet, /This is the only day with walking, so its route stages have nowhere to go\./);
+  assert.match(sheet, /This is the only day in your plan\./);
+  // Day removal now states that the walking goes WITH the day.
+  assert.match(sheet, /is removed with it — no other day changes\./);
 });
 
 test('a deleted Trip stay is reported honestly, never rendered as a name', () => {

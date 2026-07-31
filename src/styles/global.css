@@ -5554,6 +5554,41 @@ span.trip-attach-open {
   color: var(--ink-faint);
 }
 
+/* The leg editor: one day's ordered legs, each with its own actions. Same
+   tokens as .dayplan-option — the editor is a sibling surface, not a new
+   design. Actions are the small pill (.stage-set-pill) so a leg row stays
+   compact on a 375px sheet. */
+.dayplan-legs {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  counter-reset: leg;
+}
+.dayplan-leg {
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.dayplan-leg__route {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+}
+.dayplan-leg__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dayplan-leg__actions .stage-set-pill:disabled {
+  opacity: 0.45;
+}
+
 .dayplan-add-choices {
   display: flex;
   flex-direction: column;

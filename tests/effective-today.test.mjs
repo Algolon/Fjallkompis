@@ -32,7 +32,7 @@ import { defaultDays, insertDay, removeDay } from '../src/plan/dayPlan.mjs';
 import { localIsoDate, toIsoDate } from '../src/utils/dateTimeField.mjs';
 import { buildDirectionalItinerary } from '../src/route/itinerary.mjs';
 import { WAYPOINT_TO_HUT } from '../src/route/waypointStops.mjs';
-import { DEFAULT_DIRECTION } from '../src/route/direction.mjs';
+import { DEFAULT_DIRECTION, REVERSE_DIRECTION } from '../src/route/direction.mjs';
 
 // ---- Real route data (the store passes the active itinerary's stages) -------
 
@@ -74,30 +74,45 @@ const canonical = {
   userBounds: raw.userBounds,
   mapCutoutBounds: raw.mapCutoutBounds,
 };
-const STAGES = buildDirectionalItinerary(canonical, DEFAULT_DIRECTION).route.stages.map((s) => ({
+const enrich = (direction) =>
+  buildDirectionalItinerary(canonical, direction).route.stages.map((s) => ({
+    id: s.id,
+    day: s.day,
+    fromHutId: WAYPOINT_TO_HUT[s.fromWaypointId],
+    toHutId: WAYPOINT_TO_HUT[s.toWaypointId],
+    distanceKm: s.statistics.distanceKm,
+    estimatedHours: 4,
+    notes: '',
+    totalAscentM: s.statistics.totalAscentM,
+    totalDescentM: s.statistics.totalDescentM,
+    minimumElevationM: s.statistics.minimumElevationM,
+    maximumElevationM: s.statistics.maximumElevationM,
+    points: s.points,
+    elevationProfile: [],
+  }));
+const STAGES = enrich(DEFAULT_DIRECTION);
+/** The oriented views the store passes in (mirrors AppStore.tsx). */
+const ORIENTED = {
+  canonical: Object.fromEntries(STAGES.map((s) => [s.id, s])),
+  opposite: Object.fromEntries(enrich(REVERSE_DIRECTION).map((s) => [s.id, s])),
+};
+const TOPOLOGY = STAGES.map((s) => ({
   id: s.id,
-  day: s.day,
-  fromHutId: WAYPOINT_TO_HUT[s.fromWaypointId],
-  toHutId: WAYPOINT_TO_HUT[s.toWaypointId],
-  distanceKm: s.statistics.distanceKm,
-  estimatedHours: 4,
-  notes: '',
-  totalAscentM: s.statistics.totalAscentM,
-  totalDescentM: s.statistics.totalDescentM,
-  minimumElevationM: s.statistics.minimumElevationM,
-  maximumElevationM: s.statistics.maximumElevationM,
-  points: s.points,
-  elevationProfile: [],
+  fromStopId: s.fromHutId,
+  toStopId: s.toHutId,
 }));
+/** The v10 default day list: one canonical leg per stage. */
+const freshDays = () => defaultDays(DEFAULT_DIRECTION, TOPOLOGY);
 
 /** A plan starting on `startDate`, one hiking day per stage (7 days). */
-const planFrom = (startDate, days = defaultDays(STAGES.length), currentDayId = null) => ({
+const planFrom = (startDate, days = freshDays(), currentDayId = null) => ({
   direction: DEFAULT_DIRECTION,
   startDate,
   currentDayId,
+  currentLegId: null,
   days,
 });
-const build = (plan, trip = []) => buildPlannedDays(STAGES, plan, trip);
+const build = (plan, trip = []) => buildPlannedDays(ORIENTED, plan, trip);
 
 // A concrete journey: 3–9 September 2026, one stage per day.
 const START = '2026-09-03';
@@ -185,7 +200,7 @@ test('an EXPIRED plan leaves Today populated, never blank', () => {
 // ---- 6. A valid manual override --------------------------------------------
 
 test('a valid currentDayId wins over the calendar date', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const chosen = records[5];
   const days = build(planFrom(START, records, chosen.id));
   const r = resolveEffectiveToday(days, null, chosen.id, '2026-09-03');
@@ -217,9 +232,9 @@ test('a dangling currentDayId falls through — to the date, then to generic', (
 // ---- 8. Removing the active planned day ------------------------------------
 
 test('removing the day that was current leaves Today resolvable', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const active = records[2]; // 5 Sep, the day being shown
-  const shortened = removeDay(records, 2); // its walking passes to the next day
+  const shortened = removeDay(records, 2); // its walking is removed with it
   const days = build(planFrom(START, shortened, active.id));
   assert.ok(!days.some((d) => d.id === active.id), 'the day is gone');
   // The pointer the store repairs to null (or leaves stale) resolves by date.
@@ -232,7 +247,7 @@ test('removing the day that was current leaves Today resolvable', () => {
 // ---- 9. Removing the whole plan --------------------------------------------
 
 test('removing the plan returns Today to its date-independent self', () => {
-  const days = build(planFrom(START, defaultDays(STAGES.length), null));
+  const days = build(planFrom(START, freshDays(), null));
   assert.equal(resolveEffectiveToday(days, null, null, '2026-09-05').source, 'date');
   // dayPlan: null — exactly the pre-0.26.0 state.
   const r = resolveEffectiveToday(build(null), null, null, '2026-09-05');
@@ -313,7 +328,7 @@ test('Trip movements never influence which day is Today', () => {
       updatedAt: 1,
     },
   ];
-  const records = insertDay(defaultDays(STAGES.length), 0, ['travel']);
+  const records = insertDay(freshDays(), 0, ['travel'], DEFAULT_DIRECTION, TOPOLOGY);
   const days = build(planFrom(START, records), trip);
   // The travel day (3 Sep) shows nothing for 20 August...
   assert.deepEqual(days[0].travelItems, [], 'matched by date only');
@@ -338,7 +353,7 @@ test('a travel day DOES show the movements recorded for its own date', () => {
       updatedAt: 1,
     },
   ];
-  const records = insertDay(defaultDays(STAGES.length), 0, ['travel']);
+  const records = insertDay(freshDays(), 0, ['travel'], DEFAULT_DIRECTION, TOPOLOGY);
   const days = build(planFrom(START, records), trip);
   assert.equal(days[0].kinds[0], 'travel');
   assert.deepEqual(
@@ -363,7 +378,7 @@ test('there are exactly four outcomes, and none of them is an empty Today', () =
 // resolution does with it.
 
 test('a valid preview outranks the override AND the date match', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const overridden = records[1];
   const previewed = records[5];
   const days = build(planFrom(START, records, overridden.id));
@@ -376,7 +391,7 @@ test('a valid preview outranks the override AND the date match', () => {
 });
 
 test('exiting preview (null) reveals override, then date, then generic', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const overridden = records[1];
   const days = build(planFrom(START, records, overridden.id));
   // With the override: it wins after the preview ends.
@@ -390,7 +405,7 @@ test('exiting preview (null) reveals override, then date, then generic', () => {
 });
 
 test('a dangling or malformed preview id falls through, never blanks', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const days = build(planFrom(START, records, records[2].id));
   for (const bad of ['day_deleted_by_edit', '', 0, {}, [], true, undefined, null]) {
     const r = resolveEffectiveToday(days, bad, records[2].id, START);
@@ -403,7 +418,7 @@ test('a dangling or malformed preview id falls through, never blanks', () => {
 });
 
 test('a preview never depends on the clock — it works on any date', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const days = build(planFrom(START, records));
   const target = records[3];
   for (const today of [START, '2026-08-01', '2030-01-01', null, 'not-a-date']) {
@@ -431,7 +446,7 @@ test('with no plan a preview id resolves to the generic Today', () => {
 // covered: nothing here (or in the store action) touches the network.
 
 test('clearing an override on a matching date returns Today to that date', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const chosen = records[5];
   const days = build(planFrom(START, records, chosen.id));
   // Overridden: day 6 shows even though the date says day 2.
@@ -443,7 +458,7 @@ test('clearing an override on a matching date returns Today to that date', () =>
 });
 
 test('clearing an override outside the plan range falls back to generic', () => {
-  const records = defaultDays(STAGES.length);
+  const records = freshDays();
   const chosen = records[3];
   const days = build(planFrom(START, records, chosen.id));
   assert.equal(resolveEffectiveToday(days, null, chosen.id, '2026-10-20').source, 'override');

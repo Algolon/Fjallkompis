@@ -91,8 +91,16 @@ function populatedState() {
   return s;
 }
 
-/** Canonical Kungsleden stage count — what src/utils/storage.ts passes through. */
-const STAGE_COUNT = 7;
+/** Canonical Kungsleden stage topology — what src/utils/storage.ts passes through. */
+const STAGE_COUNT = [
+  { id: 'd1', fromStopId: 'abisko', toStopId: 'abiskojaure' },
+  { id: 'd2', fromStopId: 'abiskojaure', toStopId: 'alesjaure' },
+  { id: 'd3', fromStopId: 'alesjaure', toStopId: 'tjaktja' },
+  { id: 'd4', fromStopId: 'tjaktja', toStopId: 'salka' },
+  { id: 'd5', fromStopId: 'salka', toStopId: 'singi' },
+  { id: 'd6', fromStopId: 'singi', toStopId: 'kebnekaise' },
+  { id: 'd7', fromStopId: 'kebnekaise', toStopId: 'nikkaluokta' },
+];
 
 /** Mirrors buildExport + parseImport (src/utils/exportImport.ts). */
 function exportImportRoundTrip(state) {
@@ -215,8 +223,39 @@ test('an older export without trip data imports as an empty trip plan', () => {
   assert.ok(restored.packing.some((i) => i.id === 'custom_abc'), 'personal data survives');
 });
 
-test('full-state transfer preserves a configured day plan verbatim', () => {
+test('full-state transfer preserves a configured day plan (v10 legs) verbatim', () => {
   const state = populatedState();
+  state.routeDirection = 'abisko-to-nikkaluokta';
+  state.dayPlan = {
+    direction: 'abisko-to-nikkaluokta',
+    startDate: '2026-08-23',
+    currentDayId: 'day_a2',
+    currentLegId: 'leg_a2_1',
+    days: [
+      { id: 'day_a1', activities: [{ kind: 'travel' }], overnight: { kind: 'stop', stopId: 'abisko' } },
+      { id: 'day_a2', activities: [{ kind: 'hiking', legs: [
+        { id: 'leg_a2_1', kind: 'canonical-stage', stageId: 'd1', orientation: 'canonical' },
+        { id: 'leg_a2_2', kind: 'canonical-stage', stageId: 'd2', orientation: 'canonical' },
+      ] }] },
+      { id: 'day_a3', activities: [{ kind: 'rest' }] },
+      { id: 'day_a4', activities: [{ kind: 'hiking', legs: [
+        { id: 'leg_a4_1', kind: 'canonical-stage', stageId: 'd7', orientation: 'canonical' },
+        { id: 'leg_a4_2', kind: 'canonical-stage', stageId: 'd7', orientation: 'opposite' },
+      ] }, { kind: 'travel' }],
+        overnight: { kind: 'stay', tripItemId: 'trip_salka' } },
+    ],
+  };
+  const restored = exportImportRoundTrip(state);
+  assert.deepEqual(restored.dayPlan, state.dayPlan, 'legs, pointers and overnights ride verbatim');
+  // The plan rides alongside everything else — nothing is traded for it.
+  assert.equal(restored.currentStageId, 'd3');
+  assert.equal(restored.hutData.salka.notes, 'Sauna coins!');
+  assert.equal(restored.trip.length, 2);
+});
+
+test('a v9 (stage-count) export imports as the deterministically migrated plan', () => {
+  const state = populatedState();
+  state.schemaVersion = 9;
   state.routeDirection = 'abisko-to-nikkaluokta';
   state.dayPlan = {
     direction: 'abisko-to-nikkaluokta',
@@ -231,11 +270,16 @@ test('full-state transfer preserves a configured day plan verbatim', () => {
     ],
   };
   const restored = exportImportRoundTrip(state);
-  assert.deepEqual(restored.dayPlan, state.dayPlan);
-  // The plan rides alongside everything else — nothing is traded for it.
+  assert.deepEqual(
+    restored.dayPlan.days.map((d) =>
+      d.activities.filter((a) => a.kind === 'hiking').flatMap((a) => a.legs.map((l) => l.stageId)),
+    ),
+    [[], ['d1', 'd2'], [], ['d3', 'd4', 'd5', 'd6', 'd7']],
+  );
+  assert.equal(restored.dayPlan.currentDayId, 'day_a2');
+  assert.equal(restored.dayPlan.days[1].activities[0].legs[0].id, 'leg_day_a2_d1');
   assert.equal(restored.currentStageId, 'd3');
   assert.equal(restored.hutData.salka.notes, 'Sauna coins!');
-  assert.equal(restored.trip.length, 2);
 });
 
 test('an older export without a day plan imports as no plan (the default state)', () => {

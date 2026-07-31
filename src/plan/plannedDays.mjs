@@ -1,29 +1,38 @@
 /**
  * Day plan — the derived layer.
  *
- * Takes the ACTIVE directional itinerary's ordered stages, the persisted plan,
- * the persisted `currentStageId` and the personal Trip items, and derives the
- * calendar days the UI renders. Nothing here is persisted and no canonical
- * data is touched: a planned day only HOLDS the itinerary's own stage objects,
- * so guides, highlights, detours, geometry and statistics stay stage-owned and
- * direction-correct.
+ * Takes the ORIENTED stage views (one per absolute orientation, both derived
+ * from the same verified canonical data by src/route/itinerary.mjs — never
+ * recomputed here), the persisted plan and the personal Trip items, and
+ * derives the calendar days the UI renders. Nothing here is persisted and no
+ * canonical data is touched: a planned day only HOLDS oriented views of the
+ * itinerary's own stage objects, so guides, highlights, detours, geometry
+ * and statistics stay stage-owned and orientation-correct.
  *
  * **There is no implicit plan.** With `dayPlan == null` this returns an empty
  * list: no dates, no planned calendar days, no activity indicators. The app
  * then renders its original, date-independent experience. Planning is opt-in
  * and a plan exists only because the user made one.
  *
- * Aggregation rules (hiking activities only):
- *   - distance and estimated hours: summed;
+ * Every hiking day reads its OWN explicit legs (schema v10): a leg resolves
+ * to the canonical stage view for a 'canonical' orientation and to the
+ * reverse-itinerary view — reversed verified coordinates, mirrored cumulative
+ * distances, swapped ascent/descent — for an 'opposite' one. A repeated
+ * stage is two legs and counts twice; editing one day can never change what
+ * another day derives to, because nothing is shared between days any more.
+ *
+ * Aggregation rules (hiking legs only):
+ *   - distance and estimated hours: summed over legs (occurrences, not
+ *     unique stages);
  *   - ascent/descent: summed ONLY when every component is present, else null;
  *   - elevation extremes: min/max, never sums;
- *   - elevation profile: the stages' own verified samples concatenated with
- *     cumulative offsets. No geometry is recomputed or synthesised.
+ *   - elevation profile: the legs' own verified oriented samples concatenated
+ *     with cumulative offsets. No geometry is recomputed or synthesised.
  *
  * Plain .mjs (with a sibling .d.mts) so `node --test` exercises the derivation
  * directly — the same split as route/itinerary.mjs vs route/activeItinerary.ts.
  */
-import { dateForDayIndex, hikingStagesOf } from './dayPlan.mjs';
+import { dateForDayIndex, hikingLegsOf } from './dayPlan.mjs';
 
 /**
  * Geometry length of a stage: the cumulative distance at its last point, or
@@ -57,9 +66,11 @@ function extremeOrNull(values, pick) {
 }
 
 /**
- * Concatenate the stages' verified elevation profiles into one day profile.
- * Each stage's samples keep their verified distances; only a cumulative offset
- * is added, so the result is monotonic and no value is invented.
+ * Concatenate the legs' verified oriented elevation profiles into one day
+ * profile. Each leg's samples keep their verified distances; only a
+ * cumulative offset is added, so the result is monotonic and no value is
+ * invented. A repeated stage contributes once PER LEG — walking it twice is
+ * twice the profile.
  */
 function concatProfiles(stages) {
   if (stages.length === 0) return [];
@@ -112,7 +123,7 @@ function matchTravelItems(tripItems, date) {
 /**
  * The effective overnight for a day, in the fixed resolution order:
  *   1. an explicit reference on the day;
- *   2. the day's hiking endpoint;
+ *   2. the day's hiking endpoint — where the LAST LEG ends;
  *   3. for a rest day, the previous day's effective overnight (it is based
  *      wherever the user already was);
  *   4. otherwise none.
@@ -135,8 +146,28 @@ function resolveOvernight(record, stages, previous) {
   return deriveOvernight(record, stages, previous);
 }
 
-function buildDay(record, index, startDate, stages, currentDayId, tripItems, previousOvernight) {
+/**
+ * Resolve one persisted leg to its derived form: the leg identity plus the
+ * ORIENTED stage view it references. Null when the referenced verified data
+ * cannot be resolved — the caller then refuses to derive the plan at all
+ * rather than rendering a partially-resolved journey.
+ */
+function resolveLeg(leg, orientedStages, currentLegId) {
+  const byId = orientedStages?.[leg.orientation];
+  const stage = byId ? byId[leg.stageId] : undefined;
+  if (!stage) return null;
+  return {
+    id: leg.id,
+    stageId: leg.stageId,
+    orientation: leg.orientation,
+    stage,
+    isCurrent: currentLegId != null && leg.id === currentLegId,
+  };
+}
+
+function buildDay(record, index, startDate, legs, pointers, tripItems, previousOvernight) {
   const date = dateForDayIndex(startDate, index);
+  const stages = legs.map((l) => l.stage);
   const last = stages[stages.length - 1] ?? null;
   const overnight = resolveOvernight(record, stages, previousOvernight);
   return {
@@ -144,8 +175,11 @@ function buildDay(record, index, startDate, stages, currentDayId, tripItems, pre
     index,
     number: index + 1,
     date,
-    activities: record.activities.map((a) => ({ ...a })),
+    activities: record.activities.map((a) =>
+      a.kind === 'hiking' ? { kind: 'hiking', legs: a.legs.map((l) => ({ ...l })) } : { ...a },
+    ),
     kinds: record.activities.map((a) => a.kind),
+    legs,
     stages,
     fromStopId: stages.length ? stages[0].fromHutId : null,
     toStopId: last ? last.toHutId : null,
@@ -163,7 +197,7 @@ function buildDay(record, index, startDate, stages, currentDayId, tripItems, pre
     // a rest day that has been overridden once can never inherit again.
     derivedOvernight: deriveOvernight(record, stages, previousOvernight),
     travelItems: matchTravelItems(tripItems, date),
-    isCurrent: currentDayId != null && record.id === currentDayId,
+    isCurrent: pointers.currentDayId != null && record.id === pointers.currentDayId,
   };
 }
 
@@ -172,36 +206,52 @@ function buildDay(record, index, startDate, stages, currentDayId, tripItems, pre
  *
  * Returns an EMPTY list when there is no plan — the canonical default state,
  * in which the app shows no dates and no planned days at all. A plan whose
- * hiking counts do not partition the active stage sequence (only reachable
- * transiently) also returns empty rather than rendering a broken journey; the
- * persisted value is repaired independently by normalizeDayPlan.
+ * legs cannot all be resolved against the oriented stage views (only
+ * reachable transiently) also returns empty rather than rendering a broken
+ * journey; the persisted value is repaired independently by normalizeDayPlan.
  *
- * @param {ReadonlyArray<object>} stages   Active itinerary stages, walking order.
+ * @param {{canonical: Record<string, object>, opposite: Record<string, object>}} orientedStages
+ *   The oriented stage views, keyed by absolute orientation then by STABLE
+ *   physical stage id. Both views come from the verified itinerary transform
+ *   (src/route/activeItinerary.ts) — 'canonical' is the forward itinerary's
+ *   stages, 'opposite' the reverse itinerary's.
  * @param {object|null} dayPlan            The persisted plan, or null.
  * @param {ReadonlyArray<object>} tripItems Personal Trip items (read-only).
  */
-export function buildPlannedDays(stages, dayPlan, tripItems = []) {
+export function buildPlannedDays(orientedStages, dayPlan, tripItems = []) {
   if (!dayPlan || !Array.isArray(dayPlan.days) || dayPlan.days.length === 0) return [];
-  if (!Array.isArray(stages) || stages.length === 0) return [];
+  if (orientedStages == null || typeof orientedStages !== 'object') return [];
 
-  let covered = 0;
-  for (const record of dayPlan.days) covered += hikingStagesOf(record);
-  if (covered !== stages.length) return [];
+  const pointers = {
+    currentDayId: dayPlan.currentDayId ?? null,
+    currentLegId: dayPlan.currentLegId ?? null,
+  };
+
+  const resolved = [];
+  for (const record of dayPlan.days) {
+    const legs = [];
+    for (const leg of hikingLegsOf(record)) {
+      const derived = resolveLeg(
+        leg,
+        orientedStages,
+        record.id === pointers.currentDayId ? pointers.currentLegId : null,
+      );
+      if (!derived) return []; // unresolvable verified data — refuse honestly
+      legs.push(derived);
+    }
+    resolved.push({ record, legs });
+  }
 
   const days = [];
-  let cursor = 0;
   let previousOvernight = null;
-  for (let i = 0; i < dayPlan.days.length; i++) {
-    const record = dayPlan.days[i];
-    const count = hikingStagesOf(record);
-    const slice = count > 0 ? stages.slice(cursor, cursor + count) : [];
-    cursor += count;
+  for (let i = 0; i < resolved.length; i++) {
+    const { record, legs } = resolved[i];
     const day = buildDay(
       record,
       i,
       dayPlan.startDate,
-      slice,
-      dayPlan.currentDayId ?? null,
+      legs,
+      pointers,
       tripItems,
       previousOvernight,
     );
@@ -221,80 +271,18 @@ export function currentPlannedDayOf(days) {
   return days.find((d) => d.isCurrent) ?? null;
 }
 
-/** The planned day covering a canonical stage id, or null. */
-export function plannedDayForStage(days, stageId) {
-  if (!Array.isArray(days) || stageId == null) return null;
-  return days.find((d) => d.stages.some((s) => s.id === stageId)) ?? null;
-}
-
-/** Index of the current stage WITHIN a planned day, or -1. */
-export function currentPartIndex(day, currentStageId) {
-  if (!day || currentStageId == null) return -1;
-  return day.stages.findIndex((s) => s.id === currentStageId);
-}
-
 /**
- * Legal endpoints for a hiking day: every stop reachable by 1..N adjacent
- * stages from where the day starts, with the consequence of choosing it. Used
- * by the "Change endpoint" chooser — the one place the planner shows distance,
- * because how far to walk in a day IS the decision being made.
+ * EVERY planned day walking a canonical stage, in day order. A stage may be
+ * planned on no day, one day or several days — callers must handle all
+ * three, and no caller may quietly take the first of several occurrences.
  */
-export function hikingEndpointOptions(days, dayIndex, stages) {
-  if (!Array.isArray(days) || !Array.isArray(stages)) return [];
-  const day = days[dayIndex];
-  if (!day || day.stages.length === 0) return [];
-  const startStageIndex = stages.findIndex((s) => s.id === day.stages[0].id);
-  if (startStageIndex === -1) return [];
-
-  let available = 0;
-  for (let i = dayIndex; i < days.length; i++) available += days[i].stages.length;
-
-  const current = day.stages.length;
-  const options = [];
-  let distanceKm = 0;
-  for (let n = 1; n <= available; n++) {
-    const stage = stages[startStageIndex + n - 1];
-    if (!stage) break;
-    distanceKm += stage.distanceKm;
-    options.push({
-      stopId: stage.toHutId,
-      stages: n,
-      distanceKm,
-      isCurrent: n === current,
-      // What choosing this option does to the surrounding days.
-      effect: n === current ? 'none' : n > current ? 'merge' : 'split',
-      // ...and by how much, so the consequence can be stated exactly rather
-      // than as a fixed sentence about "the following hiking day".
-      ...(n > current
-        ? absorption(days, dayIndex, n - current)
-        : { absorbedDays: 0, shortensNextDay: false, takenStages: 0 }),
-      releasedStages: n < current ? current - n : 0,
-    });
-  }
-  return options;
+export function plannedDaysForStage(days, stageId) {
+  if (!Array.isArray(days) || stageId == null) return [];
+  return days.filter((d) => d.legs.some((l) => l.stageId === stageId));
 }
 
-/**
- * What growing this day by `needed` stages does to the days after it.
- *
- *   absorbedDays     following hiking days that lose their walking ENTIRELY.
- *                    A day that also travels or rests survives as that — it is
- *                    the walking that is absorbed, which is what is described.
- *   shortensNextDay  true when one further day is left with some of its stages
- *                    rather than emptied, so a merge never silently understates
- *                    itself as covering only the whole days it swallowed.
- */
-function absorption(days, dayIndex, needed) {
-  let remaining = needed;
-  let absorbedDays = 0;
-  let shortensNextDay = false;
-  for (let i = dayIndex + 1; i < days.length && remaining > 0; i++) {
-    const count = days[i].stages.length;
-    if (count === 0) continue;
-    const taken = Math.min(remaining, count);
-    remaining -= taken;
-    if (taken === count) absorbedDays += 1;
-    else shortensNextDay = true;
-  }
-  return { absorbedDays, shortensNextDay, takenStages: needed };
+/** Index of the current LEG within a derived planned day, or -1. */
+export function currentLegIndex(day) {
+  if (!day || !Array.isArray(day.legs)) return -1;
+  return day.legs.findIndex((l) => l.isCurrent);
 }
