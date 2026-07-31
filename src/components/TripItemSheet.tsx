@@ -560,7 +560,9 @@ export function TripItemSheet({
                 longer available in this version.
               </p>
             ) : null}
-            {linkedPlaceName && onViewPlace ? (
+            {/* Navigation closes the sheet, so offer it only for a persisted
+                Stay. In add mode it would silently discard the unsaved draft. */}
+            {mode === 'edit' && linkedPlaceName && onViewPlace ? (
               <button
                 type="button"
                 className="btn btn-ghost btn-block"

@@ -40,12 +40,17 @@ export function LinkedStaysChooser({
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // Capture once during the opening render. React StrictMode replays effects
+  // in development; recapturing inside the effect would make its second pass
+  // remember the dialog's Close button instead of the external trigger.
+  const openerRef = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
   useOverlayScrollLock();
   const headingId = useId();
   useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.showModal();
-    return () => opener?.focus();
+    return () => openerRef.current?.focus();
   }, []);
 
   return (

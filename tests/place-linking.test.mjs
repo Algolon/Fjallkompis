@@ -83,8 +83,8 @@ test('choosing a place fills only UNTOUCHED fields, and only in add mode', () =>
   assert.match(itemSheet, /if \(!touched\.current\.status\) setStatus\(defaults\.status\);/);
 });
 
-test('View place is a real button with a complete accessible name, resolved links only', () => {
-  assert.match(itemSheet, /linkedPlaceName && onViewPlace \? \(/);
+test('View place is a real button for saved stays only, so Add drafts cannot be discarded', () => {
+  assert.match(itemSheet, /mode === 'edit' && linkedPlaceName && onViewPlace \? \(/);
   assert.match(itemSheet, /aria-label=\{`View place \$\{linkedPlaceName\} in Stops & places`\}/);
   assert.match(itemSheet, /View place\s*<\/button>/);
 });
@@ -127,6 +127,7 @@ test('a resolved link shows as a concise secondary indicator on the Stay card', 
 
 const stopsScreen = read('src/screens/StopsScreen.tsx');
 const chooserSrc = read('src/components/LinkedStaysChooser.tsx');
+const globalCss = read('src/styles/global.css');
 
 test('the screen is Stops & places and the header stops claiming everything is a route stop', () => {
   assert.match(stopsScreen, /title="Stops & places"/);
@@ -192,9 +193,12 @@ test('the chooser is a labelled modal listing title, status, dates and type/loca
   assert.match(chooserSrc, /Add another stay/);
   assert.match(chooserSrc, /aria-label=\{`Add another stay at \$\{placeName\}`\}/);
   // Focus enters on open and returns to the trigger; backdrop cancels.
+  assert.match(chooserSrc, /const openerRef = useRef<HTMLElement \| null>/);
   assert.match(chooserSrc, /dialogRef\.current\?\.showModal\(\)/);
-  assert.match(chooserSrc, /return \(\) => opener\?\.focus\(\)/);
+  assert.match(chooserSrc, /return \(\) => openerRef\.current\?\.focus\(\)/);
   assert.match(chooserSrc, /if \(e\.target === dialogRef\.current\) onClose\(\)/);
+  assert.match(globalCss, /\.ctx-help-close\s*\{[^}]*flex:\s*0 0 44px;[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
+    'the close action cannot shrink below a 44px touch target beside the long place name');
 });
 
 test('accordion keyboard navigation spans both sections in rendered order', () => {
