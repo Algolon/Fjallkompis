@@ -159,6 +159,13 @@ test('a well-formed record passes through normalisation unchanged', () => {
   assert.deepEqual(normalizeWalletDocument({ ...GOOD }), GOOD);
 });
 
+test('the runtime fileMissing annotation heals off a stored record', () => {
+  // fileMissing is derived from blob presence at list time (walletStore) and
+  // is stripped by every write path; should a stored record ever carry it,
+  // normalisation removes it rather than let stale state pose as a fact.
+  assert.deepEqual(normalizeWalletDocument({ ...GOOD, fileMissing: true }), GOOD);
+});
+
 test('repairable fields fall back to safe defaults', () => {
   const doc = normalizeWalletDocument({
     ...GOOD,

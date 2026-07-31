@@ -176,6 +176,43 @@ test('deleting a trip item keeps its documents, and the confirmation says so', (
   assert.match(store, /documents are deliberately NOT touched/i);
 });
 
+// ---- Existing-document linking (v0.26.3) -------------------------------------
+
+test('choosing an existing document stages it immediately — no separate Link step', () => {
+  // The v0.26.2 chain (choose in a select → press Link → press Save) lost
+  // the chosen document whenever Save came before Link — a silent discard.
+  // Selection now adds straight into the draft attachment list; the select
+  // stays pinned to its placeholder (value=""), so there is no half-chosen
+  // state left for Save to throw away, and duplicates stay impossible.
+  assert.match(
+    itemSheet,
+    /setAttachmentIds\(\(cur\) => \(cur\.includes\(id\) \? cur : \[\.\.\.cur, id\]\)\);/,
+  );
+  assert.match(itemSheet, /value=""\s*\n\s*onChange/);
+  assert.ok(!itemSheet.includes('linkPick'), 'the intermediate pick state is gone');
+  assert.ok(!itemSheet.includes('Link2'), 'and so is the separate Link button');
+  // Removing a staged document before Save remains an ordinary row action.
+  assert.match(itemSheet, /cur\.filter\(\(id\) => id !== docId\)/);
+});
+
+test('the wallet states are distinguished — loading is never called unavailable', () => {
+  assert.match(itemSheet, /walletStatus === 'loading'/);
+  assert.match(itemSheet, /Loading documents…/);
+  assert.match(itemSheet, /Document storage isn’t available in this browser mode/);
+  // Ready-but-nothing-linkable has its own honest line when documents exist.
+  assert.match(itemSheet, /Every stored document is already linked to this item\./);
+});
+
+test('a document whose file is missing stays visible and honestly labelled', () => {
+  // v0.26.2 hid metadata-only documents from every list and picker. They now
+  // appear — linkable, because the relationship outlives the evicted file —
+  // with the missing FILE named wherever the document shows.
+  assert.match(itemSheet, /fileMissing \? ' — file unavailable on this device' : ''/);
+  assert.match(tripView, /— file unavailable on this device/);
+  // Item cards count a present-but-fileless document as a missing attachment.
+  assert.match(tripView, /return !d \|\| d\.fileMissing === true;/);
+});
+
 test('removing an attachment is an unlink — stated in copy — never a file delete', () => {
   assert.match(itemSheet, /Removing a document here only unlinks it/);
   assert.ok(

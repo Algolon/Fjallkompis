@@ -203,14 +203,39 @@ test('corrupted legacy records are normalised or omitted at read time — never 
   assert.equal(repaired.pinned, false);
 });
 
-test('metadata whose blob is missing is hidden from the list, non-destructively', async () => {
+test('metadata whose blob is missing is LISTED with fileMissing — never hidden, never deleted', async () => {
+  // The v0.26.2 behaviour hid such a document entirely (browser storage
+  // eviction turned into an unexplainable disappearance from every list and
+  // picker). The record now stays visible, honestly flagged, and untouched.
   await freshDb();
   await addWalletDocument(DOC, blobOf('OK'));
   await rawStore('documents', 'readwrite', (s) => s.put({ ...DOC, id: 'doc_orphan' }));
   const docs = await listWalletDocuments();
-  assert.deepEqual(docs.map((d) => d.id), ['doc_a'], 'the orphan is omitted');
+  assert.deepEqual(docs.map((d) => d.id).sort(), ['doc_a', 'doc_orphan']);
+  const intact = docs.find((d) => d.id === 'doc_a');
+  const orphan = docs.find((d) => d.id === 'doc_orphan');
+  assert.ok(!('fileMissing' in intact), 'a document with its file carries no annotation');
+  assert.equal(orphan.fileMissing, true, 'the missing file is stated, not hidden');
   const docCount = await rawStore('documents', 'readonly', (s) => s.count());
   assert.equal(docCount, 3, 'nothing was deleted (meta + 2 records still stored)');
+});
+
+test('the runtime fileMissing annotation is never persisted by a write', async () => {
+  // The listed object may carry fileMissing; saving an edit of that object
+  // must strip it — it is derived state, not stored metadata — and adding a
+  // replacement file through update clears the condition itself.
+  await freshDb();
+  await addWalletDocument({ ...DOC, fileMissing: true }, blobOf('OK'));
+  let raw = await rawStore('documents', 'readonly', (s) => s.get('doc_a'));
+  assert.ok(!('fileMissing' in raw), 'add strips the annotation');
+  await updateWalletDocument({ ...DOC, title: 'Edited', fileMissing: true });
+  raw = await rawStore('documents', 'readonly', (s) => s.get('doc_a'));
+  assert.ok(!('fileMissing' in raw), 'update strips the annotation');
+  // Remediation: replacing the file makes the next list report it present.
+  await rawStore('files', 'readwrite', (s) => s.delete('doc_a'));
+  assert.equal((await listWalletDocuments())[0].fileMissing, true);
+  await updateWalletDocument({ ...DOC, title: 'Edited' }, blobOf('REPLACED'));
+  assert.ok(!('fileMissing' in (await listWalletDocuments())[0]));
 });
 
 test('getWalletFile returns null for an id with no stored file', async () => {

@@ -149,10 +149,13 @@ export async function readWalletMeta() {
  *  - the '__meta__' record is filtered out;
  *  - malformed metadata is repaired where safe, omitted where not
  *    (normalizeWalletDocument);
- *  - metadata whose blob row is MISSING (an orphan that a spanning
- *    transaction should make impossible) is omitted from the list —
- *    non-destructively, with a console warning — rather than shown as a
- *    document that could never open.
+ *  - metadata whose blob row is MISSING (browser storage eviction is real,
+ *    even though a spanning transaction makes in-app orphans impossible) is
+ *    LISTED with `fileMissing: true` rather than silently hidden — the
+ *    document and its item links are still meaningful, and hiding it turned
+ *    eviction into an unexplainable disappearance. The flag is a RUNTIME
+ *    annotation derived here on every read; the write paths strip it so it
+ *    can never be persisted as stored metadata.
  */
 export async function listWalletDocuments() {
   const db = await openDb();
@@ -171,12 +174,19 @@ export async function listWalletDocuments() {
       continue;
     }
     if (!blobIds.has(doc.id)) {
-      console.warn('Fjällkompis: Trail Wallet document has no stored file; hiding it.', doc.id);
-      continue;
+      console.warn('Fjällkompis: Trail Wallet document has no stored file on this device.', doc.id);
+      doc.fileMissing = true;
     }
     documents.push(doc);
   }
   return documents;
+}
+
+/** A stored record must never carry the runtime `fileMissing` annotation. */
+function toStoredRecord(doc) {
+  const { fileMissing, ...record } = doc;
+  void fileMissing;
+  return record;
 }
 
 /** The stored file for a document, or null when no blob row exists. */
@@ -190,7 +200,7 @@ export async function getWalletFile(id) {
 /** Add a new document: metadata + blob in one atomic transaction. */
 export async function addWalletDocument(doc, blob) {
   await inBothStores((tx) => {
-    tx.objectStore(DOCUMENTS).add(doc);
+    tx.objectStore(DOCUMENTS).add(toStoredRecord(doc));
     tx.objectStore(FILES).add({ id: doc.id, blob });
   });
 }
@@ -198,11 +208,13 @@ export async function addWalletDocument(doc, blob) {
 /**
  * Update a document's metadata; when `blob` is given the stored file is
  * replaced in the SAME transaction (put overwrites the old row in place —
- * no orphan is ever left behind).
+ * no orphan is ever left behind). Replacing the file is also the remediation
+ * path for a `fileMissing` document — the annotation is stripped on write
+ * and re-derived (now false) on the next list.
  */
 export async function updateWalletDocument(doc, blob = null) {
   await inBothStores((tx) => {
-    tx.objectStore(DOCUMENTS).put(doc);
+    tx.objectStore(DOCUMENTS).put(toStoredRecord(doc));
     if (blob !== null) tx.objectStore(FILES).put({ id: doc.id, blob });
   });
 }

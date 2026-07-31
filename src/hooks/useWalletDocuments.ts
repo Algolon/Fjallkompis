@@ -103,7 +103,13 @@ export function useWalletDocuments(): WalletApi {
 
   const getFile = useCallback((id: string) => getWalletFile(id), []);
 
-  const totalBytes = documents.reduce((sum, d) => sum + d.sizeBytes, 0);
+  // Storage actually used on THIS device: a document whose file is missing
+  // (fileMissing) contributes no bytes — its metadata describes a file that
+  // is not here, and counting it would overstate local storage use.
+  const totalBytes = documents.reduce(
+    (sum, d) => sum + (d.fileMissing ? 0 : d.sizeBytes),
+    0,
+  );
 
   return { status, documents, totalBytes, refresh, add, update, remove, getFile };
 }
