@@ -296,8 +296,14 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
   const attachmentInfo = (item: TripItem): { text: string; missing: boolean } | null => {
     const count = item.attachmentIds.length;
     if (count === 0) return null;
+    // "Missing" covers both shapes honestly: an id with no metadata at all,
+    // and a listed document whose FILE is absent on this device (fileMissing).
     const missing =
-      wallet.status === 'ready' && item.attachmentIds.some((id) => !documentById.has(id));
+      wallet.status === 'ready' &&
+      item.attachmentIds.some((id) => {
+        const d = documentById.get(id);
+        return !d || d.fileMissing === true;
+      });
     return {
       text: missing
         ? `${count} document${count === 1 ? '' : 's'} — some not on this device`
@@ -402,8 +408,19 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
             {doc.pinned ? 'Pinned · ' : ''}
             {walletCategoryTitle(doc.category)}
             {doc.date ? ` · ${formatTripDate(doc.date)}` : ''}
-            {' · '}
-            <span className="tnum">{formatBytes(doc.sizeBytes)}</span>
+            {doc.fileMissing ? (
+              // The metadata is here; the FILE is not. Say so on the card —
+              // a size claim would describe a file this device does not hold.
+              <span className="trip-card__attach is-missing">
+                {' '}
+                — file unavailable on this device
+              </span>
+            ) : (
+              <>
+                {' · '}
+                <span className="tnum">{formatBytes(doc.sizeBytes)}</span>
+              </>
+            )}
           </span>
         </span>
         <ChevronRight className="wallet-card__chevron" size={18} strokeWidth={2} aria-hidden />

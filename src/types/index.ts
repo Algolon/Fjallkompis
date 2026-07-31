@@ -784,6 +784,15 @@ export interface WalletDocument {
    * enforceMembershipQuickAccess); quickAccessMembership() reads it.
    */
   showOnToday?: boolean;
+  /**
+   * RUNTIME annotation, never persisted: true when this document's metadata
+   * exists but its file blob is absent on this device (browser storage
+   * eviction). Derived on every listWalletDocuments() read; the store strips
+   * it from every write and the normaliser heals it off stored records. The
+   * UI states the missing file honestly instead of hiding the document — the
+   * document and its Trip-item links remain meaningful without the file.
+   */
+  fileMissing?: boolean;
 }
 
 /** Issuing organisation of a Membership document (explicit user choice). */

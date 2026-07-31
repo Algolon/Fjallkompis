@@ -6,7 +6,6 @@ import {
   FileUp,
   Hotel,
   House,
-  Link2,
   Paperclip,
   Plane,
   Route,
@@ -197,7 +196,6 @@ export function TripItemSheet({
 
   const [attachmentIds, setAttachmentIds] = useState<string[]>(item?.attachmentIds ?? []);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [linkPick, setLinkPick] = useState('');
   const [fileError, setFileError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -513,8 +511,17 @@ export function TripItemSheet({
                         className="trip-attach-open"
                         onClick={() => onOpenDocument(doc)}
                       >
-                        <Paperclip size={14} strokeWidth={1.9} aria-hidden />
-                        <span>{doc.title}</span>
+                        {doc.fileMissing ? (
+                          <TriangleAlert size={14} strokeWidth={2} aria-hidden />
+                        ) : (
+                          <Paperclip size={14} strokeWidth={1.9} aria-hidden />
+                        )}
+                        <span>
+                          {doc.title}
+                          {/* The link stays; the absent FILE is what is named.
+                              Opening it states the same thing in full. */}
+                          {doc.fileMissing ? ' — file unavailable on this device' : ''}
+                        </span>
                       </button>
                     ) : (
                       <span className="trip-attach-missing">
@@ -582,39 +589,49 @@ export function TripItemSheet({
                 }}
               />
               {linkableDocuments.length > 0 ? (
-                <div className="row" style={{ marginTop: 8 }}>
-                  <label className="field" style={{ marginTop: 0, flex: 1 }}>
-                    <span className="sr-only">Link an existing document</span>
-                    <select
-                      className="select"
-                      value={linkPick}
-                      onChange={(e) => setLinkPick(e.target.value)}
-                    >
-                      <option value="">Link an existing document…</option>
-                      {linkableDocuments.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={linkPick === ''}
-                    onClick={() => {
-                      if (linkPick === '') return;
-                      setAttachmentIds((cur) =>
-                        cur.includes(linkPick) ? cur : [...cur, linkPick],
-                      );
-                      setLinkPick('');
+                <label className="field" style={{ marginTop: 8 }}>
+                  <span className="sr-only">
+                    Link an existing document — choosing one adds it to this item
+                  </span>
+                  <select
+                    className="select"
+                    value=""
+                    onChange={(e) => {
+                      // Choosing a document IS the link: it joins the draft
+                      // list immediately (Save persists it, Cancel discards
+                      // it) and the picker snaps back to its placeholder.
+                      // The old choose → Link → Save chain silently lost a
+                      // chosen document when Save came before Link — there
+                      // must be no half-committed selection state to lose.
+                      const id = e.target.value;
+                      if (id === '') return;
+                      setAttachmentIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
                     }}
                   >
-                    <Link2 size={15} strokeWidth={1.9} aria-hidden /> Link
-                  </button>
-                </div>
+                    <option value="">Link an existing document…</option>
+                    {linkableDocuments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.title}
+                        {/* A missing file is stated in the option itself:
+                            the LINK is still meaningful (the relationship
+                            survives re-adding the file), but nothing may
+                            pretend the file is available on this device. */}
+                        {d.fileMissing ? ' — file unavailable on this device' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : documents.length > 0 ? (
+                <p className="trip-attach-hint">
+                  Every stored document is already linked to this item.
+                </p>
               ) : null}
             </>
+          ) : walletStatus === 'loading' ? (
+            // Loading is NOT unavailability: the first IndexedDB read can
+            // take a moment on a cold start, and claiming "storage isn't
+            // available" here sent users away from a working picker.
+            <p className="trip-attach-hint">Loading documents…</p>
           ) : (
             <p className="trip-attach-hint">
               Document storage isn’t available in this browser mode, so files can’t be attached

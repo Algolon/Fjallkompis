@@ -69,7 +69,47 @@ test('several legs join in order, and stays are never treated as movements', () 
 test('a partial leg shows what the user recorded and invents nothing', () => {
   assert.equal(travelItemsText([transport('Kiruna', undefined)]), 'Kiruna → ?');
   assert.equal(travelItemsText([transport(undefined, 'Abisko')]), '? → Abisko');
-  assert.equal(travelItemsText([transport(undefined, undefined)]), '', 'an empty leg is dropped');
+});
+
+test('a title-only movement falls back to its title (v0.26.2 regression)', () => {
+  // The reproduced production defect: "Bus Nikkaluokta to Kiruna" recorded
+  // with empty endpoint fields appeared in the day sheet but the compact
+  // Day plan and Today both claimed "no travel added yet". A movement with
+  // no endpoints but a usable title IS travel and reads as its title.
+  const bus = {
+    id: 't_bus',
+    kind: 'transport',
+    title: 'Bus Nikkaluokta to Kiruna',
+    date: '2026-09-10',
+    departureTime: '16:40',
+  };
+  assert.equal(travelItemsText([bus]), 'Bus Nikkaluokta to Kiruna');
+  const p = travelPresentation(derived(['hiking', 'travel'], [bus]));
+  assert.equal(p.isEmpty, false, 'a title-only movement is never "no travel added yet"');
+  assert.equal(p.line, 'then travel Bus Nikkaluokta to Kiruna');
+});
+
+test('only a movement with neither endpoints nor a usable title is dropped', () => {
+  assert.equal(
+    travelItemsText([{ id: 't_x', kind: 'transport', title: '   ' }]),
+    '',
+    'whitespace is not a usable title',
+  );
+  assert.equal(travelItemsText([{ id: 't_y', kind: 'transport' }]), '');
+});
+
+test('mixed forms on one date all survive, in the order given', () => {
+  // The derivation hands the items over already sorted by departure time —
+  // the presenter keeps that order and loses no title-only leg in between.
+  const items = [
+    transport('Nikkaluokta', 'Kiruna'),
+    { id: 't_t', kind: 'transport', title: 'Night train to Stockholm' },
+    transport('Stockholm', undefined),
+  ];
+  assert.equal(
+    travelItemsText(items),
+    'Nikkaluokta → Kiruna, Night train to Stockholm, Stockholm → ?',
+  );
 });
 
 // ---- Position and wording ---------------------------------------------------
@@ -141,7 +181,8 @@ test('presenting a day never mutates it and never copies Trip data into it', () 
   activityOrderPhrase(day);
   hikingLead(day);
   assert.equal(JSON.stringify(day), frozen);
-  // The line is assembled from endpoints only — no provider, time or title.
+  // With endpoints present the line uses them alone — no provider, no time,
+  // and the title appears ONLY as the no-endpoints fallback.
   const p = travelPresentation(day);
   assert.ok(!p.line.includes('16:30'));
   assert.ok(!p.line.includes('A movement'));

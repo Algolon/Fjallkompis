@@ -214,6 +214,10 @@ export function normalizeWalletDocument(raw) {
   };
   if (!(typeof raw.date === 'string' && DATE_RE.test(raw.date))) delete doc.date;
   if (!(typeof raw.note === 'string' && raw.note !== '')) delete doc.note;
+  // `fileMissing` is a RUNTIME annotation derived from blob presence at list
+  // time (walletStore). It is never stored metadata: should a stored record
+  // ever carry it, it heals away here rather than masquerade as a fact.
+  delete doc.fileMissing;
   // Membership-only metadata (explicit editor choices, never inferred from
   // filenames/titles/notes). Both fields are dropped the moment they stop
   // being meaningful — wrong provider value, non-membership category, or a

@@ -112,6 +112,13 @@ test('with no plan the derived days are empty — no implicit calendar days', ()
   assert.match(store, /buildPlannedDays\(itinerary\.stages, state\.dayPlan, state\.trip\)/);
 });
 
+test('the derived days react to Trip changes — the memo depends on state.trip', () => {
+  // Saving a Trip item must update the compact Day plan, the day sheet and
+  // Today immediately, with no reload: the derivation memo lists state.trip
+  // as a dependency, so a trip edit re-derives in the same render pass.
+  assert.match(store, /\[itinerary, state\.dayPlan, state\.trip\]/);
+});
+
 // ---- Pointer synchronisation ------------------------------------------------
 
 test('there is no "make this day today" action — the override rides Set as current', () => {
