@@ -88,20 +88,85 @@ file there. Settings → Backup & restore copy states exactly this.
 
 ## Reference-data links
 
-- `linkedTransportId` — stable Transport entry id (`line-91`, …). Set by
-  **Add to Trip** on a reference card, which prefills only verified source
-  facts (mode, endpoints parsed from the entry's own direction string,
-  operator, title) with status `planned`; timetable dates/times are NEVER
-  copied into the personal record. An already-linked entry shows
-  **View in Trip** plus an explicit "Add to Trip again" (same bus on other
-  dates is legitimate — only accidental duplicates are guarded).
-- `linkedStopId` — stable physical stop id (`abisko` … `nikkaluokta`). Set
-  by **Track stay** on a stop card (prefills name + stay type, status
-  `planned`). Physical ids are direction-safe; reversing the route cannot
-  corrupt the link. A linked source that later disappears degrades to a
-  plain note in the item sheet.
-- Links are immutable through ordinary field patching (like `id`, `kind`,
-  `createdAt`); no UI rewrites them.
+- `linkedTransportId` — stable Transport entry id (`line-91`, …), on
+  transport items only. Set by **Add to Trip** on a reference card, which
+  prefills only verified source facts (mode, endpoints parsed from the
+  entry's own direction string, operator, title) with status `planned`;
+  timetable dates/times are NEVER copied into the personal record. An
+  already-linked entry shows **View in Trip** plus an explicit "Add to Trip
+  again" (same bus on other dates is legitimate — only accidental
+  duplicates are guarded). Immutable through ordinary field patching (like
+  `id`, `kind`, `createdAt`); no UI rewrites it.
+- `linkedPlaceId` — stable Journey Place id, on stay items only, and —
+  unlike transport provenance — user-EDITABLE (v0.27.0; see "Places &
+  Stay ↔ Place linking" below). Succeeds the v0.23.0 `linkedStopId`:
+  route Place ids preserve the stable physical stop ids
+  (`abisko` … `nikkaluokta`), so old values migrate verbatim at read time
+  and reversing the route still cannot corrupt a link.
+
+## Places & Stay ↔ Place linking (v0.27.0)
+
+`src/data/journeyPlaces.mjs` adds the read-only **Journey Place** reference
+layer every stay link resolves through:
+
+- **route-stop places** are ADAPTERS over the canonical `STOPS` registry —
+  the place id IS the stop id, and every curated fact (name, facilities,
+  coordinates, source) stays in `src/data/stops.ts`, never duplicated. The
+  module is deliberately free of route-data imports; callers inject the
+  registry (the stateMigration/topology pattern). Route ordering is always
+  the ACTIVE itinerary's — reversal reorders the adapters, ids stay stable.
+- **curated-off-route places** live in the module's own registry and are
+  reference data for the nights around the hike. First (and in v0.27.0
+  only) record: `stf-kiruna` — STF Kiruna Hotel & Hostel, verified against
+  the official STF page on 2026-07-31 (address, GPS, 76–100 beds,
+  check-in from 15:00 / check-out until 11:00, guest kitchen, sauna,
+  Wi-Fi, restaurant, public transport within 1 km). No prices, room
+  availability or seasonal hours — nothing that goes stale between manual
+  verifications, and no unverified image. Off-route records NEVER enter
+  `STOPS`, itinerary ordering, route kilometres, stage endpoints or GPX
+  geometry; the Stops & places screen renders them in a separate
+  **Before & after trail** section without any route language.
+
+Ownership boundary (unchanged in spirit from the trip-item-first rule): a
+Place supplies identity, verified facts and safe defaults for a NEW stay
+(official name, stay type, `Kiruna` as the off-route location). A Stay owns
+title, type, free-text location, dates, status, booking reference, notes,
+attachments and the association itself. Editing the link — set, move,
+remove, through the Stay editor's **Linked place** control — changes ONLY
+`linkedPlaceId`, in the same Save/Cancel draft transaction as every other
+field; in add mode a chosen place may fill fields that are still untouched,
+never one the user edited. Unlinking keeps all personal text and dates.
+
+Link hygiene at the normalisation layer (`normalizeTripItem`):
+
+- v9 `linkedStopId` (and old v10 records still carrying it) migrates into
+  `linkedPlaceId` verbatim; only one field ever survives in output;
+- an UNKNOWN but syntactically valid id is preserved — never validated
+  against the registry — so removing or renaming curated data cannot
+  silently destroy the association; the UI shows "Linked place is no
+  longer available in this version" and offers relinking or unlinking;
+- wrong-kind fields are stripped (transport never carries a place link,
+  stays never carry transport provenance); empty ids are removed.
+
+Several stays may legitimately link one place (arrival + departure nights,
+two bookings). The place card's action is honest about plurality: zero →
+**Track stay**, one → **View stay in Trip**, several → **"N stays in
+Trip"** opening a focused chooser (title, status, dates, type/location,
+plus one explicit **Add another stay**) — never an arbitrary first match.
+Navigation is bidirectional: a resolved link's **View place** rides the
+one-shot `placeId` payload to Stops & places and scrolls to the card.
+
+Day-plan overnights keep referencing Trip item ids: changing, adding or
+removing a place link never moves a stay between days, never changes
+Tonight, and never touches `dayPlan` at all.
+
+**Deferred beyond v0.27.0** (a future product decision, deliberately not in
+the remaining release scope): user-created custom Places, automatic Place
+creation from free-text locations, Places for arbitrary hotels/campsites,
+and a dedicated wildcamp model with coordinates/overnight rules. Until
+then a wildcamp, campsite or private accommodation stays a plain
+`Stay type: Other stay` — unlinked, free-text location, fully valid as a
+Day-plan overnight and for documents.
 
 ## For the future Today "Prepare" view (not built here)
 
@@ -110,7 +175,7 @@ file there. Settings → Backup & restore copy states exactly this.
 planned, confirmed }` (standalone documents excluded, no percentages, no
 "next action"), plus `sortTravelItems` / `sortStayItems` with injected
 `todayIso`. Deep links into the section exist
-(`ListsDeepLink.section: 'trip'`, `tripItemId`, `trackStayStopId`) via the
+(`ListsDeepLink.section: 'trip'`, `tripItemId`, `trackStayPlaceId`) via the
 established one-shot in-memory payload — no router, `#/lists` unchanged.
 
 ## Known limitations (deliberate first-version scope)

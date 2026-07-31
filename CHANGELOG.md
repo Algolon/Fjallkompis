@@ -10,6 +10,33 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Added
+
+- **Stops became Stops & places, with STF Kiruna as the first place beyond
+  the trail.** A separate **Before & after trail** section joins the eight
+  route stops (which keep their walking order, kilometres, facilities and
+  deep links). STF Kiruna Hotel & Hostel shows verified reference facts —
+  address, capacity, check-in/out times, facilities, the official STF
+  source and its last-verified date (2026-07-31) — with no trail
+  kilometres and no claim it lies on Kungsleden. Track stay creates a
+  correctly linked Hotel / hostel item with no invented dates.
+- **A Stay can now be linked to a known place — and relinked, or
+  unlinked.** The Stay editor gains a grouped **Linked place** selector
+  (route stops in the active walking direction, then Before & after
+  trail). The place is reference information: linking, moving or removing
+  it never rewrites your title, dates, status, notes, booking reference or
+  documents, and Day-plan overnights stay exactly where they were.
+  Existing route links (`linkedStopId`) migrate automatically and stay on
+  the same stable ids; a link to a place a future version no longer ships
+  is kept and shown honestly as unavailable, never silently cleared.
+- **Several stays at one place are now first-class.** A place with no
+  linked stay offers **Track stay**, exactly one linked stay opens
+  directly with **View stay in Trip**, and several show **"N stays in
+  Trip"** with a focused chooser (title, status, dates, plus **Add
+  another stay**) — the app never guesses at a first match. Linked stay
+  cards carry a small "Linked · place" line, and **View place** navigates
+  back from a stay to its card on Stops & places.
+
 ### Changed
 
 - **Your Day plan can become Today’s active Journey.** A persistent, explicit

@@ -165,3 +165,30 @@ chooser with **Follow plan dates**, which clears both personal pointers while
 leaving activation and canonical Stage context intact. Before/after/manual
 context is carried height-neutrally as **Up next**, **Plan ended**, or
 **Selected** in the existing hero/summary lines.
+
+## Slice 3: Places + editable Stay ↔ Place linking
+
+The third v0.27.0 slice adds the **Journey Place** reference layer
+(`src/data/journeyPlaces.mjs`) and makes the Stay ↔ Place association
+user-editable. Full architecture and decisions live in
+docs/proposals/trip-plan.md → "Places & Stay ↔ Place linking (v0.27.0)";
+the day-plan-relevant facts are:
+
+- a Place is read-only reference data (route-stop adapters over `STOPS`
+  plus one curated off-route record, STF Kiruna); a Stay stays the
+  user-owned primary record. `linkedStopId` (v9) migrates verbatim into
+  the editable `linkedPlaceId` — route Place ids preserve stable stop ids;
+- schema REMAINS v10: v10 has not shipped, the field change is part of the
+  unreleased v10 shape, and v9 → v10 stays the public migration boundary.
+  `dayPlanRecovery` passes through byte-for-byte untouched;
+- Day-plan overnights keep referencing Trip item ids. Linking, relinking
+  or unlinking a stay never moves it between days, never changes Tonight,
+  and never touches `dayPlan` — link edits rewrite the `trip` array only;
+- the canonical route model is untouched: off-route places never enter
+  `itinerary.orderedStops`, route kilometres, Stage endpoints, Hiking-leg
+  connectivity or GPX geometry;
+- a wildcamp or other uncatalogued accommodation remains a plain
+  `Stay type: Other stay` (free-text location, no link, valid overnight).
+  A dedicated wildcamp model and user-created Places are documented as
+  possibilities BEYOND v0.27.0 — the remaining release scope is
+  integration hardening and the final version/release PR only.
