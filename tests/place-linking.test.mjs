@@ -78,6 +78,9 @@ test('choosing a place fills only UNTOUCHED fields, and only in add mode', () =>
     itemSheet,
     /if \(!touched\.current\.location && defaults\.location\) setLocation\(defaults\.location\);/,
   );
+  // Choosing a concrete place is the Track-stay convention — an untouched
+  // status becomes 'planned', a user-chosen one is never overridden.
+  assert.match(itemSheet, /if \(!touched\.current\.status\) setStatus\(defaults\.status\);/);
 });
 
 test('View place is a real button with a complete accessible name, resolved links only', () => {

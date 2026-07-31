@@ -226,7 +226,7 @@ export function TripItemSheet({
   // in ADD mode may fill fields that are still untouched (blank-form
   // convenience) — it must never overwrite anything the user already
   // edited, and in EDIT mode it changes only the link itself.
-  const touched = useRef({ title: false, stayType: false, location: false });
+  const touched = useRef({ title: false, stayType: false, location: false, status: false });
 
   // Active-itinerary ordering for the route group; stable ids throughout.
   const { itinerary } = useStore();
@@ -278,6 +278,9 @@ export function TripItemSheet({
     if (!touched.current.title) setTitle(defaults.title);
     if (!touched.current.stayType) setStayType(defaults.stayType);
     if (!touched.current.location && defaults.location) setLocation(defaults.location);
+    // Choosing a concrete place IS the Track-stay convention: an untouched
+    // status moves to 'planned' exactly as the prefilled flows start.
+    if (!touched.current.status) setStatus(defaults.status);
   };
 
   const documentById = useMemo(() => {
@@ -443,7 +446,10 @@ export function TripItemSheet({
           <select
             className="select"
             value={status}
-            onChange={(e) => setStatus(e.target.value as TripItemStatus)}
+            onChange={(e) => {
+              touched.current.status = true;
+              setStatus(e.target.value as TripItemStatus);
+            }}
           >
             {TRIP_STATUSES.map((s) => (
               <option key={s.id} value={s.id}>
