@@ -101,9 +101,15 @@ cross-device synchronization is deliberately far down this roadmap.
    Slice 2 adds an explicit persisted **Use Day plan on Today** choice, a pure
    Preview → manual → local date → before/after clamp → generic resolver,
    manual day selection, and a Today planned-day chooser with **Follow plan
-   dates**. The generic seven-Stage experience remains the default. Remaining
-   v0.27.0 slices: a Places model with STF Kiruna, editable Stay ↔ Place
-   linking, wildcamp overnights, and final integration/release.
+   dates**. The generic seven-Stage experience remains the default.
+   Slice 3 adds the read-only Journey Place layer (route-stop adapters +
+   STF Kiruna as the first curated Before & after trail place), the
+   editable `linkedPlaceId` Stay ↔ Place association (v9 `linkedStopId`
+   migrates verbatim), the zero/one/several linked-stays behaviour with an
+   explicit chooser, and bidirectional Place ↔ Trip navigation. A wildcamp
+   stays a plain `Other stay` for now — a dedicated wildcamp model and
+   user-created Places are deferred BEYOND v0.27.0. Remaining v0.27.0
+   work: integration hardening and the final version/release PR.
 4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
    capabilities: import a standalone packing list; import or create custom

@@ -40,7 +40,7 @@ function Screens({
       return <TodayScreen onNavigate={navigate} />;
     case 'map':
       // Focused callback (not the whole router): the map's anchored stop
-      // preview opens the stop's full detail in Huts & Stations via the
+      // preview opens the stop's full detail in Stops & places via the
       // existing destination + one-shot payload pattern.
       return (
         <MapScreen
@@ -52,7 +52,7 @@ function Screens({
       );
     case 'stages':
       // Today's "Stage Guide" action deep-links to the current stage's open
-      // day guide (same one-shot payload pattern as Stops' initialStopId);
+      // day guide (same one-shot payload pattern as Stops' initialPlaceId);
       // "View on map" deep-links to the Map (one-shot mapFocus).
       return (
         <StagesScreen
@@ -62,15 +62,22 @@ function Screens({
         />
       );
     case 'huts':
+      // `placeId` (route stop OR curated off-route place — a stay's View
+      // place) generalises the older stop-only `stopId`, which existing
+      // Today/Map deep links still send.
       return (
-        <StopsScreen initialStopId={nav.payload?.stopId ?? null} onNavigate={navigate} />
+        <StopsScreen
+          initialPlaceId={nav.payload?.placeId ?? nav.payload?.stopId ?? null}
+          onNavigate={navigate}
+        />
       );
     case 'checklist':
       // Historical internal tab id — the user-facing destination is 'Lists'
       // (#/lists). Packing by default (the Daily checklist was archived —
       // docs/archived-features/daily-checklist.md); a one-shot payload deep
-      // links into Shops/Transport from a Stop's chips.
-      return <ListsScreen deepLink={nav.payload?.lists} />;
+      // links into Shops/Transport from a Stop's chips; onNavigate carries
+      // a linked stay's View place back out to Stops & places.
+      return <ListsScreen deepLink={nav.payload?.lists} onNavigate={navigate} />;
     case 'settings':
       // Today Prepare's readiness card deep-links to the Trail readiness
       // section (same one-shot payload pattern as Stops/Stages/Lists).

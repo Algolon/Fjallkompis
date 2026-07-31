@@ -173,8 +173,6 @@ export function normalizeTripItem(raw) {
   };
   setOptional(item, 'notes', raw.notes);
   setOptional(item, 'bookingReference', raw.bookingReference);
-  setOptional(item, 'linkedStopId', raw.linkedStopId);
-  setOptional(item, 'linkedTransportId', raw.linkedTransportId);
 
   if (raw.kind === 'transport') {
     item.mode = MODE_IDS.has(raw.mode) ? raw.mode : 'other';
@@ -184,11 +182,15 @@ export function normalizeTripItem(raw) {
     setOptionalTime(item, 'departureTime', raw.departureTime);
     setOptionalTime(item, 'arrivalTime', raw.arrivalTime);
     setOptional(item, 'provider', raw.provider);
-    // Stay-only fields never ride along on a transport record.
+    setOptional(item, 'linkedTransportId', raw.linkedTransportId);
+    // Stay-only fields never ride along on a transport record — including
+    // the Stay-only Place link (and its v9 predecessor).
     delete item.stayType;
     delete item.location;
     delete item.checkInDate;
     delete item.checkOutDate;
+    delete item.linkedStopId;
+    delete item.linkedPlaceId;
   } else {
     item.stayType = STAY_TYPE_IDS.has(raw.stayType) ? raw.stayType : 'other';
     setOptional(item, 'location', raw.location);
@@ -199,7 +201,18 @@ export function normalizeTripItem(raw) {
     if (!isStayDateOrderValid(item.checkInDate, item.checkOutDate)) {
       delete item.checkOutDate;
     }
-    // Transport-only fields never ride along on a stay record.
+    // The Stay's Place association. `linkedPlaceId` is the v10 field; the v9
+    // `linkedStopId` migrates into it VERBATIM — route Place ids preserve the
+    // stable stop ids, so an old linked route stay stays linked to the same
+    // place. Deliberately NOT validated against the current place registry:
+    // an unknown but syntactically valid id is preserved (the UI shows an
+    // honest unavailable state) so removing or renaming curated data can
+    // never silently destroy the user's association. Only one field survives
+    // in normalised output.
+    setOptional(item, 'linkedPlaceId', cleanString(raw.linkedPlaceId) ?? raw.linkedStopId);
+    delete item.linkedStopId;
+    // Transport-only fields never ride along on a stay record — including
+    // transport provenance.
     delete item.mode;
     delete item.from;
     delete item.to;
@@ -207,6 +220,7 @@ export function normalizeTripItem(raw) {
     delete item.departureTime;
     delete item.arrivalTime;
     delete item.provider;
+    delete item.linkedTransportId;
   }
   return item;
 }
@@ -350,25 +364,7 @@ export function transportPrefillFromEntry(entry) {
   return prefill;
 }
 
-/** Curated stop type → personal stay type. */
-const STAY_TYPE_BY_STOP_TYPE = {
-  'mountain-station': 'mountain-station',
-  'mountain-cabin': 'mountain-hut',
-};
-
-/**
- * Prefill for "Track stay" on a route stop. Canonical name/type come from the
- * verified stop record; the personal record starts at 'planned' with no dates
- * (never invented) and links back to the stable stop id.
- */
-export function stayPrefillFromStop(stop) {
-  const prefill = {
-    kind: 'stay',
-    title: cleanString(stop?.name) ?? 'Stay',
-    stayType: STAY_TYPE_BY_STOP_TYPE[stop?.type] ?? 'other',
-    status: 'planned',
-    linkedStopId: cleanString(stop?.id) ?? undefined,
-  };
-  if (prefill.linkedStopId === undefined) delete prefill.linkedStopId;
-  return prefill;
-}
+// The route-stop stay prefill ("Track stay") was generalised into the
+// Journey Place prefill — see placeStayPrefill in src/data/journeyPlaces.mjs,
+// which covers route Places (stop facts, stable stop id as the place id) and
+// curated off-route Places with the same verified-facts-only rules.

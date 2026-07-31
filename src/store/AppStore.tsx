@@ -707,14 +707,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const merged = {
           ...i,
           ...patch,
-          // Immutable through ordinary field patching: identity, provenance
-          // and creation time. The linked source ids can only change when the
-          // UI explicitly changes the link (no such UI exists yet).
+          // Immutable through ordinary field patching: identity, transport
+          // provenance and creation time. A Stay's `linkedPlaceId` is
+          // deliberately NOT pinned — the Place link is user-editable, and
+          // the Stay editor's draft sets, moves or removes it explicitly
+          // (an omitted key keeps the current link via the spread above).
           id: i.id,
           kind: i.kind,
           createdAt: i.createdAt,
-          linkedStopId: i.linkedStopId,
-          linkedTransportId: i.linkedTransportId,
+          ...(i.kind === 'transport' ? { linkedTransportId: i.linkedTransportId } : {}),
           updatedAt: Date.now(),
         };
         return normalizeTripItem(merged) ?? i;

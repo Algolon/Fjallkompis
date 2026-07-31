@@ -44,6 +44,14 @@ export function formatDateLong(iso: string): string {
   });
 }
 
+/** "2 Aug 2026" — unambiguous across season boundaries, still compact.
+ *  Shared by the Trip cards and the linked-stays chooser. */
+export function formatTripDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 /**
  * The device's local calendar date, 'YYYY-MM-DD'. The single clock read for
  * "what day is it here"; the calendar arithmetic itself lives in the pure

@@ -15,6 +15,8 @@ import {
 } from '../utils/packingModel.mjs';
 import { formatGrams } from '../utils/format';
 import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
+import type { TabId } from '../components/TabBar';
+import type { NavPayload } from './TodayScreen';
 
 /** Lists sub-sections: the packing list, the offline reference sections
  *  (Shop info, Transport) and the personal Trip plan. */
@@ -31,10 +33,10 @@ export interface ListsDeepLink {
   shopType?: ShopCategory;
   transportId?: string;
   transportContext?: TransportContext;
-  /** Trip opens this item's editor (from a stop's View stay action). */
+  /** Trip opens this item's editor (from a place's View stay action). */
   tripItemId?: string;
-  /** Trip opens a prefilled Stay form for this stop (Track stay). */
-  trackStayStopId?: string;
+  /** Trip opens a prefilled Stay form for this Journey Place (Track stay). */
+  trackStayPlaceId?: string;
 }
 
 // --------------------------------------------------------------- Packing view
@@ -691,18 +693,25 @@ function initialSectionFor(link?: ListsDeepLink): ListsSection {
   if (!link) return 'packing';
   if (link.shopType) return 'shops';
   if (link.transportId || link.transportContext) return 'transport';
-  if (link.tripItemId || link.trackStayStopId) return 'trip';
+  if (link.tripItemId || link.trackStayPlaceId) return 'trip';
   return link.section ?? 'packing';
 }
 
 /** The one-shot Trip launch a deep link carries, if any. */
 function initialTripLaunchFor(link?: ListsDeepLink): TripLaunch | null {
   if (link?.tripItemId) return { kind: 'item', itemId: link.tripItemId };
-  if (link?.trackStayStopId) return { kind: 'add-stay', stopId: link.trackStayStopId };
+  if (link?.trackStayPlaceId) return { kind: 'add-stay', placeId: link.trackStayPlaceId };
   return null;
 }
 
-export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
+export function ListsScreen({
+  deepLink,
+  onNavigate,
+}: {
+  deepLink?: ListsDeepLink;
+  /** Outward navigation: a linked stay's View place → Stops & places. */
+  onNavigate?: (tab: TabId, payload?: NavPayload) => void;
+}) {
   // One-shot: the initial section is decided at mount; switching tabs
   // afterwards is ordinary local state, and a refresh (no payload) is Packing.
   const [mode, setMode] = useState<ListsSection>(() => initialSectionFor(deepLink));
@@ -766,7 +775,14 @@ export function ListsScreen({ deepLink }: { deepLink?: ListsDeepLink }) {
           onViewInTrip={viewTripItem}
         />
       ) : null}
-      {mode === 'trip' ? <TripView launch={tripLaunch} /> : null}
+      {mode === 'trip' ? (
+        <TripView
+          launch={tripLaunch}
+          onViewPlace={
+            onNavigate ? (placeId) => onNavigate('huts', { placeId }) : undefined
+          }
+        />
+      ) : null}
     </div>
   );
 }

@@ -3753,6 +3753,20 @@ button.stop-fac:focus-visible {
   line-height: 1.45;
 }
 
+/* An unavailable linked place — honest warning, never a resolved claim. */
+.trip-linked-note--warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+}
+
+.trip-linked-note--warn svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 /* Attachment link rows inside the item sheet. */
 .trip-attach-list {
   list-style: none;
@@ -3874,14 +3888,16 @@ span.trip-attach-open {
   outline: 2px solid var(--glacier-700);
   outline-offset: 2px;
 }
-/* Close (X) button in the sheet header — matches the .link-btn hit area. */
+/* Close (X) button in the sheet header — a non-shrinking 44×44 touch target,
+   including beside long chooser headings on the narrowest phones. */
 .ctx-help-close {
+  flex: 0 0 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin: -8px -8px -8px 0;
+  width: 44px;
+  height: 44px;
+  margin: -10px -10px -10px 0;
   border: 0;
   background: transparent;
   color: var(--ink-soft);

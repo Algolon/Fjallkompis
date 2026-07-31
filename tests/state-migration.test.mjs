@@ -534,7 +534,15 @@ test('v6 roundtrip: travel and stay items persist verbatim beside owned packing'
   ];
   const v6 = { ...ownedV5State(), schemaVersion: 6, trip };
   const out = normalizeState(v6);
-  assert.deepEqual(out.trip, trip);
+  // The transport item survives verbatim; the stay's legacy route link
+  // migrates onto the v10 Place field with the SAME stable id — nothing
+  // else about the item changes and the link is never dropped.
+  const { linkedStopId, ...stayWithoutLegacyLink } = trip[1];
+  assert.equal(linkedStopId, 'abisko');
+  assert.deepEqual(out.trip, [
+    trip[0],
+    { ...stayWithoutLegacyLink, linkedPlaceId: 'abisko' },
+  ]);
   assert.deepEqual(out.packing, withWornDefault(v6.packing), 'packing untouched beside trip data');
 });
 

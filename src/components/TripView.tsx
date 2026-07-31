@@ -17,10 +17,10 @@ import type { StayTripItem, TransportTripItem, TripItem, WalletDocument } from '
 import {
   sortStayItems,
   sortTravelItems,
-  stayPrefillFromStop,
   transportPrefillFromEntry,
   tripStatusTitle,
 } from '../trip/tripModel.mjs';
+import { journeyPlaceById, placeStayPrefill } from '../data/journeyPlaces.mjs';
 import {
   applyMembershipMetadata,
   defaultTitleFromFilename,
@@ -43,28 +43,21 @@ import {
   type TripItemPrefill,
 } from './TripItemSheet';
 import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
-import { STOPS_BY_ID } from '../data/stops';
+import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
 import { downloadBlobFile } from '../utils/exportImport';
-import { todayIso } from '../utils/format';
+import { formatTripDate, todayIso } from '../utils/format';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
-
-/** "2 Aug 2026" — unambiguous across season boundaries, still compact. */
-function formatTripDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 /**
  * One-shot launch instruction from another screen or tab (Add to Trip on a
- * Transport reference, Track stay on a route stop, a deep link to one item).
- * In-memory only — a refresh opens the plain Trip section.
+ * Transport reference, Track stay on a Journey Place, a deep link to one
+ * item). In-memory only — a refresh opens the plain Trip section.
  */
 export type TripLaunch =
   | { kind: 'item'; itemId: string }
   | { kind: 'add-transport'; entryId: string }
-  | { kind: 'add-stay'; stopId: string };
+  | { kind: 'add-stay'; placeId: string };
 
 type EditorState =
   | { mode: 'chooser' }
@@ -85,8 +78,10 @@ function initialEditorFor(launch: TripLaunch | undefined, items: TripItem[]): Ed
       ? { mode: 'add', kind: 'transport', prefill: transportPrefillFromEntry(entry) }
       : { mode: 'add', kind: 'transport' };
   }
-  const stop = STOPS_BY_ID[launch.stopId];
-  return stop ? { mode: 'add', kind: 'stay', prefill: stayPrefillFromStop(stop) } : { mode: 'add', kind: 'stay' };
+  // Track stay on any Journey Place — a route stop or a curated off-route
+  // place. Verified facts only; an unresolvable id opens a plain blank Stay.
+  const prefill = placeStayPrefill(journeyPlaceById(launch.placeId, STOPS_BY_ID), STOPS_BY_ID);
+  return prefill ? { mode: 'add', kind: 'stay', prefill } : { mode: 'add', kind: 'stay' };
 }
 
 /**
@@ -96,7 +91,14 @@ function initialEditorFor(launch: TripLaunch | undefined, items: TripItem[]): Ed
  * device only). Trip items are the primary objects; documents attach to them
  * as supporting material or stay standalone.
  */
-export function TripView({ launch }: { launch?: TripLaunch | null }) {
+export function TripView({
+  launch,
+  onViewPlace,
+}: {
+  launch?: TripLaunch | null;
+  /** Trip → Place navigation (View place in the Stay editor), when wired. */
+  onViewPlace?: (placeId: string) => void;
+}) {
   const { state, addTripItem, updateTripItem, deleteTripItem, removeTripAttachmentReferences } =
     useStore();
   const wallet = useWalletDocuments();
@@ -202,6 +204,9 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
     if (editor?.mode === 'edit') {
       updateTripItem(editor.item.id, { ...draft, attachmentIds } as Partial<TripItem>);
     } else if (editor?.mode === 'add') {
+      // A stay draft carries its own `linkedPlaceId` (the editor's Linked
+      // place control owns it, prefilled or user-chosen); transport
+      // provenance still comes from the launch prefill only.
       addTripItem({
         kind: editor.kind,
         ...draft,
@@ -209,7 +214,6 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
         ...(editor.prefill?.linkedTransportId
           ? { linkedTransportId: editor.prefill.linkedTransportId }
           : {}),
-        ...(editor.prefill?.linkedStopId ? { linkedStopId: editor.prefill.linkedStopId } : {}),
       } as Omit<TripItem, 'id' | 'createdAt' | 'updatedAt'>);
     }
   };
@@ -312,8 +316,26 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
     };
   };
 
+  /**
+   * Concise linked-place indicator for a Stay card — secondary to the
+   * personal title/status/dates, resolved live against the registries. An
+   * unknown id gets an honest unavailable label; unlinked stays show
+   * nothing at all.
+   */
+  const linkedPlaceIndicator = (
+    item: TripItem,
+  ): { text: string; missing: boolean } | null => {
+    if (item.kind !== 'stay' || !item.linkedPlaceId) return null;
+    const place = journeyPlaceById(item.linkedPlaceId, STOPS_BY_ID);
+    if (!place) return { text: 'Linked place unavailable', missing: true };
+    const name =
+      place.kind === 'route-stop' ? stopShortName(STOPS_BY_ID[place.stopId]) : place.name;
+    return { text: `Linked · ${name}`, missing: false };
+  };
+
   const itemCard = (item: TripItem) => {
     const attach = attachmentInfo(item);
+    const linked = linkedPlaceIndicator(item);
     const details: string[] = [];
     if (item.kind === 'transport') {
       if (item.from && item.to) details.push(`${item.from} → ${item.to}`);
@@ -338,6 +360,7 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
     const accessible = [
       `${item.title}, ${tripStatusTitle(item.status)}`,
       ...details,
+      ...(linked ? [linked.text] : []),
       ...(attach ? [attach.text] : []),
     ].join(', ');
     return (
@@ -365,6 +388,11 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
                   {d}
                 </span>
               ))}
+              {linked ? (
+                <span className={`trip-card__detail${linked.missing ? ' trip-card__attach is-missing' : ''}`}>
+                  {linked.text}
+                </span>
+              ) : null}
               {attach ? (
                 <span className={`trip-card__attach${attach.missing ? ' is-missing' : ''}`}>
                   {attach.missing ? (
@@ -567,6 +595,16 @@ export function TripView({ launch }: { launch?: TripLaunch | null }) {
           onSave={saveTripItem}
           onDelete={editor.mode === 'edit' ? () => deleteItem(editor.item) : undefined}
           onOpenDocument={(doc) => void openDocument(doc)}
+          onViewPlace={
+            onViewPlace
+              ? (placeId) => {
+                  // Close the editor FIRST so the modal never outlives the
+                  // screen switch; leaving is draft-discarding, like Cancel.
+                  setEditor(null);
+                  onViewPlace(placeId);
+                }
+              : undefined
+          }
           onClose={() => setEditor(null)}
         />
       ) : null}
