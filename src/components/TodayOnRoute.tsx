@@ -582,7 +582,11 @@ function PlannedDayChooser({
                 <button
                   type="button"
                   className="planned-day-choice"
-                  aria-current={current ? 'date' : undefined}
+                  // This is the day currently SHOWN by the personal Journey,
+                  // not necessarily the device's current calendar date (it
+                  // may be manual or clamped), so use the generic current-item
+                  // value rather than the misleading `date` token.
+                  aria-current={current ? 'true' : undefined}
                   aria-label={`Day ${d.number}, ${formatDayDate(d.date) ?? 'date unavailable'}, ${activityOrderPhrase(d)}${route ? `, ${route}` : ''}${current ? ', current' : ''}`}
                   onClick={() => { setCurrentPlannedDay(d.id); onClose(); }}
                 >

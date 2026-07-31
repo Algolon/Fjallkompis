@@ -62,6 +62,11 @@ test('the planned-day chooser is modal, cancellable and separates selection from
   assert.match(onRoute, /if \(e\.key === 'Escape'\)/);
   assert.match(onRoute, /e\.target === dialogRef\.current/);
   assert.match(onRoute, /setCurrentPlannedDay\(d\.id\)/);
+  assert.match(onRoute, /aria-current=\{current \? 'true' : undefined\}/);
+  assert.ok(
+    !onRoute.includes("aria-current={current ? 'date' : undefined}"),
+    'manual and clamped planned days must not claim to be the current calendar date',
+  );
   assert.match(onRoute, /Follow plan dates/);
   assert.match(onRoute, /disabled=\{dayPlan\?\.currentDayId == null && dayPlan\?\.currentLegId == null\}/);
   assert.match(card, /Set current day/);
