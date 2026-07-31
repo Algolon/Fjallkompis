@@ -5554,6 +5554,39 @@ span.trip-attach-open {
   color: var(--ink-faint);
 }
 
+/* Coverage summary: how the plan differs from the full route. Information,
+   never an alarm — quiet card tones, a native disclosure for the detail. */
+.dayplan-coverage {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.dayplan-coverage summary {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.dayplan-coverage summary::-webkit-details-marker {
+  display: none;
+}
+.dayplan-coverage__lines {
+  margin-top: 0;
+  font-size: 12.5px;
+}
+.dayplan-coverage__detail {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dayplan-coverage__detail .card-sub {
+  margin-top: 0;
+}
+
 /* The leg editor: one day's ordered legs, each with its own actions. Same
    tokens as .dayplan-option — the editor is a sibling surface, not a new
    design. Actions are the small pill (.stage-set-pill) so a leg row stays

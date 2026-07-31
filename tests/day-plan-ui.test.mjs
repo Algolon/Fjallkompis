@@ -364,6 +364,25 @@ test('a destructive confirmation is never offered for a mutation that no-ops', (
   assert.match(sheet, /is removed with it — no other day changes\./);
 });
 
+test('the coverage summary is informational, edit-mode only, and never mutates', () => {
+  // One compact summary; specifics behind a native disclosure. It reads the
+  // pure selector — no local re-derivation — and offers NO repair action.
+  assert.match(card, /function CoverageSummary\(\)/);
+  assert.match(card, /dayPlanCoverageDiagnostics\(plannedDays, dayPlan\?\.direction \?\? '', STAGE_TOPOLOGY\)/);
+  assert.match(card, /if \(!hasCoverageDifferences\(diagnostics\)\) return null;/);
+  assert.match(card, /Your plan differs from the full route/);
+  assert.match(card, /coverageSummaryLines\(diagnostics\)/);
+  // Rendered inside the edit-mode branch only.
+  const editBlock = card.slice(card.indexOf('{editing ? ('), card.indexOf('<ol className="dayplan"'));
+  assert.match(editBlock, /<CoverageSummary \/>/);
+  // Information, not alarm: no repair verbs, no store action in the summary.
+  const summary = card.slice(card.indexOf('function CoverageSummary('), card.indexOf('/** One day in the compact list'));
+  assert.ok(!/setDayActivities|addHikingLeg|removeHikingLeg|dropDayHiking|onClick/.test(summary),
+    'the summary never mutates or offers a one-tap repair');
+  assert.ok(!/error|invalid|fix\b/i.test(summary.replace(/\/\*[\s\S]*?\*\//g, '')),
+    'differences are never framed as errors');
+});
+
 test('a deleted Trip stay is reported honestly, never rendered as a name', () => {
   assert.match(card, /Stay no longer in your Trip plan/);
   assert.match(sheet, /Stay no longer in your Trip plan/);

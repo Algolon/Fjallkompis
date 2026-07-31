@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BedDouble, BusFront, Coffee, Eye, Footprints, Pencil, Plus } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { DateField } from './DateField';
@@ -7,7 +7,13 @@ import { DayPlanDaySheet } from './DayPlanDaySheet';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
-import { DAY_ACTIVITY_LABELS, defaultLegsForNewDay } from '../plan/dayPlan.mjs';
+import { DAY_ACTIVITY_LABELS, defaultLegsForNewDay, hikingLegsOf } from '../plan/dayPlan.mjs';
+import {
+  coverageSummaryLines,
+  dayPlanCoverageDiagnostics,
+  hasCoverageDifferences,
+} from '../plan/coverageDiagnostics.mjs';
+import { orientedLegEndpoints } from '../plan/hikingLegs.mjs';
 import { STAGE_TOPOLOGY } from '../data/stages';
 import { hikingLead, travelPresentation } from '../plan/dayPresentation.mjs';
 import type { PlannedDay, ResolvedOvernight } from '../plan/plannedDays.mjs';
@@ -109,6 +115,7 @@ export function DayPlanCard({
           <p className="card-sub" style={{ marginTop: 8 }}>
             Dates follow consecutive journey days.
           </p>
+          <CoverageSummary />
         </>
       ) : null}
 
@@ -213,6 +220,91 @@ const shortName = (stopId: string) => {
   const stop = STOPS_BY_ID[stopId];
   return stop ? stopShortName(stop) : stopId;
 };
+
+/** "Abisko → Abiskojaure" for a canonical stage id (canonical orientation). */
+const sectionName = (stageId: string) => {
+  const stage = STAGE_TOPOLOGY.find((s) => s.id === stageId);
+  return stage ? `${shortName(stage.fromStopId)} → ${shortName(stage.toStopId)}` : stageId;
+};
+
+/**
+ * How the plan differs from the full canonical route — INFORMATION, not an
+ * error. Shown only in edit mode (where the differences are being made), as
+ * one compact summary with the specifics behind a disclosure. Reading it
+ * never mutates anything, and nothing here offers an automatic "repair":
+ * resolving a difference is always an explicit edit of one chosen day.
+ */
+function CoverageSummary() {
+  const { dayPlan, plannedDays } = useStore();
+  const diagnostics = useMemo(
+    () =>
+      dayPlanCoverageDiagnostics(plannedDays, dayPlan?.direction ?? '', STAGE_TOPOLOGY),
+    [plannedDays, dayPlan],
+  );
+  if (!hasCoverageDifferences(diagnostics)) return null;
+
+  const dayNumber = (dayId: string) => plannedDays.find((d) => d.id === dayId)?.number;
+  /** The oriented section a leg id walks, with its day number. */
+  const legDescription = (legId: string): string | null => {
+    for (const day of plannedDays) {
+      const leg = hikingLegsOf(day).find((l) => l.id === legId);
+      if (!leg) continue;
+      const ends = orientedLegEndpoints(leg, STAGE_TOPOLOGY);
+      return ends
+        ? `day ${day.number}: ${shortName(ends.fromStopId)} → ${shortName(ends.toStopId)}`
+        : null;
+    }
+    return null;
+  };
+
+  return (
+    <details className="dayplan-coverage">
+      <summary>
+        <strong>Your plan differs from the full route</strong>
+        <span className="card-sub dayplan-coverage__lines">
+          {coverageSummaryLines(diagnostics).join(' · ')}
+        </span>
+      </summary>
+      <div className="dayplan-coverage__detail">
+        {diagnostics.missingStageIds.length > 0 ? (
+          <p className="card-sub">
+            Not planned: {diagnostics.missingStageIds.map(sectionName).join(', ')}
+          </p>
+        ) : null}
+        {diagnostics.repeatedStages.length > 0 ? (
+          <p className="card-sub">
+            Walked more than once:{' '}
+            {diagnostics.repeatedStages
+              .map((r) => `${sectionName(r.stageId)} (${r.occurrences}×)`)
+              .join(', ')}
+          </p>
+        ) : null}
+        {diagnostics.oppositeLegIds.length > 0 ? (
+          <p className="card-sub">
+            Walked in reverse:{' '}
+            {diagnostics.oppositeLegIds
+              .map(legDescription)
+              .filter(Boolean)
+              .join(', ')}
+          </p>
+        ) : null}
+        {diagnostics.disconnectedDayBoundaries.map((boundary) => (
+          <p className="card-sub" key={`${boundary.fromDayId}:${boundary.toDayId}`}>
+            Day {dayNumber(boundary.toDayId)} starts somewhere other than day{' '}
+            {dayNumber(boundary.fromDayId)} ends — plan the travel between them however suits
+            you.
+          </p>
+        ))}
+        {diagnostics.omitsCanonicalStart ? (
+          <p className="card-sub">Your journey starts after the canonical route’s start.</p>
+        ) : null}
+        {diagnostics.omitsCanonicalEnd ? (
+          <p className="card-sub">Your journey ends before the canonical route’s end.</p>
+        ) : null}
+      </div>
+    </details>
+  );
+}
 
 /** Compact activity glyphs — the words are always in the accessible name. */
 export const ACTIVITY_ICONS: Record<DayActivityKind, typeof Footprints> = {
