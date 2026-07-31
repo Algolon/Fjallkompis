@@ -88,8 +88,9 @@ cross-device synchronization is deliberately far down this roadmap.
 
 ## Next
 
-3. **Personal Journey redesign** — IN PROGRESS (v0.27.0 slices integrate on
-   `v0.27.0-integration` and reach `main` only as one final release PR —
+3. **Personal Journey redesign** — FEATURE IMPLEMENTATION COMPLETE on
+   `v0.27.0-integration`; not yet released. It reaches `main` only as one
+   final release PR —
    docs/DEVELOPMENT.md → "Release integration branches"). The persisted model
    now records explicit per-day hiking LEGS — each a reference to one
    canonical stage with an absolute orientation — replacing the adjacent-
@@ -98,18 +99,19 @@ cross-device synchronization is deliberately far down this roadmap.
    Backtracking, repeated stages, reversed sections, skips and early
    finishes are representable; editing one day never changes another; the
    planner reports coverage differences as information, never errors.
-   Slice 2 adds an explicit persisted **Use Day plan on Today** choice, a pure
-   Preview → manual → local date → before/after clamp → generic resolver,
+   The integrated implementation adds an explicit persisted **Use Day plan on
+   Today** choice, a pure Preview → manual → local date → before/after clamp →
+   generic resolver,
    manual day selection, and a Today planned-day chooser with **Follow plan
    dates**. The generic seven-Stage experience remains the default.
-   Slice 3 adds the read-only Journey Place layer (route-stop adapters +
+   It also adds the read-only Journey Place layer (route-stop adapters +
    STF Kiruna as the first curated Before & after trail place), the
    editable `linkedPlaceId` Stay ↔ Place association (v9 `linkedStopId`
    migrates verbatim), the zero/one/several linked-stays behaviour with an
    explicit chooser, and bidirectional Place ↔ Trip navigation. A wildcamp
    stays a plain `Other stay` for now — a dedicated wildcamp model and
    user-created Places are deferred BEYOND v0.27.0. Remaining v0.27.0
-   work: integration hardening and the final version/release PR.
+   work: this hardening pass and the final version/release PR only.
 4. **Custom list portability and templates** — an early follow-up to
    multi-device access, and deliberately separate from it. Potential
    capabilities: import a standalone packing list; import or create custom

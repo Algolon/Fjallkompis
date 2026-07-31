@@ -1,9 +1,10 @@
 # Day plan: explicit hiking legs (schema v10)
 
-Status: v0.27.0 model proposal — slices 1 and 2 implemented on the integration
-branch. Explicit Hiking legs landed first; the active personal Journey/Today
-mode is the second slice. Places/STF Kiruna, editable Stay ↔ Place linking,
-wildcamp and final integration/release remain separate slices.
+Status: **feature implementation complete on `v0.27.0-integration`**. Explicit
+Hiking legs, active personal Journey/Today, Journey Places and editable Stay ↔
+Place linking are integrated. Integration hardening and the final versioned
+release PR remain; v0.27.0 has not been released. A wildcamp remains a normal
+unlinked `Other stay`, not a separate v0.27.0 feature slice.
 
 ## Why
 
@@ -83,8 +84,9 @@ legs in place, day ids / activity order / overnights / dates survive
 verbatim, and `currentLegId` derives only when the released pointer pair
 (currentDayId + currentStageId) agrees on exactly one migrated leg. Legacy
 data the released model could not have persisted (under/over-consumption,
-bad counts, unknown direction) refuses to migrate and lands on `dayPlan:
-null` with all unrelated state untouched.
+bad counts, unknown direction) refuses to migrate: the active `dayPlan` lands
+on `null`, the original plan is preserved verbatim in `dayPlanRecovery`, and
+all unrelated state stays untouched.
 
 ## The pointer model
 
@@ -102,16 +104,7 @@ progress moves, the day stays, the leg pointer clears; several → route
 progress moves and NO occurrence is picked — an arbitrary first-match would
 be a guess. `setCurrentLeg` exists for occurrence-specific selection.
 
-### Open decision for the personal-Journey slice (needs Omar)
-
-Which surface offers the occurrence choice when a stage is planned more than
-once — e.g. tapping "Set as current" on a twice-planned stage could open a
-chooser naming each occurrence ("day 4, walking south" / "day 8, walking
-back"), or the Journey rail could become the occurrence-level selector. The
-current slice deliberately leaves the day/leg pointers untouched in the
-ambiguous case and documents it here rather than inventing UX.
-
-### Resolved since the first slice (pre-merge corrections)
+### Integrated interaction decisions
 
 - **Occurrence chooser** — Stages → "Set as current" on a stage the plan
   walks more than once opens a chooser (day number, date, oriented route,
@@ -133,11 +126,10 @@ ambiguous case and documents it here rather than inventing UX.
   verbatim in `PersistentState.dayPlanRecovery` with a calm Settings notice
   (download / confirmed removal); nothing is silently destroyed.
 
-Still open for the personal-Journey slice: the canonical Stages screen
-remains a canonical route browser (cards are not duplicated for repeated
-planned occurrences), and the Map still draws single physical stages — a
-whole-day multi-leg route line remains out of scope until real multi-stage
-map support exists.
+The canonical Stages screen deliberately remains a canonical route browser
+(cards are not duplicated for repeated planned occurrences), and the Map still
+draws single physical stages. A whole-day multi-leg route line remains outside
+v0.27.0 scope until real multi-stage map support exists.
 
 ## Slice 2: active personal Journey on Today
 

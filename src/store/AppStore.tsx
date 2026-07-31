@@ -143,7 +143,7 @@ interface AppStore {
    * silently repeats a stage) by itself.
    */
   addPlannedDay: (index: number, kinds: DayActivityKind[], startLeg?: NewDayStartLeg) => void;
-  /** Remove a day by stable id; its walking passes to a neighbouring day. */
+  /** Remove a day by stable id; its walking is removed with it, never reassigned. */
   removePlannedDay: (dayId: string) => void;
   /**
    * Replace a day's activity composition (kinds, in the order given).
