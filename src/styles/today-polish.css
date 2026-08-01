@@ -1,0 +1,19 @@
+/* Today-only presentation fixes loaded after the main design system.
+
+   The active personal-Journey heading is a real button so the full 44 px
+   target can open the planned-day chooser. Reset native button chrome so the
+   heading still reads as a card title and only the chevron signals the action.
+   Keyboard focus remains visible around the complete target. */
+.journey-choose {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.journey-choose:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
