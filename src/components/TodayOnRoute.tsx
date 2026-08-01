@@ -131,7 +131,6 @@ export function TodayOnRoute({
     STOPS_BY_ID[overnightStay.linkedPlaceId]
       ? overnightStay.linkedPlaceId
       : null;
-  const renderedStopId = overnightStopId ?? overnightStayStopId;
 
   return (
     <>
@@ -152,8 +151,10 @@ export function TodayOnRoute({
         source={todaySource}
         onNavigate={onNavigate}
       />
-      {renderedStopId ? (
-        <TonightCard stopId={renderedStopId} onNavigate={onNavigate} />
+      {overnightStopId ? (
+        <TonightCard stopId={overnightStopId} onNavigate={onNavigate} />
+      ) : overnightStayStopId ? (
+        <TonightCard stopId={overnightStayStopId} onNavigate={onNavigate} />
       ) : overnightStay ? (
         <StayTonightCard title={overnightStay.title} onNavigate={onNavigate} />
       ) : day.overnight.kind === 'stay' ? (
@@ -226,7 +227,7 @@ function PlannedDayHero({
   const to = day.toStopId ? STOPS_BY_ID[day.toStopId] : null;
   const kindWords = activityOrderPhrase(day);
   // The day's own first LEG: its absolute orientation decides which way the
-  // verified content is read. A leg walked against the app's route direction
+  // verified content is read. A leg walked against the plan's own direction
   // ('opposite' on a forward journey) reads its highlights in ITS direction —
   // climb and descent chips must describe the walk the day actually makes.
   const leadLeg = day.legs[0] ?? null;
