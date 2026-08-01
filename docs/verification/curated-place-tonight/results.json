@@ -1,0 +1,124 @@
+[
+  {
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "mainOverflowX": 0,
+    "mainScrollHeight": 638,
+    "mainClientHeight": 611,
+    "mainNoScroll": false,
+    "tonightRow": {
+      "x": 16,
+      "y": 541.9,
+      "w": 343,
+      "h": 79.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 541.9,
+      "w": 195,
+      "h": 79.6
+    },
+    "title": {
+      "x": 30,
+      "y": 572.9,
+      "w": 167,
+      "h": 20.6
+    },
+    "titleText": "STF Kiruna",
+    "titleClipped": false,
+    "metadataRow": {
+      "x": 30,
+      "y": 596.5,
+      "w": 167,
+      "h": 15
+    },
+    "elevation": null,
+    "facilityIconCount": 4,
+    "stfCard": {
+      "x": 221,
+      "y": 549.7,
+      "w": 64,
+      "h": 64
+    },
+    "ticketCard": {
+      "x": 295,
+      "y": 549.7,
+      "w": 64,
+      "h": 64
+    },
+    "cardAriaLabel": "Tonight: STF Kiruna. Facilities include Sauna, Restaurant, Guest kitchen and Wi-Fi. Opens place details in Stops & places.",
+    "overlap": false,
+    "nav": {
+      "screenClass": "screen screen--stops",
+      "openText": true
+    }
+  },
+  {
+    "viewport": {
+      "w": 320,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "mainOverflowX": 0,
+    "mainScrollHeight": 657,
+    "mainClientHeight": 611,
+    "mainNoScroll": false,
+    "tonightRow": {
+      "x": 16,
+      "y": 560.9,
+      "w": 288,
+      "h": 79.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 560.9,
+      "w": 160,
+      "h": 79.6
+    },
+    "title": {
+      "x": 30,
+      "y": 591.9,
+      "w": 132,
+      "h": 20.6
+    },
+    "titleText": "STF Kiruna",
+    "titleClipped": false,
+    "metadataRow": {
+      "x": 30,
+      "y": 615.5,
+      "w": 132,
+      "h": 15
+    },
+    "elevation": null,
+    "facilityIconCount": 4,
+    "stfCard": {
+      "x": 184,
+      "y": 572.7,
+      "w": 56,
+      "h": 56
+    },
+    "ticketCard": {
+      "x": 248,
+      "y": 572.7,
+      "w": 56,
+      "h": 56
+    },
+    "cardAriaLabel": "Tonight: STF Kiruna. Facilities include Sauna, Restaurant, Guest kitchen and Wi-Fi. Opens place details in Stops & places.",
+    "overlap": false,
+    "nav": {
+      "screenClass": "screen screen--stops",
+      "openText": true
+    }
+  }
+]
