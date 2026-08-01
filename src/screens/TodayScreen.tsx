@@ -82,9 +82,18 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   // canonical default state, and On route then renders its original,
   // date-independent stage view — no dates, no activity indicators, nothing
   // inferred from trip data or the clock.
-  const { currentStage, routeDirection, plannedDays, currentPlannedDay, state } = useStore();
-  const shownPlannedDay = resolveTodayArrivalStay(
-    currentPlannedDay,
+  const {
+    currentStage,
+    routeDirection,
+    plannedDays,
+    currentPlannedDay: resolvedPlannedDay,
+    state,
+  } = useStore();
+  // The store owns Preview/manual/date resolution. This final presentation
+  // fallback can only add one unambiguous linked arrival Stay; it never reads
+  // the clock, scans isCurrent or writes Day-plan state.
+  const currentPlannedDay = resolveTodayArrivalStay(
+    resolvedPlannedDay,
     plannedDays,
     state.trip,
   );
@@ -176,7 +185,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
           aria-labelledby="today-tab-onroute"
         >
           <TodayOnRoute
-            day={shownPlannedDay}
+            day={currentPlannedDay}
             plannedDays={plannedDays}
             currentStage={currentStage}
             routeDirection={routeDirection}
