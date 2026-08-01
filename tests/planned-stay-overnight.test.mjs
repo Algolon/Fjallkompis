@@ -2,11 +2,43 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPlannedDays } from '../src/plan/plannedDays.mjs';
 
+const STAGE = {
+  id: 'abisko-abiskojaure',
+  fromHutId: 'abisko',
+  toHutId: 'abiskojaure',
+  distanceKm: 13.8,
+  totalAscentM: 137,
+  totalDescentM: 36,
+  minimumElevationM: 380,
+  maximumElevationM: 490,
+  estimatedHours: 5,
+  elevationProfile: [],
+  points: [],
+};
 const ORIENTED = { canonical: {}, opposite: {} };
+const ORIENTED_WITH_STAGE = {
+  canonical: { [STAGE.id]: STAGE },
+  opposite: {},
+};
 const travelDay = (id = 'day_1', overnight) => ({
   id,
   activities: [{ kind: 'travel' }],
   ...(overnight ? { overnight } : {}),
+});
+const hikingDay = (id = 'day_2') => ({
+  id,
+  activities: [
+    {
+      kind: 'hiking',
+      legs: [
+        {
+          id: `${id}_leg_1`,
+          stageId: STAGE.id,
+          orientation: 'canonical',
+        },
+      ],
+    },
+  ],
 });
 const plan = (days) => ({
   direction: 'abisko-to-nikkaluokta',
@@ -15,14 +47,15 @@ const plan = (days) => ({
   currentLegId: null,
   days,
 });
-const stay = (id, checkInDate, checkOutDate) => ({
+const stay = (id, checkInDate, checkOutDate, linkedPlaceId) => ({
   id,
   kind: 'stay',
   title: id,
   status: 'confirmed',
   stayType: 'mountain-station',
-  checkInDate,
+  ...(checkInDate ? { checkInDate } : {}),
   ...(checkOutDate ? { checkOutDate } : {}),
+  ...(linkedPlaceId ? { linkedPlaceId } : {}),
   attachmentIds: [],
   createdAt: 1,
   updatedAt: 1,
@@ -84,4 +117,49 @@ test('several stays covering one night are left ambiguous', () => {
     ],
   );
   assert.deepEqual(day.overnight, { kind: 'none', source: 'derived' });
+});
+
+test('a travel-only arrival day uses one undated Stay linked to the next Hiking start', () => {
+  const days = buildPlannedDays(
+    ORIENTED_WITH_STAGE,
+    plan([travelDay(), hikingDay()]),
+    [stay('stay_abisko', undefined, undefined, 'abisko')],
+  );
+  assert.deepEqual(days[0].overnight, {
+    kind: 'stay',
+    tripItemId: 'stay_abisko',
+    source: 'trip-stay',
+  });
+  assert.equal(days[1].fromStopId, 'abisko');
+});
+
+test('linked arrival fallback refuses multiple or explicitly dated candidates', () => {
+  const several = buildPlannedDays(
+    ORIENTED_WITH_STAGE,
+    plan([travelDay(), hikingDay()]),
+    [
+      stay('first', undefined, undefined, 'abisko'),
+      stay('second', undefined, undefined, 'abisko'),
+    ],
+  );
+  assert.deepEqual(several[0].overnight, { kind: 'none', source: 'derived' });
+
+  const mismatchedDate = buildPlannedDays(
+    ORIENTED_WITH_STAGE,
+    plan([travelDay(), hikingDay()]),
+    [stay('dated_elsewhere', '2026-09-04', '2026-09-05', 'abisko')],
+  );
+  assert.deepEqual(mismatchedDate[0].overnight, { kind: 'none', source: 'derived' });
+});
+
+test('free-text or differently linked stays are never inferred for arrival', () => {
+  const days = buildPlannedDays(
+    ORIENTED_WITH_STAGE,
+    plan([travelDay(), hikingDay()]),
+    [
+      stay('free_text_only'),
+      stay('linked_elsewhere', undefined, undefined, 'stf-kiruna'),
+    ],
+  );
+  assert.deepEqual(days[0].overnight, { kind: 'none', source: 'derived' });
 });
