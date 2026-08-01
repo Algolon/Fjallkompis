@@ -27,7 +27,10 @@ test('the canonical Tonight card uses compact STF names and keeps facilities', (
     /stop\.type === 'village' \? stopShortName\(stop\) : `STF \$\{stopShortName\(stop\)\}`/,
   );
   assert.match(tonight, /aria-label=\{`Tonight: \$\{displayName\}/);
-  assert.match(tonight, /today-action-card__title">\{displayName\}/);
+  assert.match(
+    tonight,
+    /className="today-action-card__title">\{displayName\}<\/span>/,
+  );
   assert.match(tonight, /const facilities = collapsedFacilities\(stop, 5\);/);
   assert.match(tonight, /className="today-stop-facilities"/);
   assert.match(tonight, /<FacilityIcon id=\{f\.id\} size=\{15\} \/>/);
