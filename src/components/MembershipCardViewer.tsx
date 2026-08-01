@@ -4,15 +4,14 @@ import type { WalletDocument } from '../types';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
 /**
- * Centred quick credential viewer for the Today STF membership quick access.
+ * Centred quick document viewer for Today quick access.
  *
  * Deliberately NOT the shared TripImageViewer: that viewer is the generic
  * Lists → Trip document surface and presents as a bottom sheet on mobile
- * (`.sheet`), which reads as "a form is opening". The quick-access use case
- * is showing a membership card at an STF hut reception — the credential
- * should appear front-and-centre immediately. Same native <dialog> modal
- * contract (showModal focus trap, Escape → onClose, backdrop click closes,
- * focus returns to the opener/roundel), different presentation
+ * (`.sheet`), which reads as "a form is opening". Quick access is for showing
+ * a credential or ticket immediately, front-and-centre. Same native <dialog>
+ * modal contract (showModal focus trap, Escape → onClose, backdrop click
+ * closes, focus returns to the opener), different presentation
  * (`.credential-viewer`, centred scale/fade).
  *
  * The CALLER owns the object URL and must revoke it in onClose — identical
@@ -22,10 +21,12 @@ import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 export function MembershipCardViewer({
   doc,
   url,
+  heading = 'STF membership card',
   onClose,
 }: {
   doc: WalletDocument;
   url: string;
+  heading?: string;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -49,7 +50,7 @@ export function MembershipCardViewer({
     >
       <div className="credential-viewer__body">
         <div className="row-between sheet-head">
-          <h2 id={headingId}>STF membership card</h2>
+          <h2 id={headingId}>{heading}</h2>
           <button className="ctx-help-close" onClick={onClose} aria-label="Close">
             <X size={18} strokeWidth={2} aria-hidden />
           </button>
