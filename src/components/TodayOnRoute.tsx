@@ -121,6 +121,17 @@ export function TodayOnRoute({
     day.overnight.kind === 'stay'
       ? trip.find((i) => i.id === day.overnight.tripItemId) ?? null
       : null;
+  // A personal Stay linked to a canonical route Stop still represents that
+  // verified place. Reuse the Stop presentation so its compact STF name,
+  // facilities, warnings, elevation and Stop navigation do not disappear.
+  // Unlinked and curated off-route stays remain personal Stay cards.
+  const overnightStayStopId =
+    overnightStay?.kind === 'stay' &&
+    overnightStay.linkedPlaceId &&
+    STOPS_BY_ID[overnightStay.linkedPlaceId]
+      ? overnightStay.linkedPlaceId
+      : null;
+  const renderedStopId = overnightStopId ?? overnightStayStopId;
 
   return (
     <>
@@ -141,8 +152,8 @@ export function TodayOnRoute({
         source={todaySource}
         onNavigate={onNavigate}
       />
-      {overnightStopId ? (
-        <TonightCard stopId={overnightStopId} onNavigate={onNavigate} />
+      {renderedStopId ? (
+        <TonightCard stopId={renderedStopId} onNavigate={onNavigate} />
       ) : overnightStay ? (
         <StayTonightCard title={overnightStay.title} onNavigate={onNavigate} />
       ) : day.overnight.kind === 'stay' ? (
@@ -772,6 +783,8 @@ function StageJourney({
 function TonightCard({ stopId, onNavigate }: { stopId: string; onNavigate: Navigate }) {
   const stop = STOPS_BY_ID[stopId];
   if (!stop) return null;
+  const displayName =
+    stop.type === 'village' ? stopShortName(stop) : `STF ${stopShortName(stop)}`;
   const waypoint = WAYPOINT_BY_ID[HUT_TO_WAYPOINT[stop.id]];
   const elevation = waypoint?.elevation != null ? Math.round(waypoint.elevation) : null;
   const noShop = importantAbsences(stop).some((f) => f.id === 'shop');
@@ -790,13 +803,13 @@ function TonightCard({ stopId, onNavigate }: { stopId: string; onNavigate: Navig
       <button
         className="today-action-card today-glass today-glass--light"
         onClick={() => onNavigate('huts', { stopId: stop.id })}
-        aria-label={`Tonight: ${stopShortName(stop)}${
+        aria-label={`Tonight: ${displayName}${
           elevation != null ? `, ${elevation} metres elevation` : ''
         }${noShop ? ', no shop' : ''}.${facilitySentence} Opens stop details in Stops.`}
       >
         <span className="today-action-card__body">
           <span className="today-action-card__label">Tonight</span>
-          <span className="today-action-card__title">{stopShortName(stop)}</span>
+          <span className="today-action-card__title">{displayName}</span>
           {facilities.length > 0 || noShop ? (
             <span className="today-stop-facilities" aria-hidden>
               {facilities.map((f) => (
