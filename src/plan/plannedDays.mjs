@@ -143,21 +143,68 @@ function matchStayForNight(tripItems, date) {
 }
 
 /**
+ * Exactly one undated Stay linked to the trailhead of the next Hiking day.
+ *
+ * This is deliberately a narrow arrival-day fallback. A dated linked Stay is
+ * never treated as undated merely because its dates do not cover this night,
+ * and several linked stays remain ambiguous. Stable Place ids equal route Stop
+ * ids, so the first Hiking leg's `fromHutId` is the honest association key.
+ */
+function matchLinkedArrivalStay(tripItems, nextHikingStartStopId) {
+  if (!Array.isArray(tripItems) || !nextHikingStartStopId) return null;
+  const linked = tripItems.filter(
+    (item) => item?.kind === 'stay' && item.linkedPlaceId === nextHikingStartStopId,
+  );
+  if (linked.some(
+    (item) => typeof item.checkInDate === 'string' || typeof item.checkOutDate === 'string',
+  )) {
+    return null;
+  }
+  return linked.length === 1 ? linked[0] : null;
+}
+
+function nextHikingStartStopId(resolved, index) {
+  for (let i = index + 1; i < resolved.length; i++) {
+    const firstStage = resolved[i].legs[0]?.stage;
+    if (firstStage?.fromHutId) return firstStage.fromHutId;
+  }
+  return null;
+}
+
+/**
  * The effective overnight for a day when no explicit Day-plan reference is
  * stored, in the fixed resolution order:
  *   1. exactly one dated Trip Stay covering this night;
- *   2. the day's hiking endpoint — where the LAST LEG ends;
- *   3. for a rest day, the previous day's effective overnight (it is based
+ *   2. on a travel-only arrival day, exactly one undated Stay linked to the
+ *      start Stop of the next Hiking day;
+ *   3. the day's hiking endpoint — where the LAST LEG ends;
+ *   4. for a rest day, the previous day's effective overnight (it is based
  *      wherever the user already was);
- *   4. otherwise none.
+ *   5. otherwise none.
  *
- * A Travel-only day therefore gains an overnight only from a real dated Stay;
- * a canonical Stop is never inferred from a trip item's free-text destination.
+ * Free-text destinations are never interpreted as Places. The linked fallback
+ * is used only when the travel-only day and next verified Hiking start make the
+ * relationship unambiguous.
  */
-function deriveOvernight(record, stages, previous, tripItems, date) {
+function deriveOvernight(
+  record,
+  stages,
+  previous,
+  tripItems,
+  date,
+  nextHikingStartStopIdValue,
+) {
   const stay = matchStayForNight(tripItems, date);
   if (stay) {
     return { kind: 'stay', tripItemId: stay.id, source: 'trip-stay' };
+  }
+  const travelOnly =
+    record.activities.length > 0 && record.activities.every((activity) => activity.kind === 'travel');
+  if (travelOnly) {
+    const linkedStay = matchLinkedArrivalStay(tripItems, nextHikingStartStopIdValue);
+    if (linkedStay) {
+      return { kind: 'stay', tripItemId: linkedStay.id, source: 'trip-stay' };
+    }
   }
   if (stages.length > 0) {
     return { kind: 'stop', stopId: stages[stages.length - 1].toHutId, source: 'hiking' };
@@ -168,9 +215,23 @@ function deriveOvernight(record, stages, previous, tripItems, date) {
   return { kind: 'none', source: 'derived' };
 }
 
-function resolveOvernight(record, stages, previous, tripItems, date) {
+function resolveOvernight(
+  record,
+  stages,
+  previous,
+  tripItems,
+  date,
+  nextHikingStartStopIdValue,
+) {
   if (record.overnight) return { ...record.overnight, source: 'explicit' };
-  return deriveOvernight(record, stages, previous, tripItems, date);
+  return deriveOvernight(
+    record,
+    stages,
+    previous,
+    tripItems,
+    date,
+    nextHikingStartStopIdValue,
+  );
 }
 
 /**
@@ -192,11 +253,27 @@ function resolveLeg(leg, orientedStages, currentLegId) {
   };
 }
 
-function buildDay(record, index, startDate, legs, pointers, tripItems, previousOvernight) {
+function buildDay(
+  record,
+  index,
+  startDate,
+  legs,
+  pointers,
+  tripItems,
+  previousOvernight,
+  nextHikingStartStopIdValue,
+) {
   const date = dateForDayIndex(startDate, index);
   const stages = legs.map((l) => l.stage);
   const last = stages[stages.length - 1] ?? null;
-  const overnight = resolveOvernight(record, stages, previousOvernight, tripItems, date);
+  const overnight = resolveOvernight(
+    record,
+    stages,
+    previousOvernight,
+    tripItems,
+    date,
+    nextHikingStartStopIdValue,
+  );
   return {
     id: record.id,
     index,
@@ -221,9 +298,16 @@ function buildDay(record, index, startDate, legs, pointers, tripItems, previousO
     overnight,
     // What the overnight WOULD be with no explicit reference stored. The
     // chooser needs it to offer the way back to derived behaviour — otherwise
-    // a rest day or dated Trip Stay that has been overridden once can never
-    // inherit again.
-    derivedOvernight: deriveOvernight(record, stages, previousOvernight, tripItems, date),
+    // a rest day or Trip Stay that has been overridden once can never inherit
+    // again.
+    derivedOvernight: deriveOvernight(
+      record,
+      stages,
+      previousOvernight,
+      tripItems,
+      date,
+      nextHikingStartStopIdValue,
+    ),
     travelItems: matchTravelItems(tripItems, date),
     isCurrent: pointers.currentDayId != null && record.id === pointers.currentDayId,
   };
@@ -282,6 +366,7 @@ export function buildPlannedDays(orientedStages, dayPlan, tripItems = []) {
       pointers,
       tripItems,
       previousOvernight,
+      nextHikingStartStopId(resolved, i),
     );
     if (day.overnight.kind !== 'none') {
       previousOvernight = { kind: day.overnight.kind, stopId: day.overnight.stopId, tripItemId: day.overnight.tripItemId };
