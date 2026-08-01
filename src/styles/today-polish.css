@@ -18,6 +18,21 @@
   border-radius: 6px;
 }
 
+/* A manually selected day is already obvious from the highlighted rail dot.
+   Keep the neutral day/date context but remove the repeated visual "Selected"
+   label and the redundant Journey-card subtitle. Automatic Up next / Plan
+   ended context remains visible because those states are not user-selected. */
+.hero[aria-label*="Manually selected planned day"] .hero-day__source {
+  display: none;
+}
+
+.hero[aria-label*="Manually selected planned day"]
+  + section[aria-label="Personal Day plan Journey progress"]
+  > .row-between
+  > .card-sub {
+  display: none;
+}
+
 /* Linked Travel-document quick access beside Tonight. The ticket action uses
    the same circular weight and 64 px rhythm as the STF roundel, but stays a
    neutral glass control: the official STF mark remains visually unique. */
