@@ -3,6 +3,7 @@ import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { TodayPrepare } from '../components/TodayPrepare';
 import { TodayOnRoute } from '../components/TodayOnRoute';
+import { resolveTodayArrivalStay } from '../plan/todayArrivalStay.mjs';
 import { readTodayMode, saveTodayMode } from '../utils/todayMode.mjs';
 import type { TodayMode } from '../utils/todayMode.mjs';
 import type { TabId } from '../components/TabBar';
@@ -82,6 +83,11 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   // date-independent stage view — no dates, no activity indicators, nothing
   // inferred from trip data or the clock.
   const { currentStage, routeDirection, plannedDays, currentPlannedDay, state } = useStore();
+  const shownPlannedDay = resolveTodayArrivalStay(
+    currentPlannedDay,
+    plannedDays,
+    state.trip,
+  );
 
   // Manual mode only — remembered per device (non-versioned UI preference,
   // see utils/todayMode.mjs), never switched by dates, GPS or trip phase.
@@ -170,7 +176,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
           aria-labelledby="today-tab-onroute"
         >
           <TodayOnRoute
-            day={currentPlannedDay}
+            day={shownPlannedDay}
             plannedDays={plannedDays}
             currentStage={currentStage}
             routeDirection={routeDirection}
