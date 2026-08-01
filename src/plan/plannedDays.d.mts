@@ -13,9 +13,10 @@ export interface ResolvedOvernight {
   kind: 'stop' | 'stay' | 'none';
   stopId?: string;
   tripItemId?: string;
-  /** explicit = the user set it; hiking = the day's endpoint; carried = the
-      previous day's (a rest day stays where it was); derived = nothing. */
-  source: 'explicit' | 'hiking' | 'carried' | 'derived';
+  /** explicit = the user set it; trip-stay = exactly one dated Trip Stay
+      covers this night; hiking = the day's endpoint; carried = the previous
+      day's (a rest day stays where it was); derived = nothing. */
+  source: 'explicit' | 'trip-stay' | 'hiking' | 'carried' | 'derived';
 }
 
 /**
@@ -79,12 +80,13 @@ export interface PlannedDay {
   maximumElevationM: number | null;
   estimatedHours: number;
   elevationProfile: ElevationSample[];
-  /** The effective overnight (explicit, hiking endpoint, carried, or none). */
+  /** The effective overnight (explicit, Trip Stay, hiking endpoint, carried, or none). */
   overnight: ResolvedOvernight;
   /**
-   * What the overnight would be with NO explicit reference stored — the
-   * hiking endpoint, a rest day's carried location, or none. Never 'explicit'.
-   * The overnight chooser offers this as the way back to derived behaviour.
+   * What the overnight would be with NO explicit reference stored — an exact
+   * dated Trip Stay match, hiking endpoint, a rest day's carried location, or
+   * none. Never 'explicit'. The overnight chooser offers this as the way back
+   * to derived behaviour.
    */
   derivedOvernight: ResolvedOvernight;
   /** Trip transport items recorded for this date — read-only, matched by date. */
