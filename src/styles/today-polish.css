@@ -1,0 +1,147 @@
+/* Today-only presentation fixes loaded after the main design system.
+
+   The active personal-Journey heading is a real button so the full 44 px
+   target can open the planned-day chooser. Reset native button chrome so the
+   heading still reads as a card title and only the chevron signals the action.
+   Keyboard focus remains visible around the complete target. */
+.journey-choose {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.journey-choose:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Linked Travel-document quick access beside Tonight. The ticket action uses
+   the same circular weight and 64 px rhythm as the STF roundel, but stays a
+   neutral glass control: the official STF mark remains visually unique. */
+.ticket-card {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  align-self: center;
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--spruce);
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+
+.ticket-card:active {
+  transform: scale(0.94);
+}
+
+@media (hover: hover) {
+  .ticket-card:hover {
+    filter: brightness(1.04);
+  }
+}
+
+.ticket-card:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 3px;
+}
+
+.ticket-card__count {
+  position: absolute;
+  right: -1px;
+  top: -1px;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid var(--paper-bright);
+  background: var(--cloudberry);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Several linked tickets first open a centred chooser, matching the quick
+   credential viewer rather than the editing-oriented Trip bottom sheet. */
+.ticket-chooser__body {
+  width: min(86vw, 360px);
+}
+
+.ticket-chooser__list {
+  display: grid;
+  gap: 8px;
+}
+
+.ticket-choice {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper-bright);
+  text-align: left;
+}
+
+.ticket-choice > span:not(.ticket-choice__chevron) {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.ticket-choice strong,
+.ticket-choice small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticket-choice strong {
+  color: var(--ink-strong);
+  font-size: 14px;
+}
+
+.ticket-choice small {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.ticket-choice__chevron {
+  color: var(--ink-soft);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.ticket-choice:active {
+  transform: scale(0.985);
+}
+
+.ticket-choice:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 1px;
+}
+
+@media (max-width: 340px) {
+  .ticket-card {
+    width: 56px;
+    height: 56px;
+  }
+
+  /* Two compact quick actions leave the stop/stay title as the priority; the
+     side value remains present in the card's accessible name. */
+  .tonight-row:has(.ticket-card) .today-action-card__side {
+    display: none;
+  }
+}
