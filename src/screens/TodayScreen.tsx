@@ -91,7 +91,7 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   } = useStore();
   // The store owns Preview/manual/date resolution. This final presentation
   // fallback can only add one unambiguous linked arrival Stay; it never reads
-  // the clock, scans isCurrent or writes Day-plan state.
+  // the clock, scans derived progress flags or writes Day-plan state.
   const currentPlannedDay = resolveTodayArrivalStay(
     resolvedPlannedDay,
     plannedDays,
