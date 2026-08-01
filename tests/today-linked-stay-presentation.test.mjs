@@ -33,5 +33,8 @@ test('the canonical Tonight card uses compact STF names and keeps facilities', (
   );
   assert.match(tonight, /const facilities = collapsedFacilities\(stop, 5\);/);
   assert.match(tonight, /className="today-stop-facilities"/);
-  assert.match(tonight, /<FacilityIcon id=\{f\.id\} size=\{15\} \/>/);
+  assert.match(
+    tonight,
+    /<FacilityIcon\s+id=\{f\.id\}\s+size=\{15\}\s*\/>/,
+  );
 });
