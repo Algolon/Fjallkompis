@@ -12,13 +12,14 @@ test('a personal Stay linked to a route Stop reuses the canonical Tonight card',
   assert.ok(onRoute.includes("overnightStay?.kind === 'stay'"));
   assert.ok(onRoute.includes('overnightStay.linkedPlaceId'));
   assert.ok(onRoute.includes('STOPS_BY_ID[overnightStay.linkedPlaceId]'));
-  assert.ok(
-    onRoute.includes(
-      'const renderedStopId = overnightStopId ?? overnightStayStopId;',
-    ),
-  );
-  assert.ok(onRoute.includes('<TonightCard stopId={renderedStopId}'));
+  assert.ok(onRoute.includes('<TonightCard stopId={overnightStopId}'));
+  assert.ok(onRoute.includes('<TonightCard stopId={overnightStayStopId}'));
   assert.ok(onRoute.includes('<StayTonightCard title={overnightStay.title}'));
+
+  const explicitAt = onRoute.indexOf('{overnightStopId ? (');
+  const linkedAt = onRoute.indexOf(') : overnightStayStopId ? (');
+  const personalAt = onRoute.indexOf(') : overnightStay ? (');
+  assert.ok(explicitAt >= 0 && explicitAt < linkedAt && linkedAt < personalAt);
 });
 
 test('the canonical Tonight card uses compact STF names and keeps facilities', () => {
