@@ -780,6 +780,13 @@ function StageJourney({
  * Tonight at a canonical stop — unchanged behaviour, now driven by the
  * effective overnight rather than always by the walking endpoint. When there
  * is no overnight the card is omitted and the space is left alone.
+ *
+ * The card's internal composition is a fixed three-row hierarchy (the
+ * .tonight-card grid): the TONIGHT label sharing only a narrow chevron
+ * gutter, then the location name across the full card width, then one
+ * metadata row — facilities left, elevation right. Nothing is ever laid out
+ * BESIDE the title, so the name renders in full even when quick actions
+ * narrow the card.
  */
 function TonightCard({ stopId, onNavigate }: { stopId: string; onNavigate: Navigate }) {
   const stop = STOPS_BY_ID[stopId];
@@ -789,7 +796,11 @@ function TonightCard({ stopId, onNavigate }: { stopId: string; onNavigate: Navig
   const waypoint = WAYPOINT_BY_ID[HUT_TO_WAYPOINT[stop.id]];
   const elevation = waypoint?.elevation != null ? Math.round(waypoint.elevation) : null;
   const noShop = importantAbsences(stop).some((f) => f.id === 'shop');
-  const facilities = collapsedFacilities(stop, 5);
+  // Four icons at most (down from the original five): the metadata row
+  // shares the card with a right-aligned elevation, and the card itself can
+  // sit beside two quick actions — a fifth icon wraps exactly where the
+  // space is tightest. Same priority order and icon set as Stops.
+  const facilities = collapsedFacilities(stop, 4);
   const labels = facilities.map((f) => f.label);
   const facilitySentence =
     labels.length > 0
@@ -802,39 +813,37 @@ function TonightCard({ stopId, onNavigate }: { stopId: string; onNavigate: Navig
   return (
     <div className="tonight-row">
       <button
-        className="today-action-card today-glass today-glass--light"
+        className="today-action-card tonight-card today-glass today-glass--light"
         onClick={() => onNavigate('huts', { stopId: stop.id })}
         aria-label={`Tonight: ${displayName}${
           elevation != null ? `, ${elevation} metres elevation` : ''
         }${noShop ? ', no shop' : ''}.${facilitySentence} Opens stop details in Stops.`}
       >
-        <span className="today-action-card__body">
-          <span className="today-action-card__label">Tonight</span>
-          <span className="today-action-card__title">{displayName}</span>
-          {facilities.length > 0 || noShop ? (
-            <span className="today-stop-facilities" aria-hidden>
+        <span className="tonight-card__label">Tonight</span>
+        <span className="tonight-card__title">{displayName}</span>
+        {facilities.length > 0 || noShop || elevation != null ? (
+          <span className="tonight-card__meta" aria-hidden>
+            <span className="tonight-card__facilities">
               {facilities.map((f) => (
-                <span key={f.id} className="today-stop-facility" title={f.label}>
+                <span key={f.id} className="tonight-card__facility" title={f.label}>
                   <FacilityIcon id={f.id} size={15} />
                 </span>
               ))}
               {noShop ? (
-                <span className="today-stop-warning" title="No shop at this stop">
+                <span className="tonight-card__warning" title="No shop at this stop">
                   <TriangleAlert size={12} strokeWidth={2.2} aria-hidden /> No shop
                 </span>
               ) : null}
             </span>
-          ) : null}
-        </span>
-        <span className="today-action-card__side">
-          {elevation != null ? (
-            <span className="today-action-card__value tnum">
-              <Mountain size={13} strokeWidth={2} aria-hidden />
-              {elevation.toLocaleString('en-US')} m
-            </span>
-          ) : null}
-        </span>
-        <ChevronRight className="today-action-card__chevron" size={18} strokeWidth={2} aria-hidden />
+            {elevation != null ? (
+              <span className="tonight-card__elevation tnum">
+                <Mountain size={13} strokeWidth={2} aria-hidden />
+                {elevation.toLocaleString('en-US')} m
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+        <ChevronRight className="tonight-card__chevron" size={18} strokeWidth={2} aria-hidden />
       </button>
       <MembershipQuickAccess />
     </div>
@@ -846,15 +855,13 @@ function StayTonightCard({ title, onNavigate }: { title: string; onNavigate: Nav
   return (
     <div className="tonight-row">
       <button
-        className="today-action-card today-glass today-glass--light"
+        className="today-action-card tonight-card today-glass today-glass--light"
         onClick={() => onNavigate('checklist', { lists: { section: 'trip' } })}
         aria-label={`Tonight: ${title}. Opens your Trip plan.`}
       >
-        <span className="today-action-card__body">
-          <span className="today-action-card__label">Tonight</span>
-          <span className="today-action-card__title">{title}</span>
-        </span>
-        <ChevronRight className="today-action-card__chevron" size={18} strokeWidth={2} aria-hidden />
+        <span className="tonight-card__label">Tonight</span>
+        <span className="tonight-card__title">{title}</span>
+        <ChevronRight className="tonight-card__chevron" size={18} strokeWidth={2} aria-hidden />
       </button>
       <MembershipQuickAccess />
     </div>

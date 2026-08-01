@@ -34,12 +34,10 @@ test('the canonical Tonight card uses compact STF names and keeps facilities', (
   assert.ok(tonight.includes('`STF ${stopShortName(stop)}`'));
   assert.ok(tonight.includes('aria-label={`Tonight: ${displayName}'));
   assert.ok(
-    tonight.includes(
-      'className="today-action-card__title">{displayName}</span>',
-    ),
+    tonight.includes('className="tonight-card__title">{displayName}</span>'),
   );
-  assert.ok(tonight.includes('const facilities = collapsedFacilities(stop, 5);'));
-  assert.ok(tonight.includes('className="today-stop-facilities"'));
+  assert.ok(tonight.includes('const facilities = collapsedFacilities(stop, 4);'));
+  assert.ok(tonight.includes('className="tonight-card__facilities"'));
   assert.ok(tonight.includes('<FacilityIcon'));
   assert.ok(tonight.includes('id={f.id}'));
   assert.ok(tonight.includes('size={15}'));

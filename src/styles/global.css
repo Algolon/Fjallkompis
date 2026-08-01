@@ -2835,11 +2835,33 @@ button.stop-fac:focus-visible {
 @media (max-width: 899px) {
   .today-screen .hero-content {
     padding-top: 16px;
-    padding-bottom: 14px;
+    padding-bottom: 12px;
   }
   .today-screen section.card[aria-label$='Journey progress'] {
     padding-top: 14px;
     padding-bottom: 14px;
+  }
+  /* Measured single-viewport budget at 375x667 (the smallest supported
+     portrait target): head + hero (worst case: a hiking day whose three
+     characteristic chips wrap to two rows) + Journey + the three-row
+     Tonight card + screen padding summed to ~627px against the 611px the
+     in-flow tab bar leaves. These spacing-only trims (−18px total, no
+     content or type changes) bring the worst case back inside the budget;
+     see the Tonight-card browser matrix on the PR for the numbers. */
+  .today-screen .screen-head {
+    margin-bottom: 12px;
+  }
+  .today-screen .hero {
+    margin-bottom: 12px;
+  }
+  .today-screen .hero-chips {
+    margin-top: 8px;
+  }
+  .today-screen .hero-actions {
+    margin-top: 12px;
+  }
+  .today-screen .tonight-row {
+    margin-top: 12px;
   }
 }
 
@@ -2912,41 +2934,82 @@ button.stop-fac:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.today-action-card__value {
-  display: inline-flex;
+.today-action-card__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-soft);
+}
+
+/* --- Tonight card: the three-row hierarchy ---------------------------------
+   1  TONIGHT label — shares the row only with a narrow reserved chevron
+      gutter (the chevron never sits beside the title or the elevation);
+   2  location name — the FULL usable card width. It wraps to at most two
+      lines as a fallback; it is never single-line-ellipsised, so "STF
+      Abiskojaure" can never render as "STF A…";
+   3  metadata grid — facility preview left (same icons/order as the
+      collapsed Stop cards via collapsedFacilities, "No shop" as a quiet
+      absence note), elevation right-aligned on the same baseline.
+   Grid areas make the hierarchy explicit in code; a Stay card simply has no
+   metadata row. */
+.tonight-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  grid-template-areas:
+    'label chevron'
+    'title title'
+    'meta meta';
+  align-content: center;
   align-items: center;
-  gap: 4px;
-  flex: 0 0 auto;
-  font-size: 13px;
-  font-weight: 600;
+  row-gap: 3px;
+  column-gap: 8px;
+  /* Measured: 10px vertical padding (not the action-card 12px) keeps the
+     three-row hiking-day variant inside the 375x667 single-viewport budget
+     (main.scrollHeight == main.clientHeight) with the tab bar in flow. */
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.tonight-card__label {
+  grid-area: label;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: #3f4f45;
-  white-space: nowrap;
 }
-.today-action-card__side {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
+.tonight-card__title {
+  grid-area: title;
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  /* Wrapping is the fallback, clamped at two lines; no nowrap-ellipsis. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
-/* Tonight's Stop facility preview: same icons/order as the collapsed Stop
-   cards (via collapsedFacilities), rendered as a quiet secondary row. The
-   "No shop" note deliberately shares the neutral metadata colour — on this
-   compact card the triangle icon alone differentiates it; full warning
-   treatment stays on the Stops screen. */
-.today-stop-facilities {
+.tonight-card__meta {
+  grid-area: meta;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+}
+.tonight-card__facilities {
+  min-width: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 8px;
-  margin-top: 6px;
 }
-.today-stop-facility {
+.tonight-card__facility {
   display: inline-flex;
   align-items: center;
   color: var(--spruce);
 }
-.today-stop-warning {
+/* The "No shop" note deliberately shares the neutral metadata colour — on
+   this compact card the triangle icon alone differentiates it; full warning
+   treatment stays on the Stops screen. */
+.tonight-card__warning {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2955,8 +3018,20 @@ button.stop-fac:focus-visible {
   color: #3f4f45;
   white-space: nowrap;
 }
-.today-action-card__chevron {
-  flex: 0 0 auto;
+.tonight-card__elevation {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: end;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3f4f45;
+  /* The number and its "m" never separate. */
+  white-space: nowrap;
+}
+.tonight-card__chevron {
+  grid-area: chevron;
+  justify-self: end;
   color: var(--ink-soft);
 }
 
@@ -3236,23 +3311,24 @@ button.stop-fac:focus-visible {
   min-width: 0;
 }
 
-/* Tonight row (On route): Tonight stays the flexible primary card; the STF
-   quick access is a compact fixed-width sibling action. When no membership
-   is marked for Today the row has a single child and Tonight keeps the full
-   width unchanged. */
+/* Tonight row (On route): the Tonight card owns ALL remaining width through
+   an explicit minmax(0, 1fr) track (min-width 0, so the title wraps inside
+   the card instead of forcing horizontal overflow). Quick actions — STF
+   membership and/or a linked ticket — are separate SIBLING controls in
+   implicit max-content columns, never nested inside the card. With no quick
+   action the row has a single child and Tonight keeps the full width. */
 .tonight-row {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-columns: max-content;
   align-items: stretch;
   gap: 10px;
   margin-top: 14px;
 }
 .tonight-row .today-action-card {
-  flex: 1 1 auto;
   min-width: 0;
   margin-top: 0;
-}
-.tonight-row .stf-card {
-  flex: 0 0 auto;
 }
 /* The STF quick access IS the official roundel (owner-approved asset): a
    circular button, no visible container. Affordances stay button-grade —
@@ -3325,11 +3401,11 @@ button.stop-fac:focus-visible {
     width: 64px;
     height: auto;
   }
-  /* When the STF card shares the row on the narrowest phones, the stop NAME
-     outranks the elevation chip — the value stays in the button's
-     aria-label, and returns whenever Tonight has the row to itself. */
-  .tonight-row:has(.stf-card) .today-action-card__side {
-    display: none;
+  /* The metadata row is never hidden on narrow phones any more — the
+     three-row card keeps facilities and elevation on their own full-width
+     row, so the compact treatment is simply a tighter row gap. */
+  .tonight-row {
+    gap: 8px;
   }
 }
 
