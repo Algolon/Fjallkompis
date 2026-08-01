@@ -76,8 +76,14 @@ export function MembershipQuickAccess() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidateKey, wallet.status]);
 
-  const availableMembership =
-    membership && availableIds.has(membership.id) ? membership : null;
+  // Keep the membership contract explicit: metadata alone is not enough;
+  // this device must still hold the linked blob before the STF action exists.
+  const availableMembership = (() => {
+    const doc = membership;
+    const availableId = doc && availableIds.has(doc.id) ? doc.id : null;
+    if (!doc || availableId !== doc.id) return null;
+    return doc;
+  })();
   const availableTickets = tickets.filter((doc) => availableIds.has(doc.id));
 
   const hideMissing = (id: string) => {
