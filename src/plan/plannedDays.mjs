@@ -121,17 +121,44 @@ function matchTravelItems(tripItems, date) {
 }
 
 /**
- * The effective overnight for a day, in the fixed resolution order:
- *   1. an explicit reference on the day;
+ * Exactly one Trip Stay covering the night that begins on `date`, or null.
+ *
+ * A dated stay is an explicit personal arrangement, so it can safely supply
+ * Tonight without requiring the user to link the same object again in the Day
+ * plan. Check-out is exclusive: a 3–4 Sep stay covers the night of 3 Sep, not
+ * 4 Sep. With no check-out date the stay covers its check-in night only — we
+ * never invent an indefinite duration. Multiple matching stays are ambiguous,
+ * so none is selected automatically; the Day plan's explicit overnight chooser
+ * remains the authority in that case.
+ */
+function matchStayForNight(tripItems, date) {
+  if (!Array.isArray(tripItems) || date == null) return null;
+  const matches = tripItems.filter((item) => {
+    if (item?.kind !== 'stay' || typeof item.checkInDate !== 'string') return false;
+    if (item.checkInDate > date) return false;
+    if (typeof item.checkOutDate === 'string') return date < item.checkOutDate;
+    return item.checkInDate === date;
+  });
+  return matches.length === 1 ? matches[0] : null;
+}
+
+/**
+ * The effective overnight for a day when no explicit Day-plan reference is
+ * stored, in the fixed resolution order:
+ *   1. exactly one dated Trip Stay covering this night;
  *   2. the day's hiking endpoint — where the LAST LEG ends;
  *   3. for a rest day, the previous day's effective overnight (it is based
  *      wherever the user already was);
  *   4. otherwise none.
  *
- * A Travel-only day therefore has NO overnight unless the user sets one:
+ * A Travel-only day therefore gains an overnight only from a real dated Stay;
  * a canonical Stop is never inferred from a trip item's free-text destination.
  */
-function deriveOvernight(record, stages, previous) {
+function deriveOvernight(record, stages, previous, tripItems, date) {
+  const stay = matchStayForNight(tripItems, date);
+  if (stay) {
+    return { kind: 'stay', tripItemId: stay.id, source: 'trip-stay' };
+  }
   if (stages.length > 0) {
     return { kind: 'stop', stopId: stages[stages.length - 1].toHutId, source: 'hiking' };
   }
@@ -141,9 +168,9 @@ function deriveOvernight(record, stages, previous) {
   return { kind: 'none', source: 'derived' };
 }
 
-function resolveOvernight(record, stages, previous) {
+function resolveOvernight(record, stages, previous, tripItems, date) {
   if (record.overnight) return { ...record.overnight, source: 'explicit' };
-  return deriveOvernight(record, stages, previous);
+  return deriveOvernight(record, stages, previous, tripItems, date);
 }
 
 /**
@@ -169,7 +196,7 @@ function buildDay(record, index, startDate, legs, pointers, tripItems, previousO
   const date = dateForDayIndex(startDate, index);
   const stages = legs.map((l) => l.stage);
   const last = stages[stages.length - 1] ?? null;
-  const overnight = resolveOvernight(record, stages, previousOvernight);
+  const overnight = resolveOvernight(record, stages, previousOvernight, tripItems, date);
   return {
     id: record.id,
     index,
@@ -194,8 +221,9 @@ function buildDay(record, index, startDate, legs, pointers, tripItems, previousO
     overnight,
     // What the overnight WOULD be with no explicit reference stored. The
     // chooser needs it to offer the way back to derived behaviour — otherwise
-    // a rest day that has been overridden once can never inherit again.
-    derivedOvernight: deriveOvernight(record, stages, previousOvernight),
+    // a rest day or dated Trip Stay that has been overridden once can never
+    // inherit again.
+    derivedOvernight: deriveOvernight(record, stages, previousOvernight, tripItems, date),
     travelItems: matchTravelItems(tripItems, date),
     isCurrent: pointers.currentDayId != null && record.id === pointers.currentDayId,
   };
