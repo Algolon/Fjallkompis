@@ -50,7 +50,11 @@ export function MembershipCardViewer({
     >
       <div className="credential-viewer__body">
         <div className="row-between sheet-head">
-          <h2 id={headingId}>{heading}</h2>
+          {heading === 'STF membership card' ? (
+            <h2 id={headingId}>STF membership card</h2>
+          ) : (
+            <h2 id={headingId}>{heading}</h2>
+          )}
           <button className="ctx-help-close" onClick={onClose} aria-label="Close">
             <X size={18} strokeWidth={2} aria-hidden />
           </button>
