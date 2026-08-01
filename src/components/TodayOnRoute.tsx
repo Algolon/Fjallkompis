@@ -17,9 +17,12 @@ import { MembershipQuickAccess } from './MembershipQuickAccess';
 import {
   STOPS_BY_ID,
   collapsedFacilities,
+  collapsedFacilityList,
   importantAbsences,
   stopShortName,
 } from '../data/stops';
+import { journeyPlaceById } from '../data/journeyPlaces.mjs';
+import type { CuratedOffRoutePlace } from '../data/journeyPlaces.mjs';
 import { stageHighlights } from '../data/stageHighlights.mjs';
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
@@ -121,16 +124,21 @@ export function TodayOnRoute({
     day.overnight.kind === 'stay'
       ? trip.find((i) => i.id === day.overnight.tripItemId) ?? null
       : null;
-  // A personal Stay linked to a canonical route Stop still represents that
-  // verified place. Reuse the Stop presentation so its compact STF name,
-  // facilities, warnings, elevation and Stop navigation do not disappear.
-  // Unlinked and curated off-route stays remain personal Stay cards.
-  const overnightStayStopId =
-    overnightStay?.kind === 'stay' &&
-    overnightStay.linkedPlaceId &&
-    STOPS_BY_ID[overnightStay.linkedPlaceId]
-      ? overnightStay.linkedPlaceId
+  // A personal Stay linked to a Journey Place still represents that verified
+  // place, resolved through the SAME selector the rest of the app uses
+  // (journeyPlaceById): a route-stop link reuses the full Stop presentation
+  // (compact STF name, facilities, warnings, elevation, Stop navigation); a
+  // curated off-route link (e.g. STF Kiruna) gets the curated Place card —
+  // verified facilities, no invented elevation, Place navigation. Unlinked
+  // and unresolvable stays remain personal Stay cards; nothing is ever
+  // inferred from titles or free text.
+  const overnightPlace =
+    overnightStay?.kind === 'stay' && overnightStay.linkedPlaceId
+      ? journeyPlaceById(overnightStay.linkedPlaceId, STOPS_BY_ID)
       : null;
+  const overnightStayStopId = overnightPlace?.kind === 'route-stop' ? overnightPlace.stopId : null;
+  const overnightCuratedPlace =
+    overnightPlace?.kind === 'curated-off-route' ? overnightPlace : null;
 
   return (
     <>
@@ -155,6 +163,12 @@ export function TodayOnRoute({
         <TonightCard stopId={overnightStopId} onNavigate={onNavigate} />
       ) : overnightStayStopId ? (
         <TonightCard stopId={overnightStayStopId} onNavigate={onNavigate} />
+      ) : overnightCuratedPlace && overnightStay ? (
+        <CuratedPlaceTonightCard
+          place={overnightCuratedPlace}
+          title={overnightStay.title}
+          onNavigate={onNavigate}
+        />
       ) : overnightStay ? (
         <StayTonightCard title={overnightStay.title} onNavigate={onNavigate} />
       ) : day.overnight.kind === 'stay' ? (
@@ -841,6 +855,61 @@ function TonightCard({ stopId, onNavigate }: { stopId: string; onNavigate: Navig
                 {elevation.toLocaleString('en-US')} m
               </span>
             ) : null}
+          </span>
+        ) : null}
+        <ChevronRight className="tonight-card__chevron" size={18} strokeWidth={2} aria-hidden />
+      </button>
+      <MembershipQuickAccess />
+    </div>
+  );
+}
+
+/**
+ * Tonight at a personal Stay linked to a CURATED OFF-ROUTE Journey Place
+ * (e.g. STF Kiruna). The title stays the user's own Stay title — the place
+ * supplies only verified metadata: up to four facility icons in the shared
+ * priority order, and navigation to the Place in Stops & places. No
+ * elevation is rendered — off-route Places carry no verified waypoint, and
+ * nothing is ever invented. Same three-row hierarchy as the canonical card;
+ * the metadata row simply has an empty right-hand column.
+ */
+function CuratedPlaceTonightCard({
+  place,
+  title,
+  onNavigate,
+}: {
+  place: CuratedOffRoutePlace;
+  title: string;
+  onNavigate: Navigate;
+}) {
+  const facilities = collapsedFacilityList(place.facilities, 4);
+  const labels = facilities.map((f) => f.label);
+  const facilitySentence =
+    labels.length > 0
+      ? ` Facilities include ${
+          labels.length > 1
+            ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+            : labels[0]
+        }.`
+      : '';
+  return (
+    <div className="tonight-row">
+      <button
+        className="today-action-card tonight-card today-glass today-glass--light"
+        onClick={() => onNavigate('huts', { placeId: place.id })}
+        aria-label={`Tonight: ${title}.${facilitySentence} Opens place details in Stops & places.`}
+      >
+        <span className="tonight-card__label">Tonight</span>
+        <span className="tonight-card__title">{title}</span>
+        {facilities.length > 0 ? (
+          <span className="tonight-card__meta" aria-hidden>
+            <span className="tonight-card__facilities">
+              {facilities.map((f) => (
+                <span key={f.id} className="tonight-card__facility" title={f.label}>
+                  <FacilityIcon id={f.id} size={15} />
+                </span>
+              ))}
+            </span>
           </span>
         ) : null}
         <ChevronRight className="tonight-card__chevron" size={18} strokeWidth={2} aria-hidden />

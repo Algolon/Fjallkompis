@@ -287,7 +287,17 @@ const COLLAPSED_PRIORITY: FacilityId[] = [
 ];
 
 export function collapsedFacilities(stop: TrailStop, max = 5): StopFacility[] {
-  const present = stop.facilities.filter((f) => !f.importantAbsence);
+  return collapsedFacilityList(stop.facilities, max);
+}
+
+/**
+ * The same priority/cap collapse over a bare facility list. Shared by the
+ * route-Stop cards and the curated off-route Journey Places (e.g. STF
+ * Kiruna), whose verified records carry the same StopFacility shape but are
+ * deliberately not TrailStops.
+ */
+export function collapsedFacilityList(facilities: StopFacility[], max = 5): StopFacility[] {
+  const present = facilities.filter((f) => !f.importantAbsence);
   return COLLAPSED_PRIORITY.map((id) => present.find((f) => f.id === id))
     .filter((f): f is StopFacility => f != null)
     .slice(0, max);
