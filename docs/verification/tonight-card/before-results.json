@@ -1,0 +1,522 @@
+[
+  {
+    "scenario": "A-travel-linked-abisko-2qa",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 458.3,
+      "w": 343,
+      "h": 103.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 458.3,
+      "w": 195,
+      "h": 103.6
+    },
+    "title": {
+      "x": 30,
+      "y": 486.3,
+      "w": 66.8,
+      "h": 20.6
+    },
+    "titleText": "STF Abisko",
+    "titleClipped": true,
+    "metadataRow": {
+      "x": 30,
+      "y": 516,
+      "w": 66.8,
+      "h": 34
+    },
+    "elevation": {
+      "x": 106.8,
+      "y": 502.7,
+      "w": 62.2,
+      "h": 15
+    },
+    "facilityIconCount": 5,
+    "stfCard": {
+      "x": 221,
+      "y": 478.2,
+      "w": 64,
+      "h": 64
+    },
+    "ticketCard": {
+      "x": 295,
+      "y": 478.2,
+      "w": 64,
+      "h": 64
+    },
+    "cardAriaLabel": "Tonight: STF Abisko, 388 metres elevation. Facilities include Shop, Sauna, Restaurant, Guest kitchen and Shower. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "A-travel-linked-abisko-2qa",
+    "viewport": {
+      "w": 320,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 454.3,
+      "w": 288,
+      "h": 103.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 454.3,
+      "w": 156,
+      "h": 103.6
+    },
+    "title": {
+      "x": 30,
+      "y": 482.3,
+      "w": 100,
+      "h": 20.6
+    },
+    "titleText": "STF Abisko",
+    "titleClipped": true,
+    "metadataRow": {
+      "x": 30,
+      "y": 512,
+      "w": 100,
+      "h": 34
+    },
+    "elevation": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "facilityIconCount": 5,
+    "stfCard": {
+      "x": 182,
+      "y": 478.2,
+      "w": 56,
+      "h": 56
+    },
+    "ticketCard": {
+      "x": 248,
+      "y": 478.2,
+      "w": 56,
+      "h": 56
+    },
+    "cardAriaLabel": "Tonight: STF Abisko, 388 metres elevation. Facilities include Shop, Sauna, Restaurant, Guest kitchen and Shower. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "B-hiking-explicit-abiskojaure-1qa",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 531.1,
+      "w": 343,
+      "h": 84.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 531.1,
+      "w": 269,
+      "h": 84.6
+    },
+    "title": {
+      "x": 30,
+      "y": 559.1,
+      "w": 140.8,
+      "h": 20.6
+    },
+    "titleText": "STF Abiskojaure",
+    "titleClipped": true,
+    "metadataRow": {
+      "x": 30,
+      "y": 588.8,
+      "w": 140.8,
+      "h": 15
+    },
+    "elevation": {
+      "x": 180.8,
+      "y": 565.9,
+      "w": 62.2,
+      "h": 15
+    },
+    "facilityIconCount": 4,
+    "stfCard": {
+      "x": 295,
+      "y": 541.4,
+      "w": 64,
+      "h": 64
+    },
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: STF Abiskojaure, 488 metres elevation. Facilities include Shop, Sauna, Guest kitchen and Staffed. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "B-hiking-explicit-abiskojaure-1qa",
+    "viewport": {
+      "w": 320,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 578.9,
+      "w": 288,
+      "h": 84.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 578.9,
+      "w": 222,
+      "h": 84.6
+    },
+    "title": {
+      "x": 30,
+      "y": 606.9,
+      "w": 166,
+      "h": 20.6
+    },
+    "titleText": "STF Abiskojaure",
+    "titleClipped": false,
+    "metadataRow": {
+      "x": 30,
+      "y": 636.5,
+      "w": 166,
+      "h": 15
+    },
+    "elevation": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    },
+    "facilityIconCount": 4,
+    "stfCard": {
+      "x": 248,
+      "y": 593.2,
+      "w": 56,
+      "h": 56
+    },
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: STF Abiskojaure, 488 metres elevation. Facilities include Shop, Sauna, Guest kitchen and Staffed. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "B2-hiking-dated-unlinked-stay",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 531.1,
+      "w": 343,
+      "h": 64
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 531.1,
+      "w": 269,
+      "h": 64
+    },
+    "title": {
+      "x": 30,
+      "y": 560.8,
+      "w": 213,
+      "h": 20.6
+    },
+    "titleText": "STF Abiskojaure",
+    "titleClipped": false,
+    "metadataRow": null,
+    "elevation": null,
+    "facilityIconCount": 0,
+    "stfCard": {
+      "x": 295,
+      "y": 531.1,
+      "w": 64,
+      "h": 64
+    },
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: STF Abiskojaure. Opens your Trip plan.",
+    "overlap": false
+  },
+  {
+    "scenario": "B3-hiking-dated-linked-stay",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 531.1,
+      "w": 343,
+      "h": 84.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 531.1,
+      "w": 269,
+      "h": 84.6
+    },
+    "title": {
+      "x": 30,
+      "y": 559.1,
+      "w": 140.8,
+      "h": 20.6
+    },
+    "titleText": "STF Abiskojaure",
+    "titleClipped": true,
+    "metadataRow": {
+      "x": 30,
+      "y": 588.8,
+      "w": 140.8,
+      "h": 15
+    },
+    "elevation": {
+      "x": 180.8,
+      "y": 565.9,
+      "w": 62.2,
+      "h": 15
+    },
+    "facilityIconCount": 4,
+    "stfCard": {
+      "x": 295,
+      "y": 541.4,
+      "w": 64,
+      "h": 64
+    },
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: STF Abiskojaure, 488 metres elevation. Facilities include Shop, Sauna, Guest kitchen and Staffed. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "D1-tjaktja-noshop",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 555.1,
+      "w": 343,
+      "h": 84.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 555.1,
+      "w": 343,
+      "h": 84.6
+    },
+    "title": {
+      "x": 30,
+      "y": 583.1,
+      "w": 200.8,
+      "h": 20.6
+    },
+    "titleText": "STF Tjäktja",
+    "titleClipped": false,
+    "metadataRow": {
+      "x": 30,
+      "y": 612.8,
+      "w": 200.8,
+      "h": 15
+    },
+    "elevation": {
+      "x": 240.8,
+      "y": 589.9,
+      "w": 76.2,
+      "h": 15
+    },
+    "facilityIconCount": 2,
+    "stfCard": null,
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: STF Tjäktja, 1017 metres elevation, no shop. Facilities include Guest kitchen and Staffed. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "D2-kebnekaise",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 555.1,
+      "w": 343,
+      "h": 84.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 555.1,
+      "w": 269,
+      "h": 84.6
+    },
+    "title": {
+      "x": 30,
+      "y": 583.1,
+      "w": 140.8,
+      "h": 20.6
+    },
+    "titleText": "STF Kebnekaise",
+    "titleClipped": true,
+    "metadataRow": {
+      "x": 30,
+      "y": 612.8,
+      "w": 140.8,
+      "h": 15
+    },
+    "elevation": {
+      "x": 180.8,
+      "y": 589.9,
+      "w": 62.2,
+      "h": 15
+    },
+    "facilityIconCount": 5,
+    "stfCard": {
+      "x": 295,
+      "y": 565.4,
+      "w": 64,
+      "h": 64
+    },
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: STF Kebnekaise, 673 metres elevation. Facilities include Shop, Sauna, Restaurant, Guest kitchen and Shower. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "D3-nikkaluokta-village",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 559.9,
+      "w": 343,
+      "h": 84.6
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 559.9,
+      "w": 343,
+      "h": 84.6
+    },
+    "title": {
+      "x": 30,
+      "y": 587.9,
+      "w": 214.8,
+      "h": 20.6
+    },
+    "titleText": "Nikkaluokta",
+    "titleClipped": false,
+    "metadataRow": {
+      "x": 30,
+      "y": 617.5,
+      "w": 214.8,
+      "h": 15
+    },
+    "elevation": {
+      "x": 254.8,
+      "y": 594.7,
+      "w": 62.2,
+      "h": 15
+    },
+    "facilityIconCount": 5,
+    "stfCard": null,
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: Nikkaluokta, 468 metres elevation. Facilities include Shop, Sauna, Restaurant, Guest kitchen and Shower. Opens stop details in Stops.",
+    "overlap": false
+  },
+  {
+    "scenario": "E-generic-offroute-stay",
+    "viewport": {
+      "w": 375,
+      "h": 667
+    },
+    "docOverflowX": 0,
+    "bodyOverflowX": 0,
+    "docNoScrollY": true,
+    "docScrollHeight": 667,
+    "docClientHeight": 667,
+    "tonightRow": {
+      "x": 16,
+      "y": 458.3,
+      "w": 343,
+      "h": 64
+    },
+    "tonightCard": {
+      "x": 16,
+      "y": 458.3,
+      "w": 269,
+      "h": 64
+    },
+    "title": {
+      "x": 30,
+      "y": 488,
+      "w": 213,
+      "h": 20.6
+    },
+    "titleText": "Hotel Arctic Eden, Kiruna",
+    "titleClipped": true,
+    "metadataRow": null,
+    "elevation": null,
+    "facilityIconCount": 0,
+    "stfCard": {
+      "x": 295,
+      "y": 458.3,
+      "w": 64,
+      "h": 64
+    },
+    "ticketCard": null,
+    "cardAriaLabel": "Tonight: Hotel Arctic Eden, Kiruna. Opens your Trip plan.",
+    "overlap": false
+  }
+]

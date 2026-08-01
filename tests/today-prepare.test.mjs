@@ -411,7 +411,7 @@ test('On route keeps its content, and Tonight pairs with the STF quick access', 
   for (const marker of [
     'className="hero"',
     'aria-label="Journey progress"',
-    'today-action-card__label">Tonight',
+    'tonight-card__label">Tonight',
     'Choose a stage',
   ]) {
     assert.ok(todayOnRoute.includes(marker), `On route keeps ${marker}`);

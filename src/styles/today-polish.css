@@ -153,10 +153,4 @@
     width: 56px;
     height: 56px;
   }
-
-  /* Two compact quick actions leave the stop/stay title as the priority; the
-     side value remains present in the card's accessible name. */
-  .tonight-row:has(.ticket-card) .today-action-card__side {
-    display: none;
-  }
 }
