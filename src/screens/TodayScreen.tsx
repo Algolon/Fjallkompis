@@ -3,6 +3,7 @@ import { useStore } from '../store/AppStore';
 import { ScreenHeader } from '../components/ui';
 import { TodayPrepare } from '../components/TodayPrepare';
 import { TodayOnRoute } from '../components/TodayOnRoute';
+import { resolveTodayArrivalStay } from '../plan/todayArrivalStay.mjs';
 import { readTodayMode, saveTodayMode } from '../utils/todayMode.mjs';
 import type { TodayMode } from '../utils/todayMode.mjs';
 import type { TabId } from '../components/TabBar';
@@ -81,7 +82,21 @@ export function TodayScreen({ onNavigate }: { onNavigate: Navigate }) {
   // canonical default state, and On route then renders its original,
   // date-independent stage view — no dates, no activity indicators, nothing
   // inferred from trip data or the clock.
-  const { currentStage, routeDirection, plannedDays, currentPlannedDay, state } = useStore();
+  const {
+    currentStage,
+    routeDirection,
+    plannedDays,
+    currentPlannedDay: resolvedPlannedDay,
+    state,
+  } = useStore();
+  // The store owns Preview/manual/date resolution. This final presentation
+  // fallback can only add one unambiguous linked arrival Stay; it never reads
+  // the clock, scans derived progress flags or writes Day-plan state.
+  const currentPlannedDay = resolveTodayArrivalStay(
+    resolvedPlannedDay,
+    plannedDays,
+    state.trip,
+  );
 
   // Manual mode only — remembered per device (non-versioned UI preference,
   // see utils/todayMode.mjs), never switched by dates, GPS or trip phase.
