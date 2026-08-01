@@ -449,6 +449,7 @@ function PlannedJourney({
   source: TodaySource;
   onNavigate: Navigate;
 }) {
+  const { setCurrentPlannedDay } = useStore();
   const [choosing, setChoosing] = useState(false);
   const chooserTriggerRef = useRef<HTMLButtonElement | null>(null);
   const openChooser = (trigger: HTMLButtonElement) => {
@@ -500,17 +501,26 @@ function PlannedJourney({
         {plannedDays.map((d) => {
           const status =
             d.number < day.number ? 'past' : d.number === day.number ? 'current' : 'future';
+          const alreadyShown = status === 'current' && !previewing;
           return (
             <button
               key={d.id}
               role="listitem"
               className={`journey-step is-${status}${d.stages.length === 0 ? ' is-off-trail' : ''}`}
-              onClick={(e) => journeyActive ? openChooser(e.currentTarget) : onNavigate('stages')}
+              onClick={() => {
+                if (!journeyActive) {
+                  onNavigate('stages');
+                  return;
+                }
+                // Keep a selected occurrence intact when its day is already
+                // shown. A preview is different: tapping it commits that day.
+                if (!alreadyShown) setCurrentPlannedDay(d.id);
+              }}
               // A previewed day is highlighted but never announced as actual
               // progress: "(previewing)", and no aria-current step claim.
               aria-label={`Day ${d.number}: ${label(d)}${
                 status === 'current' ? (previewing ? ' (previewing)' : ' (current day)') : ''
-              }. ${journeyActive ? 'Opens planned-day chooser.' : 'Opens Stages.'}`}
+              }. ${journeyActive ? (alreadyShown ? 'Already shown on Today.' : 'Show this day on Today.') : 'Opens Stages.'}`}
               aria-current={status === 'current' && !previewing ? 'step' : undefined}
             >
               <span className="journey-dot tnum">{d.number}</span>
