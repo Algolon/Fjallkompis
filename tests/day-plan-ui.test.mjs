@@ -560,27 +560,20 @@ test('previewing keeps the ordered activity glyphs visible (v0.26.2 regression)'
   assert.match(onRoute, /aria-label="Exit preview — return to today’s own view"/);
 });
 
-test('a multi-stage day offers one honest action and no whole-day map claim', () => {
-  const combined = stripComments(
-    onRoute.slice(
-      onRoute.indexOf('{hiking && multiStage && leadStage ? ('),
-      onRoute.indexOf(') : hiking && leadStage ? ('),
-    ),
-  );
-  assert.match(combined, /Open in Stages/);
-  assert.match(combined, /guideStageId: leadStage\.id/, "it opens the DAY's first stage");
-  assert.ok(!/Stage Guide|View Route|mapStageId/.test(combined));
-  assert.ok(!/Stage guides/.test(combined), 'never a plural label for one deep link');
+test('a multi-stage day exposes its sequence, all guides and a verified whole-day map focus', () => {
+  assert.match(onRoute, /\{day\.stages\.length\} stages/);
+  assert.match(onRoute, /<CombinedStageSummary day=\{day\} \/>/);
+  assert.match(onRoute, /guideStageIds=\{guideStageIds\}/);
+  assert.match(onRoute, /routeFocus=\{routeFocus\}/);
+  assert.match(onRoute, /const routeFocus = multiStage \? hikingDayRouteFocus\(day\) : null;/);
+  assert.match(onRoute, /tracks: routeFocus\.tracks/);
 });
 
-test('a single-stage planned day keeps chips and both original actions', () => {
-  assert.match(onRoute, /hiking && !multiStage && !travel && leadStage\s*\?\s*stageHighlights/);
-  const single = onRoute.slice(
-    onRoute.indexOf(') : hiking && leadStage ? ('),
-    onRoute.indexOf('{/* Travel-ONLY days'),
-  );
-  assert.match(single, /Stage Guide/);
-  assert.match(single, /View Route/);
+test('a single-stage planned day keeps its established chips and shared actions', () => {
+  assert.match(onRoute, /: !travel\s*\? stageHighlights\(leadStage\.id/);
+  assert.match(onRoute, /function HikingHeroActions\(/);
+  assert.match(onRoute, /> Stage guide/);
+  assert.match(onRoute, /> View route/);
 });
 
 test('every planned-day hero fact comes from the DAY, never from currentStage', () => {
@@ -592,10 +585,11 @@ test('every planned-day hero fact comes from the DAY, never from currentStage', 
   );
   assert.ok(!/currentStage/.test(hero), 'the planned hero never reads currentStage');
   assert.match(hero, /const leadStage: ItineraryStage \| null = day\.stages\[0\] \?\? null;/);
-  // Chips and both deep links resolve through that same day-owned stage.
+  // Chips, guides and full-day map geometry resolve only through the day.
   assert.match(hero, /stageHighlights\(leadStage\.id/);
-  assert.match(hero, /guideStageId: leadStage\.id/);
-  assert.match(hero, /mapStageId: leadStage\.id/);
+  assert.match(hero, /const guideStageIds = day\.legs\.map/);
+  assert.match(hero, /hikingDayRouteFocus\(day\)/);
+  assert.match(hero, /mapStageId=\{leadStage\.id\}/);
 });
 
 test('the no-plan hero still runs on currentStage, unchanged', () => {
@@ -603,8 +597,8 @@ test('the no-plan hero still runs on currentStage, unchanged', () => {
     onRoute.slice(onRoute.indexOf('function StageHero('), onRoute.indexOf('function StageJourney(')),
   );
   assert.match(stageHero, /stageHighlights\(stage\.id/);
-  assert.match(stageHero, /guideStageId: stage\.id/);
-  assert.match(stageHero, /mapStageId: stage\.id/);
+  assert.match(stageHero, /guideStageIds=\{\[stage\.id\]\}/);
+  assert.match(stageHero, /mapStageId=\{stage\.id\}/);
   // TodayOnRoute passes the route pointer straight through in the no-plan path.
   assert.match(onRoute, /<StageHero\s+stage=\{currentStage\}/);
 });

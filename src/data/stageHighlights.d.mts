@@ -54,3 +54,9 @@ export declare function stageHighlights(
   max?: number,
   direction?: RouteDirection | string,
 ): StageHighlight[];
+
+/** Deduplicated, priority-capped highlights for an ordered set of walked legs. */
+export declare function combinedStageHighlights(
+  legs: ReadonlyArray<{ stageId: string; direction: RouteDirection | string }>,
+  max?: number,
+): StageHighlight[];

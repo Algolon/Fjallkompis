@@ -23,6 +23,8 @@ export interface NavPayload {
   mapStageId?: string | null;
   /** Stages: open (and scroll to) this stage's day guide on arrival. */
   guideStageId?: string;
+  /** Stages: open every guide belonging to a combined planned hiking day. */
+  guideStageIds?: string[];
   /**
    * Stages: the opened guide was reached from a planned leg that walks the
    * stage in the OPPOSITE direction. The card then carries a contextual
@@ -32,6 +34,8 @@ export interface NavPayload {
    * reads no plan data.
    */
   guideReversed?: boolean;
+  /** Combined-day equivalent of guideReversed, keyed by physical stage id. */
+  guideReversedStageIds?: string[];
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
   /** Settings: one-shot deep link opening a section (Prepare's readiness card). */
@@ -48,6 +52,8 @@ export interface NavPayload {
     label: string;
     coord?: LatLng;
     track?: LatLng[];
+    /** Separate verified tracks; never joined with synthetic connectors. */
+    tracks?: LatLng[][];
     start?: LatLng;
     destination?: LatLng;
     note?: string;

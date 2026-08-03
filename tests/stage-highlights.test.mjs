@@ -25,6 +25,7 @@ import {
   MAX_STAGE_HIGHLIGHTS,
   REVERSE_STAGE_HIGHLIGHT_IDS,
   STAGE_HIGHLIGHT_IDS,
+  combinedStageHighlights,
   highlightIdsFor,
   stageHighlights,
 } from '../src/data/stageHighlights.mjs';
@@ -148,6 +149,28 @@ test('stageHighlights respects the direction argument, defaulting to forward', (
   );
 });
 
+test('combined highlights deduplicate before the shared priority cap', () => {
+  const shown = combinedStageHighlights([
+    { stageId: 'd3', direction: 'abisko-to-nikkaluokta' },
+    { stageId: 'd4', direction: 'abisko-to-nikkaluokta' },
+  ]);
+  assert.deepEqual(shown.map((item) => item.id), [
+    'exposed',
+    'snow-patches',
+    'route-high-point',
+    'steep-descent',
+  ]);
+  assert.equal(shown.filter((item) => item.id === 'exposed').length, 1);
+});
+
+test('combined highlights resolve each leg in its actual direction', () => {
+  const shown = combinedStageHighlights([
+    { stageId: 'd4', direction: 'nikkaluokta-to-abisko' },
+  ]);
+  assert.ok(shown.some((item) => item.id === 'steep-ascent'));
+  assert.ok(!shown.some((item) => item.id === 'steep-descent'));
+});
+
 // ---- Display selector: priority, cap, spread --------------------------------
 
 test('stageHighlights returns at most four, sorted by priority', () => {
@@ -253,37 +276,31 @@ test('every taxonomy icon key is mapped to a lucide component on Today', () => {
   }
 });
 
-test('Stage Guide opens the CURRENT stage’s guide on Stages', () => {
-  // No plan: the hero IS the current stage, passed in as `stage`.
-  assert.match(
-    today,
-    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: stage\.id \}\)\}/,
-  );
-  // With a plan: the day's OWN first stage, so the guide always matches the
-  // route printed above it — carrying the reverse-context flag when the
-  // lead leg walks the section the other way.
-  assert.match(
-    today,
-    /onClick=\{\(\) => onNavigate\('stages', \{ guideStageId: leadStage\.id, guideReversed: leadLegReversed \}\)\}/,
-  );
-  assert.match(today, />\s*Stage Guide\s*</, 'visible Stage Guide label');
+test('Stage guide opens every day-owned constituent guide on Stages', () => {
+  assert.match(today, /function HikingHeroActions\(/);
+  assert.match(today, /guideStageId: uniqueGuideStageIds\[0\]/);
+  assert.match(today, /guideStageIds: uniqueGuideStageIds/);
+  assert.match(today, /guideReversedStageIds: uniqueReversedStageIds/);
+  assert.match(today, /> Stage guide\s*<\/button>/, 'visible Stage guide label');
   // App.tsx forwards the one-shot payload into StagesScreen.
   const app = readFileSync(join(root, 'src/App.tsx'), 'utf8');
   assert.match(
     app,
     /initialGuideStageId=\{nav\.payload\?\.guideStageId \?\? null\}/,
   );
+  assert.match(app, /initialGuideStageIds=\{nav\.payload\?\.guideStageIds\}/);
   // StagesScreen never leaves the user at a generic collapsed list: the
-  // deep-linked guide opens and its card scrolls into view.
+  // deep-linked guides open and the first card scrolls into view.
   const stages = readFileSync(join(root, 'src/screens/StagesScreen.tsx'), 'utf8');
-  assert.match(stages, /initialGuideStageId \? \[initialGuideStageId\] : \[\]/);
+  assert.match(stages, /initialGuideStageIds\?\.length/);
+  assert.match(stages, /new Set<string>\(initiallyOpenGuideIds\)/);
   assert.match(stages, /scrollIntoView/);
 });
 
-test('View Route focuses the Map on the current stage via the payload', () => {
-  assert.match(today, /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: stage\.id \}\)\}/);
-  assert.match(today, /onClick=\{\(\) => onNavigate\('map', \{ mapStageId: leadStage\.id \}\)\}/);
-  assert.match(today, />\s*View Route\s*</, 'visible View Route label');
+test('View route focuses one stage or every verified combined-day track', () => {
+  assert.match(today, /tracks: routeFocus\.tracks/);
+  assert.match(today, /onNavigate\('map', \{ mapStageId \}\)/);
+  assert.match(today, /> View route\s*<\/button>/, 'visible View route label');
 });
 
 test('the remembered in-session Map context is only overwritten explicitly', () => {
@@ -296,34 +313,18 @@ test('the remembered in-session Map context is only overwritten explicitly', () 
   assert.match(app, /setMapViewStageId\(payload\?\.mapStageId \?\? null\);/);
 });
 
-test('the block keeps its fixed responsibility — no dashboard creep', () => {
-  const hero = today.slice(
-    today.indexOf('function PlannedDayHero('),
-    today.indexOf('function PlannedJourney'),
-  );
-  // At most two follow-up actions at a time. A single canonical stage keeps
-  // Stage Guide + View Route; a day covering several stages shows ONE action
-  // instead (either alone would open just one of them — narrower than the
-  // hero's claim); a travel or rest day gets its own single action.
-  const combined = hero.slice(
-    hero.indexOf('{hiking && multiStage && leadStage ? ('),
-    hero.indexOf(') : hiking && leadStage ? ('),
-  );
-  const singleStage = hero.slice(
-    hero.indexOf(') : hiking && leadStage ? ('),
-    hero.indexOf('{/* Travel-ONLY days'),
+test('the hiking action block keeps exactly two shared follow-up actions', () => {
+  const actions = today.slice(
+    today.indexOf('function HikingHeroActions('),
+    today.indexOf('function CombinedStageSummary('),
   );
   assert.equal(
-    (singleStage.match(/className="hero-action(?: |")/g) ?? []).length,
+    (actions.match(/className="hero-action(?: |")/g) ?? []).length,
     2,
-    'a single-stage day keeps exactly two follow-up actions',
+    'all hiking days share exactly two follow-up actions',
   );
-  assert.equal(
-    (combined.match(/className="hero-action(?: |")/g) ?? []).length,
-    1,
-    'a multi-stage day offers exactly one, pointing at Stages',
-  );
-  assert.match(combined, /Open in Stages/);
+  const hero = today.slice(today.indexOf('function PlannedDayHero('), today.indexOf('function PlannedJourney'));
+  assert.match(hero, /<CombinedStageSummary day=\{day\} \/>/);
   // No separate visible heading above the chips (deliberate review decision).
   assert.ok(!/Highlights</.test(hero), 'no "Highlights" heading');
   assert.ok(!/Stage Briefing/.test(hero), 'no "Stage Briefing" heading');

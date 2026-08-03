@@ -76,11 +76,15 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
 
 export function StagesScreen({
   initialGuideStageId,
+  initialGuideStageIds,
   initialGuideReversed,
+  initialGuideReversedStageIds,
   onNavigate,
 }: {
   /** Today's "Stage Guide" deep link: open this stage's guide on arrival. */
   initialGuideStageId?: string | null;
+  /** Combined-day deep link: open all constituent guides, scroll to the first. */
+  initialGuideStageIds?: string[];
   /**
    * The deep-linked guide was reached from a planned leg walking the stage
    * in the OPPOSITE direction — the opened card carries a contextual note.
@@ -88,10 +92,21 @@ export function StagesScreen({
    * itself still reads no plan data for its cards.
    */
   initialGuideReversed?: boolean;
+  /** Physical stage ids whose planned leg runs opposite the active itinerary. */
+  initialGuideReversedStageIds?: string[];
   /** Router, for the "View on map" one-shot focus deep-link. */
   onNavigate?: (tab: 'map', payload?: NavPayload) => void;
 }) {
   const { state, itinerary, stages, currentStage, setCurrentStage, plannedDays } = useStore();
+  const initiallyOpenGuideIds = initialGuideStageIds?.length
+    ? initialGuideStageIds
+    : initialGuideStageId
+      ? [initialGuideStageId]
+      : [];
+  const initiallyReversedGuideIds = new Set(initialGuideReversedStageIds ?? []);
+  if (initialGuideReversed && initialGuideStageId) {
+    initiallyReversedGuideIds.add(initialGuideStageId);
+  }
   // "Set as current" and planned OCCURRENCES: a stage may be walked on
   // several planned days (or twice on one). Selecting by stage id alone
   // would then be a guess, so ambiguity opens a chooser and NO pointer
@@ -121,7 +136,7 @@ export function StagesScreen({
   // from Today's Stage Guide action (matches the Stops accordion pattern:
   // local state only, nothing persisted).
   const [openGuides, setOpenGuides] = useState<ReadonlySet<string>>(
-    () => new Set<string>(initialGuideStageId ? [initialGuideStageId] : []),
+    () => new Set<string>(initiallyOpenGuideIds),
   );
   // The full-route elevation profile is an on-demand disclosure inside the
   // summary card — collapsed by default so the default Stages page stays
@@ -135,7 +150,7 @@ export function StagesScreen({
     () => new Set<string>(),
   );
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
-  const scrollTargetId = useRef(initialGuideStageId ?? null);
+  const scrollTargetId = useRef<string | null>(initiallyOpenGuideIds[0] ?? null);
 
   // When arriving via Stage Guide, bring the (already expanded) current
   // stage card into view once mounted — the user must never have to find
@@ -342,7 +357,7 @@ export function StagesScreen({
                   rewritten or mirrored — it describes the walk named in the
                   card title; the leg's own endpoints, statistics and map
                   orientation live on Today. */}
-              {initialGuideReversed && stage.id === initialGuideStageId ? (
+              {initiallyReversedGuideIds.has(stage.id) ? (
                 <p className="card-sub stage-card__reversed-note">
                   Your planned leg walks this section in the opposite
                   direction ({stopShortName(to)} → {stopShortName(from)}).

@@ -2560,12 +2560,8 @@ button.stop-fac:focus-visible {
   }
 }
 
-/* The two follow-up actions. Stage Guide (primary, cloudberry fill) is the
-   information-depth action; View Route (glacier fill, the design system's
-   secondary button colour — see .btn-glacier) the complementary spatial one.
-   Both are SOLID fills on purpose: the quiet glass surface belongs to the
-   chips alone, so metadata and controls can't be mistaken for each other.
-   Equal widths, capped so wide layouts don't stretch them into bars. */
+/* Hero actions share one compact layout. Hiking actions add the liquid-glass
+   modifier below; travel/rest actions deliberately retain these solid fills. */
 .hero-actions {
   display: flex;
   gap: 8px;
@@ -2585,7 +2581,7 @@ button.stop-fac:focus-visible {
   font-size: 13px;
   font-weight: 700;
   padding: 8px 12px;
-  min-height: 40px;
+  min-height: 44px;
   border-radius: 999px;
   white-space: nowrap;
   transition: transform 0.08s ease;
@@ -2597,6 +2593,88 @@ button.stop-fac:focus-visible {
 }
 .hero-action:active {
   transform: scale(0.96);
+}
+.hero-action:disabled {
+  cursor: default;
+  opacity: 0.58;
+  transform: none;
+}
+
+/* Hiking-only liquid glass = the Today panel material with a uniform brand
+   tint. This is the SAME construction as .today-glass--light / .today-mode,
+   not a button interpretation of it: one flat translucent fill on the
+   element, the shared --glass-blur/saturate/brightness backdrop lift, and
+   the capsule's own ::before optical edge (hairline --glass-rim + 1px
+   --glass-highlight; like .today-mode, the card-scale inner shade is
+   omitted at control size) over .today-mode's control-scale shadows. The
+   only button-specific ingredient is --action-tint — ONE constant colour
+   per variant, no gradient stops.
+
+   Tint derivation: a flat token-alpha fill over the dark hero composites
+   toward khaki/grey-teal, so each tint is the house token pre-lightened
+   along its own hue such that tint over the spruce-700 hero band re-
+   composites to ≈ the ORIGINAL solid action colour (--cloudberry #b78443 /
+   --glacier #6a8d95) while ~30% of the backdrop — contours, silhouette —
+   stays live through the pane, exactly like the panels over the contour
+   background. */
+.hero-action--glass {
+  /* uniform glacier pane: composites back to ≈ --glacier over the hero */
+  --action-tint: rgba(131, 172, 189, 0.68);
+  position: relative;
+  border: 0;
+  color: #f7faf8;
+  background: var(--action-tint);
+  backdrop-filter: blur(var(--glass-blur, 3px)) saturate(var(--glass-saturate, 1.15))
+    brightness(var(--glass-brightness, 1.04));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 3px))
+    saturate(var(--glass-saturate, 1.15)) brightness(var(--glass-brightness, 1.04));
+  box-shadow:
+    0 1px 2px rgba(12, 24, 20, 0.08),
+    0 5px 14px rgba(12, 24, 20, 0.12);
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+.hero-action--glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 var(--glass-rim-w, 0.5px) var(--glass-rim, rgba(255, 255, 255, 0.5)),
+    inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.24));
+}
+.hero-action--glass.hero-action--primary {
+  /* uniform cloudberry pane: composites back to ≈ --cloudberry */
+  --action-tint: rgba(234, 154, 68, 0.72);
+}
+/* Hover is the shared glass hover (.today-action-card): a brightness pop
+   that keeps the material intact instead of swapping the fill. */
+@media (hover: hover) {
+  .hero-action--glass:hover {
+    filter: brightness(1.07);
+  }
+}
+/* No backdrop-filter: like the panels' near-opaque paper fallback, the pane
+   densifies — here to the near-solid house action fills themselves. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hero-action--glass {
+    --action-tint: rgba(106, 141, 149, 0.96); /* --glacier */
+  }
+  .hero-action--glass.hero-action--primary {
+    --action-tint: rgba(183, 132, 67, 0.96); /* --cloudberry */
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .hero-action--glass {
+    --action-tint: rgba(74, 101, 109, 0.97); /* --glacier-700 */
+    --glass-rim: rgba(255, 255, 255, 0.85); /* scoped to the pill's edge */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .hero-action--glass.hero-action--primary {
+    --action-tint: rgba(154, 106, 62, 0.97); /* dark cloudberry, .pill-current ink */
+    --glass-rim: #f0e1cb; /* --cloudberry-soft */
+  }
 }
 .hero + .card {
   margin-top: 0;
@@ -2904,6 +2982,9 @@ button.stop-fac:focus-visible {
 .today-screen .hero-action:focus-visible {
   outline: 2px solid var(--glacier-700);
   outline-offset: 2px;
+}
+.today-screen .hero-action--glass:focus-visible {
+  outline-color: #f5c97b;
 }
 .card + .today-action-card {
   margin-top: 14px;
@@ -5976,4 +6057,76 @@ span.trip-attach-open {
   font-size: 13.5px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.72);
+}
+.hero-via--stages {
+  line-height: 1.35;
+}
+
+/* Combined-day sequence: one quiet ruled group rather than nested cards.
+   Two stages stay visible without a tap; 3+ uses a native disclosure so the
+   mobile hero does not grow without bound. */
+.hero-segments-wrap,
+.hero-segments-disclosure {
+  margin-top: 9px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+.hero-segments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+.hero-segment {
+  min-width: 0;
+  min-height: 25px;
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: rgba(244, 248, 245, 0.84);
+}
+.hero-segment__number {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 800;
+  color: #f0e1cb;
+}
+.hero-segment__route {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+}
+.hero-segment__distance {
+  color: rgba(244, 248, 245, 0.68);
+  white-space: nowrap;
+}
+.hero-segments-disclosure summary {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  color: rgba(244, 248, 245, 0.86);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hero-segments-disclosure[open] summary {
+  margin-bottom: 2px;
+}
+@media (max-width: 340px) {
+  .hero-segment__distance {
+    display: none;
+  }
+  .hero-action {
+    padding-inline: 8px;
+  }
 }

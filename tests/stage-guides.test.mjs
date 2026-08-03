@@ -98,11 +98,12 @@ test('the day guide is a semantic disclosure with wired ARIA state', () => {
   assert.match(screen, /aria-controls=\{guidePanelId\}/);
   // Stable unique panel id per stage.
   assert.match(screen, /`stage-guide-\$\{stage\.id\}`/);
-  // Guides render collapsed by default; the ONLY exception is Today's
-  // Stage Guide deep link, which seeds exactly that stage as open.
+  // Guides render collapsed by default. Today's single-stage deep link seeds
+  // that guide; a combined-day deep link seeds every constituent guide.
+  assert.match(screen, /initialGuideStageIds\?\.length/);
   assert.match(
     screen,
-    /useState<ReadonlySet<string>>\(\s*\(\) => new Set<string>\(initialGuideStageId \? \[initialGuideStageId\] : \[\]\)/,
+    /useState<ReadonlySet<string>>\(\s*\(\) => new Set<string>\(initiallyOpenGuideIds\)/,
   );
 });
 
@@ -175,7 +176,7 @@ test('choosing selects the occurrence atomically; cancelling changes nothing', (
 
 test('a reversed-leg deep link adds the contextual note to the opened card', () => {
   assert.match(screen, /initialGuideReversed\?: boolean;/);
-  assert.match(screen, /initialGuideReversed && stage\.id === initialGuideStageId/);
+  assert.match(screen, /initiallyReversedGuideIds\.has\(stage\.id\)/);
   assert.match(screen, /Your planned leg walks this section in the opposite\s+direction/);
   assert.match(screen, /The guide below describes the \{stopShortName\(from\)\}/);
   assert.match(screen, /Today shows your leg’s own\s+direction, distances and climb\./);
@@ -185,11 +186,11 @@ test('a reversed-leg deep link adds the contextual note to the opened card', () 
   assert.ok(!/stageGuide\([^)]*Reversed/.test(screen), 'no reversed guide variant is fetched');
 });
 
-test('Today passes the flag only from the day-owned lead leg', () => {
+test('Today passes direction context for every day-owned guide', () => {
   const today = readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8');
-  assert.match(today, /const leadLegReversed = leadLeg != null && leadLeg\.orientation !== naturalOrientation;/);
-  const flags = today.match(/guideStageId: leadStage\.id, guideReversed: leadLegReversed/g) ?? [];
-  assert.equal(flags.length, 2, 'both guide deep links carry the context');
+  assert.match(today, /const reversedStageIds = day\.legs[\s\S]*?\.filter\(\(leg\) => leg\.orientation !== naturalOrientation\)/);
+  assert.match(today, /guideReversedStageIds: uniqueReversedStageIds/);
+  assert.match(today, /guideStageIds=\{guideStageIds\}/);
   // The generic no-plan hero never sends it.
   const generic = today.slice(today.indexOf('function StageHero('), today.indexOf('function StageJourney('));
   assert.ok(!/guideReversed/.test(generic), 'generic mode knows nothing of legs');

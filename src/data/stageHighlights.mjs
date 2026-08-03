@@ -158,3 +158,31 @@ export function stageHighlights(
     .sort((a, b) => a.priority - b.priority)
     .slice(0, max);
 }
+
+/**
+ * Need-to-know characteristics for an ORDERED set of walked stage legs.
+ *
+ * A combined hiking day can contain several physical stages and individual
+ * legs may be walked in either absolute direction. Resolve every leg through
+ * the same stage taxonomy as an ordinary day, then deduplicate equivalent
+ * facts BEFORE applying the shared priority order and display ceiling.
+ * Unknown or incomplete leg references contribute nothing: missing metadata
+ * never becomes guessed UI copy.
+ */
+export function combinedStageHighlights(legs, max = MAX_STAGE_HIGHLIGHTS) {
+  if (!Array.isArray(legs) || legs.length === 0 || max <= 0) return [];
+  const ids = new Set();
+  for (const leg of legs) {
+    if (!leg || typeof leg.stageId !== 'string') continue;
+    const direction =
+      leg.direction === 'nikkaluokta-to-abisko'
+        ? 'nikkaluokta-to-abisko'
+        : 'abisko-to-nikkaluokta';
+    for (const id of highlightIdsFor(leg.stageId, direction)) ids.add(id);
+  }
+  return [...ids]
+    .map((id) => ({ id, ...HIGHLIGHT_TYPES[id] }))
+    .filter((item) => item.label != null)
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, max);
+}

@@ -132,7 +132,7 @@ test('the day-guide deep link still opens the elevation-bearing guide', () => {
   // part of that opened panel (StageGuidePanel), so it is visible on arrival.
   assert.match(
     stagesScreen,
-    /new Set<string>\(initialGuideStageId \? \[initialGuideStageId\] : \[\]\)/,
+    /new Set<string>\(initiallyOpenGuideIds\)/,
   );
   assert.ok(
     stagesScreen.indexOf('StageGuidePanel') !== -1,
