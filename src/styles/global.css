@@ -2499,7 +2499,12 @@ button.stop-fac:focus-visible {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #f0e1cb;
+  /* Copper accent tying the eyebrow to the cloudberry action hierarchy —
+     #f5c97b (the focus gold) is the darkest established copper that keeps
+     WCAG AA on the spruce hero: 6.25:1 vs both gradient ends (#2f4a3d /
+     #243c31); the next darker family value #d2a15f measures 4.15:1 and
+     fails 4.5:1 at this 12px size. Activity/reverse glyphs inherit it. */
+  color: #f5c97b;
 }
 .hero-title {
   color: inherit; /* the global heading colour must not defeat the dark hero */
@@ -2620,6 +2625,10 @@ button.stop-fac:focus-visible {
 .hero-action--glass {
   /* uniform glacier pane: composites back to ≈ --glacier over the hero */
   --action-tint: rgba(131, 172, 189, 0.68);
+  /* Control-sized pane, control-sized frost: the SAME shared knob, one step
+     below the panels' 3px so the 1.5px elevation line stays a line rather
+     than a wash where it crosses the buttons (see PR evidence matrix). */
+  --glass-blur: 2px;
   position: relative;
   border: 0;
   color: #f7faf8;
@@ -6058,74 +6067,14 @@ span.trip-attach-open {
   font-weight: 600;
   color: rgba(255, 255, 255, 0.72);
 }
+/* Combined days communicate through this subtitle ALONE — the per-segment
+   row list was retired for hero compactness (Today's one-viewport budget);
+   the ordered legs still live in the plan and drive both actions. */
 .hero-via--stages {
   line-height: 1.35;
 }
 
-/* Combined-day sequence: one quiet ruled group rather than nested cards.
-   Two stages stay visible without a tap; 3+ uses a native disclosure so the
-   mobile hero does not grow without bound. */
-.hero-segments-wrap,
-.hero-segments-disclosure {
-  margin-top: 9px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-}
-.hero-segments {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 1px;
-}
-.hero-segment {
-  min-width: 0;
-  min-height: 25px;
-  display: grid;
-  grid-template-columns: 19px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  color: rgba(244, 248, 245, 0.84);
-}
-.hero-segment__number {
-  width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 50%;
-  font-size: 10px;
-  font-weight: 800;
-  color: #f0e1cb;
-}
-.hero-segment__route {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 650;
-}
-.hero-segment__distance {
-  color: rgba(244, 248, 245, 0.68);
-  white-space: nowrap;
-}
-.hero-segments-disclosure summary {
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  color: rgba(244, 248, 245, 0.86);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.hero-segments-disclosure[open] summary {
-  margin-bottom: 2px;
-}
 @media (max-width: 340px) {
-  .hero-segment__distance {
-    display: none;
-  }
   .hero-action {
     padding-inline: 8px;
   }

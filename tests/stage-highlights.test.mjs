@@ -316,7 +316,7 @@ test('the remembered in-session Map context is only overwritten explicitly', () 
 test('the hiking action block keeps exactly two shared follow-up actions', () => {
   const actions = today.slice(
     today.indexOf('function HikingHeroActions('),
-    today.indexOf('function CombinedStageSummary('),
+    today.indexOf('function PlannedDayHero('),
   );
   assert.equal(
     (actions.match(/className="hero-action(?: |")/g) ?? []).length,
@@ -324,7 +324,6 @@ test('the hiking action block keeps exactly two shared follow-up actions', () =>
     'all hiking days share exactly two follow-up actions',
   );
   const hero = today.slice(today.indexOf('function PlannedDayHero('), today.indexOf('function PlannedJourney'));
-  assert.match(hero, /<CombinedStageSummary day=\{day\} \/>/);
   // No separate visible heading above the chips (deliberate review decision).
   assert.ok(!/Highlights</.test(hero), 'no "Highlights" heading');
   assert.ok(!/Stage Briefing/.test(hero), 'no "Stage Briefing" heading');

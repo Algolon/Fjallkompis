@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hikingDayRouteFocus, hikingDaySegments } from '../src/plan/hikingDayHero.mjs';
+import { hikingDayRouteFocus } from '../src/plan/hikingDayHero.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const today = readFileSync(join(root, 'src/components/TodayOnRoute.tsx'), 'utf8');
@@ -25,46 +25,14 @@ const stage = (id, from, to, distanceKm, routePoints = points(1)) => ({
 });
 const leg = (id, stageValue) => ({ id, stageId: stageValue.id, stage: stageValue });
 
-test('ordinary single-stage hiking day derives one unchanged segment', () => {
-  const d3 = stage('d3', 'alesjaure', 'tjaktja', 13.224);
-  assert.deepEqual(hikingDaySegments({ legs: [leg('leg-3', d3)] }), [{
-    id: 'leg-3',
-    stageId: 'd3',
-    fromStopId: 'alesjaure',
-    toStopId: 'tjaktja',
-    distanceKm: 13.224,
-  }]);
-});
-
-test('two-stage combined day preserves saved walking order', () => {
-  const d3 = stage('d3', 'alesjaure', 'tjaktja', 13.224);
-  const d4 = stage('d4', 'tjaktja', 'salka', 12.648);
-  assert.deepEqual(
-    hikingDaySegments({ legs: [leg('leg-3', d3), leg('leg-4', d4)] })
-      .map((segment) => [segment.stageId, segment.fromStopId, segment.toStopId]),
-    [
-      ['d3', 'alesjaure', 'tjaktja'],
-      ['d4', 'tjaktja', 'salka'],
-    ],
-  );
-});
-
-test('reverse-route combined day uses its oriented stage views verbatim', () => {
+test('reverse-route combined day keeps its oriented leg order in the map focus', () => {
   const d4Reverse = stage('d4', 'salka', 'tjaktja', 12.648, points(4).reverse());
   const d3Reverse = stage('d3', 'tjaktja', 'alesjaure', 13.224, points(3).reverse());
   const day = { legs: [leg('leg-4r', d4Reverse), leg('leg-3r', d3Reverse)] };
-  assert.deepEqual(hikingDaySegments(day).map((segment) => segment.stageId), ['d4', 'd3']);
-  assert.deepEqual(hikingDaySegments(day).map((segment) => segment.fromStopId), ['salka', 'tjaktja']);
   const focus = hikingDayRouteFocus(day);
+  assert.equal(focus.tracks.length, 2);
   assert.deepEqual(focus.tracks[0][0], { lat: 4.2, lng: 4.3 });
   assert.deepEqual(focus.destination, { lat: 3, lng: 3.1 });
-});
-
-test('missing optional distance stays absent instead of being approximated', () => {
-  const incomplete = stage('d-x', 'start', 'finish', undefined);
-  const [segment] = hikingDaySegments({ legs: [leg('leg-x', incomplete)] });
-  assert.equal(segment.distanceKm, null);
-  assert.ok(hikingDayRouteFocus({ legs: [leg('leg-x', incomplete)] }), 'verified geometry still works');
 });
 
 test('combined route navigation retains one verified track per leg', () => {
@@ -84,15 +52,26 @@ test('combined Stage guide and View route target all day-owned content', () => {
   assert.match(stagesScreen, /new Set<string>\(initiallyOpenGuideIds\)/);
 });
 
-test('long segment names truncate without pushing out distance or actions', () => {
-  assert.match(today, /className="hero-segment__route" title=\{segment\.route\}/);
-  assert.match(css, /\.hero-segment__route \{[^}]*min-width: 0;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s);
-  assert.match(css, /grid-template-columns: 19px minmax\(0, 1fr\) auto/);
+// The segment-row breakdown was retired for hero compactness: a combined day
+// communicates through the aggregate subtitle alone, while the ordered legs
+// stay in the plan and keep driving both actions' navigation.
+test('combined day keeps the compact stages subtitle and NO segment-row list', () => {
+  assert.match(today, /\{day\.stages\.length\} stages\{viaNames\.length > 0 \?/);
+  assert.match(css, /\.hero-via--stages \{/);
+  assert.doesNotMatch(today, /hero-segment|CombinedStageSummary|hikingDaySegments/);
+  assert.doesNotMatch(css, /hero-segment/);
+});
+
+// Small uppercase copper eyebrow: #f5c97b is the darkest established
+// cloudberry-family value holding WCAG AA on the spruce hero (6.25:1 vs
+// #2f4a3d and #243c31; #d2a15f measures 4.15:1 and fails). The activity and
+// reverse glyphs inherit the accent via currentColor.
+test('hero eyebrow carries the accessible copper accent', () => {
+  assert.match(css, /\.hero-day \{[^}]*color: #f5c97b;/s);
 });
 
 test('320 px rules retain two 44 px glass actions without horizontal overflow', () => {
   assert.match(css, /\.hero-action \{[^}]*min-width: 0;[^}]*min-height: 44px;/s);
-  assert.match(css, /@media \(max-width: 340px\) \{[^}]*\.hero-segment__distance/s);
   assert.match(css, /@media \(max-width: 340px\)[\s\S]*?\.hero-action \{\s*padding-inline: 8px;/);
 });
 
@@ -118,6 +97,10 @@ test('branded actions reuse the panel glass material with one uniform tint', () 
   assert.match(block, /\.hero-action--glass:hover \{\s*filter: brightness\(1\.07\)/);
   // One constant colour per surface — no gradient anywhere in the action glass.
   assert.doesNotMatch(block, /linear-gradient/);
+  // Control-sized frost: the pill scopes the SHARED --glass-blur knob one
+  // step below the card panes so the elevation line stays legible through it
+  // (exact px free to tune; the contract is a scoped shared-knob override).
+  assert.match(block, /\.hero-action--glass \{[^}]*--glass-blur: [\d.]+px;/s);
 });
 
 test('one shared HikingHeroActions renders both branded glass actions', () => {
