@@ -99,7 +99,23 @@ test('320 px rules retain two 44 px glass actions without horizontal overflow', 
 test('glass has readable no-filter and reduced-transparency fallbacks', () => {
   assert.match(css, /@supports not \(\(backdrop-filter: blur\(1px\)\) or \(-webkit-backdrop-filter: blur\(1px\)\)\)/);
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)/);
-  assert.match(css, /\.hero-action--glass[^}]*backdrop-filter: blur\(12px\) saturate\(1\.2\)/s);
+  assert.match(css, /\.hero-action--glass \{[^}]*backdrop-filter: blur\(var\(--glass-blur/s);
+});
+
+// The action material must share the panel glass anatomy (.today-glass /
+// .today-mode): the SAME --glass-* knobs for backdrop lift and hairline rim,
+// a layered body (::before gradient) and an optics layer (::after rim +
+// catch-light + sheen) instead of one flat translucent background.
+test('branded actions reuse the panel glass anatomy, layered via pseudo-elements', () => {
+  assert.match(css, /\.hero-action--glass \{[^}]*saturate\(var\(--glass-saturate/s);
+  assert.match(css, /\.hero-action--glass::before \{[^}]*background: linear-gradient\([^}]*var\(--action-body-top\)/s);
+  assert.match(css, /\.hero-action--glass::before \{[^}]*var\(--action-body-mid\)[^}]*var\(--action-body-deep\)/s);
+  assert.match(css, /\.hero-action--glass::after \{[^}]*inset 0 0 0 var\(--glass-rim-w[^}]*var\(--action-rim\)/s);
+  assert.match(css, /\.hero-action--glass::after \{[^}]*inset 0 1px 0 var\(--action-catch\)/s);
+  // The pseudos carry colour and optics BELOW the label so text stays crisp.
+  assert.match(css, /\.hero-action--glass::before \{[^}]*z-index: -2/s);
+  assert.match(css, /\.hero-action--glass::after \{[^}]*z-index: -1/s);
+  assert.match(css, /\.hero-action--glass \{[^}]*isolation: isolate/s);
 });
 
 test('one shared HikingHeroActions renders both branded glass actions', () => {
@@ -109,10 +125,11 @@ test('one shared HikingHeroActions renders both branded glass actions', () => {
   assert.match(today, /className="hero-action hero-action--glass"/);
 });
 
-// The glass tints are the brand action tokens as rgba() triplets: Stage guide
-// cloudberry (--cloudberry #b78443 → 183, 132, 67), View route glacier
-// (--glacier #6a8d95 → 106, 141, 149). Alphas stay free to tune — the fenced
-// contract is the colour family and that the surface remains translucent.
+// The body layers are the brand action token families as rgba() triplets:
+// Stage guide cloudberry (--cloudberry #b78443 → 183, 132, 67), View route
+// glacier (--glacier #6a8d95 → 106, 141, 149). Alphas stay free to tune —
+// the fenced contract is that each variant's central body carries its own
+// colour family, not which exact translucency was chosen.
 test('Stage guide is cloudberry glass; View route is glacier glass', () => {
   assert.match(css, /--cloudberry: #b78443/);
   assert.match(css, /--glacier: #6a8d95/);
@@ -121,21 +138,21 @@ test('Stage guide is cloudberry glass; View route is glacier glass', () => {
   const primaryStart = glass.indexOf('.hero-action--glass.hero-action--primary');
   const secondary = glass.slice(0, primaryStart);
   const primary = glass.slice(primaryStart);
-  assert.match(secondary, /background: rgba\(106, 141, 149, 0\.\d+\)/);
-  assert.match(primary, /background: rgba\(183, 132, 67, 0\.\d+\)/);
+  assert.match(secondary, /--action-body-mid: rgba\(106, 141, 149, 0\.\d+\)/);
+  assert.match(primary, /--action-body-mid: rgba\(183, 132, 67, 0\.\d+\)/);
 });
 
 // Without backdrop-filter (and under reduced-transparency/more-contrast) the
 // surfaces densify but the copper-versus-glacier identities must survive as
-// two DIFFERENT branded fills, never one shared neutral.
+// two DIFFERENT branded bodies, never one shared neutral.
 test('fallback and reduced-transparency surfaces stay separately branded', () => {
   const supportsStart = css.indexOf('@supports not ((backdrop-filter: blur(1px))');
   const reducedStart = css.indexOf('@media (prefers-reduced-transparency: reduce), (prefers-contrast: more)');
   const afterGlass = css.indexOf('.hero + .card');
   assert.ok(supportsStart > -1 && supportsStart < reducedStart && reducedStart < afterGlass);
   for (const block of [css.slice(supportsStart, reducedStart), css.slice(reducedStart, afterGlass)]) {
-    assert.match(block, /\.hero-action--glass \{[^}]*background: rgba\(74, 101, 109, 0\.9\d+\)/s);
-    assert.match(block, /\.hero-action--glass\.hero-action--primary \{[^}]*background: rgba\(154, 106, 62, 0\.9\d+\)/s);
+    assert.match(block, /\.hero-action--glass \{[^}]*rgba\(74, 101, 109, 0\.9\d+\)/s);
+    assert.match(block, /\.hero-action--glass\.hero-action--primary \{[^}]*rgba\(154, 106, 62, 0\.9\d+\)/s);
   }
 });
 
