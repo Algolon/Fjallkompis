@@ -101,3 +101,46 @@ test('glass has readable no-filter and reduced-transparency fallbacks', () => {
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)/);
   assert.match(css, /\.hero-action--glass[^}]*backdrop-filter: blur\(12px\) saturate\(1\.2\)/s);
 });
+
+test('one shared HikingHeroActions renders both branded glass actions', () => {
+  assert.match(today, /function HikingHeroActions\(/);
+  assert.equal((today.match(/<HikingHeroActions\b/g) ?? []).length, 2);
+  assert.match(today, /className="hero-action hero-action--glass hero-action--primary"/);
+  assert.match(today, /className="hero-action hero-action--glass"/);
+});
+
+// The glass tints are the brand action tokens as rgba() triplets: Stage guide
+// cloudberry (--cloudberry #b78443 → 183, 132, 67), View route glacier
+// (--glacier #6a8d95 → 106, 141, 149). Alphas stay free to tune — the fenced
+// contract is the colour family and that the surface remains translucent.
+test('Stage guide is cloudberry glass; View route is glacier glass', () => {
+  assert.match(css, /--cloudberry: #b78443/);
+  assert.match(css, /--glacier: #6a8d95/);
+  const glassStart = css.indexOf('.hero-action--glass {');
+  const glass = css.slice(glassStart, css.indexOf('@media (hover: hover)', glassStart));
+  const primaryStart = glass.indexOf('.hero-action--glass.hero-action--primary');
+  const secondary = glass.slice(0, primaryStart);
+  const primary = glass.slice(primaryStart);
+  assert.match(secondary, /background: rgba\(106, 141, 149, 0\.\d+\)/);
+  assert.match(primary, /background: rgba\(183, 132, 67, 0\.\d+\)/);
+});
+
+// Without backdrop-filter (and under reduced-transparency/more-contrast) the
+// surfaces densify but the copper-versus-glacier identities must survive as
+// two DIFFERENT branded fills, never one shared neutral.
+test('fallback and reduced-transparency surfaces stay separately branded', () => {
+  const supportsStart = css.indexOf('@supports not ((backdrop-filter: blur(1px))');
+  const reducedStart = css.indexOf('@media (prefers-reduced-transparency: reduce), (prefers-contrast: more)');
+  const afterGlass = css.indexOf('.hero + .card');
+  assert.ok(supportsStart > -1 && supportsStart < reducedStart && reducedStart < afterGlass);
+  for (const block of [css.slice(supportsStart, reducedStart), css.slice(reducedStart, afterGlass)]) {
+    assert.match(block, /\.hero-action--glass \{[^}]*background: rgba\(74, 101, 109, 0\.9\d+\)/s);
+    assert.match(block, /\.hero-action--glass\.hero-action--primary \{[^}]*background: rgba\(154, 106, 62, 0\.9\d+\)/s);
+  }
+});
+
+test('travel and rest hero actions keep the original solid fills', () => {
+  assert.match(css, /\n\.hero-action \{[^}]*background: var\(--glacier\);/s);
+  assert.match(css, /\n\.hero-action--primary \{[^}]*background: var\(--cloudberry\);/s);
+  assert.match(today, /className="hero-action hero-action--primary"/);
+});

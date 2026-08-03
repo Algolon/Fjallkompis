@@ -2600,16 +2600,19 @@ button.stop-fac:focus-visible {
   transform: none;
 }
 
-/* Hiking-only liquid glass. The dark translucent material preserves the
-   white hero typography while allowing the verified elevation silhouette to
-   remain legible beneath it. Primary hierarchy comes from a restrained warm
-   rim and a fractionally denser fill, not an opaque cloudberry slab. */
+/* Hiking-only liquid glass in the HOUSE ACTION COLOURS: View route is glacier
+   glass, Stage guide cloudberry glass — the same hierarchy as the solid
+   .hero-action fills above, kept translucent and blurred so the verified
+   elevation silhouette stays present beneath both. Tints are the brand tokens
+   as rgba() triplets (--glacier 106,141,149 / --cloudberry 183,132,67 — the
+   file's established translucent-brand derivation, see the cloudberry focus
+   ring), with rims from the matching -soft tones. */
 .hero-action--glass {
-  background: rgba(244, 248, 245, 0.16);
+  background: rgba(106, 141, 149, 0.46);
   color: #f7faf8;
-  border-color: rgba(255, 255, 255, 0.38);
+  border-color: rgba(215, 229, 232, 0.58);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 1px 0 rgba(230, 243, 246, 0.38),
     inset 0 -10px 18px -16px rgba(10, 24, 18, 0.72),
     0 5px 14px rgba(12, 29, 22, 0.2);
   backdrop-filter: blur(12px) saturate(1.2);
@@ -2617,43 +2620,47 @@ button.stop-fac:focus-visible {
   transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
 }
 .hero-action--glass.hero-action--primary {
-  background: rgba(244, 248, 245, 0.22);
-  border-color: rgba(236, 188, 111, 0.76);
+  background: rgba(183, 132, 67, 0.52);
+  border-color: rgba(240, 225, 203, 0.62);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    inset 0 1px 0 rgba(255, 239, 213, 0.42),
     inset 0 -10px 18px -16px rgba(10, 24, 18, 0.72),
     0 5px 14px rgba(12, 29, 22, 0.22),
-    0 0 0 1px rgba(183, 132, 67, 0.12);
+    0 0 0 1px rgba(183, 132, 67, 0.28);
 }
 @media (hover: hover) {
   .hero-action--glass:hover {
-    background: rgba(244, 248, 245, 0.24);
-    border-color: rgba(255, 255, 255, 0.58);
+    background: rgba(106, 141, 149, 0.58);
+    border-color: rgba(215, 229, 232, 0.78);
   }
   .hero-action--glass.hero-action--primary:hover {
-    background: rgba(244, 248, 245, 0.29);
+    background: rgba(183, 132, 67, 0.64);
     border-color: rgba(245, 204, 137, 0.9);
   }
 }
+/* No backdrop-filter: the tints densify into near-solid brand surfaces (the
+   darker family steps keep 13px bold white text comfortably readable) while
+   the copper-versus-glacier identities stay apart. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .hero-action--glass,
-  .hero-action--glass.hero-action--primary {
-    background: rgba(49, 75, 62, 0.96);
+  .hero-action--glass {
+    background: rgba(74, 101, 109, 0.95); /* --glacier-700 */
+    border-color: rgba(215, 229, 232, 0.66);
   }
   .hero-action--glass.hero-action--primary {
+    background: rgba(154, 106, 62, 0.95); /* dark cloudberry, the .pill-current ink */
     border-color: #d2a15f;
   }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .hero-action--glass,
-  .hero-action--glass.hero-action--primary {
-    background: rgba(36, 60, 49, 0.94);
-    border-color: rgba(255, 255, 255, 0.72);
+  .hero-action--glass {
+    background: rgba(74, 101, 109, 0.97); /* --glacier-700 */
+    border-color: rgba(255, 255, 255, 0.8);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
   .hero-action--glass.hero-action--primary {
-    border-color: #efbf77;
+    background: rgba(154, 106, 62, 0.97); /* dark cloudberry, the .pill-current ink */
+    border-color: #f0e1cb; /* --cloudberry-soft */
   }
 }
 .hero + .card {
