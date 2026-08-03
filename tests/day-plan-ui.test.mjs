@@ -560,9 +560,11 @@ test('previewing keeps the ordered activity glyphs visible (v0.26.2 regression)'
   assert.match(onRoute, /aria-label="Exit preview — return to today’s own view"/);
 });
 
-test('a multi-stage day exposes its sequence, all guides and a verified whole-day map focus', () => {
+test('a multi-stage day keeps its stages subtitle, all guides and a verified whole-day map focus', () => {
+  // The subtitle is the ONLY combined-day presentation (the segment-row list
+  // was retired for hero compactness); guides and the map focus still cover
+  // every ordered leg.
   assert.match(onRoute, /\{day\.stages\.length\} stages/);
-  assert.match(onRoute, /<CombinedStageSummary day=\{day\} \/>/);
   assert.match(onRoute, /guideStageIds=\{guideStageIds\}/);
   assert.match(onRoute, /routeFocus=\{routeFocus\}/);
   assert.match(onRoute, /const routeFocus = multiStage \? hikingDayRouteFocus\(day\) : null;/);

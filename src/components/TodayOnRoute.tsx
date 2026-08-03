@@ -29,7 +29,7 @@ import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
 import { activityOrderPhrase, travelPresentation } from '../plan/dayPresentation.mjs';
-import { hikingDayRouteFocus, hikingDaySegments } from '../plan/hikingDayHero.mjs';
+import { hikingDayRouteFocus } from '../plan/hikingDayHero.mjs';
 import type { HikingDayRouteFocus } from '../plan/hikingDayHero.mjs';
 import { DEFAULT_DIRECTION, REVERSE_DIRECTION, isReversed } from '../route/direction.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
@@ -277,40 +277,6 @@ function HikingHeroActions({
   );
 }
 
-/** Compact, non-interactive route sequence below a combined day's totals. */
-function CombinedStageSummary({ day }: { day: PlannedDay }) {
-  const rows = hikingDaySegments(day).flatMap((segment, index) => {
-    const from = segment.fromStopId ? STOPS_BY_ID[segment.fromStopId] : null;
-    const to = segment.toStopId ? STOPS_BY_ID[segment.toStopId] : null;
-    if (!from || !to) return [];
-    const route = `${stopShortName(from)} → ${stopShortName(to)}`;
-    return [{ ...segment, index, route }];
-  });
-  if (rows.length === 0) return null;
-  const list = (
-    <ol className="hero-segments" aria-label="Walking stages in order">
-      {rows.map((segment) => (
-        <li key={segment.id} className="hero-segment">
-          <span className="hero-segment__number tnum" aria-hidden>{segment.index + 1}</span>
-          <span className="hero-segment__route" title={segment.route}>{segment.route}</span>
-          {segment.distanceKm != null ? (
-            <span className="hero-segment__distance tnum">
-              {formatDistanceKm(segment.distanceKm)}
-            </span>
-          ) : null}
-        </li>
-      ))}
-    </ol>
-  );
-  if (rows.length <= 2) return <div className="hero-segments-wrap">{list}</div>;
-  return (
-    <details className="hero-segments-disclosure">
-      <summary>{rows.length}-stage breakdown</summary>
-      {list}
-    </details>
-  );
-}
-
 /**
  * The hero for a planned calendar day, in its activity-specific variant.
  *
@@ -511,8 +477,6 @@ function PlannedDayHero({
             <span>{formatHoursEstimate(day.estimatedHours)}</span>
           </div>
         ) : null}
-
-        {multiStage ? <CombinedStageSummary day={day} /> : null}
 
         {highlights.length > 0 ? (
           <ul className="hero-chips" aria-label="Stage characteristics">

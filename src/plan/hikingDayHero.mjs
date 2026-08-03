@@ -1,29 +1,16 @@
 /**
- * Pure Today-hero derivations for a planned hiking day.
+ * Pure Today-hero navigation derivation for a planned hiking day.
  *
  * The saved plan owns leg order and plannedDays.mjs resolves every leg to an
- * oriented view of verified route data. These helpers only project that data
- * into compact presentation/navigation shapes; they never recalculate route
- * statistics or join discontinuous legs with invented geometry.
+ * oriented view of verified route data. This helper only projects that data
+ * into the Map focus shape; it never recalculates route statistics or joins
+ * discontinuous legs with invented geometry. (The hero itself communicates a
+ * combined day through its aggregate subtitle — the per-segment row list was
+ * retired for compactness; leg order still lives in the plan and drives the
+ * guide/route navigation below.)
  */
 
 const finite = (value) => typeof value === 'number' && Number.isFinite(value);
-
-/** Ordered segment rows. Repeated stages remain repeated occurrences. */
-export function hikingDaySegments(day) {
-  if (!day || !Array.isArray(day.legs)) return [];
-  return day.legs.flatMap((leg, index) => {
-    const stage = leg?.stage;
-    if (!stage) return [];
-    return [{
-      id: typeof leg.id === 'string' ? leg.id : `${leg.stageId ?? 'stage'}-${index}`,
-      stageId: typeof leg.stageId === 'string' ? leg.stageId : stage.id,
-      fromStopId: typeof stage.fromHutId === 'string' ? stage.fromHutId : null,
-      toStopId: typeof stage.toHutId === 'string' ? stage.toHutId : null,
-      distanceKm: finite(stage.distanceKm) ? stage.distanceKm : null,
-    }];
-  });
-}
 
 /**
  * Verified map geometry for the whole walking day.
