@@ -2600,47 +2600,38 @@ button.stop-fac:focus-visible {
   transform: none;
 }
 
-/* Hiking-only liquid glass in the HOUSE ACTION COLOURS — built from the SAME
-   material anatomy as the Journey/Tonight panes (.today-glass) and the mode
-   capsule (.today-mode), translated to a branded compact pill:
-     1. button        — backdrop lift through the shared --glass-* knobs (the
-                        small blur keeps the elevation line legible through
-                        the pane; brightness cuts the muddiness — on the dark
-                        hero it works one step harder than on paper) + a
-                        control-scale outer shadow;
-     2. ::before body — the brand-colour layer. A vertical gradient of the
-                        token family (light kin on top, token in the body,
-                        dark kin at the base) rather than one washed-out
-                        rgba: composited over the spruce hero the surface
-                        still READS cloudberry / glacier instead of the
-                        khaki / grey-teal a flat translucent tint collapses
-                        into. Alphas open slightly toward the base so the
-                        silhouette stays perceptible where it crosses;
-     3. ::after optics— hairline inset rim (the house edge — a real border
-                        renders chunky and uneven on this radius), 1px top
-                        catch-light, a restrained lower inner shade, and a
-                        diagonal sheen. Both pseudos sit UNDER the label
-                        (negative z-index inside the isolated button) so
-                        text and icons stay fully crisp.
-   Variant knobs only carry colour; the structure is shared. */
+/* Hiking-only liquid glass = the Today panel material with a uniform brand
+   tint. This is the SAME construction as .today-glass--light / .today-mode,
+   not a button interpretation of it: one flat translucent fill on the
+   element, the shared --glass-blur/saturate/brightness backdrop lift, and
+   the capsule's own ::before optical edge (hairline --glass-rim + 1px
+   --glass-highlight; like .today-mode, the card-scale inner shade is
+   omitted at control size) over .today-mode's control-scale shadows. The
+   only button-specific ingredient is --action-tint — ONE constant colour
+   per variant, no gradient stops.
+
+   Tint derivation: a flat token-alpha fill over the dark hero composites
+   toward khaki/grey-teal, so each tint is the house token pre-lightened
+   along its own hue such that tint over the spruce-700 hero band re-
+   composites to ≈ the ORIGINAL solid action colour (--cloudberry #b78443 /
+   --glacier #6a8d95) while ~30% of the backdrop — contours, silhouette —
+   stays live through the pane, exactly like the panels over the contour
+   background. */
 .hero-action--glass {
-  --action-body-top: rgba(215, 229, 232, 0.85); /* --glacier-soft */
-  --action-body-mid: rgba(106, 141, 149, 0.74); /* --glacier */
-  --action-body-deep: rgba(74, 101, 109, 0.68); /* --glacier-700 */
-  --action-rim: rgba(215, 229, 232, 0.8);
-  --action-catch: rgba(240, 250, 252, 0.5);
+  /* uniform glacier pane: composites back to ≈ --glacier over the hero */
+  --action-tint: rgba(131, 172, 189, 0.68);
   position: relative;
-  isolation: isolate;
   border: 0;
   color: #f7faf8;
-  background: transparent;
+  background: var(--action-tint);
   backdrop-filter: blur(var(--glass-blur, 3px)) saturate(var(--glass-saturate, 1.15))
-    brightness(1.12);
+    brightness(var(--glass-brightness, 1.04));
   -webkit-backdrop-filter: blur(var(--glass-blur, 3px))
-    saturate(var(--glass-saturate, 1.15)) brightness(1.12);
+    saturate(var(--glass-saturate, 1.15)) brightness(var(--glass-brightness, 1.04));
   box-shadow:
-    0 1px 2px rgba(12, 24, 20, 0.16),
-    0 5px 14px rgba(12, 24, 20, 0.18);
+    0 1px 2px rgba(12, 24, 20, 0.08),
+    0 5px 14px rgba(12, 24, 20, 0.12);
+  transition: transform 0.08s ease, filter 0.15s ease;
 }
 .hero-action--glass::before {
   content: '';
@@ -2648,90 +2639,41 @@ button.stop-fac:focus-visible {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  z-index: -2;
-  background: linear-gradient(
-    180deg,
-    var(--action-body-top),
-    var(--action-body-mid) 42%,
-    var(--action-body-deep)
-  );
-}
-.hero-action--glass::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: -1;
-  background: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.26),
-    rgba(255, 255, 255, 0.07) 30%,
-    transparent 48%
-  );
   box-shadow:
-    inset 0 0 0 var(--glass-rim-w, 0.5px) var(--action-rim),
-    inset 0 1px 0 var(--action-catch),
-    inset 0 -8px 14px -12px rgba(10, 24, 18, 0.5);
+    inset 0 0 0 var(--glass-rim-w, 0.5px) var(--glass-rim, rgba(255, 255, 255, 0.5)),
+    inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.24));
 }
 .hero-action--glass.hero-action--primary {
-  --action-body-top: rgba(245, 201, 123, 0.9); /* the focus gold #f5c97b */
-  --action-body-mid: rgba(183, 132, 67, 0.78); /* --cloudberry */
-  --action-body-deep: rgba(154, 106, 62, 0.7); /* dark cloudberry, .pill-current ink */
-  --action-rim: rgba(245, 204, 137, 0.85);
-  --action-catch: rgba(255, 239, 213, 0.55);
-  box-shadow:
-    0 1px 2px rgba(12, 24, 20, 0.16),
-    0 5px 14px rgba(12, 24, 20, 0.2),
-    0 0 0 1px rgba(183, 132, 67, 0.3);
+  /* uniform cloudberry pane: composites back to ≈ --cloudberry */
+  --action-tint: rgba(234, 154, 68, 0.72);
 }
-/* Hover shifts the internal light and rim rather than whitening the body. */
+/* Hover is the shared glass hover (.today-action-card): a brightness pop
+   that keeps the material intact instead of swapping the fill. */
 @media (hover: hover) {
   .hero-action--glass:hover {
-    --action-body-top: rgba(215, 229, 232, 0.95);
-    --action-body-mid: rgba(106, 141, 149, 0.82);
-    --action-rim: rgba(215, 229, 232, 0.95);
-    --action-catch: rgba(240, 250, 252, 0.65);
-  }
-  .hero-action--glass.hero-action--primary:hover {
-    --action-body-top: rgba(245, 201, 123, 0.98);
-    --action-body-mid: rgba(183, 132, 67, 0.86);
-    --action-rim: rgba(245, 204, 137, 1);
-    --action-catch: rgba(255, 239, 213, 0.7);
+    filter: brightness(1.07);
   }
 }
-/* No backdrop-filter: the body densifies toward the darker family step so
-   13px bold white labels stay readable, while copper-versus-glacier survives. */
+/* No backdrop-filter: like the panels' near-opaque paper fallback, the pane
+   densifies — here to the near-solid house action fills themselves. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .hero-action--glass {
-    --action-body-top: rgba(106, 141, 149, 0.96); /* --glacier */
-    --action-body-mid: rgba(74, 101, 109, 0.96); /* --glacier-700 */
-    --action-body-deep: rgba(74, 101, 109, 0.97);
+    --action-tint: rgba(106, 141, 149, 0.96); /* --glacier */
   }
   .hero-action--glass.hero-action--primary {
-    --action-body-top: rgba(183, 132, 67, 0.96); /* --cloudberry */
-    --action-body-mid: rgba(154, 106, 62, 0.96); /* dark cloudberry */
-    --action-body-deep: rgba(154, 106, 62, 0.97);
-    --action-rim: #d2a15f;
+    --action-tint: rgba(183, 132, 67, 0.96); /* --cloudberry */
   }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .hero-action--glass {
-    --action-body-top: rgba(74, 101, 109, 0.97); /* flat --glacier-700 */
-    --action-body-mid: rgba(74, 101, 109, 0.97);
-    --action-body-deep: rgba(74, 101, 109, 0.97);
-    --action-rim: rgba(255, 255, 255, 0.8);
+    --action-tint: rgba(74, 101, 109, 0.97); /* --glacier-700 */
+    --glass-rim: rgba(255, 255, 255, 0.85); /* scoped to the pill's edge */
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
   .hero-action--glass.hero-action--primary {
-    --action-body-top: rgba(154, 106, 62, 0.97); /* flat dark cloudberry */
-    --action-body-mid: rgba(154, 106, 62, 0.97);
-    --action-body-deep: rgba(154, 106, 62, 0.97);
-    --action-rim: #f0e1cb; /* --cloudberry-soft */
-  }
-  .hero-action--glass::after {
-    background: none; /* no sheen in reduced modes — the rim carries the edge */
+    --action-tint: rgba(154, 106, 62, 0.97); /* dark cloudberry, .pill-current ink */
+    --glass-rim: #f0e1cb; /* --cloudberry-soft */
   }
 }
 .hero + .card {

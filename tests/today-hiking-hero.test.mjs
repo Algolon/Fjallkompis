@@ -102,20 +102,22 @@ test('glass has readable no-filter and reduced-transparency fallbacks', () => {
   assert.match(css, /\.hero-action--glass \{[^}]*backdrop-filter: blur\(var\(--glass-blur/s);
 });
 
-// The action material must share the panel glass anatomy (.today-glass /
-// .today-mode): the SAME --glass-* knobs for backdrop lift and hairline rim,
-// a layered body (::before gradient) and an optics layer (::after rim +
-// catch-light + sheen) instead of one flat translucent background.
-test('branded actions reuse the panel glass anatomy, layered via pseudo-elements', () => {
-  assert.match(css, /\.hero-action--glass \{[^}]*saturate\(var\(--glass-saturate/s);
-  assert.match(css, /\.hero-action--glass::before \{[^}]*background: linear-gradient\([^}]*var\(--action-body-top\)/s);
-  assert.match(css, /\.hero-action--glass::before \{[^}]*var\(--action-body-mid\)[^}]*var\(--action-body-deep\)/s);
-  assert.match(css, /\.hero-action--glass::after \{[^}]*inset 0 0 0 var\(--glass-rim-w[^}]*var\(--action-rim\)/s);
-  assert.match(css, /\.hero-action--glass::after \{[^}]*inset 0 1px 0 var\(--action-catch\)/s);
-  // The pseudos carry colour and optics BELOW the label so text stays crisp.
-  assert.match(css, /\.hero-action--glass::before \{[^}]*z-index: -2/s);
-  assert.match(css, /\.hero-action--glass::after \{[^}]*z-index: -1/s);
-  assert.match(css, /\.hero-action--glass \{[^}]*isolation: isolate/s);
+// The action material IS the Today panel material (.today-glass--light /
+// .today-mode) plus one uniform tint per variant: the shared --glass-* knobs
+// for the backdrop lift, the capsule's ::before optical edge (hairline
+// --glass-rim + 1px --glass-highlight), a flat --action-tint fill, and the
+// shared brightness-pop hover. Vertical branded gradients, glossy caps and
+// dark bases are explicitly REJECTED constructions (PR #92 review).
+test('branded actions reuse the panel glass material with one uniform tint', () => {
+  const glassStart = css.indexOf('.hero-action--glass {');
+  const block = css.slice(glassStart, css.indexOf('.hero + .card', glassStart));
+  assert.match(block, /\.hero-action--glass \{[^}]*background: var\(--action-tint\)/s);
+  assert.match(block, /\.hero-action--glass \{[^}]*blur\(var\(--glass-blur[^}]*saturate\(var\(--glass-saturate[^}]*brightness\(var\(--glass-brightness/s);
+  assert.match(block, /\.hero-action--glass::before \{[^}]*inset 0 0 0 var\(--glass-rim-w[^}]*var\(--glass-rim/s);
+  assert.match(block, /\.hero-action--glass::before \{[^}]*inset 0 1px 0 var\(--glass-highlight/s);
+  assert.match(block, /\.hero-action--glass:hover \{\s*filter: brightness\(1\.07\)/);
+  // One constant colour per surface — no gradient anywhere in the action glass.
+  assert.doesNotMatch(block, /linear-gradient/);
 });
 
 test('one shared HikingHeroActions renders both branded glass actions', () => {
@@ -125,11 +127,11 @@ test('one shared HikingHeroActions renders both branded glass actions', () => {
   assert.match(today, /className="hero-action hero-action--glass"/);
 });
 
-// The body layers are the brand action token families as rgba() triplets:
-// Stage guide cloudberry (--cloudberry #b78443 → 183, 132, 67), View route
-// glacier (--glacier #6a8d95 → 106, 141, 149). Alphas stay free to tune —
-// the fenced contract is that each variant's central body carries its own
-// colour family, not which exact translucency was chosen.
+// Each variant supplies ONE uniform tint. The values are the house tokens
+// pre-lightened along their own hue so the pane re-composites to ≈ the
+// original solid action colours (--cloudberry #b78443 / --glacier #6a8d95)
+// over the dark hero — never a low-alpha token wash that turns khaki or
+// grey-teal. Alphas stay free to tune; the triplets are the contract.
 test('Stage guide is cloudberry glass; View route is glacier glass', () => {
   assert.match(css, /--cloudberry: #b78443/);
   assert.match(css, /--glacier: #6a8d95/);
@@ -138,22 +140,25 @@ test('Stage guide is cloudberry glass; View route is glacier glass', () => {
   const primaryStart = glass.indexOf('.hero-action--glass.hero-action--primary');
   const secondary = glass.slice(0, primaryStart);
   const primary = glass.slice(primaryStart);
-  assert.match(secondary, /--action-body-mid: rgba\(106, 141, 149, 0\.\d+\)/);
-  assert.match(primary, /--action-body-mid: rgba\(183, 132, 67, 0\.\d+\)/);
+  assert.match(secondary, /--action-tint: rgba\(131, 172, 189, 0\.\d+\)/);
+  assert.match(primary, /--action-tint: rgba\(234, 154, 68, 0\.\d+\)/);
 });
 
 // Without backdrop-filter (and under reduced-transparency/more-contrast) the
 // surfaces densify but the copper-versus-glacier identities must survive as
-// two DIFFERENT branded bodies, never one shared neutral.
+// two DIFFERENT branded tints, never one shared neutral: near-solid token
+// fills without blur, darker family steps in the accessibility modes.
 test('fallback and reduced-transparency surfaces stay separately branded', () => {
   const supportsStart = css.indexOf('@supports not ((backdrop-filter: blur(1px))');
   const reducedStart = css.indexOf('@media (prefers-reduced-transparency: reduce), (prefers-contrast: more)');
   const afterGlass = css.indexOf('.hero + .card');
   assert.ok(supportsStart > -1 && supportsStart < reducedStart && reducedStart < afterGlass);
-  for (const block of [css.slice(supportsStart, reducedStart), css.slice(reducedStart, afterGlass)]) {
-    assert.match(block, /\.hero-action--glass \{[^}]*rgba\(74, 101, 109, 0\.9\d+\)/s);
-    assert.match(block, /\.hero-action--glass\.hero-action--primary \{[^}]*rgba\(154, 106, 62, 0\.9\d+\)/s);
-  }
+  const noFilter = css.slice(supportsStart, reducedStart);
+  assert.match(noFilter, /\.hero-action--glass \{[^}]*--action-tint: rgba\(106, 141, 149, 0\.9\d+\)/s);
+  assert.match(noFilter, /\.hero-action--glass\.hero-action--primary \{[^}]*--action-tint: rgba\(183, 132, 67, 0\.9\d+\)/s);
+  const reduced = css.slice(reducedStart, afterGlass);
+  assert.match(reduced, /\.hero-action--glass \{[^}]*--action-tint: rgba\(74, 101, 109, 0\.9\d+\)/s);
+  assert.match(reduced, /\.hero-action--glass\.hero-action--primary \{[^}]*--action-tint: rgba\(154, 106, 62, 0\.9\d+\)/s);
 });
 
 test('travel and rest hero actions keep the original solid fills', () => {
