@@ -73,7 +73,7 @@ export interface MapViewHandle {
    * persistent experience-marker layer. Safe to call before load (applied then).
    */
   focusPoint: (p: { lat: number; lon: number } | null) => void;
-  /** Draw an owner detour (track + start/destination markers) on the 'focus' source. */
+  /** Draw verified route track(s) + start/destination markers on the focus source. */
   focusRoute: (route: FocusRoute) => void;
 }
 
@@ -278,16 +278,18 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return true;
   };
 
-  // Draw an owner detour: one LineString for the track + start/destination Point
-  // markers (built by the pure, tested buildFocusFeatures — never intermediate
-  // vertices), framed to the track. Non-persistent — same transient 'focus'
-  // source, whose layers filter by geometry type.
+  // Draw one or more verified tracks + start/destination Point markers
+  // (buildFocusFeatures deliberately keeps separate legs separate), framed to
+  // all supplied geometry. Non-persistent — the same transient focus source.
   const applyFocusRoute = (map: maplibregl.Map, route: FocusRoute): boolean => {
     const src = map.getSource('focus') as GeoJSONSource | undefined;
-    if (!src || route.track.length === 0) return false;
+    const tracks = route.tracks?.length ? route.tracks : route.track ? [route.track] : [];
+    if (!src || tracks.every((track) => track.length === 0)) return false;
     src.setData(buildFocusFeatures(route) as FeatureCollection);
     const b = new maplibregl.LngLatBounds();
-    for (const t of route.track) b.extend([t.lng, t.lat]);
+    for (const track of tracks) {
+      for (const t of track) b.extend([t.lng, t.lat]);
+    }
     map.fitBounds(b, { padding: 64, maxZoom: 15, ...animate() });
     return true;
   };

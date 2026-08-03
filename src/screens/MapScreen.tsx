@@ -265,6 +265,7 @@ export function MapScreen({
     label: string;
     coord?: LatLng;
     track?: LatLng[];
+    tracks?: LatLng[][];
     start?: LatLng;
     destination?: LatLng;
     note?: string;
@@ -354,9 +355,13 @@ export function MapScreen({
     if (focus.kind === 'stage') {
       m.focusPoint(null);
       m.fitStage(focus.stageId);
-    } else if (focus.kind === 'route' && focus.track && focus.track.length > 0) {
+    } else if (
+      focus.kind === 'route' &&
+      ((focus.tracks && focus.tracks.length > 0) || (focus.track && focus.track.length > 0))
+    ) {
       m.focusRoute({
         track: focus.track,
+        tracks: focus.tracks,
         start: focus.start ?? null,
         destination: focus.destination ?? null,
       });

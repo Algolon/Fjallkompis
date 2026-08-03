@@ -23,12 +23,14 @@ import {
 } from '../data/stops';
 import { journeyPlaceById } from '../data/journeyPlaces.mjs';
 import type { CuratedOffRoutePlace } from '../data/journeyPlaces.mjs';
-import { stageHighlights } from '../data/stageHighlights.mjs';
+import { combinedStageHighlights, stageHighlights } from '../data/stageHighlights.mjs';
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
 import { activityOrderPhrase, travelPresentation } from '../plan/dayPresentation.mjs';
+import { hikingDayRouteFocus, hikingDaySegments } from '../plan/hikingDayHero.mjs';
+import type { HikingDayRouteFocus } from '../plan/hikingDayHero.mjs';
 import { DEFAULT_DIRECTION, REVERSE_DIRECTION, isReversed } from '../route/direction.mjs';
 import type { PlannedDay } from '../plan/plannedDays.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
@@ -202,6 +204,113 @@ function DayTypeBadge({ kinds, reversed }: { kinds: DayActivityKind[]; reversed?
   );
 }
 
+/** The shared two-action treatment for every hiking hero. */
+function HikingHeroActions({
+  guideStageIds,
+  reversedStageIds = [],
+  mapStageId,
+  routeFocus,
+  routeLabel,
+  onNavigate,
+}: {
+  guideStageIds: string[];
+  reversedStageIds?: string[];
+  mapStageId: string;
+  routeFocus?: HikingDayRouteFocus | null;
+  routeLabel: string;
+  onNavigate: Navigate;
+}) {
+  const uniqueGuideStageIds = [...new Set(guideStageIds)];
+  const uniqueReversedStageIds = [...new Set(reversedStageIds)];
+  // Use the walking-day leg count for presentation. A personalised plan can
+  // legitimately traverse the same catalogued stage more than once; guide
+  // cards are still de-duplicated, while the hero remains a combined day.
+  const combined = guideStageIds.length > 1;
+  return (
+    <div className="hero-actions hero-actions--hiking">
+      <button
+        type="button"
+        className="hero-action hero-action--glass hero-action--primary"
+        onClick={() => onNavigate('stages', {
+          guideStageId: uniqueGuideStageIds[0],
+          guideStageIds: uniqueGuideStageIds,
+          guideReversed: uniqueReversedStageIds.includes(uniqueGuideStageIds[0]),
+          guideReversedStageIds: uniqueReversedStageIds,
+        })}
+        aria-label={
+          combined
+            ? `Stage guide — open all stages for ${routeLabel}`
+            : 'Stage guide — open today’s full stage guide in Stages'
+        }
+      >
+        <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage guide
+      </button>
+      <button
+        type="button"
+        className="hero-action hero-action--glass"
+        disabled={combined && !routeFocus}
+        onClick={() => {
+          if (routeFocus) {
+            onNavigate('map', {
+              mapFocus: {
+                kind: 'route',
+                stageId: mapStageId,
+                label: routeLabel,
+                tracks: routeFocus.tracks,
+                start: routeFocus.start,
+                destination: routeFocus.destination,
+              },
+            });
+          } else if (!combined) {
+            onNavigate('map', { mapStageId });
+          }
+        }}
+        aria-label={
+          combined
+            ? `View route — show the complete ${guideStageIds.length}-stage walking day on the map`
+            : 'View route — show today’s stage on the map'
+        }
+      >
+        <Route size={15} strokeWidth={2} aria-hidden /> View route
+      </button>
+    </div>
+  );
+}
+
+/** Compact, non-interactive route sequence below a combined day's totals. */
+function CombinedStageSummary({ day }: { day: PlannedDay }) {
+  const rows = hikingDaySegments(day).flatMap((segment, index) => {
+    const from = segment.fromStopId ? STOPS_BY_ID[segment.fromStopId] : null;
+    const to = segment.toStopId ? STOPS_BY_ID[segment.toStopId] : null;
+    if (!from || !to) return [];
+    const route = `${stopShortName(from)} → ${stopShortName(to)}`;
+    return [{ ...segment, index, route }];
+  });
+  if (rows.length === 0) return null;
+  const list = (
+    <ol className="hero-segments" aria-label="Walking stages in order">
+      {rows.map((segment) => (
+        <li key={segment.id} className="hero-segment">
+          <span className="hero-segment__number tnum" aria-hidden>{segment.index + 1}</span>
+          <span className="hero-segment__route" title={segment.route}>{segment.route}</span>
+          {segment.distanceKm != null ? (
+            <span className="hero-segment__distance tnum">
+              {formatDistanceKm(segment.distanceKm)}
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ol>
+  );
+  if (rows.length <= 2) return <div className="hero-segments-wrap">{list}</div>;
+  return (
+    <details className="hero-segments-disclosure">
+      <summary>{rows.length}-stage breakdown</summary>
+      {list}
+    </details>
+  );
+}
+
 /**
  * The hero for a planned calendar day, in its activity-specific variant.
  *
@@ -253,24 +362,41 @@ function PlannedDayHero({
   // name. The oriented title endpoints already run the other way.
   const naturalOrientation = isReversed(routeDirection) ? 'opposite' : 'canonical';
   const contraryLegCount = day.legs.filter((l) => l.orientation !== naturalOrientation).length;
-  // The guide deep links open the LEAD stage's canonical card; when the lead
-  // leg walks it the other way the card carries a contextual note (the guide
-  // prose itself is never mirrored — a documented deferral).
-  const leadLegReversed = leadLeg != null && leadLeg.orientation !== naturalOrientation;
+  // Guide deep links open every constituent card. Legs walked against the
+  // active itinerary are passed as presentation context; guide prose itself
+  // remains the verified, direction-specific editorial already owned there.
   const reversedWords =
     contraryLegCount === 0
       ? ''
       : contraryLegCount === day.legs.length
         ? ' Walked in reverse of the route direction.'
         : ` ${contraryLegCount} of ${day.legs.length} legs walked in reverse of the route direction.`;
-  // Chips only on a plain single-stage hiking day. A combined day would have
-  // to merge two capped lists into one capped list, silently dropping half
-  // the metadata; a mixed day already spends that line on the transfer. Both
-  // cases also need the height — the hero has none spare at 375x667.
+  // Single-stage days keep their established selector. Combined days resolve
+  // each leg in its own absolute direction, deduplicate equivalent facts, then
+  // apply the same priority order and four-chip ceiling.
   const highlights =
-    hiking && !multiStage && !travel && leadStage
-      ? stageHighlights(leadStage.id, undefined, leadLegDirection)
+    hiking && leadStage
+      ? multiStage
+        ? combinedStageHighlights(day.legs.map((leg) => ({
+            stageId: leg.stageId,
+            direction: leg.orientation === 'opposite' ? REVERSE_DIRECTION : DEFAULT_DIRECTION,
+          })))
+        : !travel
+          ? stageHighlights(leadStage.id, undefined, leadLegDirection)
+          : []
       : [];
+  const viaNames = day.viaStopIds.flatMap((id) => {
+    const stop = STOPS_BY_ID[id];
+    return stop ? [stopShortName(stop)] : [];
+  });
+  const routeLabel = from && to
+    ? `${stopShortName(from)} to ${stopShortName(to)}`
+    : kindWords;
+  const guideStageIds = day.legs.map((leg) => leg.stageId);
+  const reversedStageIds = day.legs
+    .filter((leg) => leg.orientation !== naturalOrientation)
+    .map((leg) => leg.stageId);
+  const routeFocus = multiStage ? hikingDayRouteFocus(day) : null;
   // One shared helper decides the wording AND the position, so Today and the
   // Settings planner can never disagree about which happened first.
   const travelLine = travelPresentation(day);
@@ -354,8 +480,8 @@ function PlannedDayHero({
         )}
 
         {multiStage ? (
-          <p className="hero-via">
-            via {day.viaStopIds.map((id) => stopShortName(STOPS_BY_ID[id])).join(' and ')}
+          <p className="hero-via hero-via--stages">
+            {day.stages.length} stages{viaNames.length > 0 ? ` · via ${viaNames.join(', ')}` : ''}
           </p>
         ) : null}
 
@@ -386,6 +512,8 @@ function PlannedDayHero({
           </div>
         ) : null}
 
+        {multiStage ? <CombinedStageSummary day={day} /> : null}
+
         {highlights.length > 0 ? (
           <ul className="hero-chips" aria-label="Stage characteristics">
             {highlights.map((h) => {
@@ -400,59 +528,41 @@ function PlannedDayHero({
           </ul>
         ) : null}
 
-        <div className="hero-actions">
-          {hiking && multiStage && leadStage ? (
-            // One honest action: a single Stage Guide or View Route would open
-            // only ONE of the day's stages. Stages lists them adjacently, and
-            // this day's FIRST stage is where it opens.
-            <button
-              className="hero-action hero-action--primary"
-              onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
-              aria-label={`Open in Stages — today’s ${day.stages.length} stages, each with its own guide and map`}
-            >
-              <BookOpen size={15} strokeWidth={2} aria-hidden /> Open in Stages
-            </button>
-          ) : hiking && leadStage ? (
-            <>
+        {hiking && leadStage ? (
+          <HikingHeroActions
+            guideStageIds={guideStageIds}
+            reversedStageIds={reversedStageIds}
+            mapStageId={leadStage.id}
+            routeFocus={routeFocus}
+            routeLabel={routeLabel}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <div className="hero-actions">
+            {/* Travel-ONLY days get the Trip action. On a mixed day the walking
+                owns the two actions and the transfer is already stated on the
+                line above — a third button would crowd the block past its fixed
+                responsibility and past the one-viewport budget. */}
+            {travel && !hiking ? (
               <button
                 className="hero-action hero-action--primary"
-                onClick={() => onNavigate('stages', { guideStageId: leadStage.id, guideReversed: leadLegReversed })}
-                aria-label="Stage Guide — open today’s full day guide in Stages"
+                onClick={() => onNavigate('checklist', { lists: { section: 'trip' } })}
+                aria-label="Open in Trip — your travel and tickets for today"
               >
-                <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
+                <BusFront size={15} strokeWidth={2} aria-hidden /> Open in Trip
               </button>
+            ) : null}
+            {!hiking && !travel && day.overnight.kind === 'stop' && day.overnight.stopId ? (
               <button
-                className="hero-action"
-                onClick={() => onNavigate('map', { mapStageId: leadStage.id })}
-                aria-label="View Route — show today’s stage on the map"
+                className="hero-action hero-action--primary"
+                onClick={() => onNavigate('huts', { stopId: day.overnight.stopId })}
+                aria-label="Stop info — what is available where you are based today"
               >
-                <Route size={15} strokeWidth={2} aria-hidden /> View Route
+                <Mountain size={15} strokeWidth={2} aria-hidden /> Stop info
               </button>
-            </>
-          ) : null}
-          {/* Travel-ONLY days get the Trip action. On a mixed day the walking
-              owns the two actions and the transfer is already stated on the
-              line above — a third button would crowd the block past its fixed
-              responsibility and past the one-viewport budget. */}
-          {travel && !hiking ? (
-            <button
-              className="hero-action hero-action--primary"
-              onClick={() => onNavigate('checklist', { lists: { section: 'trip' } })}
-              aria-label="Open in Trip — your travel and tickets for today"
-            >
-              <BusFront size={15} strokeWidth={2} aria-hidden /> Open in Trip
-            </button>
-          ) : null}
-          {!hiking && !travel && day.overnight.kind === 'stop' && day.overnight.stopId ? (
-            <button
-              className="hero-action hero-action--primary"
-              onClick={() => onNavigate('huts', { stopId: day.overnight.stopId })}
-              aria-label="Stop info — what is available where you are based today"
-            >
-              <Mountain size={15} strokeWidth={2} aria-hidden /> Stop info
-            </button>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -718,22 +828,12 @@ function StageHero({
             })}
           </ul>
         ) : null}
-        <div className="hero-actions">
-          <button
-            className="hero-action hero-action--primary"
-            onClick={() => onNavigate('stages', { guideStageId: stage.id })}
-            aria-label="Stage Guide — open today’s full day guide in Stages"
-          >
-            <BookOpen size={15} strokeWidth={2} aria-hidden /> Stage Guide
-          </button>
-          <button
-            className="hero-action"
-            onClick={() => onNavigate('map', { mapStageId: stage.id })}
-            aria-label="View Route — show today’s stage on the map"
-          >
-            <Route size={15} strokeWidth={2} aria-hidden /> View Route
-          </button>
-        </div>
+        <HikingHeroActions
+          guideStageIds={[stage.id]}
+          mapStageId={stage.id}
+          routeLabel={`${stopShortName(from)} to ${stopShortName(to)}`}
+          onNavigate={onNavigate}
+        />
       </div>
     </section>
   );

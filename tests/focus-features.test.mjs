@@ -1,5 +1,5 @@
 /**
- * Guards the "View on map" detour rendering (src/map/focusFeatures.mjs) and the
+ * Guards the "View on map" route-focus rendering (src/map/focusFeatures.mjs) and the
  * Day-1 owner geometry mapping. The map layers filter by geometry type, but the
  * FIRST guarantee is here: the source emits ONE LineString for the whole track
  * plus only start/destination Points — never a dot per intermediate trackpoint
@@ -32,6 +32,24 @@ test('a detour emits ONE LineString for the whole track', () => {
   assert.deepEqual(
     lines[0].geometry.coordinates,
     track.map((t) => [t.lng, t.lat]),
+  );
+});
+
+test('a combined day keeps separate stage tracks — no synthetic connector', () => {
+  const second = [
+    { lat: 69.0, lng: 19.0 },
+    { lat: 69.1, lng: 19.1 },
+  ];
+  const fc = buildFocusFeatures({ tracks: [track, second], start, destination: second[1] });
+  const lines = lineStrings(fc);
+  assert.equal(lines.length, 2);
+  assert.deepEqual(lines[0].geometry.coordinates, track.map((point) => [point.lng, point.lat]));
+  assert.deepEqual(lines[1].geometry.coordinates, second.map((point) => [point.lng, point.lat]));
+  assert.ok(
+    !lines.some((line) => line.geometry.coordinates.some(
+      (coord, index, coords) => index > 0 && coords[index - 1][0] === 18.3 && coord[0] === 19.0,
+    )),
+    'the unrelated endpoints are never joined inside one LineString',
   );
 });
 

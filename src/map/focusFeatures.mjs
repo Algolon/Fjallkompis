@@ -1,12 +1,12 @@
 /**
- * Build the GeoJSON for a "View on map" detour focus (pure + tested).
+ * Build the GeoJSON for a "View on map" route focus (pure + tested).
  *
  * The transient 'focus' source mixes a route LINE with endpoint POINTS; the map
  * layers filter by geometry type so circles never render the line's vertices.
- * This emits EXACTLY: one LineString for the whole track, plus a `start` Point
- * and (when distinct) a `destination` Point — never the intermediate
- * trackpoints, and never a separate finish marker for an out-and-back route
- * (rejoin == start, so it is not emitted again).
+ * A focus may contain one owner-supplied detour track OR several verified
+ * route-stage tracks for a personalised walking day. Tracks remain separate
+ * LineStrings so a non-contiguous day never gains an invented connector.
+ * Start/destination are Point features only; intermediate vertices never are.
  *
  * Coordinates are `{ lat, lng }` in; GeoJSON `[lng, lat]` out.
  */
@@ -23,15 +23,17 @@ function pointFeature(p, role) {
   };
 }
 
-export function buildFocusFeatures({ track, start, destination }) {
+export function buildFocusFeatures({ track, tracks, start, destination }) {
   const features = [];
-  if (Array.isArray(track) && track.length >= 2) {
+  const routeTracks = Array.isArray(tracks) && tracks.length > 0 ? tracks : [track];
+  for (const routeTrack of routeTracks) {
+    if (!Array.isArray(routeTrack) || routeTrack.length < 2) continue;
     features.push({
       type: 'Feature',
       properties: { kind: 'route' },
       geometry: {
         type: 'LineString',
-        coordinates: track.map((t) => [t.lng, t.lat]),
+        coordinates: routeTrack.map((t) => [t.lng, t.lat]),
       },
     });
   }
