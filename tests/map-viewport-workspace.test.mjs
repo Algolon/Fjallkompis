@@ -161,11 +161,11 @@ test('everything floating over the map clears the top safe area', () => {
     /\.mapview \.maplibregl-ctrl-top-left,\n\.mapview \.maplibregl-ctrl-top-right \{\n  top: var\(--safe-top\);/,
     "MapLibre's own top control corners are inset too",
   );
-  // …and the bottom corners clear the status dock, whose measured height the
-  // screen publishes as --map-dock-h.
+  // …and the bottom corners clear the live-tracking pill when there is one
+  // (--map-bottom-h is 0px whenever the map is idle).
   assert.match(
     css,
-    /\.map-canvas-wrap \.maplibregl-ctrl-bottom-left,\n\.map-canvas-wrap \.maplibregl-ctrl-bottom-right \{\n  bottom: var\(--map-dock-h, 0px\);/,
+    /\.map-canvas-wrap \.maplibregl-ctrl-bottom-left,\n\.map-canvas-wrap \.maplibregl-ctrl-bottom-right \{\n  bottom: var\(--map-bottom-h, 0px\);/,
   );
 });
 
@@ -180,7 +180,7 @@ test('roomy landscape keeps the map dominant — no panels around it', () => {
   // The same cockpit, with more air — never a column layout that shrinks
   // the map back into a card.
   assert.ok(!/flex-direction: row/.test(roomy), 'the map is not put in a row with a panel');
-  assert.match(roomy, /\.map-dock \{\n    max-width: 680px;/, 'the dock stays a centred bar');
+  assert.match(roomy, /\.map-track \{/, 'the tracking pill just gets more air');
   assert.match(roomy, /\.map-cockpit-lead \{\n    max-width: min\(520px/);
   // Full-bleed beside the rail — never a centred column with page gutters.
   const wide = css.slice(css.indexOf('@media (min-width: 760px) and (min-height: 500px)'));
@@ -195,19 +195,18 @@ test('every existing Map control is still rendered', () => {
     ['<MapView', 'the map'],
     ['MapScopeControl', 'route/stage selection'],
     ['onStep={stepStage}', 'previous/next stage'],
-    ['MapControlStack', 'layer, fit, locate and follow controls'],
-    ['MapStatusDock', 'position and progress status'],
+    ['MapControlStack', 'layer, fit, locate and tracking controls'],
     ['geo.locate', 'one-shot locate'],
-    ['Live tracking', 'live tracking'],
+    ['startTracking', 'starting live tracking'],
     ['stopTracking', 'stopping live tracking'],
-    ['Use manual mode instead', 'manual position fallback'],
-    ['TrackingStatusOverlay', 'map-level tracking warnings'],
+    ['resumeFollow', 'resuming a paused follow'],
+    ['MapTrackingPill', 'live tracking status'],
     ['StopPreview', 'anchored stop preview'],
   ]) {
     assert.ok(mapScreen.includes(needle), `${what} stays on the Map screen`);
   }
   const stack = readFileSync(join(root, 'src/components/MapControlStack.tsx'), 'utf8');
-  assert.match(stack, /aria-label="Basemap imagery"/, 'terrain/satellite choice');
+  assert.match(stack, /aria-label="Choose map layer"/, 'terrain/satellite choice');
 });
 
 test('the header-less workspace keeps an accessible screen name', () => {

@@ -162,7 +162,15 @@ test('Map feeds the oriented geometry to MapView and remounts on direction flip'
   // Selector + prev/next follow the itinerary order; progress uses oriented points.
   assert.match(map, /route\.stages\.map\(\(s\) =>/);
   assert.match(map, /\[null, \.\.\.route\.stages\.map\(\(s\) => s\.id\)\]/);
-  assert.match(map, /projectOntoRoute\(\s*currentStage\.points/);
+  // Progress projection is no longer presented on the Map (the status dock
+  // and its sheet were removed); the live session still feeds the CURRENT
+  // stage's oriented points to the projector inside useRouteTracking.
+  assert.match(map, /stagePoints: currentStage\?\.points \?\? null/);
+  assert.match(
+    read('src/hooks/useRouteTracking.ts'),
+    /projectOntoRoute\(points, fix/,
+    'the hook still projects onto the oriented stage points',
+  );
   // No presentation-time "100 - percent" reversal anywhere.
   assert.ok(!/100\s*-\s*.*percent/.test(map), 'no 100 − percent hack on Map');
 });

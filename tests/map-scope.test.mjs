@@ -8,7 +8,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FULL_ROUTE_LABEL,
-  scopeMismatch,
   scopePillLabel,
   stageScopeLabel,
   stageShortLabel,
@@ -41,24 +40,18 @@ test('the pill reads the focus, then the viewed stage, then the full route', () 
   );
 });
 
-test('the mismatch names BOTH stages when the map browses a different day', () => {
-  assert.deepEqual(
-    scopeMismatch({ viewedStageId: 'd5', viewedDay: 5, trackedStageId: 'd4', trackedDay: 4 }),
-    { viewing: 'Day 5', tracking: 'Day 4' },
-  );
-});
-
-test('nothing to explain → no mismatch line', () => {
-  // Same stage.
-  assert.equal(
-    scopeMismatch({ viewedStageId: 'd4', viewedDay: 4, trackedStageId: 'd4', trackedDay: 4 }),
-    null,
-  );
-  // No current stage at all.
-  assert.equal(scopeMismatch({ viewedStageId: 'd5', viewedDay: 5 }), null);
-  // Full-route browsing makes no competing claim about the tracked day.
-  assert.equal(scopeMismatch({ trackedStageId: 'd4', trackedDay: 4 }), null);
-  assert.equal(scopeMismatch(), null);
+// The viewed/tracked mismatch helper went with the rejected status dock: the
+// scope pill names what the map shows, the tracking pill names the stage
+// being tracked, and the scope sheet marks Viewing and Current per row — so
+// no third label (and no dead export) is left behind.
+test('the module exposes only the labels the cockpit actually renders', async () => {
+  const mod = await import('../src/map/mapScope.mjs');
+  assert.deepEqual(Object.keys(mod).sort(), [
+    'FULL_ROUTE_LABEL',
+    'scopePillLabel',
+    'stageScopeLabel',
+    'stageShortLabel',
+  ]);
 });
 
 test('the module never reaches for route or store data', async () => {

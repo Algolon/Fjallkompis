@@ -9,14 +9,12 @@ import {
 import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
-import { TrackingStatusOverlay } from '../components/TrackingStatus';
 import { MapScopeControl, type ScopeOption } from '../components/MapScopeControl';
 import { MapControlStack } from '../components/MapControlStack';
-import { MapStatusDock, MapStatusSheet } from '../components/MapStatusDock';
+import { MapTrackingPill } from '../components/MapTrackingPill';
 import { FacilityIcon } from '../components/FacilityIcon';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useRouteTracking } from '../hooks/useRouteTracking';
-import type { TrackingSession } from '../utils/trackingSession.mjs';
 import {
   STOPS_BY_ID,
   collapsedFacilities,
@@ -28,194 +26,23 @@ import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import type { BasemapMode } from '../map/pmtilesProtocol';
 import { cameraPaddingFor } from '../map/mapPadding.mjs';
 import type { MapPadding } from '../map/mapPadding.mjs';
-import { dockStatus } from '../map/mapDockState.mjs';
+import { trackingPill } from '../map/mapTrackingPill.mjs';
 import {
   FULL_ROUTE_LABEL,
-  scopeMismatch,
   scopePillLabel,
   stageScopeLabel,
   stageShortLabel,
 } from '../map/mapScope.mjs';
-import { projectOntoRoute } from '../utils/routeProgress.mjs';
-import type { RouteProjection } from '../utils/routeProgress.mjs';
-import { formatDistanceKm } from '../utils/format';
 import type { LatLng, TrailStop } from '../types';
 
-/** Whole metres, phrased as an approximation ("~38 m", "~640 m"). */
-const approxMeters = (m: number) => `~${Math.round(m)} m`;
-
-/** Along-route progress state for the GPS/manual result card. */
-type Progress =
-  | null // no position yet
-  | { kind: 'no-stage' }
-  | { kind: 'manual-start'; totalKm: number }
-  | { kind: 'manual-end'; totalKm: number }
-  | { kind: 'manual-unrelated'; stopName: string }
-  | { kind: 'gps'; proj: RouteProjection };
-
-/** The primary "Today's route" readout: km done, km left, %, and a barchart. */
-function ProgressReadout({
-  stageTitle,
-  completedKm,
-  remainingKm,
-  percent,
-  note,
-}: {
-  stageTitle: string | null;
-  completedKm: number;
-  remainingKm: number;
-  percent: number;
-  note: string;
-}) {
-  const pct = Math.round(percent);
-  return (
-    <div className="route-progress" style={{ marginTop: 4 }}>
-      <div className="row-between">
-        <span className="card-sub">Today’s route{stageTitle ? ` · ${stageTitle}` : ''}</span>
-        <span className="tnum" style={{ fontWeight: 800, fontSize: 20 }}>
-          {pct}%
-        </span>
-      </div>
-      <progress
-        className="map-progress"
-        style={{ width: '100%', marginTop: 10 }}
-        value={pct}
-        max={100}
-        aria-label={`Route completed: ${pct}%`}
-      />
-      <div className="stat-grid" style={{ marginTop: 12 }}>
-        <div className="stat">
-          <div className="k">Completed</div>
-          <div className="v tnum">{formatDistanceKm(completedKm)}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Remaining</div>
-          <div className="v tnum">{formatDistanceKm(remainingKm)}</div>
-        </div>
-      </div>
-      <p className="card-sub" style={{ marginTop: 10 }}>
-        {note}
-      </p>
-    </div>
-  );
-}
-
-/** Renders the along-route progress result for the current-stage position. */
-function renderProgress(
-  progress: Progress,
-  stageTitle: string | null,
-  accuracyM: number | null,
-) {
-  if (!progress) return null;
-
-  if (progress.kind === 'no-stage') {
-    return (
-      <p className="card-sub" style={{ marginTop: 4 }}>
-        Select a current stage before route progress can be calculated — set
-        one on the Stages tab.
-      </p>
-    );
-  }
-
-  if (progress.kind === 'manual-unrelated') {
-    return (
-      <p className="banner-warn" style={{ marginTop: 4 }}>
-        <span>🧭</span>
-        <span>
-          {progress.stopName} isn’t on your current stage
-          {stageTitle ? ` (${stageTitle})` : ''}. Set that stage as current, or
-          use GPS, to see progress along it.
-        </span>
-      </p>
-    );
-  }
-
-  if (progress.kind === 'manual-start' || progress.kind === 'manual-end') {
-    const atStart = progress.kind === 'manual-start';
-    return (
-      <ProgressReadout
-        stageTitle={stageTitle}
-        completedKm={atStart ? 0 : progress.totalKm}
-        remainingKm={atStart ? progress.totalKm : 0}
-        percent={atStart ? 0 : 100}
-        note={`Pinned to the ${atStart ? 'start' : 'end'} of today’s stage — an exact stop, not a GPS estimate`}
-      />
-    );
-  }
-
-  // GPS projection onto the current stage.
-  const { proj } = progress;
-  if (!proj.ok || !proj.reliable) {
-    return (
-      <p className="banner-warn" style={{ marginTop: 4 }}>
-        <span>📍</span>
-        <span>
-          Your position could not be reliably matched to the current stage
-          {stageTitle ? ` (${stageTitle})` : ''}.
-          {proj.ok
-            ? ` Nearest mapped route point: approximately ${Math.round(proj.crossTrackM)} m away.`
-            : ''}
-        </span>
-      </p>
-    );
-  }
-  const accuracyNote =
-    accuracyM != null ? ` · GPS accuracy ±${Math.round(accuracyM)} m` : '';
-  return (
-    <ProgressReadout
-      stageTitle={stageTitle}
-      completedKm={proj.distanceAlongKm}
-      remainingKm={proj.distanceRemainingKm}
-      percent={proj.percent}
-      note={`Matched ${approxMeters(proj.crossTrackM)} from the mapped route${accuracyNote} — approximate, not exact.`}
-    />
-  );
-}
-
 /**
- * Live-tracking progress readout. Progress comes from CURRENT-STAGE
- * projections only; the full-route status decides how a non-match is
- * explained — a hiker on another Kungsleden stage is on the mapped route,
- * never "off route" merely because the persisted stage differs.
+ * The Map presents NO along-route progress readout any more: the old status
+ * dock and its details sheet were removed, and current-stage progress needs
+ * a deliberate home (Today) rather than half a card over the map. The
+ * calculations themselves are untouched — src/utils/routeProgress.mjs and
+ * the live session in useRouteTracking still project fixes onto the route
+ * and the current stage exactly as before.
  */
-function renderLiveProgress(session: TrackingSession, stageTitle: string | null) {
-  const onRouteNotStage =
-    session.routeStatus === 'on-route' && !session.stageMatched;
-
-  if (!session.progress) {
-    return onRouteNotStage ? (
-      <p className="card-sub" style={{ marginTop: 4 }}>
-        On the mapped route, but not reliably matched to today’s stage
-        {stageTitle ? ` (${stageTitle})` : ''}. Stage progress appears once you
-        are on today’s section.
-      </p>
-    ) : (
-      <p className="card-sub" style={{ marginTop: 4 }}>
-        No reliable route match yet — stage progress appears once a fix lands
-        close enough to today’s stage for its reported accuracy.
-      </p>
-    );
-  }
-
-  const accuracyM = session.lastFix?.accuracyM ?? null;
-  const note = session.progressStale
-    ? onRouteNotStage
-      ? 'Progress frozen at the last reliable match — you are on the mapped route, but not on today’s stage right now.'
-      : 'Progress frozen at the last reliable match — recent fixes were off today’s stage or too inaccurate to trust.'
-    : `Live — matched to today’s stage${
-        accuracyM != null ? ` · GPS accuracy ±${Math.round(accuracyM)} m` : ''
-      } — approximate, not exact.`;
-
-  return (
-    <ProgressReadout
-      stageTitle={stageTitle}
-      completedKm={session.progress.alongKm}
-      remainingKm={session.progress.remainingKm}
-      percent={session.progress.percent}
-      note={note}
-    />
-  );
-}
 
 /**
  * Anchored stop preview — the content of the map popup. A PREVIEW, not a
@@ -303,14 +130,25 @@ export function MapScreen({
   const [imagery, setImagery] = useState<ImageryMode>('terrain');
   const [satelliteAvailable, setSatelliteAvailable] = useState(false);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualHutId, setManualHutId] = useState<string>(
-    itinerary.orderedStops[0]?.id ?? '',
+
+  // ---- Transient map message ---------------------------------------------
+  // Failures and refusals (GPS denied, no current stage, a tracking error)
+  // are said once, briefly, in the cockpit's own note slot — never in a
+  // sheet, and never as a permanent band. role="status" makes it audible to
+  // assistive tech; the timer keeps the map clean afterwards.
+  const [message, setMessage] = useState<string | null>(null);
+  const messageTimerRef = useRef<number | null>(null);
+  const say = useCallback((text: string) => {
+    setMessage(text);
+    if (messageTimerRef.current) window.clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = window.setTimeout(() => setMessage(null), 7000);
+  }, []);
+  useEffect(
+    () => () => {
+      if (messageTimerRef.current) window.clearTimeout(messageTimerRef.current);
+    },
+    [],
   );
-  // The status dock's details sheet (position, progress, live tracking,
-  // manual fallback) — opened from the dock, never permanently in front of
-  // the map.
-  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // ---- Layout-aware camera padding ---------------------------------------
   // The cockpit floats over the map, so the screen measures its OWN overlay
@@ -320,7 +158,11 @@ export function MapScreen({
   const wrapRef = useRef<HTMLDivElement>(null);
   const leadRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
-  const dockBandRef = useRef<HTMLDivElement>(null);
+  // The bottom band exists only while the tracking pill does, so it is
+  // attached through a callback ref: mounting or unmounting it re-observes
+  // and re-measures, and the idle map pays no bottom inset at all.
+  const bottomBandRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
   const [padding, setPadding] = useState<MapPadding>(() =>
     cameraPaddingFor({ viewportWidth: 0, viewportHeight: 0 }),
   );
@@ -330,7 +172,9 @@ export function MapScreen({
     if (!wrap) return;
     // The insets are the regions the cockpit ACTUALLY covers, measured from
     // the map's own box: how far down the lead column reaches, how far in
-    // the control stack reaches, where the dock starts. Reserving whole
+    // the control stack reaches, and — ONLY while a live-tracking pill
+    // exists — where that pill starts. In the idle state the bottom inset is
+    // zero, because there is nothing down there any more. Reserving whole
     // bands instead would spend vertical fit the bounded camera does not
     // have (see mapPadding.mjs).
     const box = wrap.getBoundingClientRect();
@@ -347,7 +191,7 @@ export function MapScreen({
       viewportHeight: wrap.clientHeight,
       topInset: depth(leadRef.current, 'top'),
       rightInset: depth(controlsRef.current, 'right'),
-      bottomInset: depth(dockBandRef.current, 'bottom'),
+      bottomInset: depth(bottomBandRef.current, 'bottom'),
     });
     setPadding((prev) =>
       prev.top === next.top &&
@@ -358,30 +202,45 @@ export function MapScreen({
         : next,
     );
     // MapLibre's own scale and attribution controls sit at the bottom
-    // corners; lift them above the dock so nothing overlaps them.
+    // corners; lift them clear of the tracking pill while it is showing,
+    // and let them drop back down when it goes.
     wrap.style.setProperty(
-      '--map-dock-h',
-      `${Math.round(dockBandRef.current?.offsetHeight ?? 0)}px`,
+      '--map-bottom-h',
+      `${Math.round(bottomBandRef.current?.offsetHeight ?? 0)}px`,
     );
   }, []);
 
   // useLayoutEffect, not useEffect: the FIRST measurement has to land before
   // MapView's own (passive) effect builds the map, so the very first camera
-  // fit already frames the route inside the visible band instead of under
-  // the status dock.
+  // fit already frames the route inside the visible band.
   useLayoutEffect(() => {
     measurePadding();
     const observer = new ResizeObserver(measurePadding);
+    observerRef.current = observer;
     for (const el of [
       wrapRef.current,
       leadRef.current,
       controlsRef.current,
-      dockBandRef.current,
+      bottomBandRef.current,
     ]) {
       if (el) observer.observe(el);
     }
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
   }, [measurePadding]);
+
+  const attachBottomBand = useCallback(
+    (node: HTMLDivElement | null) => {
+      const previous = bottomBandRef.current;
+      if (previous) observerRef.current?.unobserve(previous);
+      bottomBandRef.current = node;
+      if (node) observerRef.current?.observe(node);
+      measurePadding();
+    },
+    [measurePadding],
+  );
 
   // ---- Live tracking (beta, opt-in, foreground-only) ----------------------
   // Status is judged against the COMPLETE route; progress against the
@@ -407,20 +266,37 @@ export function MapScreen({
   const liveCurrent =
     session.lastFix != null &&
     (tracking.active || geo.timestamp == null || session.lastFix.timestamp >= geo.timestamp);
-  const marker = liveCurrent
-    ? { lat: session.lastFix!.lat, lng: session.lastFix!.lon }
-    : geo.coord;
+  // Memoised on the COORDINATES, not on render: MapView eases the camera
+  // whenever this prop changes identity while following, so a fresh object
+  // every render would re-centre on every unrelated re-render — and would
+  // cancel the deliberate "resume following" recentre a beat after it starts.
+  const liveLat = liveCurrent ? session.lastFix!.lat : null;
+  const liveLon = liveCurrent ? session.lastFix!.lon : null;
+  const marker = useMemo(
+    () => (liveLat != null && liveLon != null ? { lat: liveLat, lng: liveLon } : geo.coord),
+    [liveLat, liveLon, geo.coord],
+  );
 
   const startTracking = () => {
-    if (!currentStage) return;
-    // One position source at a time: clear one-shot/manual state so it can
+    if (!currentStage) {
+      // A refusal has to say what to do about it — concisely, in place.
+      say('Select a current stage in Stages before starting live tracking.');
+      return;
+    }
+    // One position source at a time: clear the one-shot state so it can
     // never compete with the live session.
     geo.reset();
-    setManualOpen(false);
     tracking.start();
     setFollow(true);
     // Focus the tracked stage if the user was browsing elsewhere.
     setViewStageId(currentStage.id);
+  };
+
+  // A deliberate pan/zoom pauses the camera WITHOUT ending the session; this
+  // is how the hiker gets it back.
+  const resumeFollow = () => {
+    if (marker) mapRef.current?.centerOn(marker);
+    setFollow(true);
   };
 
   const stopTracking = () => {
@@ -428,14 +304,24 @@ export function MapScreen({
     setFollow(false);
   };
 
-  // A one-shot Locate is a deliberate "show me where I am": when the fix
-  // arrives, bring the camera to it (live tracking has Follow for this).
+  // A one-shot Locate is a deliberate "show me where I am": ONE fix, the
+  // marker updated, the camera centred once — no session, no follow mode.
   useEffect(() => {
     if (geo.status === 'success' && geo.coord && geo.source === 'gps' && !tracking.active) {
       mapRef.current?.centerOn(geo.coord);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.status, geo.timestamp]);
+
+  // A denied or failed fix is reported where it was asked for.
+  useEffect(() => {
+    if (geo.status === 'error' && geo.error) say(geo.error);
+  }, [geo.status, geo.error, say]);
+  useEffect(() => {
+    // While a session runs the pill already carries the live state
+    // ("Waiting for GPS"), so only a session-ending error needs saying.
+    if (tracking.error && !tracking.active) say(tracking.error);
+  }, [tracking.error, tracking.active, say]);
 
   // One-shot "View on map": highlight the experience's verified geometry — a
   // point, an owner GPX route, or the whole Stage (route-wide). MapView remounts
@@ -469,15 +355,6 @@ export function MapScreen({
     setViewStageId(ids[(idx + dir + ids.length) % ids.length]);
   };
 
-  const applyManual = () => {
-    const stop = STOPS_BY_ID[manualHutId];
-    if (stop) {
-      const coord: LatLng = stop.coord;
-      geo.setManual(coord, stop.id);
-      setManualOpen(false);
-    }
-  };
-
   // The selected marker's stop, previewed in the anchored map popup. Every
   // rendered waypoint currently maps to a stop (fenced by
   // tests/map-stop-markers.test.mjs); the name-only fallback below is
@@ -488,41 +365,6 @@ export function MapScreen({
   const selectedWaypointName = selectedWaypointId
     ? WAYPOINT_BY_ID[selectedWaypointId]?.name ?? null
     : null;
-
-  const currentStageTitle = currentStage
-    ? `Stage ${currentStage.day}: ${stopShortName(STOPS_BY_ID[currentStage.fromHutId])} → ${stopShortName(STOPS_BY_ID[currentStage.toHutId])}`
-    : null;
-
-  // Along-route progress is always computed against the CURRENT persisted
-  // stage — never the stage merely being browsed on the map above.
-  const progress = useMemo<Progress>(() => {
-    if (geo.status !== 'success' || !geo.coord) return null;
-    if (!currentStage) return { kind: 'no-stage' };
-
-    const totalKm =
-      currentStage.points[currentStage.points.length - 1]?.cumulativeDistanceKm ??
-      currentStage.distanceKm;
-
-    if (geo.source === 'manual') {
-      // fromHutId/toHutId are already oriented, so "start"/"end" follow the
-      // active direction.
-      if (geo.manualStopId === currentStage.fromHutId)
-        return { kind: 'manual-start', totalKm };
-      if (geo.manualStopId === currentStage.toHutId)
-        return { kind: 'manual-end', totalKm };
-      const stop = geo.manualStopId ? STOPS_BY_ID[geo.manualStopId] : null;
-      return { kind: 'manual-unrelated', stopName: stop ? stopShortName(stop) : 'that stop' };
-    }
-
-    return {
-      kind: 'gps',
-      proj: projectOntoRoute(
-        currentStage.points,
-        { lat: geo.coord.lat, lon: geo.coord.lng },
-        { accuracyM: geo.accuracyM },
-      ),
-    };
-  }, [geo.status, geo.coord, geo.source, geo.manualStopId, geo.accuracyM, currentStage]);
 
   // ---- Scope: what the map is showing ------------------------------------
   // A temporary "View on map" focus owns the pill while it is showing; the
@@ -563,58 +405,23 @@ export function MapScreen({
     else mapRef.current?.fitRoute();
   };
 
-  // ---- Status dock -------------------------------------------------------
-  const liveProgress = session.progress;
-  const oneShotMatch =
-    progress?.kind === 'gps'
-      ? progress.proj.ok && progress.proj.reliable
-      : progress?.kind === 'manual-start' || progress?.kind === 'manual-end';
-  const oneShotPercent =
-    progress?.kind === 'gps' && progress.proj.ok
-      ? progress.proj.percent
-      : progress?.kind === 'manual-start'
-        ? 0
-        : progress?.kind === 'manual-end'
-          ? 100
-          : null;
-  const oneShotRemainingKm =
-    progress?.kind === 'gps' && progress.proj.ok
-      ? progress.proj.distanceRemainingKm
-      : progress?.kind === 'manual-start'
-        ? progress.totalKm
-        : progress?.kind === 'manual-end'
-          ? 0
-          : null;
-  const status = dockStatus({
-    trackingActive: tracking.active,
-    locating: geo.status === 'locating',
-    error: tracking.error ?? (geo.status === 'error' ? geo.error : null),
-    hasCurrentStage: currentStage != null,
+  // ---- Live tracking pill -------------------------------------------------
+  // The Map's only status surface, and only while a session runs. Route
+  // status comes from the COMPLETE-route matcher; the qualified wording
+  // rules live in the pure module.
+  const pill = trackingPill({
+    active: tracking.active,
+    following: follow,
     stageLabel: currentStage ? stageShortLabel(currentStage.day) : null,
-    hasFix: marker != null,
-    fixSource: liveCurrent ? 'gps' : geo.source,
-    matched: liveCurrent
-      ? session.stageMatched && liveProgress != null
-      : oneShotMatch === true,
-    routeStatus: liveCurrent ? session.routeStatus : null,
-    progressStale: session.progressStale,
-    percent: liveCurrent ? (liveProgress?.percent ?? null) : oneShotPercent,
-    remainingLabel: liveCurrent
-      ? liveProgress
-        ? formatDistanceKm(liveProgress.remainingKm)
-        : null
-      : oneShotRemainingKm != null
-        ? formatDistanceKm(oneShotRemainingKm)
-        : null,
+    routeStatus: session.routeStatus,
+    uncertainStreak: session.uncertainStreak,
+    hasFix: session.lastFix != null,
   });
-  // Both stages, explicitly, whenever they differ — the map may be browsing
-  // Day 5 while progress is still tracked against Day 4.
-  const mismatch = scopeMismatch({
-    viewedStageId: viewStageId,
-    viewedDay: viewStage?.day ?? null,
-    trackedStageId: currentStage?.id ?? null,
-    trackedDay: currentStage?.day ?? null,
-  });
+
+  // The viewed/tracked distinction needs no third label of its own: the
+  // scope pill names what the map is showing, the tracking pill names the
+  // stage being tracked ("Following Day 4"), and the scope sheet marks both
+  // Viewing and Current per row.
 
   return (
     <div className="screen screen--map">
@@ -625,13 +432,13 @@ export function MapScreen({
           is named by the primary navigation. */}
       <h1 className="sr-only">Map</h1>
 
-      {/* TRAIL COCKPIT. The map IS the screen; three deliberate layers float
-          over it: the scope control (top-left, "what am I looking at"), the
-          map control stack (top-right, "what can I do to the map") and the
-          trail status dock (bottom, "where am I on the route"). Everything
-          else — full progress readouts, accuracy, errors, live tracking and
-          the manual fallback — lives one tap deep in sheets, so the map
-          keeps the space. */}
+      {/* TRAIL COCKPIT. The map IS the screen. In the idle state exactly two
+          things float over it: the scope control (top-left, "what am I
+          looking at") and the map control stack (top-right, "what can I do
+          to the map"). A compact live pill joins them at the bottom ONLY
+          while a tracking session runs, and refusals or failures are said
+          once in the note slot under the scope pill. There is no permanent
+          status panel, card or sheet — the map keeps the space. */}
       <div className="map-layout">
         <div className="map-canvas-wrap" ref={wrapRef}>
           <MapView
@@ -704,11 +511,13 @@ export function MapScreen({
                   </span>
                 </p>
               ) : null}
-              {tracking.active && currentStage ? (
-                <TrackingStatusOverlay
-                  session={session}
-                  stageLabel={stageShortLabel(currentStage.day)}
-                />
+              {/* Transient, self-clearing: a refused start, a denied fix, a
+                  tracking error. Never a sheet, never a permanent band. */}
+              {message ? (
+                <p className="map-note map-note--warn" role="status">
+                  <TriangleAlert size={15} strokeWidth={2} aria-hidden />
+                  <span>{message}</span>
+                </p>
               ) : null}
             </div>
 
@@ -717,163 +526,35 @@ export function MapScreen({
               imagery={imagery}
               onImageryChange={setImagery}
               satelliteAvailable={satelliteAvailable}
-              basemapAvailable={basemapMode !== 'none'}
               fitLabel={`Fit ${viewStage ? stageShortLabel(viewStage.day) : 'route'}`}
               onFit={fitScope}
               onLocate={geo.locate}
-              locateDisabled={tracking.active || geo.status === 'locating'}
               locating={geo.status === 'locating'}
-              follow={follow}
-              onToggleFollow={() => setFollow((f) => !f)}
-              canFollow={marker != null}
+              // One request at a time, and never while a live session owns
+              // the position source.
+              locateDisabled={tracking.active || geo.status === 'locating'}
+              trackingActive={tracking.active}
+              following={follow}
+              onStartTracking={startTracking}
+              onResumeFollow={resumeFollow}
             />
           </div>
 
           {/* Bottom band: the trail status dock, immediately above the
               persistent bottom navigation. Measured for the camera's bottom
               padding for the same reason as the top band. */}
-          <div className="map-cockpit-bottom" ref={dockBandRef}>
-            <MapStatusDock
-              status={status}
-              mismatch={mismatch}
-              detailsOpen={detailsOpen}
-              onOpenDetails={() => setDetailsOpen(true)}
-              onAction={() => {
-                if (status.actionKind === 'stop') stopTracking();
-                else if (status.actionKind === 'locate') geo.locate();
-              }}
-            />
-          </div>
+          {/* Bottom band: nothing at all unless a live session is running,
+              so the idle map has no reserved band and no empty space above
+              the navigation. Its measured depth is the camera's bottom
+              padding while it exists. */}
+          {pill ? (
+            <div className="map-cockpit-bottom" ref={attachBottomBand}>
+              <MapTrackingPill pill={pill} onStop={stopTracking} />
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {detailsOpen ? (
-        <MapStatusSheet title="Position & progress" onClose={() => setDetailsOpen(false)}>
-          {/* The full readout the Map used to keep permanently on screen:
-              source, accuracy, along-stage progress, errors, live tracking
-              and the manual fallback. No raw coordinates — the marker on the
-              map IS the position. */}
-          {liveCurrent && session.lastFix ? (
-            <div>
-              <div className="row-between">
-                <span className="muted">Position</span>
-                <span>
-                  {tracking.active ? 'Live GPS' : 'Last live fix'}
-                  {session.lastFix.accuracyM != null
-                    ? ` · ±${Math.round(session.lastFix.accuracyM)} m`
-                    : ''}
-                </span>
-              </div>
-              <div className="hr" />
-              {renderLiveProgress(session, currentStageTitle)}
-            </div>
-          ) : geo.status === 'success' && geo.coord ? (
-            <div>
-              <div className="row-between">
-                <span className="muted">Position</span>
-                <span>
-                  {geo.source === 'manual' ? 'Manual (pinned to a stop)' : 'GPS one-shot'}
-                  {geo.accuracyM != null ? ` · ±${Math.round(geo.accuracyM)} m` : ''}
-                </span>
-              </div>
-              <div className="hr" />
-              {renderProgress(progress, currentStageTitle, geo.accuracyM)}
-            </div>
-          ) : (
-            <p className="card-sub">
-              <strong>Locate</strong> takes a one-shot GPS fix. <strong>Live
-              tracking · Beta</strong> follows today’s stage as you walk
-              (foreground only — approximate, not for primary navigation).
-            </p>
-          )}
-
-          {tracking.error ? (
-            <p className="banner-warn" style={{ marginTop: 12 }}>
-              <span>📍</span>
-              <span>{tracking.error}</span>
-            </p>
-          ) : null}
-
-          {geo.status === 'error' && geo.error ? (
-            <p className="banner-warn" style={{ marginTop: 12 }}>
-              <span>📍</span>
-              <span>{geo.error}</span>
-            </p>
-          ) : null}
-
-          {/* Live tracking (beta): one position source at a time — the
-              one-shot Locate in the control stack is disabled while a live
-              session runs. */}
-          <div className="map-sheet-actions">
-            {!tracking.active ? (
-              <button
-                className="btn btn-primary btn-block"
-                onClick={() => {
-                  startTracking();
-                  setDetailsOpen(false);
-                }}
-                disabled={!currentStage}
-                title={
-                  currentStage ? undefined : 'Select a current stage first (in Stages)'
-                }
-              >
-                ▶ Live tracking · Beta
-              </button>
-            ) : (
-              <button
-                className="btn btn-danger btn-block"
-                onClick={() => {
-                  stopTracking();
-                  setDetailsOpen(false);
-                }}
-              >
-                ■ Stop tracking
-              </button>
-            )}
-            {!currentStage ? (
-              <p className="card-sub" style={{ marginTop: 8 }}>
-                Live tracking (beta) follows today’s stage — select a current
-                stage first on the Stages tab.
-              </p>
-            ) : null}
-          </div>
-
-          {/* Manual fallback: available when GPS fails or nothing located yet —
-              hidden entirely while a live session runs (one source at a time). */}
-          {!tracking.active && (geo.status === 'error' || geo.status === 'idle') ? (
-            <div style={{ marginTop: 12 }}>
-              {!manualOpen ? (
-                <button className="btn btn-ghost btn-block" onClick={() => setManualOpen(true)}>
-                  Use manual mode instead
-                </button>
-              ) : (
-                <div>
-                  <label className="field">
-                    <span>I’m currently at</span>
-                    <select
-                      className="select"
-                      value={manualHutId}
-                      onChange={(e) => setManualHutId(e.target.value)}
-                    >
-                      {itinerary.orderedStops.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {stopShortName(s)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={applyManual}>
-                    Set position from stop
-                  </button>
-                  <p className="card-sub" style={{ marginTop: 8 }}>
-                    Manual mode pins you to a stop so distances still work without GPS.
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </MapStatusSheet>
-      ) : null}
     </div>
   );
 }

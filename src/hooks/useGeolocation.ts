@@ -29,7 +29,10 @@ const initial: GeoState = {
 function messageFor(err: GeolocationPositionError): string {
   switch (err.code) {
     case err.PERMISSION_DENIED:
-      return 'Location permission denied. Use manual mode below.';
+      // No "use manual mode below" any more: the Map's manual fallback lived
+      // in the removed status sheet, so the message must not point at a
+      // control that is not there.
+      return 'Location permission denied. Allow location access for this site and try again.';
     case err.POSITION_UNAVAILABLE:
       return 'Position unavailable right now (no signal / hardware off).';
     case err.TIMEOUT:

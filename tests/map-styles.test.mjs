@@ -419,9 +419,9 @@ test('satellite layer contract is untouched by the retirement', () => {
   assert.match(screen, /onImageryChange=\{setImagery\}/, 'the screen owns the imagery state');
   assert.match(screen, /satelliteAvailable=\{satelliteAvailable\}/, 'availability threaded');
   const stack = readFileSync(join(root, 'src/components/MapControlStack.tsx'), 'utf8');
-  assert.match(stack, /aria-label="Basemap imagery"/, 'imagery radiogroup present');
-  assert.match(stack, /onImageryChange\('satellite'\)/, 'satellite selectable');
-  assert.match(stack, /disabled=\{!satelliteAvailable\}/, 'availability gate intact');
+  assert.match(stack, /role="radiogroup"/, 'imagery radiogroup present');
+  assert.match(stack, /mode: 'satellite'/, 'satellite selectable');
+  assert.match(stack, /disabled: !satelliteAvailable/, 'availability gate intact');
   const view = readFileSync(join(root, 'src/components/MapView.tsx'), 'utf8');
   assert.match(view, /imagery === 'satellite' \? 'visible' : 'none'/, 'toggle drives visibility');
 });

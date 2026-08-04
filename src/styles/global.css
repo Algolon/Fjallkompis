@@ -856,16 +856,17 @@ a.btn {
   min-height: 0;
 }
 /* --- Trail Cockpit chrome ------------------------------------------------
-   Three layers float over the map, and nothing else does:
+   In the idle state exactly ONE band floats over the map:
      1. the TOP BAND — scope control on the left, map control stack on the
-        right, plus compact map states (missing basemap, focused-place note)
-        and the live-tracking warnings under the scope pill;
-     2. the BOTTOM BAND — the trail status dock, immediately above the
-        persistent bottom navigation;
-     3. MapLibre's own scale/attribution/zoom controls, lifted clear of the
-        dock by --map-dock-h (set by MapScreen from the measured dock).
-   Both bands are measured by MapScreen and become the camera padding
-   (src/map/mapPadding.mjs), so geometry is never framed underneath them.
+        right, plus compact transient map states (a missing basemap, a
+        focused-place note, a refused action) under the scope pill;
+     2. the BOTTOM BAND — present ONLY while a live-tracking session runs,
+        holding the compact tracking pill above the persistent navigation;
+     3. MapLibre's own scale/attribution/zoom controls, lifted clear of that
+        pill by --map-bottom-h (0px whenever the pill is absent).
+   The bands are measured by MapScreen and become the camera padding
+   (src/map/mapPadding.mjs), so geometry is never framed underneath them —
+   and an idle map pays no bottom inset at all.
 
    The bands themselves are transparent to the pointer: only the controls
    inside them take events, so the map can be panned in the gaps. */
@@ -910,7 +911,8 @@ a.btn {
 .map-scope,
 .map-ctrl,
 .map-note,
-.map-dock {
+.map-popover,
+.map-track {
   background: color-mix(in srgb, var(--paper) 93%, transparent);
   backdrop-filter: blur(3px) saturate(1.12);
   border: 1px solid var(--line);
@@ -920,7 +922,8 @@ a.btn {
   .map-scope,
   .map-ctrl,
   .map-note,
-  .map-dock {
+  .map-popover,
+  .map-track {
     background: var(--paper);
   }
 }
@@ -929,7 +932,8 @@ a.btn {
   .map-scope,
   .map-ctrl,
   .map-note,
-  .map-dock {
+  .map-popover,
+  .map-track {
     background: var(--paper);
     backdrop-filter: none;
     border-color: var(--ink-faint);
@@ -1027,114 +1031,168 @@ a.btn {
   margin-top: 1px;
 }
 
-/* 3. Trail status dock. */
-.map-dock {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 5px 8px 5px 12px;
-  border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(27, 42, 39, 0.2);
+/* 1d. Layers popover — anchored to its button, never a sheet. Right-aligned
+   because the button lives on the right edge; it opens downward and stays
+   comfortably inside the viewport at 320px. */
+.map-ctrl-anchor {
+  position: relative;
 }
-.map-dock--warn {
-  background: color-mix(in srgb, var(--danger-soft) 95%, transparent);
-  border-color: #dcc4b8;
-}
-.map-dock__status {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
+.map-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 6;
+  width: 196px;
+  max-width: calc(100vw - 24px);
+  padding: 8px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 8px 24px rgba(27, 42, 39, 0.24);
+}
+.map-popover__title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 2px 6px 4px;
+}
+.map-popover__option {
+  display: flex;
+  flex-direction: column;
   align-items: flex-start;
   gap: 1px;
-  padding: 4px 0;
-  border: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   background: none;
-  color: inherit;
+  color: var(--ink);
   text-align: left;
 }
-.map-dock__status:active {
-  transform: scale(0.99);
+/* Selected reads from the filled chip AND the checked state, not colour. */
+.map-popover__option[aria-checked='true'] {
+  background: var(--spruce);
+  border-color: var(--spruce);
+  color: #f4f8f5;
 }
-.map-dock__status:focus-visible {
+.map-popover__option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.map-popover__option:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.map-popover__option:focus-visible {
   outline: 2px solid var(--glacier-700);
   outline-offset: 2px;
-  border-radius: 10px;
 }
-.map-dock__headline {
+.map-popover__name {
   font-size: 14px;
   font-weight: 700;
-  color: var(--ink-strong);
 }
-.map-dock--warn .map-dock__headline {
-  color: #6e4536;
-}
-.map-dock__detail {
-  font-size: 12.5px;
-  line-height: 1.3;
-  color: var(--ink-soft);
-  /* At most two lines on the map: the full wording is one tap away in the
-     details sheet, and every extra line the dock grows is height the
-     camera has to give up to keep the route framed above it. */
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-.map-dock--warn .map-dock__detail {
-  color: #6e4536;
-}
-.map-dock__scopes {
-  margin-top: 3px;
+.map-popover__note {
   font-size: 11.5px;
   line-height: 1.25;
   color: var(--ink-soft);
 }
-.map-dock__scopes b {
-  color: var(--ink-strong);
-  font-weight: 700;
+.map-popover__option[aria-checked='true'] .map-popover__note {
+  color: rgba(244, 248, 245, 0.86);
 }
-.map-dock__bar {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 100%;
-  height: 4px;
-  margin-top: 5px;
-  border: 0;
-  border-radius: 3px;
-  background: var(--line);
-  overflow: hidden;
+
+/* 2. Live-tracking pill — the ONLY bottom-band content, and only while a
+   session runs. Small, quiet, with the Stop action as its own separated
+   44px target. */
+.map-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 5px 6px 5px 12px;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(27, 42, 39, 0.2);
 }
-.map-dock__bar::-webkit-progress-bar {
-  background: var(--line);
+.map-track--warn {
+  background: color-mix(in srgb, var(--danger-soft) 95%, transparent);
+  border-color: #dcc4b8;
 }
-.map-dock__bar::-webkit-progress-value {
-  background: var(--good);
-  border-radius: 3px;
-}
-.map-dock__bar::-moz-progress-bar {
-  background: var(--good);
-}
-.map-dock__action {
+.map-track__dot {
   flex: 0 0 auto;
-  min-height: 44px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 0 3px rgba(93, 122, 86, 0.22);
+}
+.map-track--warn .map-track__dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(140, 91, 70, 0.22);
+}
+/* Blinks only while the camera is actually following; reduced motion turns
+   every animation off globally, and the dot stays visible either way. */
+.map-track__dot.is-live {
+  animation: map-track-blink 1.6s ease-in-out infinite;
+}
+@keyframes map-track-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+.map-track__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.map-track__label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-track__state {
+  font-size: 11.5px;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+.map-track--warn .map-track__label,
+.map-track--warn .map-track__state {
+  color: #6e4536;
+}
+.map-track__stop {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding-inline: 14px;
-  white-space: nowrap;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fdf7f4;
+  font-size: 13px;
+  font-weight: 700;
+}
+.map-track__stop:active {
+  transform: scale(0.97);
+}
+.map-track__stop:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
 }
 
 /* MapLibre's bottom controls (scale, attribution, and the pointer-only zoom
-   group) sit above the dock: --map-dock-h is the dock band's measured
-   height, published by MapScreen. */
+   group) clear the tracking pill while it exists: --map-bottom-h is the
+   band's measured height, published by MapScreen, and 0px otherwise. */
 .map-canvas-wrap .maplibregl-ctrl-bottom-left,
 .map-canvas-wrap .maplibregl-ctrl-bottom-right {
-  bottom: var(--map-dock-h, 0px);
+  bottom: var(--map-bottom-h, 0px);
 }
 
 /* Sheet contents ---------------------------------------------------------- */
@@ -2220,10 +2278,10 @@ button.map-status-pill {
   box-shadow: var(--shadow);
 }
 
-/* Map screen primary composition (.map-layout > .map-canvas-wrap +
-   .map-dock) is defined in the Map section above; the roomy-landscape
-   row variant lives in the adaptive-shell section below. Route/stage
-   planning (elevation, statistics) lives on Stages. */
+/* Map screen primary composition (.map-layout > .map-canvas-wrap, with the
+   cockpit bands over it) is defined in the Map section above; the
+   roomy-landscape variant lives in the adaptive-shell section below.
+   Route/stage planning (elevation, statistics) lives on Stages. */
 
 /* Elevation profile ------------------------------------------------------------ */
 
@@ -5130,8 +5188,8 @@ span.trip-attach-open {
    turn it back into a small panel surrounded by cards. The cockpit simply
    gets more room: the scope control may show its full "Day 3 · A → B"
    label without truncating, the control stack keeps the right edge, and
-   the status dock stays a centred bar with a readable measure rather than
-   stretching across a desktop window. */
+   the tracking pill stays a centred, fit-width pill rather than stretching
+   across a desktop window. */
 
 @media (min-width: 900px) and (min-height: 500px) {
   .map-cockpit-top {
@@ -5149,15 +5207,17 @@ span.trip-attach-open {
   .map-note {
     max-width: 420px;
   }
-  .map-dock {
-    max-width: 680px;
-    padding: 8px 10px 8px 14px;
+  .map-track {
+    padding: 6px 8px 6px 14px;
   }
-  .map-dock__headline {
-    font-size: 15px;
+  .map-track__label {
+    font-size: 14.5px;
   }
-  .map-dock__detail {
-    font-size: 13px;
+  .map-track__state {
+    font-size: 12.5px;
+  }
+  .map-popover {
+    width: 224px;
   }
 }
 

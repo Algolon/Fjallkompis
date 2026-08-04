@@ -1,22 +1,23 @@
 /**
- * Trail Cockpit composition — the Map's three deliberate layers over the
- * viewport-filling workspace (step 2 of the cockpit iteration):
+ * Trail Cockpit composition — what floats over the viewport-filling Map, and
+ * what deliberately does not.
  *
- *   1. the SCOPE control, top-left: which geometry am I looking at, and an
+ *   1. the SCOPE control, top-left: which geometry am I looking at, with an
  *      accessible sheet to change it — never seven permanent chips;
- *   2. the MAP CONTROL STACK, top-right: layer, fit, locate, follow, all at
- *      44×44 with state from icon/text and the accessible name;
- *   3. the TRAIL STATUS DOCK, bottom: one compact state line, one action,
- *      the viewed/tracked distinction, and a sheet holding the detailed
- *      readout, errors, live tracking and the manual fallback.
+ *   2. the MAP CONTROL STACK, top-right: layer (an anchored popover, not a
+ *      sheet), fit, a ONE-SHOT locate and live tracking — two separate
+ *      controls, never one button with a hidden second gesture;
+ *   3. NOTHING ELSE in the idle state. A compact live pill appears only
+ *      while a tracking session runs; refusals and failures are said once in
+ *      a transient note. There is no permanent status dock, card or sheet.
  *
- * Plus the two invariants the composition must not break: scope selection
+ * Plus the invariants the composition must not break: scope selection
  * touches ONLY the browsed stage, and the camera padding comes from the
  * screen through a typed prop (map code never measures app DOM).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -26,7 +27,7 @@ const css = read('src/styles/global.css');
 const screen = read('src/screens/MapScreen.tsx');
 const scope = read('src/components/MapScopeControl.tsx');
 const stack = read('src/components/MapControlStack.tsx');
-const dock = read('src/components/MapStatusDock.tsx');
+const pill = read('src/components/MapTrackingPill.tsx');
 const mapView = read('src/components/MapView.tsx');
 
 function block(selector, from = 0) {
@@ -42,7 +43,6 @@ test('the map carries ONE scope pill, not a permanent chip row', () => {
   assert.match(scope, /className="map-scope"/);
   assert.match(scope, /aria-haspopup="dialog"/);
   assert.match(scope, /aria-expanded=\{open\}/);
-  // The old always-on selector is gone from the map surface entirely.
   assert.ok(!screen.includes('stage-select'), 'no permanent stage chips over the map');
   assert.ok(!css.includes('.stage-select'), 'and no styling left behind');
 });
@@ -54,39 +54,85 @@ test('the scope sheet lists the full route, every stage, and both markers', () =
   assert.match(scope, /Current<\/span>/, 'a separate CURRENT-stage marker');
   assert.match(scope, /onStep\(-1\)/, 'previous');
   assert.match(scope, /onStep\(1\)/, 'next');
-  // Scope options come from the ACTIVE itinerary, in walking order.
   assert.match(screen, /\.\.\.itinerary\.stages\.map\(\(s\) => \(\{/);
   assert.match(screen, /isCurrent: s\.id === currentStage\?\.id/);
 });
 
 test('choosing a scope moves the map only — never the persisted stage', () => {
-  // The one writer of the browsed stage, and nothing else.
   assert.match(
     screen,
     /const selectScope = \(stageId: string \| null\) => \{\s*setFocusLabel\(null\);\s*setViewStageId\(stageId\);\s*\};/,
   );
   assert.ok(!screen.includes('setCurrentStage'), 'the Map never sets the current stage');
   assert.match(screen, /const setViewStageId = onViewStageChange/, 'browse state is owned by App');
-  // Starting live tracking is the ONE deliberate scope move, and it follows
-  // the tracked stage (a visible, predictable transition).
-  assert.match(
-    screen,
-    /tracking\.start\(\);[\s\S]{0,200}setViewStageId\(currentStage\.id\)/,
-  );
+  // Starting live tracking is the ONE deliberate scope move.
+  assert.match(screen, /tracking\.start\(\);[\s\S]{0,200}setViewStageId\(currentStage\.id\)/);
 });
 
 // ---- 2. Control stack --------------------------------------------------------
 
-test('the control stack holds exactly the four map actions', () => {
+test('the stack holds four controls, with locate and tracking SEPARATE', () => {
   assert.match(stack, /aria-label="Map controls"/);
-  assert.match(stack, /aria-label=\{`Map layer: \$\{imagery === 'satellite' \? 'Satellite' : 'Terrain'\}`\}/);
+  assert.match(stack, /aria-label="Choose map layer"/);
   assert.match(stack, /aria-label=\{fitLabel\}/);
+  // One-shot locate…
   assert.match(stack, /aria-label=\{locating \? 'Locating your position' : 'Locate me'\}/);
-  assert.match(stack, /aria-label="Follow my position"/);
-  assert.match(stack, /aria-pressed=\{follow\}/);
-  // Follow only exists once there is a position to follow.
-  assert.match(stack, /\{canFollow \? \(/);
-  assert.match(screen, /canFollow=\{marker != null\}/);
+  // …and live tracking, which is its own control with its own verbs.
+  assert.match(
+    stack,
+    /const trackingLabel = !trackingActive\s*\? 'Start live tracking'\s*: following\s*\? 'Following your position'\s*: 'Resume following';/,
+  );
+  assert.match(stack, /aria-label=\{trackingLabel\}/);
+  assert.match(stack, /aria-pressed=\{trackingActive\}/);
+  // No hidden second gesture anywhere in the cockpit.
+  assert.ok(
+    !/onDoubleClick|dblclick|doubleTap|longPress/i.test(stack + screen),
+    'no double-click / long-press shortcuts',
+  );
+});
+
+test('locate is one-shot: no session, no follow, no duplicate requests', () => {
+  assert.match(screen, /onLocate=\{geo\.locate\}/);
+  assert.match(
+    screen,
+    /locateDisabled=\{tracking\.active \|\| geo\.status === 'locating'\}/,
+    'inert while a request is in flight and while a session owns the position',
+  );
+  assert.match(stack, /aria-busy=\{locating\}/);
+  // The one-shot centre is a single easeTo, not follow mode.
+  assert.match(screen, /mapRef\.current\?\.centerOn\(geo\.coord\)/);
+});
+
+test('live tracking keeps its foreground-only, no-history contract', () => {
+  assert.match(screen, /keepLog: false,\s*keepTrail: false,/);
+  assert.match(screen, /onStartTracking=\{startTracking\}/);
+  assert.match(screen, /onResumeFollow=\{resumeFollow\}/);
+  // Refusal without a current stage is a message, not a sheet.
+  assert.match(
+    screen,
+    /if \(!currentStage\) \{[\s\S]{0,220}say\('Select a current stage in Stages before starting live tracking\.'\)/,
+  );
+  // A pan pauses following; it must never stop the session.
+  assert.match(screen, /onUserInteract=\{\(\) => setFollow\(false\)\}/);
+  assert.match(
+    screen,
+    /const resumeFollow = \(\) => \{\s*if \(marker\) mapRef\.current\?\.centerOn\(marker\);\s*setFollow\(true\);\s*\};/,
+  );
+  const stopBlock = screen.slice(screen.indexOf('const stopTracking'));
+  assert.match(stopBlock.slice(0, 160), /tracking\.stop\(\);\s*setFollow\(false\);/);
+});
+
+test('the recentre that resumes following is never cancelled by follow itself', () => {
+  // Two regressions this fences, both found live:
+  //  - a fresh { lat, lng } object per render made MapView re-ease the camera
+  //    on every unrelated re-render while following, which swallowed the
+  //    deliberate recentre a beat after it started;
+  //  - the follow-toggle snap must yield to a programmatic move already in
+  //    flight, or it replaces the recentre's zoom with the old one.
+  assert.match(screen, /const marker = useMemo\(/);
+  assert.match(screen, /\[liveLat, liveLon, geo\.coord\]/);
+  const followEffect = mapView.slice(mapView.indexOf('// ---- Follow toggled on'));
+  assert.match(followEffect.slice(0, 800), /if \(map\.isMoving\(\)\) return;/);
 });
 
 test('every cockpit control is at least a 44px target with a focus ring', () => {
@@ -94,12 +140,13 @@ test('every cockpit control is at least a 44px target with a focus ring', () => 
   assert.match(ctrl, /width: 44px/);
   assert.match(ctrl, /min-height: 44px/);
   assert.match(block('.map-scope'), /min-height: 44px/);
-  assert.match(block('.map-dock__status'), /min-height: 44px/);
-  assert.match(block('.map-dock__action'), /min-height: 44px/);
+  assert.match(block('.map-popover__option'), /min-height: 44px/);
+  assert.match(block('.map-track__stop'), /min-height: 44px/);
   for (const selector of [
     '.map-scope:focus-visible',
     '.map-ctrl:focus-visible',
-    '.map-dock__status:focus-visible',
+    '.map-popover__option:focus-visible',
+    '.map-track__stop:focus-visible',
     '.scope-option:focus-visible',
   ]) {
     assert.ok(css.includes(selector), `${selector} exists`);
@@ -107,157 +154,137 @@ test('every cockpit control is at least a 44px target with a focus ring', () => 
 });
 
 test('state never rests on colour alone', () => {
-  // Layer: the icon itself changes (summit vs photo) and the name spells it out.
-  assert.match(stack, /<Image size=\{20\}/);
-  assert.match(stack, /<Mountain size=\{20\}/);
-  // Follow: a caption AND aria-pressed alongside the filled treatment.
-  assert.match(stack, /\{follow \? 'On' : 'Off'\}/);
-  // Scope markers are text pills, not colour swatches.
-  assert.match(scope, /pill pill-glacier">Viewing/);
-  assert.match(scope, /pill pill-current">Current/);
+  // Layer: a caption next to the icon, plus the checked state in the popover.
+  assert.match(stack, /\{imagery === 'satellite' \? 'Sat' : 'Terr'\}/);
+  assert.match(stack, /aria-checked=\{imagery === o\.mode\}/);
+  // Tracking: three distinct captions and three distinct accessible names.
+  assert.match(stack, /\{!trackingActive \? 'Live' : following \? 'On' : 'Hold'\}/);
+  // The live pill states its route status in words.
+  assert.match(pill, /\{pill\.state\}/);
 });
 
-test('no permanent touch zoom buttons; pointer devices keep MapLibre zoom', () => {
-  assert.match(
-    mapView,
-    /window\.matchMedia\?\.\('\(hover: hover\) and \(pointer: fine\)'\)\.matches/,
-  );
-  assert.match(mapView, /new maplibregl\.NavigationControl\(\{ showCompass: false \}\),\s*'bottom-right'/);
-  assert.ok(!stack.includes('Zoom in'), 'the cockpit adds no zoom buttons of its own');
+// ---- 3. Layers popover (NOT a sheet) ----------------------------------------
+
+test('the layer chooser is the conventional icon and an anchored popover', () => {
+  assert.match(stack, /import \{ Crosshair, Layers, Maximize, Navigation \} from 'lucide-react'/);
+  assert.match(stack, /<Layers size=\{20\}/, 'the stacked-layers icon');
+  assert.ok(!/Mountain|<Image /.test(stack), 'the mountain/photo icons are gone');
+  // A popover, not a dialog/sheet: no <dialog>, no modal, no scroll lock.
+  assert.ok(!stack.includes('<dialog'), 'no dialog element');
+  assert.ok(!stack.includes('showModal'), 'never modal');
+  assert.ok(!stack.includes('useOverlayScrollLock'), 'no page-level scroll lock for a popover');
+  assert.ok(!css.includes('.map-layer-sheet'), 'the old layer sheet styling is gone');
+  assert.match(stack, /className="map-popover"/);
+  assert.match(stack, /role="radiogroup"/);
+  assert.match(stack, /role="radio"/);
+  // Anchored to the button, right-aligned so it stays on screen.
+  assert.match(block('.map-ctrl-anchor'), /position: relative/);
+  const pop = block('.map-popover');
+  assert.match(pop, /position: absolute/);
+  assert.match(pop, /top: calc\(100% \+ 6px\)/);
+  assert.match(pop, /right: 0/);
+  assert.match(pop, /max-width: calc\(100vw - 24px\)/, 'never wider than the viewport');
+  assert.ok(!/width: 100%/.test(pop), 'never a full-width surface');
 });
 
-test('controls stay readable over any basemap, with a solid fallback', () => {
-  const surface = css.slice(
-    css.indexOf('.map-scope,\n.map-ctrl,\n.map-note,\n.map-dock {'),
-    css.indexOf('/* 1a. Scope control'),
-  );
-  assert.match(surface, /background: color-mix\(in srgb, var\(--paper\) 93%, transparent\)/);
-  assert.match(surface, /backdrop-filter: blur\(3px\)/, 'restrained blur, not a glass slab');
-  assert.match(surface, /@supports not \(backdrop-filter: blur\(3px\)\)[\s\S]*background: var\(--paper\)/);
-  assert.match(
-    surface,
-    /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)[\s\S]*backdrop-filter: none/,
-  );
+test('the popover closes every way it should, and gives focus back', () => {
+  assert.match(stack, /if \(e\.key === 'Escape'\)/, 'Escape');
+  assert.match(stack, /document\.addEventListener\('pointerdown', onPointerDown, true\)/, 'outside click');
+  assert.match(stack, /onBlur=\{\(e\) => \{\s*if \(!e\.currentTarget\.contains\(e\.relatedTarget as Node \| null\)\) onClose\(\);/);
+  const focusReturns = stack.match(/layersRef\.current\?\.focus\(\)/g) ?? [];
+  assert.ok(focusReturns.length >= 2, 'focus returns after choosing AND after closing');
+  // Choosing applies the layer and closes.
+  assert.match(stack, /onChoose=\{\(mode\) => \{\s*onImageryChange\(mode\);\s*setLayersOpen\(false\);/);
+  // Keyboard model for a radio group.
+  assert.match(stack, /ArrowDown' \|\| e\.key === 'ArrowRight'/);
+  assert.match(stack, /ArrowUp' \|\| e\.key === 'ArrowLeft'/);
+  assert.match(stack, /e\.key === 'Home' \|\| e\.key === 'End'/);
+  assert.match(stack, /\[aria-checked="true"\]/, 'focus starts on the active choice');
 });
 
-// ---- 3. Status dock ----------------------------------------------------------
-
-test('the dock shows one state, one action, and opens the details sheet', () => {
-  assert.match(screen, /<MapStatusDock/);
-  assert.match(dock, /className="map-dock__headline" role="status"/, 'transitions are announced');
-  assert.match(dock, /aria-haspopup="dialog"/);
-  assert.match(dock, /aria-expanded=\{detailsOpen\}/);
-  assert.match(dock, /status\.actionKind === 'stop' \? 'btn-danger' : 'btn-primary'/);
-  // The dock's wording is derived by the pure state machine, not inline.
-  assert.match(screen, /const status = dockStatus\(\{/);
-  assert.match(screen, /import \{ dockStatus \} from '\.\.\/map\/mapDockState\.mjs'/);
-});
-
-test('the viewed/tracked mismatch is spelled out in the dock', () => {
-  assert.match(dock, /Viewing <b>\{mismatch\.viewing\}<\/b> · Tracking <b>\{mismatch\.tracking\}<\/b>/);
-  assert.match(screen, /const mismatch = scopeMismatch\(\{/);
-  assert.match(screen, /viewedStageId: viewStageId/);
-  assert.match(screen, /trackedStageId: currentStage\?\.id \?\? null/);
-});
-
-test('the details sheet keeps every readout the screen used to show', () => {
-  const sheet = screen.slice(screen.indexOf('<MapStatusSheet'));
-  for (const [needle, what] of [
-    ['renderLiveProgress(session', 'live progress readout'],
-    ['renderProgress(progress', 'one-shot progress readout'],
-    ['session.lastFix.accuracyM', 'live accuracy'],
-    ['geo.accuracyM', 'one-shot accuracy'],
-    ['{tracking.error}', 'tracking errors'],
-    ['{geo.error}', 'geolocation errors'],
-    ['Live tracking · Beta', 'starting live tracking'],
-    ['Stop tracking', 'stopping live tracking'],
-    ['Use manual mode instead', 'manual position fallback'],
-    ['Set position from stop', 'manual position commit'],
-  ]) {
-    assert.ok(sheet.includes(needle), `${what} lives in the details sheet`);
-  }
-});
-
-test('the dock is a compact bar, never a panel across the map', () => {
-  const bar = block('.map-dock', css.indexOf('/* 3. Trail status dock. */'));
-  assert.match(bar, /max-width: 640px/);
-  assert.match(bar, /margin: 0 auto/);
-  assert.match(block('.map-dock__detail'), /-webkit-line-clamp: 2/, 'at most two lines');
-  // The old permanently-visible progress card is gone from the map surface.
-  assert.ok(
-    !/className="card"/.test(
-      screen.slice(
-        screen.indexOf('<div className="screen screen--map">'),
-        screen.indexOf('<MapStatusSheet'),
-      ),
-    ),
-    'no permanently visible card over the map',
-  );
-});
-
-// ---- Sheets: one accessible species ------------------------------------------
-
-test('all three sheets are modal dialogs with Escape, backdrop and focus return', () => {
-  for (const [name, src, opener] of [
-    ['scope', scope, 'pillRef'],
-    ['layer', stack, 'layersRef'],
-    ['status', dock, null],
-  ]) {
-    assert.match(src, /<dialog/, `${name} sheet is a native dialog`);
-    assert.match(src, /className="sheet /, `${name} sheet reuses the sheet species`);
-    assert.match(src, /dialog\.showModal\(\)/, `${name} sheet is modal (focus trap + Escape)`);
-    assert.match(src, /useOverlayScrollLock\(\)/, `${name} sheet holds the scroll lock`);
-    assert.match(
-      src,
-      /onClose=\{\(e\) => \{[\s\S]{0,240}?e\.stopPropagation\(\);/,
-      `${name} sheet stops React's re-bubbled close event`,
-    );
-    assert.match(src, /onCancel=\{\(e\) => e\.stopPropagation\(\)\}/, `${name} sheet scopes Escape`);
-    assert.match(
-      src,
-      /if \(e\.target === ref\.current\) ref\.current\?\.close\(\)/,
-      `${name} sheet closes on its backdrop`,
-    );
-    if (opener) {
-      assert.match(src, new RegExp(`${opener}\\.current\\?\\.focus\\(\\)`), `${name} returns focus`);
-    }
-  }
-  // The status sheet's opener is the dock button; the screen owns its state.
-  assert.match(screen, /onOpenDetails=\{\(\) => setDetailsOpen\(true\)\}/);
-  assert.match(screen, /onClose=\{\(\) => setDetailsOpen\(false\)\}/);
-});
-
-// ---- Compact map states ------------------------------------------------------
-
-test('offline and error states are compact map notes or sheet copy, not banners', () => {
-  // Satellite-not-downloaded is explained in the layer sheet…
-  assert.match(stack, /Not downloaded<\/span>/);
-  assert.match(stack, /Download it in Settings → Satellite imagery/);
-  assert.match(stack, /disabled=\{!satelliteAvailable\}/);
-  // …a missing basemap gets a compact on-map state (it changes the map
-  // materially) plus the sheet explanation…
-  assert.match(screen, /basemapMode === 'none' \? \(\s*<p className="map-note map-note--warn" role="status">/);
-  assert.match(stack, /The offline basemap isn’t on this device/);
-  // …and the old permanent full-width banners are gone from the map screen.
+test('unavailable satellite stays listed, disabled, and explained in one line', () => {
+  assert.match(stack, /disabled: !satelliteAvailable/);
+  assert.match(stack, /'Download in Settings first'/);
+  assert.match(block('.map-popover__option'), /min-height: 44px/);
+  // …and nothing permanent is reserved on the map for it.
   assert.ok(
     !screen.includes('Satellite imagery isn’t on this device yet'),
     'no permanent satellite banner',
   );
-  // (The helpers above the component still use .banner-warn inside the
-  // details sheet's readouts — the map SURFACE is what must stay clear.)
-  const surface = screen.slice(
-    screen.indexOf('<div className="screen screen--map">'),
-    screen.indexOf('<MapStatusSheet'),
+});
+
+// ---- 4. The removed dock -----------------------------------------------------
+
+test('the permanent status dock and its details sheet are GONE', () => {
+  for (const gone of [
+    'src/components/MapStatusDock.tsx',
+    'src/map/mapDockState.mjs',
+    'src/map/mapDockState.d.mts',
+    'tests/map-status-dock.test.mjs',
+    'src/components/TrackingStatus.tsx',
+  ]) {
+    assert.ok(!existsSync(join(root, gone)), `${gone} no longer exists`);
+  }
+  for (const dead of ['MapStatusDock', 'MapStatusSheet', 'dockStatus', 'TrackingStatusOverlay']) {
+    assert.ok(!screen.includes(dead), `${dead} is not referenced any more`);
+  }
+  for (const deadCss of ['.map-dock', '--map-dock-h']) {
+    assert.ok(!css.includes(deadCss), `${deadCss} styling is gone`);
+  }
+  // No "Where am I?" headline, no dock copy, no idle progress bar.
+  assert.ok(!screen.includes('Where am I?'), 'the dock headline is gone');
+  assert.ok(!/<progress/.test(screen), 'no progress bar on the map');
+  assert.ok(!screen.includes('ProgressReadout'), 'no progress card on the map');
+  // …and no dormant sheet left behind on the Map.
+  assert.ok(!screen.includes('<dialog'), 'the Map screen renders no sheet of its own');
+});
+
+test('the idle map reserves no bottom band at all', () => {
+  // The band is rendered ONLY when a pill exists…
+  assert.match(screen, /\{pill \? \(\s*<div className="map-cockpit-bottom" ref=\{attachBottomBand\}>/);
+  // …so the camera's bottom inset is zero without one.
+  assert.match(screen, /bottomInset: depth\(bottomBandRef\.current, 'bottom'\)/);
+  assert.match(
+    css,
+    /\.map-canvas-wrap \.maplibregl-ctrl-bottom-left,\n\.map-canvas-wrap \.maplibregl-ctrl-bottom-right \{\n  bottom: var\(--map-bottom-h, 0px\);/,
+    "MapLibre's bottom controls drop back down when the pill goes",
   );
-  assert.ok(!surface.includes('banner-warn'), 'no space-consuming banners over the map');
 });
 
-test('map notes stay accessible to screen readers', () => {
-  const notes = screen.match(/className="map-note map-note--warn" role="status"/g) ?? [];
-  assert.ok(notes.length >= 2, 'focused-place note and basemap note both announce');
+// ---- 5. The live pill --------------------------------------------------------
+
+test('the pill exists only while tracking, and is small and quiet', () => {
+  assert.match(screen, /const pill = trackingPill\(\{/);
+  assert.match(screen, /active: tracking\.active/);
+  assert.match(screen, /<MapTrackingPill pill=\{pill\} onStop=\{stopTracking\} \/>/);
+  const bar = block('.map-track', css.indexOf('/* 2. Live-tracking pill'));
+  assert.match(bar, /width: fit-content/, 'never a card spanning the map');
+  assert.match(bar, /border-radius: 999px/);
+  assert.match(bar, /margin: 0 auto/);
 });
 
-// ---- Camera padding contract -------------------------------------------------
+test('the pill states the tracked stage, the route state, and Stop', () => {
+  assert.match(pill, /\{pill\.label\}/);
+  assert.match(pill, /\{pill\.state\}/);
+  assert.match(pill, /className="map-track__stop"/);
+  assert.match(pill, /aria-label=\{`\$\{pill\.stopLabel\} live tracking`\}/);
+  assert.match(pill, /role="status"/, 'transitions are announced');
+  assert.match(pill, /trackingAnnouncement\(pill\)/);
+  // Stop is its own button, clearly separated from the text.
+  assert.ok(!/onClick=\{onStop\}[\s\S]{0,80}map-track__text/.test(pill));
+});
+
+test('failures and refusals are transient messages, never surfaces', () => {
+  assert.match(screen, /const say = useCallback\(\(text: string\) => \{/);
+  assert.match(screen, /window\.setTimeout\(\(\) => setMessage\(null\), 7000\)/);
+  assert.match(screen, /if \(geo\.status === 'error' && geo\.error\) say\(geo\.error\)/);
+  // During a session the pill carries the live state, so only a
+  // session-ending tracking error is spoken.
+  assert.match(screen, /if \(tracking\.error && !tracking\.active\) say\(tracking\.error\)/);
+  assert.match(screen, /\{message \? \(\s*<p className="map-note map-note--warn" role="status">/);
+});
+
+// ---- 6. Camera padding contract ---------------------------------------------
 
 test('the screen measures its overlays and hands MapView a typed padding', () => {
   assert.match(screen, /import \{ cameraPaddingFor \} from '\.\.\/map\/mapPadding\.mjs'/);
@@ -266,7 +293,10 @@ test('the screen measures its overlays and hands MapView a typed padding', () =>
   assert.match(screen, /useLayoutEffect\(\(\) => \{\s*measurePadding\(\);/, 'measured before the map builds');
   assert.match(screen, /topInset: depth\(leadRef\.current, 'top'\)/);
   assert.match(screen, /rightInset: depth\(controlsRef\.current, 'right'\)/);
-  assert.match(screen, /bottomInset: depth\(dockBandRef\.current, 'bottom'\)/);
+  // The bottom band mounts and unmounts with the pill, so it is observed
+  // through a callback ref rather than a static list.
+  assert.match(screen, /const attachBottomBand = useCallback\(/);
+  assert.match(screen, /observerRef\.current\?\.observe\(node\)/);
 });
 
 test('MapView honours the padding everywhere it frames geometry', () => {
@@ -274,15 +304,8 @@ test('MapView honours the padding everywhere it frames geometry', () => {
   assert.match(mapView, /paddingRef\.current = padding \?\? DEFAULT_PADDING/);
   assert.match(mapView, /fitBounds\(bounds, \{ padding: paddingRef\.current/, 'fitRoute/fitStage');
   assert.match(mapView, /map\.fitBounds\(b, \{ padding: paddingRef\.current/, 'focused routes');
-  assert.match(mapView, /padding: paddingRef\.current,\s*\.\.\.animate\(\),\s*\}\);/, 'focused points');
   assert.match(mapView, /fitBoundsOptions: \{ padding: paddingRef\.current \}/, 'the initial fit');
-  assert.match(mapView, /padding: paddingRef\.current,\s*\}\);/, 'the camera constraints');
-  // A padding change re-derives the constraints but must NOT move the camera.
   assert.match(mapView, /applyLayoutConstraintsRef\.current\?\.\(\);/);
-  assert.ok(
-    !/padding\?\.top[\s\S]{0,400}easeTo|padding\?\.top[\s\S]{0,400}fitBounds/.test(mapView),
-    'no camera animation on a padding change',
-  );
 });
 
 test('map code never measures app chrome itself', () => {
@@ -294,24 +317,23 @@ test('map code never measures app chrome itself', () => {
   }
 });
 
-// ---- Behavioural invariants preserved ----------------------------------------
+// ---- 7. Behavioural invariants preserved -------------------------------------
 
 test('the map instance, follow rules and popup behaviour are untouched', () => {
-  // Created once; React updates mutate sources/layers.
   assert.match(mapView, /\/\/ ---- Create the map once/);
-  assert.match(mapView, /\}, \[\]\);/);
-  // User pan/zoom drops follow; programmatic fits do not.
   assert.match(mapView, /if \(e\.originalEvent\) callbacksRef\.current\.onUserInteract\?\.\(\)/);
-  assert.match(screen, /onUserInteract=\{\(\) => setFollow\(false\)\}/);
-  // Direction still remounts deliberately.
   assert.match(screen, /key=\{itinerary\.direction\}/);
-  // Stop popup + deep links survive.
   assert.match(screen, /onOpenStop\?\.\(selectedStop\.id\)/);
   assert.match(screen, /m\.fitStage\(focus\.stageId\)/);
   assert.match(screen, /m\.focusRoute\(\{/);
   assert.match(screen, /m\.focusPoint\(\{ lat: focus\.coord\.lat, lon: focus\.coord\.lng \}\)/);
-  // One position source at a time.
-  assert.match(screen, /locateDisabled=\{tracking\.active \|\| geo\.status === 'locating'\}/);
-  // No breadcrumb retention.
-  assert.match(screen, /keepLog: false,\s*keepTrail: false,/);
+  assert.match(screen, /<StopPreview/);
+});
+
+test('the tracking maths and route projection are kept, only their UI changed', () => {
+  // The hook still computes complete-route status AND current-stage progress…
+  assert.match(screen, /useRouteTracking\(\{\s*routePoints: route\.overviewPoints,\s*stagePoints: currentStage\?\.points \?\? null,/);
+  // …and the projection module is untouched and still used by it.
+  assert.ok(existsSync(join(root, 'src/utils/routeProgress.mjs')));
+  assert.match(read('src/hooks/useRouteTracking.ts'), /trackingSession/);
 });

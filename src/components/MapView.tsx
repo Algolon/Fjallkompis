@@ -760,6 +760,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loaded || !follow || !gps) return;
+    // A programmatic move already in flight owns the camera: "Resume
+    // following" centres on the latest fix (and zooms in for a useful view)
+    // and then turns follow on in the same commit — this snap would
+    // otherwise cancel that ease and leave the camera at the old zoom.
+    if (map.isMoving()) return;
     map.easeTo({
       center: [gps.lng, gps.lat],
       duration: prefersReducedMotion() ? 0 : 500,
