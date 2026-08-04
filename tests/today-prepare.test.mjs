@@ -288,11 +288,19 @@ test('ScreenHeader owns the accessory slot and the fixed rhythm', () => {
     'accessories may not exceed the row rhythm');
 });
 
-test('every primary screen uses the shared header (Today includes its eyebrow)', () => {
-  for (const screen of ['TodayScreen', 'MapScreen', 'StagesScreen', 'StopsScreen', 'ListsScreen', 'SettingsScreen']) {
+test('every document screen uses the shared header (Today includes its eyebrow)', () => {
+  // Every screen that presents CONTENT uses the one header pattern. The Map
+  // is the single deliberate exception: it is a viewport-filling workspace
+  // whose surface is the map itself, so it carries a visually-hidden
+  // heading instead of header chrome (see
+  // tests/map-viewport-workspace.test.mjs).
+  for (const screen of ['TodayScreen', 'StagesScreen', 'StopsScreen', 'ListsScreen', 'SettingsScreen']) {
     const src = readFileSync(join(root, `src/screens/${screen}.tsx`), 'utf8');
     assert.ok(src.includes('<ScreenHeader'), `${screen} renders ScreenHeader`);
   }
+  const map = readFileSync(join(root, 'src/screens/MapScreen.tsx'), 'utf8');
+  assert.ok(!map.includes('<ScreenHeader'), 'the Map workspace has no header chrome');
+  assert.match(map, /<h1 className="sr-only">Map<\/h1>/, 'but keeps an accessible name');
   assert.match(todayScreen, /eyebrow="Kungsleden"/, 'the trail eyebrow uses the standard slot');
   assert.ok(!todayScreen.includes('OnlineBadge'), 'the permanent Online badge is gone from Today');
   const srcFiles = ['src/components/ui.tsx', 'src/screens/TodayScreen.tsx'];

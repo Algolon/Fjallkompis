@@ -31,22 +31,23 @@ const mapScreen = readFileSync(join(root, 'src/screens/MapScreen.tsx'), 'utf8');
 const stagesScreen = readFileSync(join(root, 'src/screens/StagesScreen.tsx'), 'utf8');
 const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
 
-// ---- Map: information column is content-sized, not stretched ----------------
+// ---- Map: the control panel never competes with the map --------------------
 
-test('the Map information column is not stretched to the map height', () => {
-  // The roomy-landscape grid keeps items at the top of the column…
-  assert.match(css, /\.map-layout\s*\{[\s\S]*?align-items:\s*start;/);
-  // …and the right-hand column must NOT force a full-height / flex-grown card
-  // (the reverted PR #52 regression): the compact position/manual-mode card
-  // stays only as tall as its content.
-  assert.ok(
-    !/\.map-side\s*\{[^}]*align-self:\s*stretch/.test(css),
-    'no align-self:stretch on .map-side',
-  );
-  assert.ok(
-    !/\.map-side\s*>\s*\.card:last-child\s*\{[^}]*flex:\s*1/.test(css),
-    'no flex-grow on the last .map-side card',
-  );
+test('the Map control panel is a bounded region, never a stretched column', () => {
+  // Superseded shape: the Map is a viewport-filling workspace now
+  // (tests/map-viewport-workspace.test.mjs owns that contract), so the old
+  // "content-sized information column beside a square map card" assertions
+  // no longer describe the screen. What still matters — and what the
+  // reverted PR #52 regression got wrong — is that the panel must never
+  // grow at the map's expense: compact caps it, roomy landscape gives it a
+  // fixed column width, and its content scrolls inside it.
+  const dock = css.slice(css.indexOf('.map-dock {'), css.indexOf('}', css.indexOf('.map-dock {')));
+  assert.match(dock, /max-height: min\(44%, 340px\)/, 'bounded on compact');
+  assert.match(dock, /overflow-y: auto/, 'its content scrolls inside the panel');
+  const roomyIdx = css.indexOf('@media (min-width: 900px) and (min-height: 500px)');
+  const roomy = css.slice(roomyIdx, css.indexOf('\n}\n', css.indexOf('.map-dock {', roomyIdx)));
+  assert.match(roomy, /flex: 0 0 340px;/, 'fixed column width beside the map');
+  assert.ok(!css.includes('.map-side'), 'the old information column is gone');
 });
 
 // ---- Map: no route-planning summary or elevation profile -------------------

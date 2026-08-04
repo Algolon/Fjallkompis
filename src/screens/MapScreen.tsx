@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
-import { ScreenHeader } from '../components/ui';
 import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
 import { TrackingStatusOverlay } from '../components/TrackingStatus';
 import { FacilityIcon } from '../components/FacilityIcon';
@@ -434,101 +433,110 @@ export function MapScreen({
 
   return (
     <div className="screen screen--map">
-      <ScreenHeader eyebrow="Route" title="Map">
-        An offline basemap of the route. Tap a stage line or stop.
-      </ScreenHeader>
+      {/* The Map destination is a workspace, not a document: the map fills
+          the whole available <main> height and nothing on this screen
+          scrolls the shell. The screen therefore carries no visible
+          header — its accessible name is this heading, and the destination
+          is named by the primary navigation. */}
+      <h1 className="sr-only">Map</h1>
 
-      {/* Primary Map composition, focused on navigation and positioning.
-          Compact: plain blocks in DOM order (map card, then the route
-          selector, then the position/progress card). Roomy landscape
-          (≥ 900×500, see global.css): a map-dominant two-column grid — the
-          complete map card left, .map-side right. Route/stage planning —
+      {/* Map-dominant composition. Compact: the map fills the workspace and
+          the control dock sits under it (its own scroll region). Roomy
+          landscape (≥ 900×500, see global.css): the dock becomes a side
+          panel and the map keeps the full height. Route/stage planning —
           elevation, statistics and choosing the current stage — lives on
           Stages. */}
-      {/* Off-trail "View on map" note: a point with no supplied route opens with
-          clear wording that the marker is a destination reference, not a route. */}
-      {focus?.note ? (
-        <p className="banner-warn map-focus-note" role="status">
-          <TriangleAlert size={16} strokeWidth={1.9} aria-hidden />
-          <span>
-            <strong>{focus.label}</strong> — {focus.note}
-          </span>
-        </p>
-      ) : null}
-
       <div className="map-layout">
-        <div className="card map-card">
-          <div className="map-canvas-wrap">
-            <MapView
-              // Remount when the direction flips: MapView captures its route at
-              // mount (route lines, markers, camera bounds), so a fresh key is
-              // the clean way to rebuild it with the oriented geometry — no
-              // stale selected-stage or progress state can survive.
-              key={itinerary.direction}
-              ref={mapRef}
-              route={route}
-              selectedStageId={viewStageId}
-              onSelectStage={(id) => setViewStageId(id)}
-              onSelectWaypoint={(id) => setSelectedWaypointId(id)}
-              selectedWaypointId={selectedWaypointId}
-              onDismissWaypoint={() => setSelectedWaypointId(null)}
-              waypointPopup={
-                selectedStop ? (
-                  <StopPreview
-                    stop={selectedStop}
-                    onOpen={() => {
-                      setSelectedWaypointId(null);
-                      onOpenStop?.(selectedStop.id);
-                    }}
-                  />
-                ) : selectedWaypointName ? (
-                  <span className="stop-popup stop-popup--plain">{selectedWaypointName}</span>
-                ) : null
-              }
-              onBasemapMode={setBasemapMode}
-              onSatelliteAvailable={setSatelliteAvailable}
-              imagery={imagery}
-              gps={marker}
-              follow={follow}
-              onUserInteract={() => setFollow(false)}
-              overlay={
-                tracking.active && currentStage ? (
-                  <TrackingStatusOverlay
-                    session={session}
-                    stageLabel={`Stage ${currentStage.day}`}
-                  />
-                ) : null
-              }
-            />
-            <div
-              className="map-layer-toggle seg"
-              role="radiogroup"
-              aria-label="Basemap imagery"
+        <div className="map-canvas-wrap">
+          <MapView
+            // Remount when the direction flips: MapView captures its route at
+            // mount (route lines, markers, camera bounds), so a fresh key is
+            // the clean way to rebuild it with the oriented geometry — no
+            // stale selected-stage or progress state can survive.
+            key={itinerary.direction}
+            ref={mapRef}
+            route={route}
+            selectedStageId={viewStageId}
+            onSelectStage={(id) => setViewStageId(id)}
+            onSelectWaypoint={(id) => setSelectedWaypointId(id)}
+            selectedWaypointId={selectedWaypointId}
+            onDismissWaypoint={() => setSelectedWaypointId(null)}
+            waypointPopup={
+              selectedStop ? (
+                <StopPreview
+                  stop={selectedStop}
+                  onOpen={() => {
+                    setSelectedWaypointId(null);
+                    onOpenStop?.(selectedStop.id);
+                  }}
+                />
+              ) : selectedWaypointName ? (
+                <span className="stop-popup stop-popup--plain">{selectedWaypointName}</span>
+              ) : null
+            }
+            onBasemapMode={setBasemapMode}
+            onSatelliteAvailable={setSatelliteAvailable}
+            imagery={imagery}
+            gps={marker}
+            follow={follow}
+            onUserInteract={() => setFollow(false)}
+            overlay={
+              tracking.active && currentStage ? (
+                <TrackingStatusOverlay
+                  session={session}
+                  stageLabel={`Stage ${currentStage.day}`}
+                />
+              ) : null
+            }
+          />
+          <div
+            className="map-layer-toggle seg"
+            role="radiogroup"
+            aria-label="Basemap imagery"
+          >
+            <button
+              role="radio"
+              aria-checked={imagery === 'terrain'}
+              className="seg-btn"
+              onClick={() => setImagery('terrain')}
             >
-              <button
-                role="radio"
-                aria-checked={imagery === 'terrain'}
-                className="seg-btn"
-                onClick={() => setImagery('terrain')}
-              >
-                Terrain
-              </button>
-              <button
-                role="radio"
-                aria-checked={imagery === 'satellite'}
-                className="seg-btn"
-                onClick={() => setImagery('satellite')}
-                disabled={!satelliteAvailable}
-                title={
-                  satelliteAvailable
-                    ? undefined
-                    : 'Download the satellite imagery in Settings to enable this layer'
-                }
-              >
-                Satellite
-              </button>
-            </div>
+              Terrain
+            </button>
+            <button
+              role="radio"
+              aria-checked={imagery === 'satellite'}
+              className="seg-btn"
+              onClick={() => setImagery('satellite')}
+              disabled={!satelliteAvailable}
+              title={
+                satelliteAvailable
+                  ? undefined
+                  : 'Download the satellite imagery in Settings to enable this layer'
+              }
+            >
+              Satellite
+            </button>
           </div>
+        </div>
+
+        {/* Control dock. PR-1 placement: every control the Map screen had
+            below the old map card, kept intact and reachable inside the
+            workspace's own scroll region (the shell never scrolls on this
+            destination). The Trail Cockpit iteration replaces this dock with
+            the scope pill, the map control stack and the compact status
+            dock. */}
+        <div className="map-dock">
+          {/* Off-trail "View on map" note: a point with no supplied route opens
+              with clear wording that the marker is a destination reference,
+              not a route. */}
+          {focus?.note ? (
+            <p className="banner-warn map-focus-note" role="status">
+              <TriangleAlert size={16} strokeWidth={1.9} aria-hidden />
+              <span>
+                <strong>{focus.label}</strong> — {focus.note}
+              </span>
+            </p>
+          ) : null}
           {!satelliteAvailable ? (
             <div className="banner-warn" style={{ margin: 10 }}>
               <span>🛰️</span>
@@ -615,9 +623,7 @@ export function MapScreen({
               stage first on the Stages tab.
             </p>
           ) : null}
-        </div>
 
-        <div className="map-side">
           {/* Stage selector above the summary: a wrapping block instead of a
               side-scroller, so every option is visible at once.
               (Identity = number, not colour.) */}

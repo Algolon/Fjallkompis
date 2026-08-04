@@ -127,9 +127,9 @@ interface MapViewProps {
   /** User panned/zoomed by hand — callers use this to switch follow off. */
   onUserInteract?: () => void;
   /**
-   * Compact status UI rendered INSIDE the map container, so it remains
-   * visible in fullscreen mode (the FullscreenControl fullscreens this
-   * element). Positioned by .map-status-stack to avoid MapLibre controls.
+   * Compact status UI rendered INSIDE the map container, so it moves and
+   * resizes with the map workspace. Positioned by .map-status-* to avoid
+   * MapLibre's own controls.
    */
   overlay?: ReactNode;
 }
@@ -436,7 +436,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         }
       };
       map.on('zoomend', applyCameraBounds);
-      // Viewport shape changed (fullscreen, rotation, layout): recompute the
+      // Viewport shape changed (rotation, layout, tab switch): recompute the
       // constraint set for the new shape and re-apply immediately. Seeded
       // from the EXPANDED side deliberately: when a viewport suddenly grows
       // wider, MapLibre clamps the zoom against the old strict bounds
@@ -458,12 +458,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         'top-right',
       );
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
-      if (document.fullscreenEnabled) {
-        map.addControl(
-          new maplibregl.FullscreenControl({ container: containerRef.current }),
-          'top-right',
-        );
-      }
+      // MapLibre's native fullscreen control is deliberately NOT added:
+      // the Map destination is already a viewport-filling workspace, and
+      // the browser's fullscreen mode would take the persistent bottom
+      // navigation off screen with it.
 
       map.on('load', () => {
         if (!map) return;
@@ -632,13 +630,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   }, [selectedWaypointId, loaded]);
 
   // ---- Escape closes the stop popup -----------------------------------------
-  // In fullscreen the browser consumes Escape to exit fullscreen (never
-  // prevented here); the popup stays open through the transition and the
-  // NEXT Escape — now outside fullscreen — closes it. Documented behaviour.
   useEffect(() => {
     if (!selectedWaypointId) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.fullscreenElement) return;
+      if (e.key !== 'Escape') return;
       const marker = markerElsRef.current.get(selectedWaypointId);
       const focusWasInPopup =
         popupContentRef.current?.contains(document.activeElement) ?? false;
@@ -751,15 +746,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   }, [trail, loaded]);
 
   // The overlay lives inside the map container: MapLibre appends its canvas
-  // as a sibling child, so React-managed children coexist safely, and the
-  // FullscreenControl fullscreens exactly this element — the overlay stays
-  // visible in fullscreen.
+  // as a sibling child, so React-managed children coexist safely and the
+  // overlay travels with the map surface.
   return (
     <div ref={containerRef} className="mapview">
       {overlay}
       {/* Anchored-popup content: portalled into the MapLibre popup element
-          so it tracks the coordinate, works in fullscreen, and still renders
-          in THIS React tree (shared context, no extra roots). */}
+          so it tracks the coordinate and still renders in THIS React tree
+          (shared context, no extra roots). */}
       {createPortal(waypointPopup ?? null, popupContentRef.current!)}
     </div>
   );
