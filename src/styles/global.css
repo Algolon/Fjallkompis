@@ -242,6 +242,17 @@ h3 {
   -webkit-overflow-scrolling: touch;
 }
 
+/* The Map destination is a WORKSPACE, not a document: it fills the exact
+   height <main> offers between the top safe area and the in-flow tab bar,
+   and it never scrolls — panning the map, not the page, is how you move
+   around. Everything the screen shows is either the map itself or an
+   element positioned inside that fixed frame (its own scroll regions
+   where a panel genuinely overflows). The tab bar / rail is untouched and
+   stays visible, and no browser Fullscreen API is involved. */
+.app > main:has(.screen--map) {
+  overflow: hidden;
+}
+
 .screen {
   flex: 1;
   /* No tab-bar reservation here anymore — the in-flow .tabbar occupies that
@@ -816,10 +827,60 @@ a.btn {
 
 /* --- Map ----------------------------------------------------------------- */
 
-.map-card {
+/* Viewport-filling Map workspace ------------------------------------------
+   The screen is a bounded flex column the exact size of <main>: no screen
+   padding (the map is full-bleed), no page scroll, and the top safe area is
+   handled by the elements floating over the map rather than by a gutter
+   that would shrink the workspace. */
+.screen--map {
+  height: 100%;
+  min-height: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
+/* Compact: the map takes every pixel the control dock leaves. */
+.map-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The map surface itself — also the positioning context for everything
+   floated over it (layer control, tracking status, future cockpit
+   overlays). */
+.map-canvas-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+/* Control dock (PR-1 placement of the existing Map controls). Bounded so
+   the map always keeps the larger share of the workspace, and its own
+   scroll region so a long position/progress readout can never scroll the
+   shell. */
+.map-dock {
+  flex: 0 1 auto;
+  /* Never more than 44% of the workspace, and never more than the dock's
+     own content needs on a tall phone — the map keeps the rest. */
+  max-height: min(44%, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.map-dock > .card {
+  margin: 10px;
+}
+.map-dock .stage-select {
+  margin: 10px 10px 0;
+}
+.map-dock .map-focus-note {
+  margin: 10px;
+}
+
 .map-svg {
   display: block;
   width: 100%;
@@ -849,31 +910,15 @@ a.btn {
 /* --- MapLibre map ---------------------------------------------------------- */
 
 .mapview {
+  /* The map fills its workspace slot exactly. Its shape is therefore the
+     viewport's shape, not a fixed aspect: the camera constraints are
+     recomputed per viewport shape by MapView's 'resize' handler
+     (src/map/cameraBounds.mjs), so the bounded-map coverage contract holds
+     at every size without letterboxing and without the old
+     width-relative height clamp. */
   width: 100%;
-  /* Mobile portrait: taller than the old fixed 420px, and WIDTH-RELATIVE.
-     The bounded-map "Fit route" keeps the fitted view's width inside the
-     12 km user bounds only when height ≥ ~1.28 × map width (measured with
-     the exact camera maths in tests/camera-bounds.test.mjs): 360-wide
-     screens need ≥461px, 375 ≥477px, 412 ≥516px. Fixed candidates were
-     compared — 460px and 480px both force the overview expansion on wider
-     phones, 500px wastes height on narrow ones — so the height follows the
-     exact fit relation h = 1.073 × width + 80px vertical fit padding
-     (108vw is a safe ceiling of the factor; the map is slightly narrower
-     than the viewport, adding margin). Floored at 460px and capped by the
-     screen (62vh, never beyond 560px) so short screens keep their actions
-     above the fold and tablet-class portrait widths hand over to the
-     overview-expansion mechanism instead of a monster map. */
-  height: clamp(460px, calc(108vw + 80px), min(62vh, 560px));
-  background: #dce4d8;
-}
-.mapview:fullscreen {
-  /* Fullscreen uses the whole screen, whatever its shape — the camera
-     constraints recompute per viewport (MapView 'resize' handler), so the
-     bounds contract holds without letterboxing. */
   height: 100%;
-  width: 100%;
-  aspect-ratio: auto;
-  max-width: none;
+  background: #dce4d8;
 }
 
 /* Hut/station markers: local HTML buttons, no glyph/sprite dependencies.
@@ -1094,15 +1139,12 @@ a.btn {
   cursor: default;
 }
 
-/* Positioning context for the floating basemap toggle. */
-.map-canvas-wrap {
-  position: relative;
-}
-
-/* Terrain / Satellite switch, floated over the top-left of the map. */
+/* Terrain / Satellite switch, floated over the top-left of the map. The map
+   surface runs edge to edge under the top safe area (a full-bleed field
+   instrument), so everything floating over it clears that inset itself. */
 .map-layer-toggle {
   position: absolute;
-  top: 10px;
+  top: calc(var(--safe-top) + 10px);
   left: 10px;
   z-index: 2;
   margin-bottom: 0;
@@ -1154,16 +1196,16 @@ a.btn {
 }
 
 /* Map-level live-tracking status (rendered INSIDE the MapLibre container
-   so it survives fullscreen).
+   so it travels with the map surface).
    - Top: compact "Live Tracking" button on the same strip as the
      Terrain/Satellite toggle (which sits top-left); anchored right of it,
-     clear of the zoom/fullscreen controls.
+     clear of the zoom controls.
    - Top-left, beneath the Terrain/Satellite toggle: the compact off-route
      bar; its detail pops below it, clear of the tracking dot mid-map. */
 .map-status-top {
   position: absolute;
-  top: 10px;
-  right: 48px; /* clear of the MapLibre zoom/compass/fullscreen controls */
+  top: calc(var(--safe-top) + 10px);
+  right: 48px; /* clear of the MapLibre zoom controls */
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -1173,7 +1215,7 @@ a.btn {
 }
 .map-status-offroute {
   position: absolute;
-  top: 56px; /* just beneath the Terrain/Satellite toggle (top:10 + ~40px) */
+  top: calc(var(--safe-top) + 56px); /* beneath the Terrain/Satellite toggle */
   left: 10px;
   z-index: 5;
   display: flex;
@@ -1939,11 +1981,10 @@ button.map-status-pill {
   box-shadow: var(--shadow);
 }
 
-/* Map screen primary composition (.map-layout > .map-card + .map-side).
-   Compact: plain blocks in DOM order — map card, route selector, position &
-   progress card. On roomy landscape viewports the wrapper becomes a
-   map-dominant two-column grid (see the adaptive-shell section below).
-   Route/stage planning (elevation, statistics) lives on Stages. */
+/* Map screen primary composition (.map-layout > .map-canvas-wrap +
+   .map-dock) is defined in the Map section above; the roomy-landscape
+   row variant lives in the adaptive-shell section below. Route/stage
+   planning (elevation, statistics) lives on Stages. */
 
 /* Elevation profile ------------------------------------------------------------ */
 
@@ -1973,6 +2014,14 @@ button.map-status-pill {
   white-space: nowrap;
   z-index: 2;
 }
+/* MapLibre's own control corners inside the full-bleed workspace: the top
+   pair clears the device's top safe area, so zoom controls and any future
+   top-anchored control never sit under a status bar / notch. */
+.mapview .maplibregl-ctrl-top-left,
+.mapview .maplibregl-ctrl-top-right {
+  top: var(--safe-top);
+}
+
 /* MapLibre attribution: keep it readable but small. The link rule below
    shields attribution anchors from the app's global link styling (underlined
    glacier would be noise at 10px on the map) regardless of stylesheet
@@ -4677,8 +4726,12 @@ span.trip-attach-open {
     margin-inline: auto;
     padding: calc(var(--safe-top) + 20px) 24px 24px;
   }
+  /* The Map keeps its full-bleed workspace beside the rail: no centred
+     column, no page gutters — the map is the content. */
   .screen--map {
-    max-width: 1040px;
+    max-width: none;
+    margin-inline: 0;
+    padding: 0;
   }
 
   /* Today's decorative contour layer covers the content area beside the
@@ -4833,260 +4886,34 @@ span.trip-attach-open {
   }
 }
 
-/* --- Roomy landscape Map (≥ 900×700): square map + wide info column ------- */
-/* The governing requirement: the COMPLETE left map card — 1:1 map, status
-   banners, the Prev/Fit/Next row and the Locate/tracking/Follow row — must
-   fit inside one viewport with zero page scrolling. That takes a taller
-   height gate than the general roomy block: the card's reserved chrome is
-   ~299px (breakdown at --map-edge, including the tracking row's wrapped
-   worst case) plus up to ~88px of status banner, and a square under
-   ~300px stops being a useful full-route map — 300 + 299 + 88 = 687, so
-   the 700px gate holds with ~13px to spare. Landscape viewports shorter
-   than that (e.g. ~900×500 tablets) keep the compact stacked composition,
-   which scrolls honestly instead of hiding the map actions below the
-   fold. */
+/* --- Roomy landscape Map (≥ 900×500): map + side control panel ----------
+   The map stays the dominant surface at every size: it fills the whole
+   workspace height and all the width the control panel leaves. The panel
+   is a fixed, readable column with its own scroll region — never a wide
+   empty pane beside a small square map (the pre-cockpit composition sized
+   a 1:1 card against a hand-measured chrome budget; a workspace that fills
+   <main> needs none of that arithmetic). */
 
-@media (min-width: 900px) and (min-height: 700px) {
-  .screen--map {
-    /* The route-information column consumes the width the square map
-       releases; 1400px caps the composition on ultrawide screens so the
-       information cards keep readable line lengths. Bottom padding is the
-       deliberate ~20px remainder under the map card (see --map-edge) —
-       equal values mean the fitted card ends with exactly that much
-       breathing room and the page still cannot scroll. */
-    max-width: 1400px;
-    padding-bottom: 20px;
-  }
-
-  /* Two intentional columns: a SQUARE 1:1 map card left, sized by the map
-     itself (never a fraction), so the card — and the action rows inside
-     it — is exactly as wide as the map viewport: no empty canvas beside
-     the map, no controls spanning a wider panel. The information column
-     right takes ALL remaining width.
-
-     THE FIT IS THE CONTRACT: the square consumes ALL the height that
-     remains after reserving space for everything else in the left column
-     — never size the square first and hope the rest fits underneath, and
-     never waste the viewport either: the map is the screen's primary
-     surface, so it grows until only the ~20px remainder is left under
-     the card (a hard ceiling was tried in 0.16.0/0.16.1 and left a large
-     dead band under both columns on tall desktops). The reserve is
-     measured from the rendered card (2026-07-10):
-
-       110px  chrome above the card (screen padding-top 20 + header 72 +
-              header margin 18)
-     +   2px  card borders
-     +  20px  remainder below the card (= the screen's bottom padding)
-     = 132px fixed, plus --map-controls-v for the two action rows, plus
-       the :has()-gated allowances below when a status banner or the
-       live-tracking hint is actually present in the card. The row/banner
-       reserves are slightly generous by construction, so the real
-       remainder lands at ~20px or a few px more, never less.
-
-     --map-controls-v defaults to the WORST CASE: Prev/Fit/Next (63px)
-     plus the Locate/tracking/Follow row wrapped onto two lines (104px),
-     because that row wraps once the card is narrower than ~430px and a
-     reserve that ignored the wrap would overflow exactly on the small
-     screens that need the guarantee most. The worst case only exists on
-     SMALL squares, so the LEAN TIERS below hand the reserve back per
-     card state: for each combination of {status banner, tracking hint}
-     there is a viewport height above which even the lean reserve yields
-     a ≥ ~440px square — wide enough that the tracking row provably
-     stays on one line (single-line 117px = 63 + 54) and a banner stays
-     at two compact lines (70px incl. margins) — so above that height
-     the lean reserve is self-consistent and exact, and the card ends
-     ~20px above the viewport instead of hoarding worst-case slack. Each
-     tier gate carries ~10px of margin over its break-even height to
-     absorb --app-height vs media-height measurement differences.
-
-     Width is the only ceiling, via the grid track's min():
-      - 62% of the layout keeps the composition two intentional columns
-        (the information column always gets ≥ 38% − gap, ~500px at the
-        1400px screen cap);
-      - 100% − 314px guarantees an absolute ≥ 300px information column on
-        the narrowest roomy widths, where 62% would squeeze it too far.
-     When a width cap binds (tall windows), the square simply stops
-     growing — still exactly 1:1, never wider than tall — and the blank
-     space moves below the card, which is the honest trade-off on a
-     screen taller than the composition can use. */
+@media (min-width: 900px) and (min-height: 500px) {
   .map-layout {
-    --map-controls-v: 167px;
-    --map-banner-v: 0px;
-    --map-note-v: 0px;
-    --map-edge: max(
-      300px,
-      calc(
-        var(--app-height, 100vh) - 132px - var(--map-controls-v) -
-          var(--map-banner-v) - var(--map-note-v)
-      )
-    );
-    display: grid;
-    grid-template-columns:
-      min(var(--map-edge), 62%, calc(100% - 314px))
-      minmax(0, 1fr);
-    gap: 14px;
-    align-items: start;
+    flex-direction: row;
+    align-items: stretch;
   }
-  /* With route/stage planning moved to Stages, the information column holds
-     only the stage selector and the position/progress panel. Both are
-     content-sized: align-items:start keeps them at the top of the column,
-     and any unused height below simply stays empty rather than stretching
-     the compact position card to the map-dominant square's height. The
-     selector's 12px bottom margin and the map-layout 14px card rhythm are
-     unchanged. */
-  /* Persistent status banners (satellite-not-downloaded, basemap missing)
-     are part of the left card, so they are
-     part of the fit — one allowance per banner, sized for the compact
-     desktop banner styling below wrapping to three lines at the smallest
-     supported square (never a layout that only fits when no banner
-     exists). */
-  .map-layout:has(.map-card .banner-warn) {
-    --map-banner-v: 88px;
+  .map-canvas-wrap {
+    /* Width comes from the row; the height is the full workspace. */
+    flex: 1 1 auto;
+    min-width: 0;
   }
-  .map-layout:has(.map-card .banner-warn + .banner-warn) {
-    --map-banner-v: 176px;
-  }
-  /* The live-tracking hint under the action rows (visible while no
-     current stage is selected). */
-  .map-layout:has(.map-card > .card-sub) {
-    --map-note-v: 48px;
-  }
-  /* LEAN TIER — clean card (no banner, no hint): the whole block's 700px
-     gate already guarantees a ≥ 451px square with the single-line
-     reserve (700 − 132 − 117), so the exact reserve applies from the
-     start. Break-even 689px + 11px margin. */
-  .map-layout:not(:has(.map-card .banner-warn)):not(
-      :has(.map-card > .card-sub)
-    ) {
-    --map-controls-v: 117px;
-  }
-  /* Compact banner presentation on desktop: same information, less of the
-     vertical budget (the 10px outer margin is inline in MapScreen.tsx). */
-  .map-layout .map-card .banner-warn {
-    padding: 7px 10px;
-    font-size: 12px;
-    line-height: 1.35;
-  }
-  /* Narrow map cards (the small squares of short landscape viewports):
-     compact action rows, gated by the CARD's own width — the same width
-     that decides whether the buttons wrap, so the fit cannot drift the
-     way a viewport-based rule could. 434px covers the whole band where
-     the normal-size tracking row wraps (measured threshold ~430px). At
-     compact sizing all three tracking buttons fit one line down to
-     ~345px and two lines at the 300px floor — never the three-line stack
-     the normal sizing produces there. The reserved --map-controls-v
-     (63 + 104) always covers the compact rows' worst case (53 + ~90),
-     so a card in this band renders with slack, never overflow. */
-  .map-layout .map-card {
-    container-type: inline-size;
-  }
-  @container (max-width: 434px) {
-    .map-toolbar {
-      padding: 8px;
-      gap: 6px;
-    }
-    .map-toolbar .btn {
-      min-height: 36px;
-      font-size: 12.5px;
-      padding: 6px 8px;
-    }
-  }
-  /* :where() keeps specificity at the base .mapview level so the
-     .mapview:fullscreen rules above still win.
-
-     Desktop/tablet landscape: a square 1:1 map viewport — the corrected
-     bounded-map decision (recalculated 2026-07-10, superseding the 4:5
-     frame that under-used the panel). Fitting the complete north–south
-     route (153.9 km tall in Mercator) into a padded square needs an
-     east/west view of ~179–220 km across the supported 300–838px edges —
-     wider than the 150.6 km interaction bounds, so square viewports use
-     the standard overview expansion (cameraBounds.mjs), whose exact fit
-     sits well inside the ~309 km physical z7 terrain envelope:
-     comfortable east/west terrain context, never a data edge. Width comes
-     from the grid column above; the aspect ratio supplies the height. */
-  :where(.map-layout) .mapview {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1 / 1;
-  }
-  /* Route selector, compact: "Full route" then days 1–7 on a single row
-     where the column allows, wrapping gracefully where it does not. All
-     options stay visible — never a horizontal scroller. */
-  .map-layout .stage-select {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 0 0 12px;
-  }
-  .map-layout .stage-select .chip {
-    padding: 6px 12px;
-    min-height: 36px;
-    font-size: 13px;
-  }
-  .map-layout .stage-select__full {
-    flex: 0 1 auto;
-  }
-  .map-layout .stage-select__day {
-    /* Grow to share the row, but never balloon: a chip that wraps onto its
-       own row must stay chip-sized, not stretch across the column. */
-    flex: 1 1 30px;
-    min-width: 34px;
-    max-width: 56px;
-    padding: 6px 0;
+  .map-dock {
+    flex: 0 0 340px;
+    width: 340px;
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding-bottom: 16px;
   }
 }
 
-/* LEAN TIERS by card state (rationale at --map-controls-v): each gate is
-   the height where the lean reserve (single-line rows 117px; two-line
-   banner 70px) still yields a ≥ ~440px square FOR THAT STATE, plus ~10px
-   of margin — so the row provably cannot wrap, a banner provably stays
-   at two compact lines, and the card ends ~20px above the viewport.
-   Below its gate a state keeps the worst-case reserve from the main
-   block, exactly as before. */
-
-/* Tracking hint, no banner: 132 + 117 + 48 + 440 = 737 → gate 750. */
-@media (min-width: 900px) and (min-height: 750px) {
-  .map-layout:not(:has(.map-card .banner-warn)) {
-    --map-controls-v: 117px;
-  }
-}
-
-/* One banner, no hint: break-even 132 + 117 + 70 + 434 = 753 → gate 764
-   (11px margin — kept tighter than the other tiers deliberately, so the
-   very common 768px-tall laptop class gets the lean reserve). */
-@media (min-width: 900px) and (min-height: 764px) {
-  .map-layout:has(.map-card .banner-warn):not(
-      :has(.map-card .banner-warn + .banner-warn)
-    ):not(:has(.map-card > .card-sub)) {
-    --map-controls-v: 117px;
-    --map-banner-v: 70px;
-  }
-}
-
-/* One banner + hint: 132 + 117 + 70 + 48 + 440 = 807 → gate 820. */
-@media (min-width: 900px) and (min-height: 820px) {
-  .map-layout:has(.map-card .banner-warn):not(
-      :has(.map-card .banner-warn + .banner-warn)
-    ) {
-    --map-controls-v: 117px;
-    --map-banner-v: 70px;
-  }
-}
-
-/* Tallest tier — every state, including the degenerate two-banner card
-   (132 + 117 + 140 + 48 + 440 = 877 → gate 890): the square is large
-   enough that all lean reserves hold simultaneously. */
-@media (min-width: 900px) and (min-height: 890px) {
-  .map-layout {
-    --map-controls-v: 117px;
-  }
-  .map-layout:has(.map-card .banner-warn) {
-    --map-banner-v: 70px;
-  }
-  .map-layout:has(.map-card .banner-warn + .banner-warn) {
-    --map-banner-v: 140px;
-  }
-}
 
 /* --- Wide (≥ 1160×500): persistent sidebar with visible labels ------------ */
 

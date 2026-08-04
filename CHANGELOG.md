@@ -10,6 +10,21 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Changed
+
+- **The Map is now a workspace instead of a page.** The map fills the whole
+  screen between the status bar and the navigation you already use — no
+  screen header above it, no page scrolling under it. Everything that used
+  to sit far below the fold (stage selection, Locate, live tracking,
+  position and progress) is reachable in a bounded panel that scrolls
+  inside the map screen, so the shell itself never moves. On tablets and
+  desktops that panel becomes a column beside a full-height map. The
+  bottom navigation on phones and the rail/sidebar on larger screens stay
+  exactly where they were.
+- The map's own fullscreen button is gone: it took the navigation off
+  screen, and the map already uses the whole workspace. No part of the app
+  uses the browser's fullscreen mode.
+
 ## [0.27.0] - 2026-08-01
 
 ### Added
