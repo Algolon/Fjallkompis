@@ -1,75 +1,88 @@
-# Trail Cockpit, step 2 — controls: measured evidence
+# Trail Cockpit — corrected design: measured evidence
 
 Captured headlessly (Chrome for Testing, deviceScaleFactor 2) against the dev
 server at `#/map`, default state. `route clearance` projects the **route
-bounds** onto the screen and measures the gap to each overlay's edge, so a
-negative number means geometry is framed under that overlay.
+bounds** onto the screen and measures the gap to each overlay's edge.
 
-## Layout, framing and touch targets
+This supersedes the first cockpit round: the permanent "Where am I?" status
+dock and its details sheet were rejected in review and removed, the layer
+sheet became an anchored popover, and one-shot locate and live tracking are
+now two separate controls.
 
-| Viewport | Map surface | `main` overflow | lead column depth | dock height | route clearance: dock / lead / stack | smallest cockpit target | nav |
+## Layout, framing and touch targets (idle map)
+
+| Viewport | Map surface | `main` / document overflow | idle bottom band | route clearance: lead / stack | gap below route | smallest control | nav |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 320×568 | 320×512 | **0 px** | 44 px | 70.5 px | **+2** / 30.5 / 18.1 px | 44 px | bar, visible |
-| 375×667 | 375×611 | **0 px** | 44 px | 70.5 px | **+11.1** / 21.4 / 36 px | 44 px | bar, visible |
-| 390×844 | 390×788 | **0 px** | 44 px | 70.5 px | **+34.2** / 63.8 / 12.9 px | 44 px | bar, visible |
-| 430×932 | 430×876 | **0 px** | 44 px | 70.5 px | **+47** / 76.9 / 15 px | 44 px | bar, visible |
-| 760×500 | 676×500 | **0 px** | 44 px | 56 px | **+4.3** / −5.6 / 126.3 px | 44 px | rail, visible |
-| 768×1024 | 684×1024 | **0 px** | 44 px | 56 px | **+20** / 12 / 70.5 px | 44 px | rail, visible |
-| 1024×768 | 940×768 | **0 px** | 44 px | 62 px | **+24** / 12 / 224.7 px | 44 px | rail, visible |
-| 1280×800 | 1132×800 | **0 px** | 44 px | 62 px | **+6.3** / −7.5 / 257.5 px | 44 px | rail, visible |
+| 320×568 | 320×512 (100 %) | **0 / 0 px** | none (`--map-bottom-h: 0px`) | 20.3 / 16 px | 20.3 px | 44 px | bar, visible |
+| 375×667 | 375×611 (100 %) | **0 / 0 px** | none | 20.8 / 16 px | 20.8 px | 44 px | bar, visible |
+| 390×844 | 390×788 (100 %) | **0 / 0 px** | none | 63.8 / 12.9 px | 114.7 px | 44 px | bar, visible |
+| 430×932 | 430×876 (100 %) | **0 / 0 px** | none | 76.9 / 15 px | 127.5 px | 44 px | bar, visible |
+| 760×500 | 676×500 (100 %) | **0 / 0 px** | none | 11.1 / 146.5 px | 10.8 px | 44 px | rail, visible |
+| 768×1024 | 684×1024 (100 %) | **0 / 0 px** | none | 12 / 49.8 px | 12 px | 44 px | rail, visible |
+| 1024×768 | 940×768 (100 %) | **0 / 0 px** | none | 12 / 243.2 px | 12 px | 44 px | rail, visible |
+| 1280×800 | 1132×800 (100 %) | **0 / 0 px** | none | 12 / 281.5 px | 12 px | 44 px | rail, visible |
 
-- the map surface is **100 % of `<main>`** at every viewport (step 1 left the
-  compact dock occupying up to 44 %; the cockpit gives that back);
-- **no route is framed under the status dock anywhere** — the tightest case
-  is the 320 px phone at +2 px, where the coverage contract's own bounds are
-  the binding constraint (see below);
-- the two −5.6 px / −7.5 px "lead" figures are the route BOUNDING BOX's top
-  edge against the 44 px scope pill. The pill sits on the left and the
-  route's northern end (Abisko) is at the eastern edge of that box, so no
-  drawn geometry is actually behind the pill; the measurement is deliberately
-  conservative (box, not line);
-- every cockpit control measures ≥ 44×44 px;
-- MapLibre's zoom control is present only for fine pointers (all captures run
-  in a desktop browser, hence `zoomCtrl 1`); the native fullscreen control is
-  absent everywhere;
-- the dock always sits above the bottom navigation (`dockAboveNav: true`);
+- the map is **100 % of `<main>`** everywhere, and with the dock gone there
+  is **no reserved band at the bottom at all** — the camera's bottom inset
+  is the 12 px base margin only, and `--map-bottom-h` (which lifts MapLibre's
+  scale/attribution/zoom controls) is `0px` until a tracking pill exists;
+- the route now ends 20 px above the map's bottom edge on a phone instead of
+  2 px above a dock, and 115–128 px above it on tall phones;
+- every control measures ≥ 44×44 px; MapLibre's zoom control is present only
+  for fine pointers (all captures run in a desktop browser); the native
+  fullscreen control is absent everywhere;
 - zero console errors at every viewport.
 
-## Why the 320 px case lands at +2 px
+While a tracking session runs, the pill's band measures 74 px at 375×667 and
+is reflected in both the camera padding and `--map-bottom-h`.
 
-The route is 153.9 km tall in Mercator inside 218.2 km of user bounds, so a
-512 px workspace has ~151 px of vertical slack — less than the 44 px pill
-plus the ~89 px dock band plus margins need. Rather than weaken the coverage
-boundary, the overview expansion (which already widens east/west for wide
-viewports) now also widens **north/south** by exactly what the padded fit
-needs, capped by the physical envelope (the data bounds minus a 2 km margin —
-real archive data, never a crop edge) and active only below the zoom
-threshold. On a 320 px phone the requirement (~7.8 km per side) exceeds the
-cap (~6 km), so the fit lands 2 px clear instead of the ideal 12 px. Every
-other viewport honours the padding exactly.
+## Layers popover (not a sheet)
 
-Known limitation: a hut marker's glyph is centred on its coordinate, so at
-the very end of a fitted stage the lower half of a marker can overlap the
-dock even though the line itself is clear.
+| Viewport | Element | Role | Fits in viewport | Share of the map it covers | Width |
+| --- | --- | --- | --- | --- | --- |
+| 320×568 | `div.map-popover` | `radiogroup` (options `radio`) | yes | **16.4 %** | 196 px |
+| 1280×800 | `div.map-popover` | `radiogroup` | yes | **3.4 %** | 224 px |
 
-## Behaviours (375×667 unless noted)
+Behaviour: Enter on the button opens it with focus on the checked option
+(Terrain); ArrowDown moves to Satellite; Escape closes and returns focus to
+`Choose map layer`; choosing Satellite applies the layer (`satellite`
+visibility → `visible`, button caption → `Sat`) and closes; a pointer press
+anywhere else closes it. With the satellite archive blocked, the option stays
+listed, is `disabled`, and reads *Download in Settings first* — with **no**
+permanent note on the map.
+
+## Location and tracking
 
 | Case | Result |
 | --- | --- |
-| GPS permission denied → Locate | dock turns warn: "Location unavailable" / "Location permission denied. Use manual mode below." / **Retry** |
-| Manual fallback (details sheet → manual mode → Set position from stop) | dock reads "Pinned to a stop"; honest "Not reliably matched to Day 1 — progress unavailable" because the pinned stop is not on the current stage |
-| One-shot fix granted (68.2735, 18.6635) | dock reads "GPS fix"; GPS source populated; the Follow control appears only now |
-| Scope sheet | modal, scroll-locked, focus inside; lists Full route + 7 stages; **Viewing** and **Current** are separate markers |
-| Choosing Day 5 | pill → "Day 5 · Sälka → Singi", camera fits the stage, dock adds "Viewing **Day 5** · Tracking **Day 1**"; sheet closed, scroll unlocked |
-| Layer sheet | Terrain/Satellite radios; satellite disabled with "Download it in Settings → Satellite imagery" when absent |
-| Escape on a sheet | closes it, focus returns to the opener (`Map layer: Terrain`), scroll unlocked |
-| Keyboard | Enter on the scope pill opens the sheet with focus inside, Tab stays inside, Escape restores focus to `.map-scope`; Enter on a hut marker opens the preview with focus in it, Escape closes it |
-| Route direction reversed | scope sheet reads Day 1 · Nikkaluokta → Kebnekaise … Day 7 · Abiskojaure → Abisko |
-| Reduced motion | 0 running animations, `transition-duration: 0s` on the cockpit |
-| Reduced transparency / more contrast | `backdrop-filter: none`, solid paper background on the dock |
-| Deep link (Today → View route) | navigates to `#/map`, pill shows "Day 1 · Abisko → Abiskojaure", camera fitted to the stage (zoom 10.03) |
+| One-shot **Locate me** (fix 68.2735, 18.6635) | camera centres on the fix; **no** session, **no** pill, **no** bottom band; the tracking control still reads *Start live tracking* |
+| Duplicate activation while a request is in flight | the control becomes *Locating your position*, `disabled`, `aria-busy="true"` — `Locate me` is not reachable |
+| Location permission denied | transient note: *Location permission denied. Allow location access for this site and try again.* — no pill, no band, no sheet |
+| **Start live tracking** with no current stage | transient note: *Select a current stage in Stages before starting live tracking.* — nothing starts |
+| Live tracking started (walking along Day 1) | pill: live dot + *Following Day 1* + *On route* + *Stop live tracking*; control reads *Following your position* (`aria-pressed=true`); band 74 px |
+| Deliberate pan while tracking | pill switches to *Tracking Day 1* (dot stops blinking), control becomes *Resume following* — **the session stays alive** |
+| **Resume following** | camera recentres exactly on the last fix (18.732703, 68.315942) at zoom 13 and follow resumes |
+| **Stop** | pill and band removed, `--map-bottom-h` back to `0px`, control back to *Start live tracking* |
 
-Not exercised live: the **point/route** "View on map" focus variants — no
-mappable experience or curated place exposes that action in the current data
-state, so those paths are covered by source fences only (the focus effect and
-the pill's focus label are unchanged in behaviour from before this PR).
+Route-state wording is unit-fenced (`tests/map-tracking-pill.test.mjs`):
+off-route only for a debounced off-route status, uncertainty damped, waiting
+before the first fix, and no progress numbers on the map at all.
+
+## Everything else still holding
+
+| Case | Result |
+| --- | --- |
+| Route direction reversed | scope sheet reads Day 1 · Nikkaluokta → Kebnekaise … Day 7 · Abiskojaure → Abisko |
+| Stop marker (keyboard) | preview opens on Enter with focus inside (*Abisko*), Escape closes it |
+| Today → *View route* deep link | `#/map`, scope pill *Day 1 · Abisko → Abiskojaure*, camera fitted to the stage (zoom 10.03) |
+| Reduced motion | 0 running animations, `transition-duration: 0s` |
+| Reduced transparency / more contrast | `backdrop-filter: none`, solid paper surfaces |
+| Browser Fullscreen API | not used anywhere (repo-wide scan is part of the suite) |
+
+## Deferred
+
+**Full-route overview framing / additional surrounding terrain, including
+Tjäktja label clearance.** The overview still frames the route tightly enough
+that the Tjäktja label clips at the left edge on narrow phones. Nothing in
+this pass changed the route-overview framing or the camera envelope; it needs
+its own iteration.

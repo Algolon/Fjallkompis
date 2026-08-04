@@ -1,20 +1,142 @@
 {
+  "layers": {
+    "opened": {
+      "open": true,
+      "tag": "DIV",
+      "role": "radiogroup",
+      "optionRoles": [
+        "radio",
+        "radio"
+      ],
+      "focused": "Terrain",
+      "focusedChecked": "true"
+    },
+    "arrowed": "Satellite",
+    "escaped": {
+      "closed": true,
+      "focus": "Choose map layer"
+    },
+    "satellite": {
+      "closed": true,
+      "caption": "Sat",
+      "satelliteLayerVisible": "visible"
+    },
+    "openedAgain": true,
+    "outsideClosed": true,
+    "errors": []
+  },
+  "satelliteUnavailable": {
+    "stillListed": true,
+    "disabled": true,
+    "note": "Download in Settings first",
+    "permanentBannerOnMap": false
+  },
+  "oneShot": {
+    "centerBefore": {
+      "lng": 18.70100039273359,
+      "lat": 68.12899283332126
+    },
+    "centerAfter": {
+      "lng": 18.6635,
+      "lat": 68.27350000000001
+    },
+    "centredOnFix": true,
+    "startedNoSession": true,
+    "trackingBtn": {
+      "label": "Start live tracking",
+      "pressed": "false"
+    }
+  },
+  "duplicateLocate": {
+    "label": "Locating your position",
+    "disabled": true,
+    "busy": "true",
+    "locateMeGone": true
+  },
   "gpsDenied": {
-    "headline": "Location unavailable",
-    "detail": "Location permission denied. Use manual mode below.",
-    "action": "Retry",
-    "tone": "map-dock map-dock--warn"
+    "duringRequest": {
+      "present": true,
+      "disabled": true,
+      "busy": "true"
+    },
+    "message": "Location permission denied. Allow location access for this site and try again.",
+    "noPill": true,
+    "noBottomBand": true
   },
-  "manualFallback": {
-    "headline": "Pinned to a stop",
-    "detail": "Not reliably matched to Day 1 — progress unavailable.",
-    "sheetClosed": false
+  "noCurrentStage": {
+    "message": "Select a current stage in Stages before starting live tracking.",
+    "pill": null,
+    "trackingBtn": {
+      "label": "Start live tracking",
+      "pressed": "false"
+    },
+    "bottomBand": false,
+    "bottomVar": "0px"
   },
-  "oneShotFix": {
-    "headline": "GPS fix",
-    "detail": "Not reliably matched to Day 1 — progress unavailable.",
-    "followControl": true,
-    "gpsDot": true
+  "tracking": {
+    "started": {
+      "message": null,
+      "pill": {
+        "label": "Following Day 1",
+        "state": "On route",
+        "stop": "Stop live tracking",
+        "tone": "map-track map-track--neutral",
+        "dotLive": true
+      },
+      "trackingBtn": {
+        "label": "Following your position",
+        "pressed": "true"
+      },
+      "bottomBand": true,
+      "bottomVar": "74px"
+    },
+    "panned": {
+      "message": null,
+      "pill": {
+        "label": "Tracking Day 1",
+        "state": "On route",
+        "stop": "Stop live tracking",
+        "tone": "map-track map-track--neutral",
+        "dotLive": false
+      },
+      "trackingBtn": {
+        "label": "Resume following",
+        "pressed": "true"
+      },
+      "bottomBand": true,
+      "bottomVar": "74px"
+    },
+    "resumed": {
+      "message": null,
+      "pill": {
+        "label": "Following Day 1",
+        "state": "On route",
+        "stop": "Stop live tracking",
+        "tone": "map-track map-track--neutral",
+        "dotLive": true
+      },
+      "trackingBtn": {
+        "label": "Following your position",
+        "pressed": "true"
+      },
+      "bottomBand": true,
+      "bottomVar": "74px",
+      "center": {
+        "lng": 18.731803000000014,
+        "lat": 68.315542
+      },
+      "recentredOnFix": true
+    },
+    "stopped": {
+      "message": null,
+      "pill": null,
+      "trackingBtn": {
+        "label": "Start live tracking",
+        "pressed": "false"
+      },
+      "bottomBand": false,
+      "bottomVar": "0px"
+    }
   },
   "reversed": {
     "options": [
@@ -26,8 +148,18 @@
       "Day 5 · Tjäktja → Alesjaure",
       "Day 6 · Alesjaure → Abiskojaure",
       "Day 7 · Abiskojaure → Abisko"
-    ],
-    "pill": "Full route"
+    ]
+  },
+  "stopPopup": {
+    "open": true,
+    "name": "Abisko",
+    "focusInside": true,
+    "closedByEscape": true
+  },
+  "deepLink": {
+    "hash": "#/map",
+    "pill": "Day 1 · Abisko → Abiskojaure",
+    "zoom": 10.03
   },
   "reducedMotion": {
     "animations": 0,
@@ -36,26 +168,5 @@
   "moreContrast": {
     "backdropFilter": "none",
     "background": "rgb(230, 237, 227)"
-  },
-  "keyboard": {
-    "opened": {
-      "sheetOpen": true,
-      "focusInsideSheet": true
-    },
-    "tabStaysInSheet": true,
-    "closed": {
-      "sheetGone": true,
-      "focusRestored": "map-scope",
-      "scrollUnlocked": true
-    },
-    "popup": {
-      "open": true,
-      "focusInPopup": true,
-      "label": "Abisko"
-    },
-    "popupClosed": true
-  },
-  "deepLink": {
-    "skipped": "no View on map action on Stages in this state"
   }
 }
