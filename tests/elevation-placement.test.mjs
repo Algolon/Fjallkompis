@@ -33,21 +33,23 @@ const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
 
 // ---- Map: the control panel never competes with the map --------------------
 
-test('the Map control panel is a bounded region, never a stretched column', () => {
-  // Superseded shape: the Map is a viewport-filling workspace now
-  // (tests/map-viewport-workspace.test.mjs owns that contract), so the old
-  // "content-sized information column beside a square map card" assertions
-  // no longer describe the screen. What still matters — and what the
-  // reverted PR #52 regression got wrong — is that the panel must never
-  // grow at the map's expense: compact caps it, roomy landscape gives it a
-  // fixed column width, and its content scrolls inside it.
-  const dock = css.slice(css.indexOf('.map-dock {'), css.indexOf('}', css.indexOf('.map-dock {')));
-  assert.match(dock, /max-height: min\(44%, 340px\)/, 'bounded on compact');
-  assert.match(dock, /overflow-y: auto/, 'its content scrolls inside the panel');
-  const roomyIdx = css.indexOf('@media (min-width: 900px) and (min-height: 500px)');
-  const roomy = css.slice(roomyIdx, css.indexOf('\n}\n', css.indexOf('.map-dock {', roomyIdx)));
-  assert.match(roomy, /flex: 0 0 340px;/, 'fixed column width beside the map');
+test('the Map status readout never becomes a permanent panel again', () => {
+  // Superseded shape: the Map is a viewport-filling workspace whose status
+  // lives in a compact dock (tests/map-trail-cockpit.test.mjs owns that
+  // contract). What still matters — and what the reverted PR #52 regression
+  // got wrong — is that the readout must never grow at the map's expense:
+  // the dock is a bounded bar, the full progress card lives in a sheet, and
+  // the old information column is gone.
+  const dockStart = css.indexOf('.map-dock {', css.indexOf('/* 3. Trail status dock. */'));
+  const dock = css.slice(dockStart, css.indexOf('}', dockStart));
+  assert.match(dock, /max-width: 640px/, 'a bar, not a panel');
+  assert.ok(!/overflow-y: auto/.test(dock), 'nothing scrolls inside the dock itself');
   assert.ok(!css.includes('.map-side'), 'the old information column is gone');
+  assert.ok(mapScreen.includes('MapStatusSheet'), 'the full readout moved into a sheet');
+  assert.ok(
+    mapScreen.includes('ProgressReadout'),
+    'and it is still the same detailed readout',
+  );
 });
 
 // ---- Map: no route-planning summary or elevation profile -------------------
@@ -78,10 +80,9 @@ test('Map screen no longer renders the combined route/stage summary card', () =>
 test('Map keeps its navigation and tracking controls', () => {
   // Guard rails: the removal must not have taken map navigation with it.
   assert.ok(mapScreen.includes('<MapView'), 'the map itself stays');
-  assert.match(mapScreen, /aria-label="Previous stage"/);
-  assert.match(mapScreen, /aria-label="Next stage"/);
-  assert.match(mapScreen, /Fit \{viewStageId \? 'stage' : 'route'\}/);
-  assert.ok(mapScreen.includes('stage-select'), 'stage selector stays on Map');
+  assert.ok(mapScreen.includes('MapScopeControl'), 'stage/route selection stays on Map');
+  assert.match(mapScreen, /onStep=\{stepStage\}/, 'previous/next stage stays');
+  assert.match(mapScreen, /fitLabel=/, 'fit-current-scope stays');
   assert.ok(mapScreen.includes('geo.locate'), 'Locate stays on Map');
   assert.ok(mapScreen.includes('Live tracking'), 'live tracking stays on Map');
   assert.ok(mapScreen.includes('Follow'), 'Follow stays on Map');

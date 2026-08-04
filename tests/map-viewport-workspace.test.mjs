@@ -53,7 +53,7 @@ test('the Map root fills <main> exactly and clips its own overflow', () => {
   assert.match(screen, /overflow: hidden/, 'the workspace itself never scrolls');
 });
 
-test('the workspace splits into a growing map and a bounded control dock', () => {
+test('the whole workspace is the map, with the cockpit floating over it', () => {
   const layout = block('.map-layout');
   assert.match(layout, /flex: 1/);
   assert.match(layout, /min-height: 0/);
@@ -61,13 +61,18 @@ test('the workspace splits into a growing map and a bounded control dock', () =>
 
   const canvas = block('.map-canvas-wrap');
   assert.match(canvas, /position: relative/, 'positioning context for map overlays');
-  assert.match(canvas, /flex: 1/, 'the map takes the space the dock leaves');
+  assert.match(canvas, /flex: 1/, 'the map takes the whole workspace');
   assert.match(canvas, /min-height: 0/);
 
-  const dock = block('.map-dock');
-  assert.match(dock, /max-height: min\(44%, 340px\)/, 'the map keeps the larger share');
-  assert.match(dock, /overflow-y: auto/, 'a long dock scrolls HERE, never the shell');
-  assert.match(dock, /overscroll-behavior: contain/, 'and never chains to the viewport');
+  // The cockpit bands are absolutely positioned over the map and let
+  // pointer events through, so panning works between the controls.
+  const bands = css.slice(
+    css.indexOf('.map-cockpit-top,\n.map-cockpit-bottom {'),
+    css.indexOf('}', css.indexOf('.map-cockpit-top,\n.map-cockpit-bottom {')),
+  );
+  assert.match(bands, /position: absolute/);
+  assert.match(bands, /pointer-events: none/);
+  assert.match(css, /\.map-cockpit-lead > \*,[\s\S]*?pointer-events: auto;/);
 });
 
 test('the map surface fills its slot instead of a fixed height or aspect', () => {
@@ -149,25 +154,34 @@ test('no source file uses the browser Fullscreen API', () => {
 // ---- Safe areas over a full-bleed map ---------------------------------------
 
 test('everything floating over the map clears the top safe area', () => {
-  assert.match(block('.map-layer-toggle'), /top: calc\(var\(--safe-top\) \+ 10px\)/);
-  assert.match(block('.map-status-top'), /top: calc\(var\(--safe-top\) \+ 10px\)/);
-  assert.match(block('.map-status-offroute'), /top: calc\(var\(--safe-top\) \+ 56px\)/);
+  // One band carries the inset for every control inside it.
+  assert.match(block('.map-cockpit-top'), /padding: calc\(var\(--safe-top\) \+ 10px\) 10px 10px/);
   assert.match(
     css,
     /\.mapview \.maplibregl-ctrl-top-left,\n\.mapview \.maplibregl-ctrl-top-right \{\n  top: var\(--safe-top\);/,
     "MapLibre's own top control corners are inset too",
   );
+  // …and the bottom corners clear the status dock, whose measured height the
+  // screen publishes as --map-dock-h.
+  assert.match(
+    css,
+    /\.map-canvas-wrap \.maplibregl-ctrl-bottom-left,\n\.map-canvas-wrap \.maplibregl-ctrl-bottom-right \{\n  bottom: var\(--map-dock-h, 0px\);/,
+  );
 });
 
 // ---- Roomy landscape: the map stays dominant --------------------------------
 
-test('roomy landscape puts the dock beside the map, not around it', () => {
-  const idx = css.indexOf('@media (min-width: 900px) and (min-height: 500px)');
-  assert.notEqual(idx, -1, 'the roomy-landscape Map block exists');
-  const roomy = css.slice(idx, css.indexOf('\n}\n', css.indexOf('.map-dock {', idx)));
-  assert.match(roomy, /\.map-layout \{\n    flex-direction: row;/, 'map + panel in one row');
-  assert.match(roomy, /flex: 1 1 auto;/, 'the map consumes the remaining width');
-  assert.match(roomy, /flex: 0 0 340px;/, 'the panel is a fixed readable column');
+test('roomy landscape keeps the map dominant — no panels around it', () => {
+  // The Map's own roomy block (several screens share the media query).
+  const anchor = css.indexOf('/* --- Roomy landscape Map (≥ 900×500)');
+  assert.notEqual(anchor, -1, 'the roomy-landscape Map block exists');
+  const idx = css.indexOf('@media (min-width: 900px) and (min-height: 500px)', anchor);
+  const roomy = css.slice(idx, css.indexOf('\n}\n\n', idx));
+  // The same cockpit, with more air — never a column layout that shrinks
+  // the map back into a card.
+  assert.ok(!/flex-direction: row/.test(roomy), 'the map is not put in a row with a panel');
+  assert.match(roomy, /\.map-dock \{\n    max-width: 680px;/, 'the dock stays a centred bar');
+  assert.match(roomy, /\.map-cockpit-lead \{\n    max-width: min\(520px/);
   // Full-bleed beside the rail — never a centred column with page gutters.
   const wide = css.slice(css.indexOf('@media (min-width: 760px) and (min-height: 500px)'));
   const wideMap = wide.slice(wide.indexOf('.screen--map {'));
@@ -179,20 +193,21 @@ test('roomy landscape puts the dock beside the map, not around it', () => {
 test('every existing Map control is still rendered', () => {
   for (const [needle, what] of [
     ['<MapView', 'the map'],
-    ['aria-label="Basemap imagery"', 'terrain/satellite toggle'],
-    ['aria-label="Previous stage"', 'previous stage'],
-    ['aria-label="Next stage"', 'next stage'],
-    ["Fit {viewStageId ? 'stage' : 'route'}", 'fit scope'],
-    ['stage-select', 'stage selector'],
+    ['MapScopeControl', 'route/stage selection'],
+    ['onStep={stepStage}', 'previous/next stage'],
+    ['MapControlStack', 'layer, fit, locate and follow controls'],
+    ['MapStatusDock', 'position and progress status'],
     ['geo.locate', 'one-shot locate'],
     ['Live tracking', 'live tracking'],
-    ['Follow', 'follow mode'],
+    ['stopTracking', 'stopping live tracking'],
     ['Use manual mode instead', 'manual position fallback'],
-    ['TrackingStatusOverlay', 'map-level tracking status'],
+    ['TrackingStatusOverlay', 'map-level tracking warnings'],
     ['StopPreview', 'anchored stop preview'],
   ]) {
     assert.ok(mapScreen.includes(needle), `${what} stays on the Map screen`);
   }
+  const stack = readFileSync(join(root, 'src/components/MapControlStack.tsx'), 'utf8');
+  assert.match(stack, /aria-label="Basemap imagery"/, 'terrain/satellite choice');
 });
 
 test('the header-less workspace keeps an accessible screen name', () => {

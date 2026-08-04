@@ -413,10 +413,15 @@ test('satellite layer contract is untouched by the retirement', () => {
   const mapStyle = readFileSync(join(root, 'src/map/mapStyle.ts'), 'utf8');
   assert.match(mapStyle, /SATELLITE_LAYER = 'satellite'/);
   assert.match(mapStyle, /visibility: 'none'/, 'satellite ships hidden until toggled');
+  // The control itself now lives in the Map's control stack (its layer
+  // sheet), not inline on the screen — same contract, one tap deep.
   const screen = readFileSync(join(root, 'src/screens/MapScreen.tsx'), 'utf8');
-  assert.match(screen, /aria-label="Basemap imagery"/, 'imagery toggle present');
-  assert.match(screen, /setImagery\('satellite'\)/, 'satellite selectable');
-  assert.match(screen, /disabled=\{!satelliteAvailable\}/, 'availability gate intact');
+  assert.match(screen, /onImageryChange=\{setImagery\}/, 'the screen owns the imagery state');
+  assert.match(screen, /satelliteAvailable=\{satelliteAvailable\}/, 'availability threaded');
+  const stack = readFileSync(join(root, 'src/components/MapControlStack.tsx'), 'utf8');
+  assert.match(stack, /aria-label="Basemap imagery"/, 'imagery radiogroup present');
+  assert.match(stack, /onImageryChange\('satellite'\)/, 'satellite selectable');
+  assert.match(stack, /disabled=\{!satelliteAvailable\}/, 'availability gate intact');
   const view = readFileSync(join(root, 'src/components/MapView.tsx'), 'utf8');
   assert.match(view, /imagery === 'satellite' \? 'visible' : 'none'/, 'toggle drives visibility');
 });

@@ -855,30 +855,370 @@ a.btn {
   flex: 1;
   min-height: 0;
 }
-/* Control dock (PR-1 placement of the existing Map controls). Bounded so
-   the map always keeps the larger share of the workspace, and its own
-   scroll region so a long position/progress readout can never scroll the
-   shell. */
+/* --- Trail Cockpit chrome ------------------------------------------------
+   Three layers float over the map, and nothing else does:
+     1. the TOP BAND — scope control on the left, map control stack on the
+        right, plus compact map states (missing basemap, focused-place note)
+        and the live-tracking warnings under the scope pill;
+     2. the BOTTOM BAND — the trail status dock, immediately above the
+        persistent bottom navigation;
+     3. MapLibre's own scale/attribution/zoom controls, lifted clear of the
+        dock by --map-dock-h (set by MapScreen from the measured dock).
+   Both bands are measured by MapScreen and become the camera padding
+   (src/map/mapPadding.mjs), so geometry is never framed underneath them.
+
+   The bands themselves are transparent to the pointer: only the controls
+   inside them take events, so the map can be panned in the gaps. */
+.map-cockpit-top,
+.map-cockpit-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.map-cockpit-top {
+  top: 0;
+  padding: calc(var(--safe-top) + 10px) 10px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.map-cockpit-bottom {
+  bottom: 0;
+  padding: 8px 10px 10px;
+}
+.map-cockpit-lead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  /* Never grow into the control stack's column. */
+  max-width: calc(100% - 60px);
+}
+.map-cockpit-lead > *,
+.map-cockpit-top > .map-controls,
+.map-cockpit-bottom > * {
+  pointer-events: auto;
+}
+
+/* Shared surface for everything that sits ON the map: enough paper to keep
+   text contrast independent of terrain or satellite imagery underneath,
+   with only a light blur — legibility over effect. */
+.map-scope,
+.map-ctrl,
+.map-note,
 .map-dock {
-  flex: 0 1 auto;
-  /* Never more than 44% of the workspace, and never more than the dock's
-     own content needs on a tall phone — the map keeps the rest. */
-  max-height: min(44%, 340px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  background: var(--paper);
-  border-top: 1px solid var(--line);
-  padding-bottom: 8px;
+  background: color-mix(in srgb, var(--paper) 93%, transparent);
+  backdrop-filter: blur(3px) saturate(1.12);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(27, 42, 39, 0.22);
 }
-.map-dock > .card {
-  margin: 10px;
+@supports not (backdrop-filter: blur(3px)) {
+  .map-scope,
+  .map-ctrl,
+  .map-note,
+  .map-dock {
+    background: var(--paper);
+  }
 }
-.map-dock .stage-select {
-  margin: 10px 10px 0;
+/* Reduced transparency / higher contrast: solid paper, stronger edge. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .map-scope,
+  .map-ctrl,
+  .map-note,
+  .map-dock {
+    background: var(--paper);
+    backdrop-filter: none;
+    border-color: var(--ink-faint);
+  }
 }
-.map-dock .map-focus-note {
-  margin: 10px;
+
+/* 1a. Scope control — "what am I looking at". */
+.map-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+.map-scope__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-scope:active {
+  transform: scale(0.98);
+}
+.map-scope:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+/* 1b. Map control stack — 44x44 targets, state from icon + caption + the
+   accessible name, never from colour alone. */
+.map-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.map-ctrl {
+  width: 44px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0;
+  border-radius: 14px;
+  color: var(--ink-strong);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.map-ctrl.is-on {
+  background: var(--spruce);
+  border-color: var(--spruce);
+  color: #f4f8f5;
+}
+.map-ctrl:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.map-ctrl:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.map-ctrl:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+
+/* 1c. Compact map states (missing basemap, focused off-route place). Small,
+   dismissable by context — never a permanent banner across the workspace. */
+.map-note {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 7px 10px;
+  max-width: 320px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.map-note--warn {
+  background: color-mix(in srgb, var(--danger-soft) 95%, transparent);
+  border-color: #dcc4b8;
+  color: #6e4536;
+}
+.map-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+/* 3. Trail status dock. */
+.map-dock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 5px 8px 5px 12px;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(27, 42, 39, 0.2);
+}
+.map-dock--warn {
+  background: color-mix(in srgb, var(--danger-soft) 95%, transparent);
+  border-color: #dcc4b8;
+}
+.map-dock__status {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+.map-dock__status:active {
+  transform: scale(0.99);
+}
+.map-dock__status:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+.map-dock__headline {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.map-dock--warn .map-dock__headline {
+  color: #6e4536;
+}
+.map-dock__detail {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+  /* At most two lines on the map: the full wording is one tap away in the
+     details sheet, and every extra line the dock grows is height the
+     camera has to give up to keep the route framed above it. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.map-dock--warn .map-dock__detail {
+  color: #6e4536;
+}
+.map-dock__scopes {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+.map-dock__scopes b {
+  color: var(--ink-strong);
+  font-weight: 700;
+}
+.map-dock__bar {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  margin-top: 5px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.map-dock__bar::-webkit-progress-bar {
+  background: var(--line);
+}
+.map-dock__bar::-webkit-progress-value {
+  background: var(--good);
+  border-radius: 3px;
+}
+.map-dock__bar::-moz-progress-bar {
+  background: var(--good);
+}
+.map-dock__action {
+  flex: 0 0 auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 14px;
+  white-space: nowrap;
+}
+
+/* MapLibre's bottom controls (scale, attribution, and the pointer-only zoom
+   group) sit above the dock: --map-dock-h is the dock band's measured
+   height, published by MapScreen. */
+.map-canvas-wrap .maplibregl-ctrl-bottom-left,
+.map-canvas-wrap .maplibregl-ctrl-bottom-right {
+  bottom: var(--map-dock-h, 0px);
+}
+
+/* Sheet contents ---------------------------------------------------------- */
+.scope-list,
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.scope-option,
+.layer-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  text-align: left;
+}
+.scope-option[aria-pressed='true'],
+.layer-option[aria-checked='true'] {
+  border-color: var(--spruce);
+  box-shadow: inset 0 0 0 1px var(--spruce);
+}
+.scope-option:active,
+.layer-option:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.scope-option:focus-visible,
+.layer-option:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
+.scope-option__label {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+}
+.scope-option__marks {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.layer-option {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.layer-option:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+.layer-option__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.layer-option__state {
+  font-weight: 600;
+}
+.layer-option__note {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.scope-steps {
+  gap: 8px;
+  margin-top: 14px;
+}
+.scope-steps .btn {
+  flex: 1;
+  min-height: 44px;
+}
+.map-sheet-actions {
+  margin-top: 14px;
 }
 
 .map-svg {
@@ -1139,90 +1479,20 @@ a.btn {
   cursor: default;
 }
 
-/* Terrain / Satellite switch, floated over the top-left of the map. The map
-   surface runs edge to edge under the top safe area (a full-bleed field
-   instrument), so everything floating over it clears that inset itself. */
-.map-layer-toggle {
-  position: absolute;
-  top: calc(var(--safe-top) + 10px);
-  left: 10px;
-  z-index: 2;
-  margin-bottom: 0;
-  background: color-mix(in srgb, var(--paper-2) 88%, transparent);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.25);
-}
-.map-layer-toggle .seg-btn {
-  flex: 0 0 auto;
-  padding: 7px 12px;
-  font-size: 13px;
-}
-.map-layer-toggle .seg-btn[aria-checked='true'] {
-  background: var(--spruce);
-  color: #f4f8f5;
-  box-shadow: var(--shadow);
-}
-.map-layer-toggle .seg-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.map-toolbar {
-  display: flex;
-  gap: 8px;
-  padding: 10px;
-  border-top: 1px solid var(--line);
-}
-.map-toolbar .btn {
-  flex: 1;
-  min-height: 42px;
-  font-size: 14px;
-}
-/* Second, live-tracking control row: sits directly under the stage
-   navigation row; buttons may carry longer labels, so allow wrapping and
-   let the primary action take the widest share. */
-.map-track-row {
-  padding-top: 0;
-  border-top: 0;
-  flex-wrap: wrap;
-}
-.map-track-row .btn {
-  white-space: nowrap;
-  padding-inline: 10px;
-}
-.map-track-row .btn-primary,
-.map-track-row .btn-danger {
-  flex: 1.6;
-}
-
-/* Map-level live-tracking status (rendered INSIDE the MapLibre container
-   so it travels with the map surface).
-   - Top: compact "Live Tracking" button on the same strip as the
-     Terrain/Satellite toggle (which sits top-left); anchored right of it,
-     clear of the zoom controls.
-   - Top-left, beneath the Terrain/Satellite toggle: the compact off-route
-     bar; its detail pops below it, clear of the tracking dot mid-map. */
-.map-status-top {
-  position: absolute;
-  top: calc(var(--safe-top) + 10px);
-  right: 48px; /* clear of the MapLibre zoom controls */
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  max-width: 60%;
-}
+/* Map-level live-tracking status, rendered in the cockpit's left column
+   under the scope control (MapScreen composes the column; these blocks
+   simply flow in it, so an appearing warning never has to be positioned
+   against hand-counted offsets — and it grows the measured top band, which
+   grows the camera padding with it).
+   - the compact "Live" button and its details card;
+   - the off-route bar, whose detail pops below it. */
+.map-status-top,
 .map-status-offroute {
-  position: absolute;
-  top: calc(var(--safe-top) + 56px); /* beneath the Terrain/Satellite toggle */
-  left: 10px;
-  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  max-width: min(75%, 300px);
+  max-width: 100%;
 }
 .map-status-pill {
   display: inline-flex;
@@ -1353,13 +1623,6 @@ button.map-status-pill {
   background: var(--spruce);
   border-color: var(--spruce);
   color: #fff;
-}
-.chip-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  display: inline-block;
-  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 /* Stage cards (Stages screen) -------------------------------------------------
@@ -1925,30 +2188,6 @@ button.map-status-pill {
    wording for an unrouted objective (reuses the shared .banner-warn tone). */
 .dt-offtrail {
   margin: 0;
-}
-
-/* Off-trail "View on map" note on the Map screen (a point, never a route). */
-.map-focus-note {
-  margin: 0 0 12px;
-}
-
-/* Map screen stage selector: a block grid with every option visible at
-   once — no horizontal scrolling. "Full route" spans the row; the seven
-   day chips share one row beneath it (fits down to 320px). */
-.stage-select {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  margin: 14px 0;
-}
-.stage-select__full {
-  grid-column: 1 / -1;
-  justify-content: center;
-}
-.stage-select__day {
-  justify-content: center;
-  padding: 8px 0;
-  min-width: 0;
 }
 
 /* Segmented control ----------------------------------------------------------- */
@@ -4886,34 +5125,41 @@ span.trip-attach-open {
   }
 }
 
-/* --- Roomy landscape Map (≥ 900×500): map + side control panel ----------
-   The map stays the dominant surface at every size: it fills the whole
-   workspace height and all the width the control panel leaves. The panel
-   is a fixed, readable column with its own scroll region — never a wide
-   empty pane beside a small square map (the pre-cockpit composition sized
-   a 1:1 card against a hand-measured chrome budget; a workspace that fills
-   <main> needs none of that arithmetic). */
+/* --- Roomy landscape Map (≥ 900×500): the same cockpit, more air --------
+   The map is the dominant surface at EVERY size — a wide layout does not
+   turn it back into a small panel surrounded by cards. The cockpit simply
+   gets more room: the scope control may show its full "Day 3 · A → B"
+   label without truncating, the control stack keeps the right edge, and
+   the status dock stays a centred bar with a readable measure rather than
+   stretching across a desktop window. */
 
 @media (min-width: 900px) and (min-height: 500px) {
-  .map-layout {
-    flex-direction: row;
-    align-items: stretch;
+  .map-cockpit-top {
+    padding: calc(var(--safe-top) + 14px) 14px 14px;
   }
-  .map-canvas-wrap {
-    /* Width comes from the row; the height is the full workspace. */
-    flex: 1 1 auto;
-    min-width: 0;
+  .map-cockpit-bottom {
+    padding: 12px 14px 14px;
+  }
+  .map-cockpit-lead {
+    max-width: min(520px, calc(100% - 80px));
+  }
+  .map-scope {
+    font-size: 15px;
+  }
+  .map-note {
+    max-width: 420px;
   }
   .map-dock {
-    flex: 0 0 340px;
-    width: 340px;
-    max-height: none;
-    border-top: 0;
-    border-left: 1px solid var(--line);
-    padding-bottom: 16px;
+    max-width: 680px;
+    padding: 8px 10px 8px 14px;
+  }
+  .map-dock__headline {
+    font-size: 15px;
+  }
+  .map-dock__detail {
+    font-size: 13px;
   }
 }
-
 
 /* --- Wide (≥ 1160×500): persistent sidebar with visible labels ------------ */
 

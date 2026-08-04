@@ -10,6 +10,25 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Added
+
+- **The Map became a trail cockpit.** A scope pill in the top-left always
+  says what you are looking at — *Full route*, *Day 3 · Alesjaure →
+  Tjäktja*, or the place you opened with “View on map” — and opens a sheet
+  listing the whole route and every day of your walking direction, marking
+  what you are **viewing** and which stage is your **current** one
+  separately. A compact control stack on the right holds the map layer, fit,
+  locate and (once you have a position) follow. A slim status dock above the
+  bottom navigation answers “where am I?” in one line: it offers Locate when
+  there is no fix, says when it is locating, shows how far along today’s
+  stage you are, and while live tracking runs shows the live state, progress
+  and a Stop button. When the map is showing a different day than the one
+  being tracked, the dock says both — *Viewing Day 5 · Tracking Day 4*.
+- Tapping the status dock opens the full position and progress readout —
+  accuracy, along-stage detail, errors, live tracking and the manual
+  position fallback — so it is all still there, just not permanently in
+  front of the map.
+
 ### Changed
 
 - **The Map is now a workspace instead of a page.** The map fills the whole
@@ -24,6 +43,18 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 - The map's own fullscreen button is gone: it took the navigation off
   screen, and the map already uses the whole workspace. No part of the app
   uses the browser's fullscreen mode.
+- The map now frames routes, stages and focused places into the part of the
+  map you can actually see, instead of centring them under the controls: a
+  fitted route no longer disappears behind the status dock. On phones the
+  route overview can need a slightly taller view than the normal panning
+  bounds allow, so the existing overview widening (already used east/west on
+  wide screens) now also applies north/south — still strictly inside the
+  downloaded map data, and still only while zoomed out.
+- Missing satellite imagery is explained in the map-layer sheet instead of a
+  permanent banner across the map; a missing offline basemap shows a small
+  note on the map itself, since it changes what you are looking at.
+- Zoom buttons only appear for mouse/trackpad users — on touch, pinch is the
+  gesture and the map keeps the space.
 
 ## [0.27.0] - 2026-08-01
 
