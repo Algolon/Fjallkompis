@@ -56,6 +56,8 @@ import {
   type CameraConstraints,
 } from '../map/cameraBounds.mjs';
 import type { LatLng } from '../types';
+import { BASE_MAP_PADDING } from '../map/mapPadding.mjs';
+import type { MapPadding } from '../map/mapPadding.mjs';
 import { buildFocusFeatures } from '../map/focusFeatures.mjs';
 import type { FocusRoute } from '../map/focusFeatures.mjs';
 
@@ -127,11 +129,18 @@ interface MapViewProps {
   /** User panned/zoomed by hand — callers use this to switch follow off. */
   onUserInteract?: () => void;
   /**
-   * Compact status UI rendered INSIDE the map container, so it moves and
-   * resizes with the map workspace. Positioned by .map-status-* to avoid
-   * MapLibre's own controls.
+   * LAYOUT-AWARE CAMERA PADDING — the typed contract between the screen and
+   * the map. The Map's cockpit chrome floats OVER the map, so the screen
+   * measures its own overlay bands and passes the resulting rectangle here
+   * (src/map/mapPadding.mjs builds it); MapLibre code never inspects app
+   * DOM to discover what is covering it.
+   *
+   * Everything that frames geometry honours it — the initial fit, fitRoute,
+   * fitStage, focused routes and focused points — and the camera-bounds
+   * constraints are recomputed from it, so a padded overview still resolves
+   * inside the coverage contract.
    */
-  overlay?: ReactNode;
+  padding?: MapPadding;
 }
 
 const EMPTY_FC: FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -139,7 +148,12 @@ const EMPTY_FC: FeatureCollection = { type: 'FeatureCollection', features: [] };
 const prefersReducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-const FIT_PADDING = { top: 40, bottom: 40, left: 32, right: 32 };
+/**
+ * Fallback padding when the screen has not measured its overlays yet (the
+ * first frames before the ResizeObserver reports). The real value arrives
+ * through the `padding` prop; see src/map/mapPadding.mjs.
+ */
+const DEFAULT_PADDING: MapPadding = BASE_MAP_PADDING;
 
 /**
  * Hut/cabin marker glyph — the same geometry as the Huts tab icon
@@ -191,7 +205,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     trail,
     follow = false,
     onUserInteract,
-    overlay,
+    padding,
   },
   ref,
 ) {
@@ -239,6 +253,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const pendingFocusRef = useRef<((map: maplibregl.Map) => void) | null>(null);
   const followRef = useRef(follow);
   followRef.current = follow;
+  // Read by the map-construction effect, every fit and the constraint
+  // recomputation, so they always use the CURRENT layout's padding without
+  // re-creating the map.
+  const paddingRef = useRef<MapPadding>(padding ?? DEFAULT_PADDING);
+  paddingRef.current = padding ?? DEFAULT_PADDING;
+  // Set once the map exists: re-derives the camera constraints for the
+  // CURRENT viewport shape and padding (see the padding effect below).
+  const applyLayoutConstraintsRef = useRef<(() => void) | null>(null);
   // The Map constructor already applies the route bounds. The first selection
   // effect only needs to set filters; re-fitting the same overview bounds was
   // causing a visible 700ms camera nudge whenever the Map screen mounted.
@@ -272,6 +294,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       map.easeTo({
         center: [p.lon, p.lat],
         zoom: Math.max(map.getZoom(), 12.5),
+        // Centre inside the VISIBLE band, not under the status dock.
+        padding: paddingRef.current,
         ...animate(),
       });
     }
@@ -290,12 +314,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     for (const track of tracks) {
       for (const t of track) b.extend([t.lng, t.lat]);
     }
-    map.fitBounds(b, { padding: 64, maxZoom: 15, ...animate() });
+    map.fitBounds(b, { padding: paddingRef.current, maxZoom: 15, ...animate() });
     return true;
   };
 
   const fitBounds = (bounds: [[number, number], [number, number]]) => {
-    mapRef.current?.fitBounds(bounds, { padding: FIT_PADDING, ...animate() });
+    mapRef.current?.fitBounds(bounds, { padding: paddingRef.current, ...animate() });
   };
 
   useImperativeHandle(ref, () => ({
@@ -383,7 +407,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           dataBounds: mountedRoute.mapCutoutBounds,
           viewportWidth: containerRef.current?.clientWidth ?? 1,
           viewportHeight: containerRef.current?.clientHeight ?? 1,
-          padding: FIT_PADDING,
+          padding: paddingRef.current,
         });
       constraintsRef.current = computeConstraints();
       boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
@@ -391,7 +415,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         container: containerRef.current,
         style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, reliefRef.current),
         bounds: mountedRoute.bounds,
-        fitBoundsOptions: { padding: FIT_PADDING },
+        fitBoundsOptions: { padding: paddingRef.current },
         attributionControl: { compact: true },
         // Cap zoom to what the offline tileset actually contains (+overzoom).
         maxZoom: 17,
@@ -444,19 +468,30 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // threshold — evaluating from the expanded side keeps the overview
       // reachable there, while a camera genuinely zoomed in past the
       // threshold still tightens to the strict user bounds.
-      map.on('resize', () => {
+      const applyLayoutConstraints = () => {
         if (!map) return;
         constraintsRef.current = computeConstraints();
         const next = activeBoundsForZoom(constraintsRef.current, map.getZoom(), true);
         boundsExpandedRef.current = next.expanded;
         map.setMaxBounds(next.bounds as maplibregl.LngLatBoundsLike);
-      });
+      };
+      map.on('resize', applyLayoutConstraints);
+      // The same recomputation is needed when the OVERLAYS change size (the
+      // status dock grows a line, the tracking warning appears): the
+      // constraint set is a function of viewport shape AND padding.
+      applyLayoutConstraintsRef.current = applyLayoutConstraints;
 
-      // No compass: bearing is locked north-up (rotation disabled above).
-      map.addControl(
-        new maplibregl.NavigationControl({ showCompass: false }),
-        'top-right',
-      );
+      // Zoom buttons are for POINTERS: on touch the gesture is pinch, and
+      // permanent zoom buttons would only compete with the cockpit controls
+      // for the map's edges. No compass either — bearing is locked north-up
+      // (rotation disabled above). Anchored bottom-right so the top-right
+      // control stack owns that edge.
+      if (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) {
+        map.addControl(
+          new maplibregl.NavigationControl({ showCompass: false }),
+          'bottom-right',
+        );
+      }
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
       // MapLibre's native fullscreen control is deliberately NOT added:
       // the Map destination is already a viewport-filling workspace, and
@@ -593,6 +628,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       markers.forEach((m) => m.remove());
       map?.remove();
       mapRef.current = null;
+      applyLayoutConstraintsRef.current = null;
       setLoaded(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -671,6 +707,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     fitBounds(stage ? stage.bounds : routeRef.current.bounds);
   }, [selectedStageId, loaded]);
 
+  // ---- Layout padding changed: re-derive the camera constraints -----------
+  // The camera itself is deliberately left where the user put it — a taller
+  // status dock must never yank the view. The next fit uses the new padding.
+  useEffect(() => {
+    applyLayoutConstraintsRef.current?.();
+  }, [padding?.top, padding?.right, padding?.bottom, padding?.left, loaded]);
+
   // ---- Basemap imagery toggle (terrain vs satellite) ----------------------
   useEffect(() => {
     const map = mapRef.current;
@@ -717,6 +760,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loaded || !follow || !gps) return;
+    // A programmatic move already in flight owns the camera: "Resume
+    // following" centres on the latest fix (and zooms in for a useful view)
+    // and then turns follow on in the same commit — this snap would
+    // otherwise cancel that ease and leave the camera at the old zoom.
+    if (map.isMoving()) return;
     map.easeTo({
       center: [gps.lng, gps.lat],
       duration: prefersReducedMotion() ? 0 : 500,
@@ -745,12 +793,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }, [trail, loaded]);
 
-  // The overlay lives inside the map container: MapLibre appends its canvas
-  // as a sibling child, so React-managed children coexist safely and the
-  // overlay travels with the map surface.
+  // MapLibre appends its canvas as a child of this element, so React-managed
+  // children (the portalled popup content) coexist safely with it. The
+  // cockpit chrome is composed by MapScreen OUTSIDE the map container, over
+  // the same positioning context.
   return (
     <div ref={containerRef} className="mapview">
-      {overlay}
       {/* Anchored-popup content: portalled into the MapLibre popup element
           so it tracks the coordinate and still renders in THIS React tree
           (shared context, no extra roots). */}

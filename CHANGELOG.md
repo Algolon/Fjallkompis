@@ -10,20 +10,58 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+### Added
+
+- **The Map became a trail cockpit.** A scope pill in the top-left always
+  says what you are looking at — *Full route*, *Day 3 · Alesjaure →
+  Tjäktja*, or the place you opened with “View on map” — and opens a sheet
+  listing the whole route and every day of your walking direction, marking
+  what you are **viewing** and which stage is your **current** one
+  separately. A compact control stack on the right holds the map layer, fit,
+  **Locate me** and **live tracking**, each with its own button: one taps for
+  a single GPS fix, the other opens a foreground tracking session.
+- **Choosing the map layer is now a small menu on the button**, not a panel
+  from the bottom of the screen. Terrain and Satellite sit in one list;
+  when satellite imagery isn’t downloaded it stays visible, disabled, with
+  one line saying where to get it.
+- **While live tracking runs, a small pill sits above the navigation**: a
+  live dot, the stage being followed, a short route state (*On route*,
+  *Match uncertain*, *Waiting for GPS*, or an honest *You may be off route*)
+  and a clear **Stop**. Panning the map pauses the camera without stopping
+  tracking — the control then reads **Resume following** and recentres you
+  when you tap it.
+
 ### Changed
 
 - **The Map is now a workspace instead of a page.** The map fills the whole
   screen between the status bar and the navigation you already use — no
-  screen header above it, no page scrolling under it. Everything that used
-  to sit far below the fold (stage selection, Locate, live tracking,
-  position and progress) is reachable in a bounded panel that scrolls
-  inside the map screen, so the shell itself never moves. On tablets and
-  desktops that panel becomes a column beside a full-height map. The
-  bottom navigation on phones and the rail/sidebar on larger screens stay
-  exactly where they were.
+  screen header above it, no page scrolling under it, and no panel or card
+  taking a share of it. Everything that used to sit far below the fold
+  (stage selection, Locate, live tracking) is a control on the map itself.
+  The bottom navigation on phones and the rail/sidebar on larger screens
+  stay exactly where they were.
 - The map's own fullscreen button is gone: it took the navigation off
   screen, and the map already uses the whole workspace. No part of the app
   uses the browser's fullscreen mode.
+- The map now frames routes, stages and focused places into the part of the
+  map you can actually see, instead of centring them under the controls: a
+  fitted route no longer disappears behind the status dock. On phones the
+  route overview can need a slightly taller view than the normal panning
+  bounds allow, so the existing overview widening (already used east/west on
+  wide screens) now also applies north/south — still strictly inside the
+  downloaded map data, and still only while zoomed out.
+- Missing satellite imagery is explained in the map-layer menu instead of a
+  permanent banner across the map; a missing offline basemap shows a small
+  note on the map itself, since it changes what you are looking at. A
+  refused or failed action — location denied, tracking without a current
+  stage — says so briefly on the map and then clears itself.
+- **The Map no longer carries a permanent status panel.** The idle map shows
+  the scope control and the map controls and nothing else; the detailed
+  along-route progress readout has left the Map rather than hide in a
+  drawer, and will get a deliberate home on Today. Its calculations are
+  unchanged.
+- Zoom buttons only appear for mouse/trackpad users — on touch, pinch is the
+  gesture and the map keeps the space.
 
 ## [0.27.0] - 2026-08-01
 

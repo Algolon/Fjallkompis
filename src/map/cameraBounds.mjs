@@ -79,9 +79,10 @@ export function mercPerPixel(zoom) {
  *  - `interactionBounds`: what maxBounds should be while zoomed IN
  *    (always the contract's strict rectangle);
  *  - `overviewBounds`: what maxBounds should be while zoomed OUT below
- *    `zoomThreshold` — user bounds, widened east/west just enough that the
- *    route overview fits this viewport (null when no widening is needed,
- *    i.e. portrait-ish viewports);
+ *    `zoomThreshold` — user bounds, widened east/west (and, when the
+ *    layout's camera padding demands it, north/south) just enough that the
+ *    route overview fits this viewport, always inside the physical
+ *    envelope (null when no widening is needed);
  *  - `zoomThreshold`: the zoom at which the viewport is exactly as wide as
  *    the user bounds; below it the viewport cannot avoid spanning the full
  *    bounds width, so the widened overview bounds apply.
@@ -93,11 +94,18 @@ export function mercPerPixel(zoom) {
 export const TERRAIN_MIN_ZOOM = 7;
 
 /**
- * The PHYSICAL overview envelope: the east/west extent guaranteed to carry
- * real terrain at overview zooms — the z7 tile-aligned footprint of the
- * data bounds (build-terrain-map.sh generates real DEM for exactly this),
- * pulled in by a 2 km margin. Overview bounds are capped to it so no
- * viewport, however wide, can ever pan onto unshaded map.
+ * The PHYSICAL overview envelope: the extent guaranteed to carry real data
+ * at overview zooms, pulled in by a 2 km margin on every edge.
+ *
+ *  - east/west: the z7 tile-aligned footprint of the data bounds
+ *    (build-terrain-map.sh generates real DEM for exactly this), which is
+ *    considerably wider than the cutout;
+ *  - north/south: the data bounds themselves — every archive is cut to
+ *    them, so they are covered by construction. No tile-grid extension is
+ *    claimed vertically: the cap stays inside what is provably there.
+ *
+ * Overview bounds are capped to this, so no viewport — however wide, and
+ * whatever its overlay padding — can pan onto unshaded map.
  */
 export function overviewEnvelope(dataBounds) {
   const [[dw, ds], [de, dn]] = dataBounds;
@@ -106,8 +114,8 @@ export function overviewEnvelope(dataBounds) {
   const x0 = Math.floor((mercX(dw) + MERC_MAX) / tile) * tile - MERC_MAX;
   const x1 = Math.ceil((mercX(de) + MERC_MAX) / tile) * tile - MERC_MAX;
   return [
-    [invMercX(x0 + marginM), ds],
-    [invMercX(x1 - marginM), dn],
+    [invMercX(x0 + marginM), invMercY(mercY(ds) + marginM)],
+    [invMercX(x1 - marginM), invMercY(mercY(dn) - marginM)],
   ];
 }
 
@@ -122,10 +130,16 @@ export function cameraConstraintsFor({
   const [[uw, us], [ue, un]] = userBounds;
   const [[rw, rs], [re, rn]] = routeBounds;
   const userMercW = mercX(ue) - mercX(uw);
+  const userMercH = mercY(un) - mercY(us);
 
-  // Zoom at which the viewport spans exactly the user-bounds width.
-  const zoomThreshold =
-    Math.log2((2 * MERC_MAX) / userMercW) + Math.log2(viewportWidth / 512);
+  // Zoom at which the viewport spans exactly the user bounds. Below EITHER
+  // axis's threshold the viewport cannot avoid spanning the bounds in that
+  // direction, so the expansion (whichever edges it widened) applies from
+  // the higher of the two.
+  const zoomThreshold = Math.max(
+    Math.log2((2 * MERC_MAX) / userMercW) + Math.log2(viewportWidth / 512),
+    Math.log2((2 * MERC_MAX) / userMercH) + Math.log2(viewportHeight / 512),
+  );
 
   // Route-overview fit: scale is set by the padded HEIGHT (the route is far
   // taller than wide); the resulting full-viewport width decides whether
@@ -138,6 +152,21 @@ export function cameraConstraintsFor({
 
   // 5% slack so the fitted view never lands exactly on the constraint.
   const halfExpand = Math.max(0, (fitViewMercW * 1.05 - userMercW) / 2);
+
+  // NORTH/SOUTH expansion — the layout-aware padding contract (0.28.0).
+  // The Trail Cockpit's status dock and scope control cover the top and
+  // bottom of the map, so the fitted overview needs MORE viewport height
+  // than the route itself: on small phones that view is taller than the
+  // user bounds, and plain maxBounds would clamp the zoom and push the
+  // route's ends back under the overlays. This is the same mechanism as
+  // the east/west expansion above — deterministic, active only below the
+  // zoom threshold, and capped to the physical envelope — applied to the
+  // axis the padding actually squeezes. NO slack factor here: the vertical
+  // fit is exact, so viewports whose padded overview already fits (every
+  // desktop/tablet shape, and phones before the cockpit's overlays) keep
+  // strictly unchanged north/south bounds.
+  const fitViewMercH = viewportHeight * fitMercPerPx;
+  const halfExpandV = Math.max(0, (fitViewMercH - userMercH) / 2);
 
   // Each expanded edge is clamped INDEPENDENTLY to the physical overview
   // envelope (the z7 tile grid is not centred on the route, so the slack is
@@ -154,8 +183,21 @@ export function cameraConstraintsFor({
     west = Math.max(west, mercX(ew));
     east = Math.min(east, mercX(ee));
   }
+  let south = mercY(us) - halfExpandV;
+  let north = mercY(un) + halfExpandV;
+  if (dataBounds && halfExpandV > 0) {
+    const [[, es], [, en]] = overviewEnvelope(dataBounds);
+    south = Math.max(south, mercY(es));
+    north = Math.min(north, mercY(en));
+  }
+
   const overviewBounds =
-    halfExpand > 0 ? [[invMercX(west), us], [invMercX(east), un]] : null;
+    halfExpand > 0 || halfExpandV > 0
+      ? [
+          [invMercX(west), halfExpandV > 0 ? invMercY(south) : us],
+          [invMercX(east), halfExpandV > 0 ? invMercY(north) : un],
+        ]
+      : null;
 
   return {
     interactionBounds: userBounds,

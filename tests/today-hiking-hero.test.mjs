@@ -133,7 +133,12 @@ test('Stage guide is cloudberry glass; View route is glacier glass', () => {
 // fills without blur, darker family steps in the accessibility modes.
 test('fallback and reduced-transparency surfaces stay separately branded', () => {
   const supportsStart = css.indexOf('@supports not ((backdrop-filter: blur(1px))');
-  const reducedStart = css.indexOf('@media (prefers-reduced-transparency: reduce), (prefers-contrast: more)');
+  // Search from the hero's own @supports block: the Map cockpit carries an
+  // earlier reduced-transparency block for its map-surface controls.
+  const reducedStart = css.indexOf(
+    '@media (prefers-reduced-transparency: reduce), (prefers-contrast: more)',
+    supportsStart,
+  );
   const afterGlass = css.indexOf('.hero + .card');
   assert.ok(supportsStart > -1 && supportsStart < reducedStart && reducedStart < afterGlass);
   const noFilter = css.slice(supportsStart, reducedStart);

@@ -33,21 +33,19 @@ const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
 
 // ---- Map: the control panel never competes with the map --------------------
 
-test('the Map control panel is a bounded region, never a stretched column', () => {
-  // Superseded shape: the Map is a viewport-filling workspace now
-  // (tests/map-viewport-workspace.test.mjs owns that contract), so the old
-  // "content-sized information column beside a square map card" assertions
-  // no longer describe the screen. What still matters — and what the
-  // reverted PR #52 regression got wrong — is that the panel must never
-  // grow at the map's expense: compact caps it, roomy landscape gives it a
-  // fixed column width, and its content scrolls inside it.
-  const dock = css.slice(css.indexOf('.map-dock {'), css.indexOf('}', css.indexOf('.map-dock {')));
-  assert.match(dock, /max-height: min\(44%, 340px\)/, 'bounded on compact');
-  assert.match(dock, /overflow-y: auto/, 'its content scrolls inside the panel');
-  const roomyIdx = css.indexOf('@media (min-width: 900px) and (min-height: 500px)');
-  const roomy = css.slice(roomyIdx, css.indexOf('\n}\n', css.indexOf('.map-dock {', roomyIdx)));
-  assert.match(roomy, /flex: 0 0 340px;/, 'fixed column width beside the map');
+test('no progress readout, panel or card lives on the Map at all', () => {
+  // Superseded twice: the information column became a status dock, and the
+  // dock was rejected in turn. The Map is now a clean instrument — the
+  // along-route progress presentation has no home here (the calculations
+  // stay; see tests/map-trail-cockpit.test.mjs), and what remains is a
+  // tracking pill that exists only while a session runs.
   assert.ok(!css.includes('.map-side'), 'the old information column is gone');
+  assert.ok(!css.includes('.map-dock'), 'and so is the status dock');
+  assert.ok(!mapScreen.includes('ProgressReadout'), 'no progress card on the Map');
+  assert.ok(!mapScreen.includes('MapStatusSheet'), 'no details sheet on the Map');
+  const trackStart = css.indexOf('.map-track {', css.indexOf('/* 2. Live-tracking pill'));
+  const track = css.slice(trackStart, css.indexOf('}', trackStart));
+  assert.match(track, /width: fit-content/, 'the live pill is a pill, not a panel');
 });
 
 // ---- Map: no route-planning summary or elevation profile -------------------
@@ -78,14 +76,13 @@ test('Map screen no longer renders the combined route/stage summary card', () =>
 test('Map keeps its navigation and tracking controls', () => {
   // Guard rails: the removal must not have taken map navigation with it.
   assert.ok(mapScreen.includes('<MapView'), 'the map itself stays');
-  assert.match(mapScreen, /aria-label="Previous stage"/);
-  assert.match(mapScreen, /aria-label="Next stage"/);
-  assert.match(mapScreen, /Fit \{viewStageId \? 'stage' : 'route'\}/);
-  assert.ok(mapScreen.includes('stage-select'), 'stage selector stays on Map');
+  assert.ok(mapScreen.includes('MapScopeControl'), 'stage/route selection stays on Map');
+  assert.match(mapScreen, /onStep=\{stepStage\}/, 'previous/next stage stays');
+  assert.match(mapScreen, /fitLabel=/, 'fit-current-scope stays');
   assert.ok(mapScreen.includes('geo.locate'), 'Locate stays on Map');
-  assert.ok(mapScreen.includes('Live tracking'), 'live tracking stays on Map');
-  assert.ok(mapScreen.includes('Follow'), 'Follow stays on Map');
-  assert.ok(mapScreen.includes('imagery'), 'terrain/satellite imagery toggle stays on Map');
+  assert.ok(mapScreen.includes('startTracking'), 'live tracking stays on Map');
+  assert.ok(mapScreen.includes('resumeFollow'), 'follow control stays on Map');
+  assert.ok(mapScreen.includes('imagery'), 'terrain/satellite imagery choice stays on Map');
 });
 
 // ---- Stages: full-route elevation disclosure -------------------------------
