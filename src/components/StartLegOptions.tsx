@@ -1,6 +1,5 @@
 import { useStore } from '../store/AppStore';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
-import { STAGES_BY_ID } from '../data/stages';
+import { STAGES_BY_ID, STOPS_BY_ID, stopShortName } from '../trail/activeTrailContent';
 import { formatDistanceKm } from '../utils/format';
 import { isReversed } from '../route/direction.mjs';
 import { stageOccurrences } from '../plan/dayPlan.mjs';

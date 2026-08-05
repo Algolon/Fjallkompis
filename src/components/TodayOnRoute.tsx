@@ -15,18 +15,20 @@ import {
 import { FacilityIcon } from './FacilityIcon';
 import { MembershipQuickAccess } from './MembershipQuickAccess';
 import {
+  HUT_TO_WAYPOINT,
   STOPS_BY_ID,
+  WAYPOINT_BY_ID,
   collapsedFacilities,
   collapsedFacilityList,
+  combinedStageHighlights,
   importantAbsences,
+  journeyPlaceById,
+  stageHighlights,
   stopShortName,
-} from '../data/stops';
-import { journeyPlaceById } from '../data/journeyPlaces.mjs';
-import type { CuratedOffRoutePlace } from '../data/journeyPlaces.mjs';
-import { combinedStageHighlights, stageHighlights } from '../data/stageHighlights.mjs';
+} from '../trail/activeTrailContent';
+import type { CuratedOffRoutePlace } from '../trail/activeTrailContent';
 import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
-import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 import { HERO_HIGHLIGHT_ICONS, HeroSilhouette } from './TodayHero';
 import { activityOrderPhrase, travelPresentation } from '../plan/dayPresentation.mjs';
 import { hikingDayRouteFocus } from '../plan/hikingDayHero.mjs';

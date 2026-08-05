@@ -12,7 +12,7 @@ import { useStore } from '../store/AppStore';
 import { useTrailReadiness } from '../hooks/useTrailReadiness';
 import { packingSummary } from '../utils/packingModel.mjs';
 import { tripPlanSummary } from '../trip/tripModel.mjs';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
+import { STOPS_BY_ID, stopShortName } from '../trail/activeTrailContent';
 import { formatDistanceKm, formatGrams } from '../utils/format';
 import type { NavPayload } from '../screens/TodayScreen';
 import type { TabId } from './TabBar';

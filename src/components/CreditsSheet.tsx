@@ -6,19 +6,62 @@
  * (src/data/attribution.ts); only sources whose data actually ships in the
  * app (`present: true`) are listed, so future providers (e.g. Lantmäteriet)
  * appear automatically once their archives exist.
+ *
+ * The sheet answers two different questions and now says so: what the TRAIL
+ * dossier is built on (route, facilities, shops, transport) and what the APP
+ * is built on (map providers, software, release). Every previously listed
+ * source, licence and link is still here — only the grouping changed.
  */
 import { useEffect, useRef } from 'react';
+// App-scoped credits stay with the attribution registry; the trail dossier's
+// own sources and publication identity come from the trail content boundary.
+import { APP_DATA_SOURCES, SOFTWARE_CREDITS, REPOSITORY_URL } from '../data/attribution';
+import type { DataSourceAttribution } from '../data/attribution';
 import {
-  PRESENT_DATA_SOURCES,
-  SOFTWARE_CREDITS,
+  TRAIL_DATA_SOURCES,
   TRIP_INFO_SOURCES,
-  REPOSITORY_URL,
-} from '../data/attribution';
+  trailDossierView,
+} from '../trail/activeTrailContent';
 import { APP_VERSION } from '../constants';
+import { formatVerifiedDate } from '../utils/format';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
+
+/** One attribution entry — identical markup wherever a source is listed. */
+function SourceEntry({ source: s }: { source: DataSourceAttribution }) {
+  return (
+    <li>
+      <span className="credits-name">{s.name}</span>
+      <p className="credits-text">{s.attribution}</p>
+      {s.modifiedNotice ? <p className="credits-text">{s.modifiedNotice}.</p> : null}
+      <p className="credits-links">
+        {s.licenseName ? (
+          <>
+            Licence:{' '}
+            {s.licenseUrl ? (
+              <a href={s.licenseUrl} target="_blank" rel="noopener noreferrer">
+                {s.licenseName}
+              </a>
+            ) : (
+              s.licenseName
+            )}
+            {' · '}
+          </>
+        ) : null}
+        {s.sourceUrl ? (
+          <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer">
+            {s.provider}
+          </a>
+        ) : (
+          s.provider
+        )}
+      </p>
+    </li>
+  );
+}
 
 export function CreditsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const dossier = trailDossierView();
   useOverlayScrollLock(open);
 
   useEffect(() => {
@@ -47,40 +90,44 @@ export function CreditsSheet({ open, onClose }: { open: boolean; onClose: () => 
           </button>
         </div>
 
-        <span className="section-label">Map &amp; imagery data</span>
+        <span className="section-label">Trail dossier</span>
+        <div className="credits-app">
+          <div className="row-between">
+            <span className="muted">Trail</span>
+            <span>{dossier.name}</span>
+          </div>
+          <div className="row-between" style={{ marginTop: 6 }}>
+            <span className="muted">{dossier.contentVersionLabel}</span>
+            <span className="tnum">{dossier.contentVersion}</span>
+          </div>
+          {/*
+            Only rendered when the WHOLE dossier was demonstrably reviewed as
+            one piece. It is null today, and nothing here fills the gap with a
+            "checked" or "up to date" claim — see the honesty note in
+            src/data/trailMetadata.mjs.
+          */}
+          {dossier.fullyReviewedOn ? (
+            <div className="row-between" style={{ marginTop: 6 }}>
+              <span className="muted">Fully reviewed</span>
+              <span>{formatVerifiedDate(dossier.fullyReviewedOn)}</span>
+            </div>
+          ) : null}
+          <p className="credits-text" style={{ marginTop: 10 }}>
+            The version of the curated trail content in this build — route, stops,
+            guides, shops and transport. It changes when that content is republished,
+            not with every app update. Individual facts carry their own verification
+            date on the stop, guide or timetable they belong to.
+          </p>
+        </div>
+
+        <span className="section-label">Trail sources — route &amp; facilities</span>
         <ul className="credits-list">
-          {PRESENT_DATA_SOURCES.map((s) => (
-            <li key={s.id}>
-              <span className="credits-name">{s.name}</span>
-              <p className="credits-text">{s.attribution}</p>
-              {s.modifiedNotice ? <p className="credits-text">{s.modifiedNotice}.</p> : null}
-              <p className="credits-links">
-                {s.licenseName ? (
-                  <>
-                    Licence:{' '}
-                    {s.licenseUrl ? (
-                      <a href={s.licenseUrl} target="_blank" rel="noopener noreferrer">
-                        {s.licenseName}
-                      </a>
-                    ) : (
-                      s.licenseName
-                    )}
-                    {' · '}
-                  </>
-                ) : null}
-                {s.sourceUrl ? (
-                  <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer">
-                    {s.provider}
-                  </a>
-                ) : (
-                  s.provider
-                )}
-              </p>
-            </li>
+          {TRAIL_DATA_SOURCES.map((s) => (
+            <SourceEntry key={s.id} source={s} />
           ))}
         </ul>
 
-        <span className="section-label">Trip information (shops &amp; transport)</span>
+        <span className="section-label">Trail sources — shops &amp; transport</span>
         <ul className="credits-list">
           {TRIP_INFO_SOURCES.map((s) => (
             <li key={s.name}>
@@ -97,6 +144,13 @@ export function CreditsSheet({ open, onClose }: { open: boolean; onClose: () => 
                 </a>
               </p>
             </li>
+          ))}
+        </ul>
+
+        <span className="section-label">App &amp; map credits</span>
+        <ul className="credits-list">
+          {APP_DATA_SOURCES.map((s) => (
+            <SourceEntry key={s.id} source={s} />
           ))}
         </ul>
 

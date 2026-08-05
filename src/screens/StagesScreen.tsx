@@ -5,11 +5,15 @@ import { ScreenHeader } from '../components/ui';
 import { ElevationProfile } from '../components/ElevationProfile';
 import { HighlightsAndDetours } from '../components/StageExperiences';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
-import { stageGuide } from '../data/stageGuides.mjs';
-import type { StageGuide } from '../data/stageGuides.mjs';
-import { experienceCountForStage } from '../data/routeExperiences';
-import { experienceTrack, experienceWaypoint } from '../data/experienceGeometry';
+import {
+  STOPS_BY_ID,
+  experienceCountForStage,
+  experienceTrack,
+  experienceWaypoint,
+  stageGuide,
+  stopShortName,
+} from '../trail/activeTrailContent';
+import type { StageGuide } from '../trail/activeTrailContent';
 import {
   formatDistanceKm,
   formatHoursEstimate,

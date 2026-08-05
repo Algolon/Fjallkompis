@@ -34,7 +34,7 @@ import {
   isRouteWide,
   journeyPositionLabel,
   stageHighlightsAndDetours,
-} from '../data/routeExperiences';
+} from '../trail/activeTrailContent';
 
 /**
  * The "Highlights & detours" experience layer for a stage

@@ -17,11 +17,12 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useRouteTracking } from '../hooks/useRouteTracking';
 import {
   STOPS_BY_ID,
+  WAYPOINT_BY_ID,
   collapsedFacilities,
   importantAbsences,
+  stopIdForWaypoint,
   stopShortName,
-} from '../data/stops';
-import { WAYPOINT_BY_ID, stopIdForWaypoint } from '../route/routeData';
+} from '../trail/activeTrailContent';
 import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import type { BasemapMode } from '../map/pmtilesProtocol';
 import { cameraPaddingFor, overviewPaddingFor } from '../map/mapPadding.mjs';
