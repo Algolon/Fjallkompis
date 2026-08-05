@@ -1,0 +1,83 @@
+[
+  {
+    "W": 375,
+    "H": 611,
+    "zoom": 7.9838,
+    "blankW": 0,
+    "markers": 8,
+    "labels": [
+      "Abisko",
+      "Abiskojaure",
+      "Alesjaure",
+      "Tjäktja",
+      "Sälka",
+      "Singi",
+      "Kebnekaise",
+      "Nikkaluokta"
+    ],
+    "hasEarth": true,
+    "hasBoundary": true,
+    "hasRoute": true,
+    "hasHillshade": false,
+    "viewport": "375x667",
+    "consoleErrors": [],
+    "nonArchiveNet": 1,
+    "archiveStatuses": [
+      206
+    ]
+  },
+  {
+    "W": 1364,
+    "H": 860,
+    "zoom": 8.6956,
+    "blankW": 0,
+    "markers": 8,
+    "labels": [
+      "Abisko",
+      "Abiskojaure",
+      "Alesjaure",
+      "Tjäktja",
+      "Sälka",
+      "Singi",
+      "Kebnekaise",
+      "Nikkaluokta"
+    ],
+    "hasEarth": true,
+    "hasBoundary": true,
+    "hasRoute": true,
+    "hasHillshade": false,
+    "viewport": "1512x860",
+    "consoleErrors": [],
+    "nonArchiveNet": 1,
+    "archiveStatuses": [
+      206
+    ]
+  },
+  {
+    "W": 1772,
+    "H": 1080,
+    "zoom": 9.0631,
+    "blankW": 0,
+    "markers": 8,
+    "labels": [
+      "Abisko",
+      "Abiskojaure",
+      "Alesjaure",
+      "Tjäktja",
+      "Sälka",
+      "Singi",
+      "Kebnekaise",
+      "Nikkaluokta"
+    ],
+    "hasEarth": true,
+    "hasBoundary": true,
+    "hasRoute": true,
+    "hasHillshade": false,
+    "viewport": "1920x1080",
+    "consoleErrors": [],
+    "nonArchiveNet": 1,
+    "archiveStatuses": [
+      206
+    ]
+  }
+]

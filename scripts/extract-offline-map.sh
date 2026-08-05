@@ -42,7 +42,9 @@ route_config_field() {
     import { ROUTE_CONFIG_BY_ID } from './scripts/route-configs.mjs';
     const c = ROUTE_CONFIG_BY_ID[process.argv[1]];
     if (!c) { console.error('Unknown ROUTE_ID: ' + process.argv[1]); process.exit(1); }
-    console.log(c[process.argv[2]]);
+    // Dotted paths so nested config (vectorOverview.maxZoom) is readable too.
+    const v = process.argv[2].split('.').reduce((o, k) => (o == null ? o : o[k]), c);
+    console.log(v);
   " "$ROUTE_ID" "$1"
 }
 ROUTE_JSON="$(route_config_field outputPath)"
@@ -71,14 +73,57 @@ BBOX="$(node -e "
   console.log([b[0][0], b[0][1], b[1][0], b[1][1]].join(','));
 ")"
 
+# OVERVIEW ALLOWANCE (vectorOverview in scripts/route-configs.mjs): the
+# low-zoom half of the archive is extracted from a box widened east/west, so a
+# horizontally balanced full-route overview stays inside real data on every
+# supported viewport. The detail zooms keep the strict cutout corridor. See the
+# config for why the tile grid makes EAST the binding side.
+OV_MAXZOOM="$(route_config_field 'vectorOverview.maxZoom' 2>/dev/null || echo '')"
+OV_MARGIN="$(route_config_field 'vectorOverview.lonMarginDeg' 2>/dev/null || echo '')"
+
+OV_BBOX=""
+if [ -n "$OV_MAXZOOM" ] && [ -n "$OV_MARGIN" ] && [ "$OV_MAXZOOM" != "undefined" ]; then
+  OV_BBOX="$(node -e "
+    const d = require('./${ROUTE_JSON}');
+    const b = d.mapCutoutBounds, m = ${OV_MARGIN};
+    console.log([b[0][0] - m, b[0][1], b[1][0] + m, b[1][1]].join(','));
+  ")"
+fi
+
 echo "Route:   $ROUTE_ID"
 echo "Source:  $SOURCE_URL"
 echo "BBox:    $BBOX (GPX route bounds + buffer)"
 echo "Maxzoom: $MAXZOOM"
+if [ -n "$OV_BBOX" ]; then
+  echo "Overview: z0–z${OV_MAXZOOM} from $OV_BBOX (+${OV_MARGIN}° east/west)"
+  echo "Detail:   z$((OV_MAXZOOM + 1))–z${MAXZOOM} from the cutout bbox"
+fi
 echo
 
 mkdir -p public/maps
-"$PMTILES_BIN" extract "$SOURCE_URL" "$OUT" --bbox="$BBOX" --maxzoom="$MAXZOOM"
+if [ -z "$OV_BBOX" ]; then
+  "$PMTILES_BIN" extract "$SOURCE_URL" "$OUT" --bbox="$BBOX" --maxzoom="$MAXZOOM"
+else
+  # Two disjoint zoom ranges, then one merge. Both halves come from the SAME
+  # source build, so every tile that already shipped is reproduced byte for
+  # byte and only the added overview columns are new.
+  TMP_OV="$(mktemp -t fk-ov-XXXX).pmtiles"
+  TMP_DT="$(mktemp -t fk-dt-XXXX).pmtiles"
+  rm -f "$TMP_OV" "$TMP_DT"
+  trap 'rm -f "$TMP_OV" "$TMP_DT"' EXIT
+
+  echo "── Overview zooms (z0–z${OV_MAXZOOM}, widened) ──"
+  "$PMTILES_BIN" extract "$SOURCE_URL" "$TMP_OV" --bbox="$OV_BBOX" \
+    --minzoom=0 --maxzoom="$OV_MAXZOOM"
+  echo
+  echo "── Detail zooms (z$((OV_MAXZOOM + 1))–z${MAXZOOM}, strict corridor) ──"
+  "$PMTILES_BIN" extract "$SOURCE_URL" "$TMP_DT" --bbox="$BBOX" \
+    --minzoom=$((OV_MAXZOOM + 1)) --maxzoom="$MAXZOOM"
+  echo
+  echo "── Merging ──"
+  rm -f "$OUT"
+  "$PMTILES_BIN" merge "$TMP_OV" "$TMP_DT" "$OUT"
+fi
 
 echo
 echo "Verifying archive…"
