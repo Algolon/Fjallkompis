@@ -26,6 +26,7 @@ import { DayPlanCard } from '../components/DayPlanCard';
 import type { TabId } from '../components/TabBar';
 import { InstallCard, installStatusText } from '../components/InstallCard';
 import { useTrailReadiness } from '../hooks/useTrailReadiness';
+import { TRAIL_CAVEATS } from '../trail/activeTrailContent';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
@@ -446,6 +447,22 @@ export function SettingsScreen({
           open={openSection === 'maps'}
           onToggle={() => toggleSection('maps')}
         >
+          {/* The extended navigation caveat opens the panel that decides what
+              the map can do offline — the moment a hiker is deliberately
+              preparing to rely on it. The Map cockpit and the stage guide
+              footer carry the one-line version of the same statement; this is
+              the only place with room for why. No new Settings section for it:
+              the honest home is the map the caveat is about.
+
+              Deliberately OUTSIDE .settings-panel-stack. That stack draws its
+              separator with `> * + *`, and the cards' first element is an
+              INLINE .card-title span — as a second child it would take a top
+              border and padding it cannot lay out, and "Offline map" would
+              overlap this text. Kept as a sibling, the cards' own sequence is
+              exactly what it was. */}
+          <p className="card-sub" style={{ margin: '0 0 16px' }}>
+            {TRAIL_CAVEATS.navigation.full}
+          </p>
           <div className="settings-panel-stack">
             <OfflineMapCard embedded />
             <TerrainReliefCard embedded />

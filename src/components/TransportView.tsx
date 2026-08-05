@@ -8,6 +8,7 @@ import {
   Link2,
   Luggage,
   Ship,
+  SignalLow,
   TrainFront,
   TriangleAlert,
   Wallet,
@@ -16,6 +17,7 @@ import { ListDisclosure } from './ListDisclosure';
 import { ContextHelp } from './ContextHelp';
 import { useStore } from '../store/AppStore';
 import {
+  TRAIL_CAVEATS,
   TRANSPORT_ENTRIES,
   TRANSPORT_SECTIONS,
   entriesForContext,
@@ -344,6 +346,11 @@ export function TransportHelp() {
         Always confirm times, prices and disruptions through the official sources before you
         travel.
       </p>
+      {/* The reasoning behind the one-line caveat at the top of the list.
+          It belongs here rather than beside every phone number, because it
+          qualifies the same thing the paragraphs above do: what you can rely
+          on getting once you have left. */}
+      <p>{TRAIL_CAVEATS.connectivity.full}</p>
     </ContextHelp>
   );
 }
@@ -395,6 +402,22 @@ export function TransportView({
 
   return (
     <>
+      {/* The connectivity caveat heads the whole reference surface, because
+          what it qualifies is spread across every card below it: operator
+          phone numbers, payment methods, booking instructions, the official
+          timetable links and the one live planner. Repeating it beside each
+          of those would be four warnings saying one thing. One calm line
+          here, the reasoning in "About transport information" (the header's
+          existing context help) — no banner, and nothing that pushes the
+          first timetable off the screen. */}
+      <p
+        className="stop-fact-row tp-meta"
+        style={{ margin: '0 2px 12px', alignItems: 'flex-start' }}
+      >
+        <SignalLow size={15} strokeWidth={1.8} aria-hidden style={{ marginTop: 3 }} />
+        <span>{TRAIL_CAVEATS.connectivity.short}</span>
+      </p>
+
       {TRANSPORT_SECTIONS.map((section) => {
         const entries = entriesForContext(section.id);
         if (entries.length === 0) return null;

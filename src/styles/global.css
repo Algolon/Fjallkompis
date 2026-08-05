@@ -1026,6 +1026,15 @@ a.btn {
   border-color: #dcc4b8;
   color: #6e4536;
 }
+/* The standing navigation caveat: the plain paper surface (no warn tone — it
+   reports no failure), and transparent to the pointer. It is the only
+   permanent thing over the canvas, so it must never intercept a pan, a pinch
+   or a tap meant for the map underneath it; it carries no interactive content
+   and stays fully readable to assistive technology. */
+.map-note--caveat {
+  pointer-events: none;
+  color: var(--ink-soft);
+}
 .map-note svg {
   flex: 0 0 auto;
   margin-top: 1px;

@@ -72,6 +72,7 @@ const GUARDED = new Map([
   ['data/stops', 'curated route stops'],
   ['data/journeyPlaces.mjs', 'curated off-route places'],
   ['data/stageGuides.mjs', 'day guides'],
+  ['data/trailCaveats.mjs', 'standing operational caveats'],
   ['data/stageEditorial.mjs', 'stage notes and time estimates'],
   ['data/stageHighlights.mjs', 'stage highlights'],
   ['data/routeExperiences', 'highlights and detours'],

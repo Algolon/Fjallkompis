@@ -7,6 +7,7 @@ import { HighlightsAndDetours } from '../components/StageExperiences';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import {
   STOPS_BY_ID,
+  TRAIL_CAVEATS,
   experienceCountForStage,
   experienceTrack,
   experienceWaypoint,
@@ -73,6 +74,12 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
       <p className="stage-guide__verified">
         Route guidance verified {formatVerifiedDate(guide.lastVerified)} —
         trail, water and weather conditions vary; check locally.
+        {/* The dossier-wide navigation caveat, in the footer that already
+            qualifies this guidance. It belongs to the same sentence as
+            "check locally": both say what this text is NOT. Kept in the one
+            shared guide footer, so the Guide surface being built later
+            inherits it by reusing this panel rather than restating it. */}{' '}
+        {TRAIL_CAVEATS.navigation.short}
       </p>
     </>
   );
