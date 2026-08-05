@@ -145,15 +145,21 @@ export function satelliteMapUrl(): string {
 
 export interface OfflineMapStatus {
   supported: boolean;
-  /** A usable archive is stored on this device — current OR legacy. */
+  /**
+   * A USABLE archive is stored on this device — the current revision or a
+   * shipped legacy one. False for an unusable current-cache entry.
+   */
   downloaded: boolean;
+  /** Bytes stored; for 'invalid', the size of the unusable entry. */
   sizeBytes: number | null;
-  /** Which revision this device holds. Unrevisioned archives never report 'legacy'. */
+  /** Unrevisioned archives only ever report 'current' or 'absent'. */
   state: ArchiveState;
   /** Bytes the current revision must have, or null when none is declared. */
   expectedBytes: number | null;
   /** A newer archive revision is available to download (state === 'legacy'). */
   updateAvailable: boolean;
+  /** Stored data that cannot be used and must be downloaded again. */
+  needsRepair: boolean;
 }
 
 const UNSUPPORTED: OfflineMapStatus = {
@@ -163,6 +169,7 @@ const UNSUPPORTED: OfflineMapStatus = {
   state: 'absent',
   expectedBytes: null,
   updateAvailable: false,
+  needsRepair: false,
 };
 
 /** What the archive-revision contract needs to probe one spec's caches. */
@@ -175,19 +182,31 @@ const probeSpec = (spec: ArchiveSpec) => ({
 
 export async function getArchiveStatus(spec: ArchiveSpec): Promise<OfflineMapStatus> {
   if (!('caches' in window)) return UNSUPPORTED;
-  const { state, sizeBytes, expectedBytes, downloaded, updateAvailable } =
+  const { state, sizeBytes, expectedBytes, downloaded, updateAvailable, needsRepair } =
     await probeArchiveCaches(caches, probeSpec(spec));
-  return { supported: true, downloaded, sizeBytes, state, expectedBytes, updateAvailable };
+  return {
+    supported: true,
+    downloaded,
+    sizeBytes,
+    state,
+    expectedBytes,
+    updateAvailable,
+    needsRepair,
+  };
 }
 
 /**
- * Cached full-file blob for an archive, or null if not downloaded. Prefers the
- * current revision and falls back to a legacy one, so an offline device keeps
- * a working map until it has successfully downloaded the replacement.
+ * Cached full-file blob for an archive, or null when there is nothing safe to
+ * read. Prefers the current revision and falls back to a shipped legacy one,
+ * so an offline device keeps a working map until it has downloaded the
+ * replacement — but an unusable current-cache entry resolves to null rather
+ * than to a blob PMTiles would choke on.
  */
 export async function getArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
   if (!('caches' in window)) return null;
   const { cacheName } = await probeArchiveCaches(caches, probeSpec(spec));
+  // Null for 'invalid' and 'absent' alike — the classification, not the mere
+  // presence of bytes, decides whether the map gets a blob at all.
   if (!cacheName) return null;
   const cache = await caches.open(cacheName);
   const match = await cache.match(archiveUrl(spec));
@@ -260,7 +279,11 @@ export async function downloadArchive(
   return bytes;
 }
 
-/** Remove an archive from the device, superseded revisions included. */
+/**
+ * Remove an archive from the device, superseded revisions included. Deletes
+ * the caches by name, so nothing is left behind — not the entry, not an empty
+ * cache, and never another archive's cache.
+ */
 export async function removeArchive(spec: ArchiveSpec): Promise<void> {
   if (!('caches' in window)) return;
   await removeArchiveRevision(caches, probeSpec(spec));

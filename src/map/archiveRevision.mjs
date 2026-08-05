@@ -12,10 +12,17 @@
  * check for free:
  *   - the Cache Storage cache NAME (a new revision gets a new cache);
  *   - the exact byte length of the archive (`bytes` below).
- * A cached response is the CURRENT revision only when it satisfies both. Any
- * other cached response — an older cache name, or a wrong-size entry in the
- * current cache — is a LEGACY archive: still usable offline, explicitly not
- * current, and replaced only by a successful download of the current one.
+ * A cached response is the CURRENT revision only when it satisfies both.
+ *
+ * "Not current" then splits in two, and the difference matters:
+ *   - LEGACY — a real archive in a DECLARED superseded cache. A revision we
+ *     shipped, so it parses and renders: usable offline until the replacement
+ *     downloads successfully.
+ *   - INVALID — a wrong-size response in the current cache, with no legacy
+ *     archive to fall back on. Nothing vouches for those bytes; they are
+ *     truncated, damaged or hand-seeded. Handing them to PMTiles would crash
+ *     the map, so they are never read, never counted as downloaded, and never
+ *     described as a working map. Downloading again is the repair.
  *
  * A full client-side SHA-256 on every status check would cost a 5.9 MB read
  * for no extra safety in practice, so `sha256` here is recorded provenance
@@ -62,19 +69,22 @@ export const VECTOR_ARCHIVE_SUPERSEDED_BYTES = 5_603_107;
 export const ARCHIVE_MISMATCH_ERROR = 'ArchiveRevisionMismatch';
 
 /**
- * @typedef {'absent' | 'current' | 'legacy'} ArchiveState
+ * @typedef {'absent' | 'current' | 'legacy' | 'invalid'} ArchiveState
  *
  * @typedef {object} ArchiveClassification
  * @property {ArchiveState} state
  * @property {'current' | 'legacy' | null} source
- *   Which cache holds the blob the app should read, or null when there is
- *   none. Note this is the cache the entry LIVES in, not its state: a
- *   wrong-size entry in the current cache reads back from 'current' while
- *   being classified 'legacy'.
- * @property {number | null} sizeBytes  Bytes actually stored on this device.
+ *   Which cache holds the blob the app may read, or null when there is nothing
+ *   safe to read. `invalid` always resolves to null: the bytes exist but must
+ *   never reach PMTiles.
+ * @property {number | null} sizeBytes
+ *   Bytes actually stored on this device — for `invalid`, the size of the
+ *   unusable entry, so Settings can say what is there against what is needed.
  * @property {number | null} expectedBytes  Bytes the current revision needs.
- * @property {boolean} downloaded  A usable archive is present (current OR legacy).
+ * @property {boolean} downloaded
+ *   A USABLE archive is present (current or legacy). False for `invalid`.
  * @property {boolean} updateAvailable  state === 'legacy'.
+ * @property {boolean} needsRepair  state === 'invalid'.
  */
 
 /**
@@ -83,14 +93,16 @@ export const ARCHIVE_MISMATCH_ERROR = 'ArchiveRevisionMismatch';
  *
  * With `expectedBytes` declared (the vector archive):
  *   1. current cache, size matches  → current
- *   2. otherwise a legacy cache hit → legacy   (the pre-rebuild archive)
- *   3. otherwise a wrong-size entry in the current cache → legacy
- *      (a truncated or hand-seeded blob: usable-ish, and Update is the fix)
+ *   2. otherwise a declared legacy cache hit → legacy — a revision we shipped,
+ *      so it renders; used as the offline fallback even when the current cache
+ *      also holds an unusable entry
+ *   3. otherwise a wrong-size entry in the current cache → invalid — unusable,
+ *      not downloaded, never read
  *   4. nothing → absent
  *
  * Without `expectedBytes` (terrain, contours, satellite — single-revision
  * archives that declare no legacy caches) this reduces to the existence-only
- * behaviour those archives have always had.
+ * behaviour those archives have always had, and `invalid` cannot occur.
  *
  * @param {{ currentBytes?: number | null, legacyBytes?: number | null,
  *           expectedBytes?: number | null }} [probe]
@@ -106,8 +118,9 @@ export function classifyArchiveProbe({
     source,
     sizeBytes,
     expectedBytes,
-    downloaded: state !== 'absent',
+    downloaded: state === 'current' || state === 'legacy',
     updateAvailable: state === 'legacy',
+    needsRepair: state === 'invalid',
   });
 
   if (expectedBytes == null) {
@@ -117,8 +130,10 @@ export function classifyArchiveProbe({
   }
 
   if (currentBytes === expectedBytes) return settle('current', 'current', currentBytes);
+  // A shipped legacy revision beats an unverifiable current-cache entry: it is
+  // the only one of the two that is known to parse.
   if (legacyBytes != null) return settle('legacy', 'legacy', legacyBytes);
-  if (currentBytes != null) return settle('legacy', 'current', currentBytes);
+  if (currentBytes != null) return settle('invalid', null, currentBytes);
   return settle('absent', null, null);
 }
 
@@ -308,15 +323,27 @@ export async function storeArchiveRevision(cacheStorage, spec, blob, toResponse)
  * legacy cache behind would leave the app offering to "update" a map the user
  * just deleted.
  *
+ * Deletes the caches by NAME rather than deleting an entry inside them. Every
+ * archive owns its cache outright — one archive, one cache, one full response
+ * (see src/map/offlineMap.ts) — so the cache and its contents are the same
+ * thing, and `caches.delete()` on a name that is not there is a no-op rather
+ * than the cache-creating `open()` this used to call. Removing a legacy-only
+ * install therefore leaves no empty current cache behind.
+ *
  * @param {object} cacheStorage
- * @param {{ cacheName: string, url: string, legacyCacheNames?: readonly string[] }} spec
- * @returns {Promise<string[]>} the superseded caches deleted alongside it
+ * @param {{ cacheName: string, legacyCacheNames?: readonly string[] }} spec
+ * @returns {Promise<string[]>} every cache actually deleted
  */
 export async function removeArchiveRevision(
   cacheStorage,
-  { cacheName, url, legacyCacheNames = [] },
+  { cacheName, legacyCacheNames = [] },
 ) {
-  const cache = await cacheStorage.open(cacheName);
-  await cache.delete(url);
-  return pruneLegacyArchives(cacheStorage, legacyCacheNames);
+  const deleted = [];
+  try {
+    if (await cacheStorage.delete(cacheName)) deleted.push(cacheName);
+  } catch {
+    // Same best-effort contract as the legacy prune below.
+  }
+  deleted.push(...(await pruneLegacyArchives(cacheStorage, legacyCacheNames)));
+  return deleted;
 }

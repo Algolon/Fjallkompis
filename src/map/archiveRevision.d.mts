@@ -1,4 +1,9 @@
-export type ArchiveState = 'absent' | 'current' | 'legacy';
+/**
+ * `legacy` is a shipped older revision — usable offline. `invalid` is a
+ * wrong-size entry in the current cache with no legacy fallback: present, but
+ * never read and never counted as downloaded.
+ */
+export type ArchiveState = 'absent' | 'current' | 'legacy' | 'invalid';
 
 export interface ArchiveRevision {
   /** Stable revision identifier (never derived from the app version). */
@@ -33,11 +38,14 @@ export interface ArchiveCacheStorage {
 
 export interface ArchiveClassification {
   state: ArchiveState;
+  /** Cache the blob may be read from; null for `invalid` and `absent`. */
   source: 'current' | 'legacy' | null;
   sizeBytes: number | null;
   expectedBytes: number | null;
+  /** A USABLE archive is present — current or legacy. False for `invalid`. */
   downloaded: boolean;
   updateAvailable: boolean;
+  needsRepair: boolean;
 }
 
 export declare const VECTOR_ARCHIVE_CACHE: string;
@@ -87,10 +95,11 @@ export declare function storeArchiveRevision<TBlob extends { size: number }>(
 ): Promise<{ bytes: number; pruned: string[] }>;
 
 export declare function removeArchiveRevision(
-  cacheStorage: ArchiveCacheStorage,
+  cacheStorage: Pick<ArchiveCacheStorage, 'delete'>,
   spec: {
     cacheName: string;
-    url: string;
     legacyCacheNames?: readonly string[];
+    /** Accepted so callers can pass the shared probe spec; deletion is by name. */
+    url?: string;
   },
 ): Promise<string[]>;
