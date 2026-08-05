@@ -6,6 +6,10 @@ import { VitePWA } from 'vite-plugin-pwa';
 // src/vite-env.d.ts, re-exported as APP_VERSION from src/constants.ts).
 // scripts/check-version-consistency.mjs guards this wiring in CI.
 import pkg from './package.json';
+// The vector basemap's CURRENT archive revision owns its cache name. Imported
+// rather than repeated so the service worker's range-request cache and the app
+// can never drift onto different caches (see src/map/archiveRevision.mjs).
+import { VECTOR_ARCHIVE_CACHE } from './src/map/archiveRevision.mjs';
 
 // NOTE: `base` matches the GitHub Pages project subpath
 // (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
@@ -74,10 +78,20 @@ export default defineConfig({
           {
             // Serve PMTiles byte-range requests from the user-downloaded
             // FULL response in the offline-map cache (RangeRequestsPlugin
-            // slices it). Cache name must match OFFLINE_MAP_CACHE in
-            // src/map/offlineMap.ts. cacheableResponse statuses [200]
-            // ensures a network 206 partial is never cached — caching
-            // individual range responses would NOT work offline.
+            // slices it). The cache name comes from the archive-revision
+            // contract, so it is the CURRENT revision's cache and nothing
+            // else. cacheableResponse statuses [200] ensures a network 206
+            // partial is never cached — caching individual range responses
+            // would NOT work offline.
+            //
+            // A superseded cache is deliberately NOT wired up here: Workbox
+            // picks the first matching route, so one URL can only be served
+            // from one cache, and a legacy archive must never look current.
+            // Legacy fallback runs through the blob-backed PMTiles source
+            // instead (src/map/pmtilesProtocol.ts), which is the primary
+            // offline read path anyway — so a device still on the old
+            // archive keeps a working map, while a plain fetch reaches the
+            // network for the current bytes rather than stale ranges.
             //
             // Scoped to the VECTOR basemap only. The satellite archive is
             // also same-origin (deploy.yml injects the verified Release asset
@@ -90,7 +104,7 @@ export default defineConfig({
               sameOrigin && request.url.endsWith('/maps/kungsleden.pmtiles'),
             handler: 'CacheFirst',
             options: {
-              cacheName: 'fjallkompis-offline-map-v1',
+              cacheName: VECTOR_ARCHIVE_CACHE,
               rangeRequests: true,
               cacheableResponse: { statuses: [200] },
             },
