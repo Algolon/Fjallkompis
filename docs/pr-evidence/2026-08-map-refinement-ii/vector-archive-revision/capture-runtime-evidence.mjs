@@ -154,6 +154,17 @@ async function readinessBasemapRow(page) {
   });
 }
 
+/** Bring the Offline map card into frame before a screenshot. */
+async function scrollToCard(page) {
+  await page.evaluate(() => {
+    const el = [...document.querySelectorAll('.card-title')].find(
+      (t) => t.textContent.trim() === 'Offline map',
+    );
+    el?.scrollIntoView({ block: 'center' });
+  });
+  await page.waitForTimeout(700);
+}
+
 /** The Offline map card's own text — the surface under test. */
 async function cardText(page) {
   return page.evaluate(() => {
@@ -198,6 +209,7 @@ await withChrome('A-legacy', { width: 1512, height: 860 }, async (page, log) => 
 
   const map = await fitAndShoot(page, 'A-legacy-map-1512x860.png');
   await openSettingsMaps(page, { readiness: true });
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'A-legacy-settings-1512x860.png') });
   const card = await cardText(page);
   const readinessRow = await readinessBasemapRow(page);
@@ -228,6 +240,7 @@ await withChrome('B-update', { width: 1512, height: 860 }, async (page, log) => 
 
   await openSettingsMaps(page);
   const cardBefore = await cardText(page);
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'B-before-update-1512x860.png') });
 
   const netBefore = log.requests.length;
@@ -240,6 +253,7 @@ await withChrome('B-update', { width: 1512, height: 860 }, async (page, log) => 
   await settle(page, 1500);
   const after = await page.evaluate(INVENTORY);
   const cardAfter = await cardText(page);
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'B-after-update-1512x860.png') });
 
   const map = await fitAndShoot(page, 'B-after-update-map-1512x860.png');
@@ -280,6 +294,7 @@ await withChrome('C-failure', { width: 1512, height: 860 }, async (page, log) =>
   await settle(page, 1000);
   const afterNetworkFailure = await page.evaluate(INVENTORY);
   const cardAfterNetworkFailure = await cardText(page);
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'C1-network-failure-1512x860.png') });
   const mapStillWorks = await fitAndShoot(page, 'C1-map-still-usable-1512x860.png');
 
@@ -302,6 +317,7 @@ await withChrome('C-failure', { width: 1512, height: 860 }, async (page, log) =>
   await settle(page, 1000);
   const afterWrongArchive = await page.evaluate(INVENTORY);
   const cardAfterWrongArchive = await cardText(page);
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'C2-wrong-archive-rejected-1512x860.png') });
 
   record('C_failed_update', {
@@ -386,6 +402,7 @@ await withChrome('E-invalid', { width: 1512, height: 860 }, async (page, log) =>
 
   await openSettingsMaps(page, { readiness: true });
   const cardInvalid = await cardText(page);
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'E1-invalid-settings-1512x860.png') });
   const readinessRow = await readinessBasemapRow(page);
 
@@ -398,6 +415,7 @@ await withChrome('E-invalid', { width: 1512, height: 860 }, async (page, log) =>
   await openSettingsMaps(page, { readiness: true });
   const cardWithFallback = await cardText(page);
   const readinessRowWithFallback = await readinessBasemapRow(page);
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'E2-invalid-plus-legacy-settings-1512x860.png') });
   const mapWithFallback = await fitAndShoot(page, 'E2-invalid-plus-legacy-map-1512x860.png');
   const inventoryE2 = await page.evaluate(INVENTORY);
@@ -455,6 +473,7 @@ await withChrome('F-remove', { width: 1512, height: 860 }, async (page, log) => 
   });
   await settle(page, 1000);
   const afterLegacyRemove = await page.evaluate(INVENTORY);
+  await scrollToCard(page);
   await page.screenshot({ path: join(OUT, 'F1-after-removing-legacy-1512x860.png') });
 
   // F2 — download the current revision, then remove it.

@@ -225,8 +225,9 @@ superseded name; the terrain and contour routes are unchanged; the committed
 and built archives are both 5,904,598 bytes with the declared sha256.
 
 ```
-tests      1422 total · 1419 pass · 0 fail · 3 skipped (pre-existing)
-           baseline on main f9e1d6b: 1384 total · 1381 pass · 0 fail · 3 skipped
+tests      1467 total · 1464 pass · 0 fail · 3 skipped (pre-existing)
+           main 55a424c merged in; +53 tests from this branch
 typecheck  clean
-build      clean · PWA generateSW · precache 16 entries
+build      clean · PWA generateSW · precache 17 entries
+git diff --check  clean
 ```

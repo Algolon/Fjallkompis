@@ -34,7 +34,6 @@ The bundle carries `fjallkompis-offline-map-v1` as the declared LEGACY cache
 The generated route, from `dist/sw.js` (minified):
 
 ```js
-e,request:n})=>e&&n.url.endsWith("/maps/kungsleden.pmtiles"),new e.CacheFirst({cacheName:"fjallkompis-offline-map-v2",plugins:[new e.RangeRequestsPlugin,new e.CacheableResponsePlugin({statuses:[200]})]}),"GET"),e.registerRoute(({sameOrigin:e,request:n})=>e&&n.url.endsWith("/map
 ```
 
 The URL pattern still matches the bare public path, so the Cache Storage key the
@@ -45,6 +44,6 @@ app writes is exactly what the range handler looks up. Only `cacheName` moved.
 ```
 committed  public/maps/kungsleden.pmtiles  5904598 bytes  sha256 17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51
 built      dist/maps/kungsleden.pmtiles    5904598 bytes  sha256 17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51
-declared   VECTOR_ARCHIVE_REVISION.bytes   5904598  sha256 17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51
+declared   VECTOR_ARCHIVE_REVISION         5904598 bytes  sha256 17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51
 superseded (pre-PR #104, git 719ae68)      5603107 bytes  sha256 c1fc1c5ec2ad721596ed3079d7b45a858cd1887a17586f1d3fdaa1b8bfdc031b
 ```
