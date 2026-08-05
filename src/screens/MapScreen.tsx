@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ChevronRight, TriangleAlert } from 'lucide-react';
+import { ChevronRight, Compass, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
 import { MapScopeControl, type ScopeOption } from '../components/MapScopeControl';
@@ -17,6 +17,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useRouteTracking } from '../hooks/useRouteTracking';
 import {
   STOPS_BY_ID,
+  TRAIL_CAVEATS,
   WAYPOINT_BY_ID,
   collapsedFacilities,
   importantAbsences,
@@ -420,6 +421,14 @@ export function MapScreen({
     else mapRef.current?.fitRoute();
   };
 
+  // Is this screen being read as a NAVIGATOR rather than as a plan? True from
+  // the moment the hiker asks where they are — Locate pressed (`locating`,
+  // then `success` or `error`), a position on the map, or a live session —
+  // and it stays true afterwards, because a marker on the map keeps making
+  // the same promise. It is deliberately not "has a fix": a refused or failed
+  // Locate is exactly when the caveat matters most.
+  const navigating = tracking.active || geo.status !== 'idle' || marker != null;
+
   // ---- Live tracking pill -------------------------------------------------
   // The Map's only status surface, and only while a session runs. Route
   // status comes from the COMPLETE-route matcher; the qualified wording
@@ -533,6 +542,39 @@ export function MapScreen({
                 <p className="map-note map-note--warn" role="status">
                   <TriangleAlert size={15} strokeWidth={2} aria-hidden />
                   <span>{message}</span>
+                </p>
+              ) : null}
+              {/* The navigation caveat, said inline on the map itself the
+                  moment this screen starts answering "where am I" — Locate
+                  pressed (however it ends), a position on the map, or a live
+                  session running. That is when the map is being read as a
+                  navigator, and it is exactly the moment the caveat has to be
+                  there rather than one tab away.
+
+                  Deliberately NOT permanent, and the reason is measured, not
+                  aesthetic: the lead column's depth IS the camera's top
+                  padding, and this route's overview fit already spends its
+                  whole vertical budget (see mapPadding.mjs — "vertical
+                  padding is the expensive kind"). A note that never goes away
+                  costs ~58px of it, and the bounded fit clamps rather than
+                  zooming out, so "Fit route" silently stops containing the
+                  Abisko end. In the navigating states the camera is centred
+                  on the hiker instead, where that padding costs nothing. The
+                  planning surfaces carry the caveat unconditionally: the
+                  stage-guide footer and Settings → Offline maps.
+
+                  Gated on INTENT, never on success: a denied or failed fix
+                  still shows it, beside the error that explains the refusal.
+                  Plain paper rather than the warn tone — a standing condition
+                  of use, not a failure — and no role="status", because it
+                  must not compete with the live notes above it. Alone among
+                  the cockpit surfaces it passes pointer events through:
+                  nothing here is interactive, so it can never swallow a pan
+                  or a pinch. */}
+              {navigating ? (
+                <p className="map-note map-note--caveat">
+                  <Compass size={15} strokeWidth={2} aria-hidden />
+                  <span>{TRAIL_CAVEATS.navigation.short}</span>
                 </p>
               ) : null}
             </div>
