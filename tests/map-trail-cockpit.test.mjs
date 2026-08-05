@@ -242,8 +242,9 @@ test('the permanent status dock and its details sheet are GONE', () => {
 test('the idle map reserves no bottom band at all', () => {
   // The band is rendered ONLY when a pill exists…
   assert.match(screen, /\{pill \? \(\s*<div className="map-cockpit-bottom" ref=\{attachBottomBand\}>/);
-  // …so the camera's bottom inset is zero without one.
-  assert.match(screen, /bottomInset: depth\(bottomBandRef\.current, 'bottom'\)/);
+  // …so the camera's bottom inset is zero without one. Measured once and
+  // shared by BOTH padding contracts (operational and overview).
+  assert.match(screen, /const bottomInset = depth\(bottomBandRef\.current, 'bottom'\)/);
   assert.match(
     css,
     /\.map-canvas-wrap \.maplibregl-ctrl-bottom-left,\n\.map-canvas-wrap \.maplibregl-ctrl-bottom-right \{\n  bottom: var\(--map-bottom-h, 0px\);/,
@@ -287,11 +288,17 @@ test('failures and refusals are transient messages, never surfaces', () => {
 // ---- 6. Camera padding contract ---------------------------------------------
 
 test('the screen measures its overlays and hands MapView a typed padding', () => {
-  assert.match(screen, /import \{ cameraPaddingFor \} from '\.\.\/map\/mapPadding\.mjs'/);
+  assert.match(
+    screen,
+    /import \{ cameraPaddingFor, overviewPaddingFor \} from '\.\.\/map\/mapPadding\.mjs'/,
+  );
   assert.match(screen, /padding=\{padding\}/, 'passed as a prop, not read from the DOM');
+  assert.match(screen, /overviewPadding=\{overviewPadding\}/, 'so is the overview rectangle');
   assert.match(screen, /new ResizeObserver\(measurePadding\)/);
   assert.match(screen, /useLayoutEffect\(\(\) => \{\s*measurePadding\(\);/, 'measured before the map builds');
-  assert.match(screen, /topInset: depth\(leadRef\.current, 'top'\)/);
+  // Insets are measured ONCE and shared, so the two contracts can never
+  // disagree about where the chrome is.
+  assert.match(screen, /const topInset = depth\(leadRef\.current, 'top'\)/);
   assert.match(screen, /rightInset: depth\(controlsRef\.current, 'right'\)/);
   // The bottom band mounts and unmounts with the pill, so it is observed
   // through a callback ref rather than a static list.
@@ -299,13 +306,54 @@ test('the screen measures its overlays and hands MapView a typed padding', () =>
   assert.match(screen, /observerRef\.current\?\.observe\(node\)/);
 });
 
-test('MapView honours the padding everywhere it frames geometry', () => {
+test('the overview padding is NOT charged the control stack', () => {
+  // The whole point of the second rectangle: the stack is a local overlay
+  // over one corner, so the full-route composition does not reserve its
+  // width for the entire viewport height. Only the operational padding does.
+  const call = screen.slice(
+    screen.indexOf('overviewPaddingFor({', screen.indexOf('const nextOverview')),
+  ).slice(0, 260);
+  assert.ok(!/rightInset/.test(call), 'no rightInset in the overview padding call');
+  assert.match(call, /topInset,/, 'the scope control really is across the top');
+  assert.match(call, /bottomInset,/, 'the tracking pill still counts while it exists');
+});
+
+test('MapView frames the route and operational geometry by different contracts', () => {
   assert.match(mapView, /padding\?: MapPadding;/);
+  assert.match(mapView, /overviewPadding\?: MapPadding;/);
   assert.match(mapView, /paddingRef\.current = padding \?\? DEFAULT_PADDING/);
-  assert.match(mapView, /fitBounds\(bounds, \{ padding: paddingRef\.current/, 'fitRoute/fitStage');
+  assert.match(
+    mapView,
+    /overviewPaddingRef\.current = overviewPadding \?\? padding \?\? DEFAULT_PADDING/,
+    'falls back rather than losing a padding entirely',
+  );
+  // ONE fit helper, switched by an explicit mode — never duplicated arithmetic.
+  assert.match(
+    mapView,
+    /const pad = mode === 'overview' \? overviewPaddingRef\.current : paddingRef\.current/,
+  );
+  assert.match(mapView, /fitRoute: \(\) => fitBounds\(routeRef\.current\.bounds, 'overview'\)/);
+  assert.match(mapView, /if \(stage\) fitBounds\(stage\.bounds, 'content'\)/);
   assert.match(mapView, /map\.fitBounds\(b, \{ padding: paddingRef\.current/, 'focused routes');
-  assert.match(mapView, /fitBoundsOptions: \{ padding: paddingRef\.current \}/, 'the initial fit');
+  assert.match(
+    mapView,
+    /fitBoundsOptions: \{ padding: overviewPaddingRef\.current \}/,
+    'the initial fit uses the SAME overview contract as fitRoute',
+  );
+  // The constraints exist to permit that overview, so they share its rectangle.
+  assert.match(mapView, /padding: overviewPaddingRef\.current,\s*\}\);/);
   assert.match(mapView, /applyLayoutConstraintsRef\.current\?\.\(\);/);
+});
+
+test('the fit is single-shot: no measure-then-nudge camera correction', () => {
+  // A corrective second move would show as a fit followed by an easeTo/
+  // panBy/setCenter in the same path. The only easeTo calls are the GPS
+  // follow, resume-following and focusPoint — none of them after a fit.
+  const fitIdx = mapView.indexOf("fitRoute: () => fitBounds");
+  const after = mapView.slice(fitIdx, fitIdx + 400);
+  assert.ok(!/panBy|setCenter|jumpTo/.test(after), 'no nudge after the route fit');
+  assert.ok(!/requestAnimationFrame[\s\S]{0,120}fitBounds/.test(mapView), 'no deferred re-fit');
+  assert.ok(!/queryRenderedFeatures/.test(mapView), 'no collision probing in the fit path');
 });
 
 test('map code never measures app chrome itself', () => {

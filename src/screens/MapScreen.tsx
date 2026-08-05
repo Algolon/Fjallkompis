@@ -24,7 +24,7 @@ import {
 import { WAYPOINT_BY_ID, stopIdForWaypoint } from '../route/routeData';
 import { facilitySummary, popupActionLabel } from '../map/stopMarkers.mjs';
 import type { BasemapMode } from '../map/pmtilesProtocol';
-import { cameraPaddingFor } from '../map/mapPadding.mjs';
+import { cameraPaddingFor, overviewPaddingFor } from '../map/mapPadding.mjs';
 import type { MapPadding } from '../map/mapPadding.mjs';
 import { trackingPill } from '../map/mapTrackingPill.mjs';
 import {
@@ -166,6 +166,12 @@ export function MapScreen({
   const [padding, setPadding] = useState<MapPadding>(() =>
     cameraPaddingFor({ viewportWidth: 0, viewportHeight: 0 }),
   );
+  // The full-route overview gets its own rectangle: balanced horizontally and
+  // label-safe, because it is a composition rather than an operational view
+  // (src/map/mapPadding.mjs). Both are measured from the same observer pass.
+  const [overviewPadding, setOverviewPadding] = useState<MapPadding>(() =>
+    overviewPaddingFor({ viewportWidth: 0, viewportHeight: 0 }),
+  );
 
   const measurePadding = useCallback(() => {
     const wrap = wrapRef.current;
@@ -186,21 +192,29 @@ export function MapScreen({
       if (edge === 'bottom') return Math.max(0, box.bottom - r.top);
       return Math.max(0, box.right - r.left);
     };
+    const topInset = depth(leadRef.current, 'top');
+    const bottomInset = depth(bottomBandRef.current, 'bottom');
     const next = cameraPaddingFor({
       viewportWidth: wrap.clientWidth,
       viewportHeight: wrap.clientHeight,
-      topInset: depth(leadRef.current, 'top'),
+      topInset,
       rightInset: depth(controlsRef.current, 'right'),
-      bottomInset: depth(bottomBandRef.current, 'bottom'),
+      bottomInset,
     });
-    setPadding((prev) =>
-      prev.top === next.top &&
-      prev.right === next.right &&
-      prev.bottom === next.bottom &&
-      prev.left === next.left
-        ? prev
-        : next,
-    );
+    // The overview deliberately does NOT take the control stack's width: it
+    // is a local overlay over one corner, and charging it for the full height
+    // is what pushed the whole route west. Vertical insets are shared —
+    // the scope control really is across the top.
+    const nextOverview = overviewPaddingFor({
+      viewportWidth: wrap.clientWidth,
+      viewportHeight: wrap.clientHeight,
+      topInset,
+      bottomInset,
+    });
+    const same = (a: MapPadding, b: MapPadding) =>
+      a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
+    setPadding((prev) => (same(prev, next) ? prev : next));
+    setOverviewPadding((prev) => (same(prev, nextOverview) ? prev : nextOverview));
     // MapLibre's own scale and attribution controls sit at the bottom
     // corners; lift them clear of the tracking pill while it is showing,
     // and let them drop back down when it goes.
@@ -474,6 +488,7 @@ export function MapScreen({
             follow={follow}
             onUserInteract={() => setFollow(false)}
             padding={padding}
+            overviewPadding={overviewPadding}
           />
 
           {/* Top band: scope on the left, controls on the right. The lead

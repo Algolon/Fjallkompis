@@ -28,22 +28,29 @@
  * disabled outright (maxPitch 0) and rotation gestures are turned off
  * (north-up product policy), so that guarantee is total.
  *
- * One wrinkle remains: viewports WIDER than the user bounds' aspect — the
- * square 1:1 desktop/tablet map card (whose full-route fit needs an
- * east/west view of ~179–220 km across its supported 300–838px edges,
- * against ~150.6 km of user bounds — recalculated 2026-07-10 for the
- * square layout) and, more extremely,
- * fullscreen on a landscape monitor. Fitting the full route
- * there needs a view wider than the user bounds, which plain maxBounds
- * forbids — MapLibre would clamp the zoom and crop the route. For exactly
- * that case the OVERVIEW EXPANSION widens maxBounds east/west, but only
- * while the camera is zoomed out far enough that the viewport is wider than
- * the user bounds anyway (zoom < threshold, with hysteresis). Those zoom
- * levels render z7–9 terrain tiles whose tile-aligned REAL-data footprint
- * extends tens of kilometres beyond the cutout, so the expanded view still
- * shows genuine relief — never a crop edge. As soon as the user zooms in
- * past the threshold, the strict user bounds snap back and the camera is
- * herded inside them.
+ * One wrinkle remains: viewports WIDER than the user bounds' aspect. Since
+ * the Map became a viewport-filling workspace (0.27.0) that is every normal
+ * landscape shape — a 16:10 laptop's full-route fit needs an east/west view
+ * of ~240 km and a 1512×860 MacBook ~268 km, against ~150.6 km of user
+ * bounds. (This paragraph used to reason about a square 1:1 desktop/tablet
+ * map card; that layout is gone, and the map's shape is now simply the
+ * workspace's shape.) Fitting the full route there needs a view wider than
+ * the user bounds, which plain maxBounds forbids — MapLibre would clamp the
+ * zoom and crop the route. For exactly that case the OVERVIEW EXPANSION
+ * widens maxBounds east/west, but only while the camera is zoomed out far
+ * enough that the viewport is wider than the user bounds anyway
+ * (zoom < threshold, with hysteresis). As soon as the user zooms in past the
+ * threshold, the strict user bounds snap back and the camera is herded
+ * inside them.
+ *
+ * KNOWN LIMIT (deferred, Map Refinement II PR 2): `overviewEnvelope` below
+ * derives its cap from the z7 tile grid, but is applied at every overview
+ * zoom. Viewports from ~1920×1080 upward settle at zooms that render z9
+ * tiles, whose real-data footprint is 234.8 km against z7's 313.1 km — so
+ * the cap over-claims and a blank western margin becomes reachable there.
+ * Measured 0 px on every supported shape through 1512×860. The envelope is
+ * also asymmetric about the route (1.736° of margin west, 1.041° east),
+ * which pushes wide-viewport compositions east. Neither is touched here.
  *
  * Plain ESM so tests/camera-bounds.test.mjs can fence the maths in node.
  */
@@ -141,30 +148,52 @@ export function cameraConstraintsFor({
     Math.log2((2 * MERC_MAX) / userMercH) + Math.log2(viewportHeight / 512),
   );
 
-  // Route-overview fit: scale is set by the padded HEIGHT (the route is far
-  // taller than wide); the resulting full-viewport width decides whether
-  // this viewport needs the overview widening.
+  // ROUTE-OVERVIEW FIT SCALE — set by whichever axis actually binds.
+  //
+  // This used to be `routeMercH / usableH`, on the reasoning that "the route
+  // is far taller than wide" so height must bind. That holds for landscape,
+  // but NOT for phone portrait: once the padded viewport is narrow enough,
+  // the route's 86.3 km width needs a coarser scale than its 153.9 km height
+  // does. Measured on every audited phone (Phase A, §4c) — 320×568 through
+  // 430×932 and a tall 360×1000 are all width-bound, and the height-only
+  // formula underestimated the required scale by 3.3–43.6 %.
+  //
+  // Underestimating it here is not cosmetic: `halfExpand`/`halfExpandV` below
+  // are derived from this scale, so too small a value silently reports "no
+  // expansion needed" for a viewport that does need one. MapLibre then clamps
+  // the requested fit against the un-widened user bounds — which is how a
+  // tall phone ended up parked exactly on its zoom threshold with the route
+  // pushed off the west edge.
+  //
+  // MapLibre's own fitBounds picks the same larger-of-the-two scale, so this
+  // is simply the constraint maths agreeing with the fit it has to permit.
   const padV = (padding?.top ?? 0) + (padding?.bottom ?? 0);
+  const padH = (padding?.left ?? 0) + (padding?.right ?? 0);
   const usableH = Math.max(1, viewportHeight - padV);
+  const usableW = Math.max(1, viewportWidth - padH);
   const routeMercH = mercY(rn) - mercY(rs);
-  const fitMercPerPx = routeMercH / usableH;
+  const routeMercW = mercX(re) - mercX(rw);
+  const fitMercPerPx = Math.max(routeMercW / usableW, routeMercH / usableH);
   const fitViewMercW = viewportWidth * fitMercPerPx;
 
   // 5% slack so the fitted view never lands exactly on the constraint.
   const halfExpand = Math.max(0, (fitViewMercW * 1.05 - userMercW) / 2);
 
-  // NORTH/SOUTH expansion — the layout-aware padding contract (0.28.0).
-  // The Trail Cockpit's status dock and scope control cover the top and
-  // bottom of the map, so the fitted overview needs MORE viewport height
-  // than the route itself: on small phones that view is taller than the
-  // user bounds, and plain maxBounds would clamp the zoom and push the
-  // route's ends back under the overlays. This is the same mechanism as
-  // the east/west expansion above — deterministic, active only below the
-  // zoom threshold, and capped to the physical envelope — applied to the
-  // axis the padding actually squeezes. NO slack factor here: the vertical
-  // fit is exact, so viewports whose padded overview already fits (every
-  // desktop/tablet shape, and phones before the cockpit's overlays) keep
-  // strictly unchanged north/south bounds.
+  // NORTH/SOUTH expansion — the layout-aware padding contract.
+  // The cockpit's scope control covers the top of the map (and a live
+  // -tracking pill the bottom, while a session runs), so the fitted overview
+  // needs MORE viewport height than the route itself. On phones that view can
+  // be taller than the user bounds, and plain maxBounds would clamp the zoom
+  // and push the route's ends back under the overlays. This is the same
+  // mechanism as the east/west expansion above — deterministic, active only
+  // below the zoom threshold, and capped to the physical envelope — applied
+  // to the axis the padding actually squeezes. NO slack factor here: the
+  // vertical fit is exact, so viewports whose padded overview already fits
+  // keep strictly unchanged north/south bounds.
+  //
+  // (This used to cite a permanent status dock along the bottom. That dock
+  // was removed in 0.27.0; the idle map reserves no bottom band at all, and
+  // `bottomInset` is non-zero only while the tracking pill exists.)
   const fitViewMercH = viewportHeight * fitMercPerPx;
   const halfExpandV = Math.max(0, (fitViewMercH - userMercH) / 2);
 

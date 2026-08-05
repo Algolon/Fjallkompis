@@ -1,0 +1,5196 @@
+[
+  {
+    "mapW": 320,
+    "mapH": 512,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.136818,
+      "zoom": 7.667,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.735
+      ],
+      [
+        19.3051,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 48,
+      "y": 83.2,
+      "right": 272,
+      "bottom": 482.8,
+      "w": 224,
+      "h": 399.5
+    },
+    "routeClearance": {
+      "left": 48,
+      "right": 48,
+      "top": 83.2,
+      "bottom": 29.2
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 192.6,
+          "y": 70.9,
+          "w": 25,
+          "h": 25,
+          "right": 217.6,
+          "bottom": 95.9
+        },
+        "label": {
+          "x": 187.1,
+          "y": 48.4,
+          "w": 36,
+          "h": 20,
+          "right": 223.1,
+          "bottom": 68.4
+        },
+        "glyphClear": {
+          "left": 192.6,
+          "right": 102.4,
+          "top": 70.9,
+          "bottom": 416.1
+        },
+        "labelClear": {
+          "left": 187.1,
+          "right": 96.9,
+          "top": 48.4,
+          "bottom": 443.6
+        },
+        "worstGlyph": 70.9,
+        "worstLabel": 48.4
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 136.6,
+          "y": 127.4,
+          "w": 25,
+          "h": 25,
+          "right": 161.6,
+          "bottom": 152.4
+        },
+        "label": {
+          "x": 117.9,
+          "y": 104.9,
+          "w": 62.3,
+          "h": 20,
+          "right": 180.2,
+          "bottom": 124.9
+        },
+        "glyphClear": {
+          "left": 136.6,
+          "right": 158.4,
+          "top": 127.4,
+          "bottom": 359.6
+        },
+        "labelClear": {
+          "left": 117.9,
+          "right": 139.8,
+          "top": 104.9,
+          "bottom": 387.1
+        },
+        "worstGlyph": 127.4,
+        "worstLabel": 104.9
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 85.7,
+          "y": 243.7,
+          "w": 25,
+          "h": 25,
+          "right": 110.7,
+          "bottom": 268.7
+        },
+        "label": {
+          "x": 73.8,
+          "y": 221.2,
+          "w": 48.9,
+          "h": 20,
+          "right": 122.7,
+          "bottom": 241.2
+        },
+        "glyphClear": {
+          "left": 85.7,
+          "right": 209.3,
+          "top": 243.7,
+          "bottom": 243.3
+        },
+        "labelClear": {
+          "left": 73.8,
+          "right": 197.3,
+          "top": 221.2,
+          "bottom": 270.8
+        },
+        "worstGlyph": 85.7,
+        "worstLabel": 73.8
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 35.8,
+          "y": 309.6,
+          "w": 25,
+          "h": 25,
+          "right": 60.8,
+          "bottom": 334.6
+        },
+        "label": {
+          "x": 30.4,
+          "y": 287.1,
+          "w": 35.7,
+          "h": 20,
+          "right": 66.1,
+          "bottom": 307.1
+        },
+        "glyphClear": {
+          "left": 35.8,
+          "right": 259.2,
+          "top": 309.6,
+          "bottom": 177.4
+        },
+        "labelClear": {
+          "left": 30.4,
+          "right": 253.9,
+          "top": 287.1,
+          "bottom": 204.9
+        },
+        "worstGlyph": 35.8,
+        "worstLabel": 30.4
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 47.4,
+          "y": 390.8,
+          "w": 25,
+          "h": 25,
+          "right": 72.4,
+          "bottom": 415.8
+        },
+        "label": {
+          "x": 45.4,
+          "y": 368.3,
+          "w": 28.9,
+          "h": 20,
+          "right": 74.4,
+          "bottom": 388.3
+        },
+        "glyphClear": {
+          "left": 47.4,
+          "right": 247.6,
+          "top": 390.8,
+          "bottom": 96.2
+        },
+        "labelClear": {
+          "left": 45.4,
+          "right": 245.6,
+          "top": 368.3,
+          "bottom": 123.7
+        },
+        "worstGlyph": 47.4,
+        "worstLabel": 45.4
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 57.3,
+          "y": 464,
+          "w": 25,
+          "h": 25,
+          "right": 82.3,
+          "bottom": 489
+        },
+        "label": {
+          "x": 56.7,
+          "y": 441.5,
+          "w": 26.1,
+          "h": 20,
+          "right": 82.8,
+          "bottom": 461.5
+        },
+        "glyphClear": {
+          "left": 57.3,
+          "right": 237.7,
+          "top": 464,
+          "bottom": 23
+        },
+        "labelClear": {
+          "left": 56.7,
+          "right": 237.2,
+          "top": 441.5,
+          "bottom": 50.5
+        },
+        "worstGlyph": 23,
+        "worstLabel": 50.5
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 145.1,
+          "y": 450.9,
+          "w": 25,
+          "h": 25,
+          "right": 170.1,
+          "bottom": 475.9
+        },
+        "label": {
+          "x": 126.8,
+          "y": 428.4,
+          "w": 61.5,
+          "h": 20,
+          "right": 188.4,
+          "bottom": 448.4
+        },
+        "glyphClear": {
+          "left": 145.1,
+          "right": 149.9,
+          "top": 450.9,
+          "bottom": 36.1
+        },
+        "labelClear": {
+          "left": 126.8,
+          "right": 131.6,
+          "top": 428.4,
+          "bottom": 63.6
+        },
+        "worstGlyph": 36.1,
+        "worstLabel": 63.6
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 259.5,
+          "y": 464.1,
+          "w": 25,
+          "h": 25,
+          "right": 284.5,
+          "bottom": 489.1
+        },
+        "label": {
+          "x": 240.7,
+          "y": 441.6,
+          "w": 62.5,
+          "h": 20,
+          "right": 303.3,
+          "bottom": 461.6
+        },
+        "glyphClear": {
+          "left": 259.5,
+          "right": 35.5,
+          "top": 464.1,
+          "bottom": 22.9
+        },
+        "labelClear": {
+          "left": 240.7,
+          "right": 16.7,
+          "top": 441.6,
+          "bottom": 50.4
+        },
+        "worstGlyph": 22.9,
+        "worstLabel": 16.7
+      }
+    ],
+    "controlsRect": {
+      "x": 266,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 310,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "320x568",
+    "class": "portrait",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 35.8,
+        "y": 309.6,
+        "w": 25,
+        "h": 25,
+        "right": 60.8,
+        "bottom": 334.6
+      },
+      "label": {
+        "x": 30.4,
+        "y": 287.1,
+        "w": 35.7,
+        "h": 20,
+        "right": 66.1,
+        "bottom": 307.1
+      },
+      "glyphClear": {
+        "left": 35.8,
+        "right": 259.2,
+        "top": 309.6,
+        "bottom": 177.4
+      },
+      "labelClear": {
+        "left": 30.4,
+        "right": 253.9,
+        "top": 287.1,
+        "bottom": 204.9
+      },
+      "worstGlyph": 35.8,
+      "worstLabel": 30.4
+    }
+  },
+  {
+    "mapW": 375,
+    "mapH": 611,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.129959,
+      "zoom": 7.9838,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.735
+      ],
+      [
+        19.3051,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 48,
+      "y": 83.7,
+      "right": 327,
+      "bottom": 581.3,
+      "w": 279,
+      "h": 497.6
+    },
+    "routeClearance": {
+      "left": 48,
+      "right": 48,
+      "top": 83.7,
+      "bottom": 29.7
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 231.2,
+          "y": 71.4,
+          "w": 25,
+          "h": 25,
+          "right": 256.2,
+          "bottom": 96.4
+        },
+        "label": {
+          "x": 225.6,
+          "y": 48.9,
+          "w": 36,
+          "h": 20,
+          "right": 261.7,
+          "bottom": 68.9
+        },
+        "glyphClear": {
+          "left": 231.2,
+          "right": 118.8,
+          "top": 71.4,
+          "bottom": 514.6
+        },
+        "labelClear": {
+          "left": 225.6,
+          "right": 113.3,
+          "top": 48.9,
+          "bottom": 542.1
+        },
+        "worstGlyph": 71.4,
+        "worstLabel": 48.9
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 161.4,
+          "y": 141.8,
+          "w": 25,
+          "h": 25,
+          "right": 186.4,
+          "bottom": 166.8
+        },
+        "label": {
+          "x": 142.7,
+          "y": 119.3,
+          "w": 62.3,
+          "h": 20,
+          "right": 205,
+          "bottom": 139.3
+        },
+        "glyphClear": {
+          "left": 161.4,
+          "right": 188.6,
+          "top": 141.8,
+          "bottom": 444.2
+        },
+        "labelClear": {
+          "left": 142.7,
+          "right": 170,
+          "top": 119.3,
+          "bottom": 471.7
+        },
+        "worstGlyph": 141.8,
+        "worstLabel": 119.3
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 98.1,
+          "y": 286.6,
+          "w": 25,
+          "h": 25,
+          "right": 123.1,
+          "bottom": 311.6
+        },
+        "label": {
+          "x": 86.1,
+          "y": 264.1,
+          "w": 48.9,
+          "h": 20,
+          "right": 135,
+          "bottom": 284.1
+        },
+        "glyphClear": {
+          "left": 98.1,
+          "right": 251.9,
+          "top": 286.6,
+          "bottom": 299.4
+        },
+        "labelClear": {
+          "left": 86.1,
+          "right": 240,
+          "top": 264.1,
+          "bottom": 326.9
+        },
+        "worstGlyph": 98.1,
+        "worstLabel": 86.1
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 35.8,
+          "y": 368.7,
+          "w": 25,
+          "h": 25,
+          "right": 60.8,
+          "bottom": 393.7
+        },
+        "label": {
+          "x": 30.5,
+          "y": 346.2,
+          "w": 35.7,
+          "h": 20,
+          "right": 66.1,
+          "bottom": 366.2
+        },
+        "glyphClear": {
+          "left": 35.8,
+          "right": 314.2,
+          "top": 368.7,
+          "bottom": 217.3
+        },
+        "labelClear": {
+          "left": 30.5,
+          "right": 308.9,
+          "top": 346.2,
+          "bottom": 244.8
+        },
+        "worstGlyph": 35.8,
+        "worstLabel": 30.5
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 50.3,
+          "y": 469.9,
+          "w": 25,
+          "h": 25,
+          "right": 75.3,
+          "bottom": 494.9
+        },
+        "label": {
+          "x": 48.4,
+          "y": 447.4,
+          "w": 28.9,
+          "h": 20,
+          "right": 77.3,
+          "bottom": 467.4
+        },
+        "glyphClear": {
+          "left": 50.3,
+          "right": 299.7,
+          "top": 469.9,
+          "bottom": 116.1
+        },
+        "labelClear": {
+          "left": 48.4,
+          "right": 297.7,
+          "top": 447.4,
+          "bottom": 143.6
+        },
+        "worstGlyph": 50.3,
+        "worstLabel": 48.4
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 62.6,
+          "y": 561,
+          "w": 25,
+          "h": 25,
+          "right": 87.6,
+          "bottom": 586
+        },
+        "label": {
+          "x": 62.1,
+          "y": 538.5,
+          "w": 26.1,
+          "h": 20,
+          "right": 88.1,
+          "bottom": 558.5
+        },
+        "glyphClear": {
+          "left": 62.6,
+          "right": 287.4,
+          "top": 561,
+          "bottom": 25
+        },
+        "labelClear": {
+          "left": 62.1,
+          "right": 286.9,
+          "top": 538.5,
+          "bottom": 52.5
+        },
+        "worstGlyph": 25,
+        "worstLabel": 52.5
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 172,
+          "y": 544.6,
+          "w": 25,
+          "h": 25,
+          "right": 197,
+          "bottom": 569.6
+        },
+        "label": {
+          "x": 153.8,
+          "y": 522.1,
+          "w": 61.5,
+          "h": 20,
+          "right": 215.3,
+          "bottom": 542.1
+        },
+        "glyphClear": {
+          "left": 172,
+          "right": 178,
+          "top": 544.6,
+          "bottom": 41.4
+        },
+        "labelClear": {
+          "left": 153.8,
+          "right": 159.7,
+          "top": 522.1,
+          "bottom": 68.9
+        },
+        "worstGlyph": 41.4,
+        "worstLabel": 68.9
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 314.5,
+          "y": 561.1,
+          "w": 25,
+          "h": 25,
+          "right": 339.5,
+          "bottom": 586.1
+        },
+        "label": {
+          "x": 295.7,
+          "y": 538.6,
+          "w": 62.5,
+          "h": 20,
+          "right": 358.3,
+          "bottom": 558.6
+        },
+        "glyphClear": {
+          "left": 314.5,
+          "right": 35.5,
+          "top": 561.1,
+          "bottom": 24.9
+        },
+        "labelClear": {
+          "left": 295.7,
+          "right": 16.7,
+          "top": 538.6,
+          "bottom": 52.4
+        },
+        "worstGlyph": 24.9,
+        "worstLabel": 16.7
+      }
+    ],
+    "controlsRect": {
+      "x": 321,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 365,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "375x667",
+    "class": "portrait",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 35.8,
+        "y": 368.7,
+        "w": 25,
+        "h": 25,
+        "right": 60.8,
+        "bottom": 393.7
+      },
+      "label": {
+        "x": 30.5,
+        "y": 346.2,
+        "w": 35.7,
+        "h": 20,
+        "right": 66.1,
+        "bottom": 366.2
+      },
+      "glyphClear": {
+        "left": 35.8,
+        "right": 314.2,
+        "top": 368.7,
+        "bottom": 217.3
+      },
+      "labelClear": {
+        "left": 30.5,
+        "right": 308.9,
+        "top": 346.2,
+        "bottom": 244.8
+      },
+      "worstGlyph": 35.8,
+      "worstLabel": 30.5
+    }
+  },
+  {
+    "mapW": 390,
+    "mapH": 788,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.103945,
+      "zoom": 8.065,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.714914
+      ],
+      [
+        19.3051,
+        68.486512
+      ]
+    ],
+    "routeBox": {
+      "x": 47.4,
+      "y": 132.8,
+      "right": 342.6,
+      "bottom": 659.2,
+      "w": 295.2,
+      "h": 526.4
+    },
+    "routeClearance": {
+      "left": 47.4,
+      "right": 47.4,
+      "top": 132.8,
+      "bottom": 128.8
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 241.9,
+          "y": 120.5,
+          "w": 25,
+          "h": 25,
+          "right": 266.9,
+          "bottom": 145.5
+        },
+        "label": {
+          "x": 236.4,
+          "y": 98,
+          "w": 36,
+          "h": 20,
+          "right": 272.4,
+          "bottom": 118
+        },
+        "glyphClear": {
+          "left": 241.9,
+          "right": 123.1,
+          "top": 120.5,
+          "bottom": 642.5
+        },
+        "labelClear": {
+          "left": 236.4,
+          "right": 117.6,
+          "top": 98,
+          "bottom": 670
+        },
+        "worstGlyph": 120.5,
+        "worstLabel": 98
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 168.1,
+          "y": 194.9,
+          "w": 25,
+          "h": 25,
+          "right": 193.1,
+          "bottom": 219.9
+        },
+        "label": {
+          "x": 149.4,
+          "y": 172.4,
+          "w": 62.3,
+          "h": 20,
+          "right": 211.7,
+          "bottom": 192.4
+        },
+        "glyphClear": {
+          "left": 168.1,
+          "right": 196.9,
+          "top": 194.9,
+          "bottom": 568.1
+        },
+        "labelClear": {
+          "left": 149.4,
+          "right": 178.3,
+          "top": 172.4,
+          "bottom": 595.6
+        },
+        "worstGlyph": 168.1,
+        "worstLabel": 149.4
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 101.1,
+          "y": 348.2,
+          "w": 25,
+          "h": 25,
+          "right": 126.1,
+          "bottom": 373.2
+        },
+        "label": {
+          "x": 89.2,
+          "y": 325.7,
+          "w": 48.9,
+          "h": 20,
+          "right": 138,
+          "bottom": 345.7
+        },
+        "glyphClear": {
+          "left": 101.1,
+          "right": 263.9,
+          "top": 348.2,
+          "bottom": 414.8
+        },
+        "labelClear": {
+          "left": 89.2,
+          "right": 252,
+          "top": 325.7,
+          "bottom": 442.3
+        },
+        "worstGlyph": 101.1,
+        "worstLabel": 89.2
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 35.3,
+          "y": 435,
+          "w": 25,
+          "h": 25,
+          "right": 60.3,
+          "bottom": 460
+        },
+        "label": {
+          "x": 29.9,
+          "y": 412.5,
+          "w": 35.7,
+          "h": 20,
+          "right": 65.6,
+          "bottom": 432.5
+        },
+        "glyphClear": {
+          "left": 35.3,
+          "right": 329.7,
+          "top": 435,
+          "bottom": 328
+        },
+        "labelClear": {
+          "left": 29.9,
+          "right": 324.4,
+          "top": 412.5,
+          "bottom": 355.5
+        },
+        "worstGlyph": 35.3,
+        "worstLabel": 29.9
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 50.6,
+          "y": 542,
+          "w": 25,
+          "h": 25,
+          "right": 75.6,
+          "bottom": 567
+        },
+        "label": {
+          "x": 48.6,
+          "y": 519.5,
+          "w": 28.9,
+          "h": 20,
+          "right": 77.6,
+          "bottom": 539.5
+        },
+        "glyphClear": {
+          "left": 50.6,
+          "right": 314.4,
+          "top": 542,
+          "bottom": 221
+        },
+        "labelClear": {
+          "left": 48.6,
+          "right": 312.4,
+          "top": 519.5,
+          "bottom": 248.5
+        },
+        "worstGlyph": 50.6,
+        "worstLabel": 48.6
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 63.6,
+          "y": 638.4,
+          "w": 25,
+          "h": 25,
+          "right": 88.6,
+          "bottom": 663.4
+        },
+        "label": {
+          "x": 63.1,
+          "y": 615.9,
+          "w": 26.1,
+          "h": 20,
+          "right": 89.1,
+          "bottom": 635.9
+        },
+        "glyphClear": {
+          "left": 63.6,
+          "right": 301.4,
+          "top": 638.4,
+          "bottom": 124.6
+        },
+        "labelClear": {
+          "left": 63.1,
+          "right": 300.9,
+          "top": 615.9,
+          "bottom": 152.1
+        },
+        "worstGlyph": 63.6,
+        "worstLabel": 63.1
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 179.3,
+          "y": 621.1,
+          "w": 25,
+          "h": 25,
+          "right": 204.3,
+          "bottom": 646.1
+        },
+        "label": {
+          "x": 161.1,
+          "y": 598.6,
+          "w": 61.5,
+          "h": 20,
+          "right": 222.6,
+          "bottom": 618.6
+        },
+        "glyphClear": {
+          "left": 179.3,
+          "right": 185.7,
+          "top": 621.1,
+          "bottom": 141.9
+        },
+        "labelClear": {
+          "left": 161.1,
+          "right": 167.4,
+          "top": 598.6,
+          "bottom": 169.4
+        },
+        "worstGlyph": 141.9,
+        "worstLabel": 161.1
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 330.1,
+          "y": 638.5,
+          "w": 25,
+          "h": 25,
+          "right": 355.1,
+          "bottom": 663.5
+        },
+        "label": {
+          "x": 311.3,
+          "y": 616,
+          "w": 62.5,
+          "h": 20,
+          "right": 373.8,
+          "bottom": 636
+        },
+        "glyphClear": {
+          "left": 330.1,
+          "right": 34.9,
+          "top": 638.5,
+          "bottom": 124.5
+        },
+        "labelClear": {
+          "left": 311.3,
+          "right": 16.2,
+          "top": 616,
+          "bottom": 152
+        },
+        "worstGlyph": 34.9,
+        "worstLabel": 16.2
+      }
+    ],
+    "controlsRect": {
+      "x": 336,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 380,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "390x844",
+    "class": "portrait",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 35.3,
+        "y": 435,
+        "w": 25,
+        "h": 25,
+        "right": 60.3,
+        "bottom": 460
+      },
+      "label": {
+        "x": 29.9,
+        "y": 412.5,
+        "w": 35.7,
+        "h": 20,
+        "right": 65.6,
+        "bottom": 432.5
+      },
+      "glyphClear": {
+        "left": 35.3,
+        "right": 329.7,
+        "top": 435,
+        "bottom": 328
+      },
+      "labelClear": {
+        "left": 29.9,
+        "right": 324.4,
+        "top": 412.5,
+        "bottom": 355.5
+      },
+      "worstGlyph": 35.3,
+      "worstLabel": 29.9
+    }
+  },
+  {
+    "mapW": 430,
+    "mapH": 876,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.103451,
+      "zoom": 8.2434,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.721327
+      ],
+      [
+        19.3051,
+        68.479338
+      ]
+    ],
+    "routeBox": {
+      "x": 48,
+      "y": 141.8,
+      "right": 382,
+      "bottom": 737.5,
+      "w": 334,
+      "h": 595.7
+    },
+    "routeClearance": {
+      "left": 48,
+      "right": 48,
+      "top": 141.8,
+      "bottom": 138.5
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 269.7,
+          "y": 129.6,
+          "w": 25,
+          "h": 25,
+          "right": 294.7,
+          "bottom": 154.6
+        },
+        "label": {
+          "x": 264.2,
+          "y": 107.1,
+          "w": 36,
+          "h": 20,
+          "right": 300.3,
+          "bottom": 127.1
+        },
+        "glyphClear": {
+          "left": 269.7,
+          "right": 135.3,
+          "top": 129.6,
+          "bottom": 721.4
+        },
+        "labelClear": {
+          "left": 264.2,
+          "right": 129.7,
+          "top": 107.1,
+          "bottom": 748.9
+        },
+        "worstGlyph": 129.6,
+        "worstLabel": 107.1
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 186.2,
+          "y": 213.8,
+          "w": 25,
+          "h": 25,
+          "right": 211.2,
+          "bottom": 238.8
+        },
+        "label": {
+          "x": 167.5,
+          "y": 191.3,
+          "w": 62.3,
+          "h": 20,
+          "right": 229.8,
+          "bottom": 211.3
+        },
+        "glyphClear": {
+          "left": 186.2,
+          "right": 218.8,
+          "top": 213.8,
+          "bottom": 637.2
+        },
+        "labelClear": {
+          "left": 167.5,
+          "right": 200.2,
+          "top": 191.3,
+          "bottom": 664.7
+        },
+        "worstGlyph": 186.2,
+        "worstLabel": 167.5
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 110.4,
+          "y": 387.2,
+          "w": 25,
+          "h": 25,
+          "right": 135.4,
+          "bottom": 412.2
+        },
+        "label": {
+          "x": 98.4,
+          "y": 364.7,
+          "w": 48.9,
+          "h": 20,
+          "right": 147.3,
+          "bottom": 384.7
+        },
+        "glyphClear": {
+          "left": 110.4,
+          "right": 294.6,
+          "top": 387.2,
+          "bottom": 463.8
+        },
+        "labelClear": {
+          "left": 98.4,
+          "right": 282.7,
+          "top": 364.7,
+          "bottom": 491.3
+        },
+        "worstGlyph": 110.4,
+        "worstLabel": 98.4
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 35.9,
+          "y": 485.5,
+          "w": 25,
+          "h": 25,
+          "right": 60.9,
+          "bottom": 510.5
+        },
+        "label": {
+          "x": 30.5,
+          "y": 463,
+          "w": 35.7,
+          "h": 20,
+          "right": 66.2,
+          "bottom": 483
+        },
+        "glyphClear": {
+          "left": 35.9,
+          "right": 369.1,
+          "top": 485.5,
+          "bottom": 365.5
+        },
+        "labelClear": {
+          "left": 30.5,
+          "right": 363.8,
+          "top": 463,
+          "bottom": 393
+        },
+        "worstGlyph": 35.9,
+        "worstLabel": 30.5
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 53.2,
+          "y": 606.6,
+          "w": 25,
+          "h": 25,
+          "right": 78.2,
+          "bottom": 631.6
+        },
+        "label": {
+          "x": 51.3,
+          "y": 584.1,
+          "w": 28.9,
+          "h": 20,
+          "right": 80.2,
+          "bottom": 604.1
+        },
+        "glyphClear": {
+          "left": 53.2,
+          "right": 351.8,
+          "top": 606.6,
+          "bottom": 244.4
+        },
+        "labelClear": {
+          "left": 51.3,
+          "right": 349.8,
+          "top": 584.1,
+          "bottom": 271.9
+        },
+        "worstGlyph": 53.2,
+        "worstLabel": 51.3
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 68,
+          "y": 715.6,
+          "w": 25,
+          "h": 25,
+          "right": 93,
+          "bottom": 740.6
+        },
+        "label": {
+          "x": 67.4,
+          "y": 693.1,
+          "w": 26.1,
+          "h": 20,
+          "right": 93.5,
+          "bottom": 713.1
+        },
+        "glyphClear": {
+          "left": 68,
+          "right": 337,
+          "top": 715.6,
+          "bottom": 135.4
+        },
+        "labelClear": {
+          "left": 67.4,
+          "right": 336.5,
+          "top": 693.1,
+          "bottom": 162.9
+        },
+        "worstGlyph": 68,
+        "worstLabel": 67.4
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 198.9,
+          "y": 696.1,
+          "w": 25,
+          "h": 25,
+          "right": 223.9,
+          "bottom": 721.1
+        },
+        "label": {
+          "x": 180.7,
+          "y": 673.6,
+          "w": 61.5,
+          "h": 20,
+          "right": 242.2,
+          "bottom": 693.6
+        },
+        "glyphClear": {
+          "left": 198.9,
+          "right": 206.1,
+          "top": 696.1,
+          "bottom": 154.9
+        },
+        "labelClear": {
+          "left": 180.7,
+          "right": 187.8,
+          "top": 673.6,
+          "bottom": 182.4
+        },
+        "worstGlyph": 154.9,
+        "worstLabel": 180.7
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 369.5,
+          "y": 715.8,
+          "w": 25,
+          "h": 25,
+          "right": 394.5,
+          "bottom": 740.8
+        },
+        "label": {
+          "x": 350.7,
+          "y": 693.3,
+          "w": 62.5,
+          "h": 20,
+          "right": 413.3,
+          "bottom": 713.3
+        },
+        "glyphClear": {
+          "left": 369.5,
+          "right": 35.5,
+          "top": 715.8,
+          "bottom": 135.2
+        },
+        "labelClear": {
+          "left": 350.7,
+          "right": 16.7,
+          "top": 693.3,
+          "bottom": 162.7
+        },
+        "worstGlyph": 35.5,
+        "worstLabel": 16.7
+      }
+    ],
+    "controlsRect": {
+      "x": 376,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 420,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "430x932",
+    "class": "portrait",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 35.9,
+        "y": 485.5,
+        "w": 25,
+        "h": 25,
+        "right": 60.9,
+        "bottom": 510.5
+      },
+      "label": {
+        "x": 30.5,
+        "y": 463,
+        "w": 35.7,
+        "h": 20,
+        "right": 66.2,
+        "bottom": 483
+      },
+      "glyphClear": {
+        "left": 35.9,
+        "right": 369.1,
+        "top": 485.5,
+        "bottom": 365.5
+      },
+      "labelClear": {
+        "left": 30.5,
+        "right": 363.8,
+        "top": 463,
+        "bottom": 393
+      },
+      "worstGlyph": 35.9,
+      "worstLabel": 30.5
+    }
+  },
+  {
+    "mapW": 360,
+    "mapH": 944,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.103945,
+      "zoom": 8.3256,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.714914
+      ],
+      [
+        19.3051,
+        68.486512
+      ]
+    ],
+    "routeBox": {
+      "x": 3.2,
+      "y": 159.1,
+      "right": 356.8,
+      "bottom": 789.7,
+      "w": 353.6,
+      "h": 630.6
+    },
+    "routeClearance": {
+      "left": 3.2,
+      "right": 3.2,
+      "top": 159.1,
+      "bottom": 154.3
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 238.7,
+          "y": 146.9,
+          "w": 25,
+          "h": 25,
+          "right": 263.7,
+          "bottom": 171.9
+        },
+        "label": {
+          "x": 233.1,
+          "y": 124.4,
+          "w": 36,
+          "h": 20,
+          "right": 269.2,
+          "bottom": 144.4
+        },
+        "glyphClear": {
+          "left": 238.7,
+          "right": 96.3,
+          "top": 146.9,
+          "bottom": 772.1
+        },
+        "labelClear": {
+          "left": 233.1,
+          "right": 90.8,
+          "top": 124.4,
+          "bottom": 799.6
+        },
+        "worstGlyph": 96.3,
+        "worstLabel": 90.8
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 150.2,
+          "y": 236,
+          "w": 25,
+          "h": 25,
+          "right": 175.2,
+          "bottom": 261
+        },
+        "label": {
+          "x": 131.6,
+          "y": 213.5,
+          "w": 62.3,
+          "h": 20,
+          "right": 193.9,
+          "bottom": 233.5
+        },
+        "glyphClear": {
+          "left": 150.2,
+          "right": 184.8,
+          "top": 236,
+          "bottom": 683
+        },
+        "labelClear": {
+          "left": 131.6,
+          "right": 166.1,
+          "top": 213.5,
+          "bottom": 710.5
+        },
+        "worstGlyph": 150.2,
+        "worstLabel": 131.6
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 70,
+          "y": 419.6,
+          "w": 25,
+          "h": 25,
+          "right": 95,
+          "bottom": 444.6
+        },
+        "label": {
+          "x": 58,
+          "y": 397.1,
+          "w": 48.9,
+          "h": 20,
+          "right": 106.9,
+          "bottom": 417.1
+        },
+        "glyphClear": {
+          "left": 70,
+          "right": 265,
+          "top": 419.6,
+          "bottom": 499.4
+        },
+        "labelClear": {
+          "left": 58,
+          "right": 253.1,
+          "top": 397.1,
+          "bottom": 526.9
+        },
+        "worstGlyph": 70,
+        "worstLabel": 58
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": -8.9,
+          "y": 523.6,
+          "w": 25,
+          "h": 25,
+          "right": 16.1,
+          "bottom": 548.6
+        },
+        "label": {
+          "x": -14.2,
+          "y": 501.1,
+          "w": 35.7,
+          "h": 20,
+          "right": 21.4,
+          "bottom": 521.1
+        },
+        "glyphClear": {
+          "left": -8.9,
+          "right": 343.9,
+          "top": 523.6,
+          "bottom": 395.4
+        },
+        "labelClear": {
+          "left": -14.2,
+          "right": 338.6,
+          "top": 501.1,
+          "bottom": 422.9
+        },
+        "worstGlyph": -8.9,
+        "worstLabel": -14.2
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 9.5,
+          "y": 651.8,
+          "w": 25,
+          "h": 25,
+          "right": 34.5,
+          "bottom": 676.8
+        },
+        "label": {
+          "x": 7.5,
+          "y": 629.3,
+          "w": 28.9,
+          "h": 20,
+          "right": 36.5,
+          "bottom": 649.3
+        },
+        "glyphClear": {
+          "left": 9.5,
+          "right": 325.5,
+          "top": 651.8,
+          "bottom": 267.2
+        },
+        "labelClear": {
+          "left": 7.5,
+          "right": 323.5,
+          "top": 629.3,
+          "bottom": 294.7
+        },
+        "worstGlyph": 9.5,
+        "worstLabel": 7.5
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 25.1,
+          "y": 767.3,
+          "w": 25,
+          "h": 25,
+          "right": 50.1,
+          "bottom": 792.3
+        },
+        "label": {
+          "x": 24.5,
+          "y": 744.8,
+          "w": 26.1,
+          "h": 20,
+          "right": 50.6,
+          "bottom": 764.8
+        },
+        "glyphClear": {
+          "left": 25.1,
+          "right": 309.9,
+          "top": 767.3,
+          "bottom": 151.7
+        },
+        "labelClear": {
+          "left": 24.5,
+          "right": 309.4,
+          "top": 744.8,
+          "bottom": 179.2
+        },
+        "worstGlyph": 25.1,
+        "worstLabel": 24.5
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 163.7,
+          "y": 746.6,
+          "w": 25,
+          "h": 25,
+          "right": 188.7,
+          "bottom": 771.6
+        },
+        "label": {
+          "x": 145.5,
+          "y": 724.1,
+          "w": 61.5,
+          "h": 20,
+          "right": 207,
+          "bottom": 744.1
+        },
+        "glyphClear": {
+          "left": 163.7,
+          "right": 171.3,
+          "top": 746.6,
+          "bottom": 172.4
+        },
+        "labelClear": {
+          "left": 145.5,
+          "right": 153,
+          "top": 724.1,
+          "bottom": 199.9
+        },
+        "worstGlyph": 163.7,
+        "worstLabel": 145.5
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 344.3,
+          "y": 767.4,
+          "w": 25,
+          "h": 25,
+          "right": 369.3,
+          "bottom": 792.4
+        },
+        "label": {
+          "x": 325.5,
+          "y": 744.9,
+          "w": 62.5,
+          "h": 20,
+          "right": 388,
+          "bottom": 764.9
+        },
+        "glyphClear": {
+          "left": 344.3,
+          "right": -9.3,
+          "top": 767.4,
+          "bottom": 151.6
+        },
+        "labelClear": {
+          "left": 325.5,
+          "right": -28,
+          "top": 744.9,
+          "bottom": 179.1
+        },
+        "worstGlyph": -9.3,
+        "worstLabel": -28
+      }
+    ],
+    "controlsRect": {
+      "x": 306,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 350,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "360x1000",
+    "class": "portrait",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": -8.9,
+        "y": 523.6,
+        "w": 25,
+        "h": 25,
+        "right": 16.1,
+        "bottom": 548.6
+      },
+      "label": {
+        "x": -14.2,
+        "y": 501.1,
+        "w": 35.7,
+        "h": 20,
+        "right": 21.4,
+        "bottom": 521.1
+      },
+      "glyphClear": {
+        "left": -8.9,
+        "right": 343.9,
+        "top": 523.6,
+        "bottom": 395.4
+      },
+      "labelClear": {
+        "left": -14.2,
+        "right": 338.6,
+        "top": 501.1,
+        "bottom": 422.9
+      },
+      "worstGlyph": -8.9,
+      "worstLabel": -14.2
+    }
+  },
+  {
+    "mapW": 360,
+    "mapH": 744,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.103945,
+      "zoom": 7.9821,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.714914
+      ],
+      [
+        19.3051,
+        68.486512
+      ]
+    ],
+    "routeBox": {
+      "x": 40.7,
+      "y": 125.4,
+      "right": 319.3,
+      "bottom": 622.4,
+      "w": 278.7,
+      "h": 497
+    },
+    "routeClearance": {
+      "left": 40.7,
+      "right": 40.7,
+      "top": 125.4,
+      "bottom": 121.6
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 223.6,
+          "y": 113.1,
+          "w": 25,
+          "h": 25,
+          "right": 248.6,
+          "bottom": 138.1
+        },
+        "label": {
+          "x": 218.1,
+          "y": 90.6,
+          "w": 36,
+          "h": 20,
+          "right": 254.1,
+          "bottom": 110.6
+        },
+        "glyphClear": {
+          "left": 223.6,
+          "right": 111.4,
+          "top": 113.1,
+          "bottom": 605.9
+        },
+        "labelClear": {
+          "left": 218.1,
+          "right": 105.9,
+          "top": 90.6,
+          "bottom": 633.4
+        },
+        "worstGlyph": 111.4,
+        "worstLabel": 90.6
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 153.9,
+          "y": 183.4,
+          "w": 25,
+          "h": 25,
+          "right": 178.9,
+          "bottom": 208.4
+        },
+        "label": {
+          "x": 135.2,
+          "y": 160.9,
+          "w": 62.3,
+          "h": 20,
+          "right": 197.5,
+          "bottom": 180.9
+        },
+        "glyphClear": {
+          "left": 153.9,
+          "right": 181.1,
+          "top": 183.4,
+          "bottom": 535.6
+        },
+        "labelClear": {
+          "left": 135.2,
+          "right": 162.5,
+          "top": 160.9,
+          "bottom": 563.1
+        },
+        "worstGlyph": 153.9,
+        "worstLabel": 135.2
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 90.6,
+          "y": 328,
+          "w": 25,
+          "h": 25,
+          "right": 115.6,
+          "bottom": 353
+        },
+        "label": {
+          "x": 78.7,
+          "y": 305.5,
+          "w": 48.9,
+          "h": 20,
+          "right": 127.6,
+          "bottom": 325.5
+        },
+        "glyphClear": {
+          "left": 90.6,
+          "right": 244.4,
+          "top": 328,
+          "bottom": 391
+        },
+        "labelClear": {
+          "left": 78.7,
+          "right": 232.4,
+          "top": 305.5,
+          "bottom": 418.5
+        },
+        "worstGlyph": 90.6,
+        "worstLabel": 78.7
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 28.5,
+          "y": 410,
+          "w": 25,
+          "h": 25,
+          "right": 53.5,
+          "bottom": 435
+        },
+        "label": {
+          "x": 23.1,
+          "y": 387.5,
+          "w": 35.7,
+          "h": 20,
+          "right": 58.8,
+          "bottom": 407.5
+        },
+        "glyphClear": {
+          "left": 28.5,
+          "right": 306.5,
+          "top": 410,
+          "bottom": 309
+        },
+        "labelClear": {
+          "left": 23.1,
+          "right": 301.2,
+          "top": 387.5,
+          "bottom": 336.5
+        },
+        "worstGlyph": 28.5,
+        "worstLabel": 23.1
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 43,
+          "y": 511,
+          "w": 25,
+          "h": 25,
+          "right": 68,
+          "bottom": 536
+        },
+        "label": {
+          "x": 41,
+          "y": 488.5,
+          "w": 28.9,
+          "h": 20,
+          "right": 69.9,
+          "bottom": 508.5
+        },
+        "glyphClear": {
+          "left": 43,
+          "right": 292,
+          "top": 511,
+          "bottom": 208
+        },
+        "labelClear": {
+          "left": 41,
+          "right": 290.1,
+          "top": 488.5,
+          "bottom": 235.5
+        },
+        "worstGlyph": 43,
+        "worstLabel": 41
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 55.3,
+          "y": 602.1,
+          "w": 25,
+          "h": 25,
+          "right": 80.3,
+          "bottom": 627.1
+        },
+        "label": {
+          "x": 54.7,
+          "y": 579.6,
+          "w": 26.1,
+          "h": 20,
+          "right": 80.8,
+          "bottom": 599.6
+        },
+        "glyphClear": {
+          "left": 55.3,
+          "right": 279.7,
+          "top": 602.1,
+          "bottom": 116.9
+        },
+        "labelClear": {
+          "left": 54.7,
+          "right": 279.2,
+          "top": 579.6,
+          "bottom": 144.4
+        },
+        "worstGlyph": 55.3,
+        "worstLabel": 54.7
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 164.5,
+          "y": 585.7,
+          "w": 25,
+          "h": 25,
+          "right": 189.5,
+          "bottom": 610.7
+        },
+        "label": {
+          "x": 146.3,
+          "y": 563.2,
+          "w": 61.5,
+          "h": 20,
+          "right": 207.8,
+          "bottom": 583.2
+        },
+        "glyphClear": {
+          "left": 164.5,
+          "right": 170.5,
+          "top": 585.7,
+          "bottom": 133.3
+        },
+        "labelClear": {
+          "left": 146.3,
+          "right": 152.2,
+          "top": 563.2,
+          "bottom": 160.8
+        },
+        "worstGlyph": 133.3,
+        "worstLabel": 146.3
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 306.8,
+          "y": 602.2,
+          "w": 25,
+          "h": 25,
+          "right": 331.8,
+          "bottom": 627.2
+        },
+        "label": {
+          "x": 288.1,
+          "y": 579.7,
+          "w": 62.5,
+          "h": 20,
+          "right": 350.6,
+          "bottom": 599.7
+        },
+        "glyphClear": {
+          "left": 306.8,
+          "right": 28.2,
+          "top": 602.2,
+          "bottom": 116.8
+        },
+        "labelClear": {
+          "left": 288.1,
+          "right": 9.4,
+          "top": 579.7,
+          "bottom": 144.3
+        },
+        "worstGlyph": 28.2,
+        "worstLabel": 9.4
+      }
+    ],
+    "controlsRect": {
+      "x": 306,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 350,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "360x800",
+    "class": "portrait",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 28.5,
+        "y": 410,
+        "w": 25,
+        "h": 25,
+        "right": 53.5,
+        "bottom": 435
+      },
+      "label": {
+        "x": 23.1,
+        "y": 387.5,
+        "w": 35.7,
+        "h": 20,
+        "right": 58.8,
+        "bottom": 407.5
+      },
+      "glyphClear": {
+        "left": 28.5,
+        "right": 306.5,
+        "top": 410,
+        "bottom": 309
+      },
+      "labelClear": {
+        "left": 23.1,
+        "right": 301.2,
+        "top": 387.5,
+        "bottom": 336.5
+      },
+      "worstGlyph": 28.5,
+      "worstLabel": 23.1
+    }
+  },
+  {
+    "mapW": 412,
+    "mapH": 859,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.103945,
+      "zoom": 8.1895,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.714914
+      ],
+      [
+        19.3051,
+        68.486512
+      ]
+    ],
+    "routeBox": {
+      "x": 45.1,
+      "y": 144.7,
+      "right": 366.9,
+      "bottom": 718.6,
+      "w": 321.7,
+      "h": 573.8
+    },
+    "routeClearance": {
+      "left": 45.1,
+      "right": 45.1,
+      "top": 144.7,
+      "bottom": 140.4
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 258.3,
+          "y": 132.5,
+          "w": 25,
+          "h": 25,
+          "right": 283.3,
+          "bottom": 157.5
+        },
+        "label": {
+          "x": 252.7,
+          "y": 110,
+          "w": 36,
+          "h": 20,
+          "right": 288.8,
+          "bottom": 130
+        },
+        "glyphClear": {
+          "left": 258.3,
+          "right": 128.7,
+          "top": 132.5,
+          "bottom": 701.5
+        },
+        "labelClear": {
+          "left": 252.7,
+          "right": 123.2,
+          "top": 110,
+          "bottom": 729
+        },
+        "worstGlyph": 128.7,
+        "worstLabel": 110
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 177.8,
+          "y": 213.6,
+          "w": 25,
+          "h": 25,
+          "right": 202.8,
+          "bottom": 238.6
+        },
+        "label": {
+          "x": 159.1,
+          "y": 191.1,
+          "w": 62.3,
+          "h": 20,
+          "right": 221.4,
+          "bottom": 211.1
+        },
+        "glyphClear": {
+          "left": 177.8,
+          "right": 209.2,
+          "top": 213.6,
+          "bottom": 620.4
+        },
+        "labelClear": {
+          "left": 159.1,
+          "right": 190.6,
+          "top": 191.1,
+          "bottom": 647.9
+        },
+        "worstGlyph": 177.8,
+        "worstLabel": 159.1
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 104.8,
+          "y": 380.7,
+          "w": 25,
+          "h": 25,
+          "right": 129.8,
+          "bottom": 405.7
+        },
+        "label": {
+          "x": 92.8,
+          "y": 358.2,
+          "w": 48.9,
+          "h": 20,
+          "right": 141.7,
+          "bottom": 378.2
+        },
+        "glyphClear": {
+          "left": 104.8,
+          "right": 282.2,
+          "top": 380.7,
+          "bottom": 453.3
+        },
+        "labelClear": {
+          "left": 92.8,
+          "right": 270.3,
+          "top": 358.2,
+          "bottom": 480.8
+        },
+        "worstGlyph": 104.8,
+        "worstLabel": 92.8
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 33,
+          "y": 475.3,
+          "w": 25,
+          "h": 25,
+          "right": 58,
+          "bottom": 500.3
+        },
+        "label": {
+          "x": 27.7,
+          "y": 452.8,
+          "w": 35.7,
+          "h": 20,
+          "right": 63.3,
+          "bottom": 472.8
+        },
+        "glyphClear": {
+          "left": 33,
+          "right": 354,
+          "top": 475.3,
+          "bottom": 358.7
+        },
+        "labelClear": {
+          "left": 27.7,
+          "right": 348.7,
+          "top": 452.8,
+          "bottom": 386.2
+        },
+        "worstGlyph": 33,
+        "worstLabel": 27.7
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 49.7,
+          "y": 592,
+          "w": 25,
+          "h": 25,
+          "right": 74.7,
+          "bottom": 617
+        },
+        "label": {
+          "x": 47.8,
+          "y": 569.5,
+          "w": 28.9,
+          "h": 20,
+          "right": 76.7,
+          "bottom": 589.5
+        },
+        "glyphClear": {
+          "left": 49.7,
+          "right": 337.3,
+          "top": 592,
+          "bottom": 242
+        },
+        "labelClear": {
+          "left": 47.8,
+          "right": 335.3,
+          "top": 569.5,
+          "bottom": 269.5
+        },
+        "worstGlyph": 49.7,
+        "worstLabel": 47.8
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 63.9,
+          "y": 697.1,
+          "w": 25,
+          "h": 25,
+          "right": 88.9,
+          "bottom": 722.1
+        },
+        "label": {
+          "x": 63.4,
+          "y": 674.6,
+          "w": 26.1,
+          "h": 20,
+          "right": 89.4,
+          "bottom": 694.6
+        },
+        "glyphClear": {
+          "left": 63.9,
+          "right": 323.1,
+          "top": 697.1,
+          "bottom": 136.9
+        },
+        "labelClear": {
+          "left": 63.4,
+          "right": 322.6,
+          "top": 674.6,
+          "bottom": 164.4
+        },
+        "worstGlyph": 63.9,
+        "worstLabel": 63.4
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 190.1,
+          "y": 678.2,
+          "w": 25,
+          "h": 25,
+          "right": 215.1,
+          "bottom": 703.2
+        },
+        "label": {
+          "x": 171.8,
+          "y": 655.7,
+          "w": 61.5,
+          "h": 20,
+          "right": 233.3,
+          "bottom": 675.7
+        },
+        "glyphClear": {
+          "left": 190.1,
+          "right": 196.9,
+          "top": 678.2,
+          "bottom": 155.8
+        },
+        "labelClear": {
+          "left": 171.8,
+          "right": 178.7,
+          "top": 655.7,
+          "bottom": 183.3
+        },
+        "worstGlyph": 155.8,
+        "worstLabel": 171.8
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 354.4,
+          "y": 697.2,
+          "w": 25,
+          "h": 25,
+          "right": 379.4,
+          "bottom": 722.2
+        },
+        "label": {
+          "x": 335.6,
+          "y": 674.7,
+          "w": 62.5,
+          "h": 20,
+          "right": 398.1,
+          "bottom": 694.7
+        },
+        "glyphClear": {
+          "left": 354.4,
+          "right": 32.6,
+          "top": 697.2,
+          "bottom": 136.8
+        },
+        "labelClear": {
+          "left": 335.6,
+          "right": 13.9,
+          "top": 674.7,
+          "bottom": 164.3
+        },
+        "worstGlyph": 32.6,
+        "worstLabel": 13.9
+      }
+    ],
+    "controlsRect": {
+      "x": 358,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 402,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "412x915",
+    "class": "portrait",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 33,
+        "y": 475.3,
+        "w": 25,
+        "h": 25,
+        "right": 58,
+        "bottom": 500.3
+      },
+      "label": {
+        "x": 27.7,
+        "y": 452.8,
+        "w": 35.7,
+        "h": 20,
+        "right": 63.3,
+        "bottom": 472.8
+      },
+      "glyphClear": {
+        "left": 33,
+        "right": 354,
+        "top": 475.3,
+        "bottom": 358.7
+      },
+      "labelClear": {
+        "left": 27.7,
+        "right": 348.7,
+        "top": 452.8,
+        "bottom": 386.2
+      },
+      "worstGlyph": 33,
+      "worstLabel": 27.7
+    }
+  },
+  {
+    "mapW": 676,
+    "mapH": 500,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.567874,
+      "lat": 68.134964,
+      "zoom": 7.7531,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.466214,
+        67.735
+      ],
+      [
+        19.669534,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 237.8,
+      "y": 65.1,
+      "right": 475.5,
+      "bottom": 489.2,
+      "w": 237.8,
+      "h": 424.1
+    },
+    "routeClearance": {
+      "left": 237.8,
+      "right": 200.5,
+      "top": 65.1,
+      "bottom": 10.8
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 392,
+          "y": 52.8,
+          "w": 25,
+          "h": 25,
+          "right": 417,
+          "bottom": 77.8
+        },
+        "label": {
+          "x": 386.5,
+          "y": 30.3,
+          "w": 36,
+          "h": 20,
+          "right": 422.5,
+          "bottom": 50.3
+        },
+        "glyphClear": {
+          "left": 392,
+          "right": 259,
+          "top": 52.8,
+          "bottom": 422.2
+        },
+        "labelClear": {
+          "left": 386.5,
+          "right": 253.5,
+          "top": 30.3,
+          "bottom": 449.7
+        },
+        "worstGlyph": 52.8,
+        "worstLabel": 30.3
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 332.5,
+          "y": 112.8,
+          "w": 25,
+          "h": 25,
+          "right": 357.5,
+          "bottom": 137.8
+        },
+        "label": {
+          "x": 313.8,
+          "y": 90.3,
+          "w": 62.3,
+          "h": 20,
+          "right": 376.2,
+          "bottom": 110.3
+        },
+        "glyphClear": {
+          "left": 332.5,
+          "right": 318.5,
+          "top": 112.8,
+          "bottom": 362.2
+        },
+        "labelClear": {
+          "left": 313.8,
+          "right": 299.8,
+          "top": 90.3,
+          "bottom": 389.7
+        },
+        "worstGlyph": 112.8,
+        "worstLabel": 90.3
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 278.6,
+          "y": 236.2,
+          "w": 25,
+          "h": 25,
+          "right": 303.6,
+          "bottom": 261.2
+        },
+        "label": {
+          "x": 266.6,
+          "y": 213.7,
+          "w": 48.9,
+          "h": 20,
+          "right": 315.5,
+          "bottom": 233.7
+        },
+        "glyphClear": {
+          "left": 278.6,
+          "right": 372.4,
+          "top": 236.2,
+          "bottom": 238.8
+        },
+        "labelClear": {
+          "left": 266.6,
+          "right": 360.5,
+          "top": 213.7,
+          "bottom": 266.3
+        },
+        "worstGlyph": 236.2,
+        "worstLabel": 213.7
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 225.5,
+          "y": 306.1,
+          "w": 25,
+          "h": 25,
+          "right": 250.5,
+          "bottom": 331.1
+        },
+        "label": {
+          "x": 220.2,
+          "y": 283.6,
+          "w": 35.7,
+          "h": 20,
+          "right": 255.8,
+          "bottom": 303.6
+        },
+        "glyphClear": {
+          "left": 225.5,
+          "right": 425.5,
+          "top": 306.1,
+          "bottom": 168.9
+        },
+        "labelClear": {
+          "left": 220.2,
+          "right": 420.2,
+          "top": 283.6,
+          "bottom": 196.4
+        },
+        "worstGlyph": 168.9,
+        "worstLabel": 196.4
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 237.9,
+          "y": 392.3,
+          "w": 25,
+          "h": 25,
+          "right": 262.9,
+          "bottom": 417.3
+        },
+        "label": {
+          "x": 235.9,
+          "y": 369.8,
+          "w": 28.9,
+          "h": 20,
+          "right": 264.8,
+          "bottom": 389.8
+        },
+        "glyphClear": {
+          "left": 237.9,
+          "right": 413.1,
+          "top": 392.3,
+          "bottom": 82.7
+        },
+        "labelClear": {
+          "left": 235.9,
+          "right": 411.2,
+          "top": 369.8,
+          "bottom": 110.2
+        },
+        "worstGlyph": 82.7,
+        "worstLabel": 110.2
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 248.4,
+          "y": 470,
+          "w": 25,
+          "h": 25,
+          "right": 273.4,
+          "bottom": 495
+        },
+        "label": {
+          "x": 247.8,
+          "y": 447.5,
+          "w": 26.1,
+          "h": 20,
+          "right": 273.9,
+          "bottom": 467.5
+        },
+        "glyphClear": {
+          "left": 248.4,
+          "right": 402.6,
+          "top": 470,
+          "bottom": 5
+        },
+        "labelClear": {
+          "left": 247.8,
+          "right": 402.1,
+          "top": 447.5,
+          "bottom": 32.5
+        },
+        "worstGlyph": 5,
+        "worstLabel": 32.5
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 341.6,
+          "y": 456.1,
+          "w": 25,
+          "h": 25,
+          "right": 366.6,
+          "bottom": 481.1
+        },
+        "label": {
+          "x": 323.3,
+          "y": 433.6,
+          "w": 61.5,
+          "h": 20,
+          "right": 384.8,
+          "bottom": 453.6
+        },
+        "glyphClear": {
+          "left": 341.6,
+          "right": 309.4,
+          "top": 456.1,
+          "bottom": 18.9
+        },
+        "labelClear": {
+          "left": 323.3,
+          "right": 291.2,
+          "top": 433.6,
+          "bottom": 46.4
+        },
+        "worstGlyph": 18.9,
+        "worstLabel": 46.4
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 463,
+          "y": 470.1,
+          "w": 25,
+          "h": 25,
+          "right": 488,
+          "bottom": 495.1
+        },
+        "label": {
+          "x": 444.3,
+          "y": 447.6,
+          "w": 62.5,
+          "h": 20,
+          "right": 506.8,
+          "bottom": 467.6
+        },
+        "glyphClear": {
+          "left": 463,
+          "right": 188,
+          "top": 470.1,
+          "bottom": 4.9
+        },
+        "labelClear": {
+          "left": 444.3,
+          "right": 169.2,
+          "top": 447.6,
+          "bottom": 32.4
+        },
+        "worstGlyph": 4.9,
+        "worstLabel": 32.4
+      }
+    ],
+    "controlsRect": {
+      "x": 622,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 666,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "760x500",
+    "class": "landscape",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 225.5,
+        "y": 306.1,
+        "w": 25,
+        "h": 25,
+        "right": 250.5,
+        "bottom": 331.1
+      },
+      "label": {
+        "x": 220.2,
+        "y": 283.6,
+        "w": 35.7,
+        "h": 20,
+        "right": 255.8,
+        "bottom": 303.6
+      },
+      "glyphClear": {
+        "left": 225.5,
+        "right": 425.5,
+        "top": 306.1,
+        "bottom": 168.9
+      },
+      "labelClear": {
+        "left": 220.2,
+        "right": 420.2,
+        "top": 283.6,
+        "bottom": 196.4
+      },
+      "worstGlyph": 168.9,
+      "worstLabel": 196.4
+    }
+  },
+  {
+    "mapW": 684,
+    "mapH": 1024,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.116715,
+      "zoom": 8.9106,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 66,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 66,
+      "right": 70,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.9521,
+        67.735
+      ],
+      [
+        19.3051,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 76.8,
+      "y": 66,
+      "right": 607.2,
+      "bottom": 1012,
+      "w": 530.4,
+      "h": 946
+    },
+    "routeClearance": {
+      "left": 76.8,
+      "right": 76.8,
+      "top": 66,
+      "bottom": 12
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 436.3,
+          "y": 53.9,
+          "w": 25,
+          "h": 25,
+          "right": 461.3,
+          "bottom": 78.9
+        },
+        "label": {
+          "x": 430.7,
+          "y": 31.4,
+          "w": 36,
+          "h": 20,
+          "right": 466.8,
+          "bottom": 51.4
+        },
+        "glyphClear": {
+          "left": 436.3,
+          "right": 222.7,
+          "top": 53.9,
+          "bottom": 945.1
+        },
+        "labelClear": {
+          "left": 430.7,
+          "right": 217.2,
+          "top": 31.4,
+          "bottom": 972.6
+        },
+        "worstGlyph": 53.9,
+        "worstLabel": 31.4
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 303.6,
+          "y": 187.7,
+          "w": 25,
+          "h": 25,
+          "right": 328.6,
+          "bottom": 212.7
+        },
+        "label": {
+          "x": 284.9,
+          "y": 165.2,
+          "w": 62.3,
+          "h": 20,
+          "right": 347.2,
+          "bottom": 185.2
+        },
+        "glyphClear": {
+          "left": 303.6,
+          "right": 355.4,
+          "top": 187.7,
+          "bottom": 811.3
+        },
+        "labelClear": {
+          "left": 284.9,
+          "right": 336.8,
+          "top": 165.2,
+          "bottom": 838.8
+        },
+        "worstGlyph": 187.7,
+        "worstLabel": 165.2
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 183.2,
+          "y": 463,
+          "w": 25,
+          "h": 25,
+          "right": 208.2,
+          "bottom": 488
+        },
+        "label": {
+          "x": 171.3,
+          "y": 440.5,
+          "w": 48.9,
+          "h": 20,
+          "right": 220.2,
+          "bottom": 460.5
+        },
+        "glyphClear": {
+          "left": 183.2,
+          "right": 475.8,
+          "top": 463,
+          "bottom": 536
+        },
+        "labelClear": {
+          "left": 171.3,
+          "right": 463.8,
+          "top": 440.5,
+          "bottom": 563.5
+        },
+        "worstGlyph": 183.2,
+        "worstLabel": 171.3
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 64.9,
+          "y": 619.1,
+          "w": 25,
+          "h": 25,
+          "right": 89.9,
+          "bottom": 644.1
+        },
+        "label": {
+          "x": 59.6,
+          "y": 596.6,
+          "w": 35.7,
+          "h": 20,
+          "right": 95.2,
+          "bottom": 616.6
+        },
+        "glyphClear": {
+          "left": 64.9,
+          "right": 594.1,
+          "top": 619.1,
+          "bottom": 379.9
+        },
+        "labelClear": {
+          "left": 59.6,
+          "right": 588.8,
+          "top": 596.6,
+          "bottom": 407.4
+        },
+        "worstGlyph": 64.9,
+        "worstLabel": 59.6
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 92.5,
+          "y": 811.4,
+          "w": 25,
+          "h": 25,
+          "right": 117.5,
+          "bottom": 836.4
+        },
+        "label": {
+          "x": 90.5,
+          "y": 788.9,
+          "w": 28.9,
+          "h": 20,
+          "right": 119.4,
+          "bottom": 808.9
+        },
+        "glyphClear": {
+          "left": 92.5,
+          "right": 566.5,
+          "top": 811.4,
+          "bottom": 187.6
+        },
+        "labelClear": {
+          "left": 90.5,
+          "right": 564.6,
+          "top": 788.9,
+          "bottom": 215.1
+        },
+        "worstGlyph": 92.5,
+        "worstLabel": 90.5
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 115.9,
+          "y": 984.6,
+          "w": 25,
+          "h": 25,
+          "right": 140.9,
+          "bottom": 1009.6
+        },
+        "label": {
+          "x": 115.3,
+          "y": 962.1,
+          "w": 26.1,
+          "h": 20,
+          "right": 141.4,
+          "bottom": 982.1
+        },
+        "glyphClear": {
+          "left": 115.9,
+          "right": 543.1,
+          "top": 984.6,
+          "bottom": 14.4
+        },
+        "labelClear": {
+          "left": 115.3,
+          "right": 542.6,
+          "top": 962.1,
+          "bottom": 41.9
+        },
+        "worstGlyph": 14.4,
+        "worstLabel": 41.9
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 323.8,
+          "y": 953.6,
+          "w": 25,
+          "h": 25,
+          "right": 348.8,
+          "bottom": 978.6
+        },
+        "label": {
+          "x": 305.6,
+          "y": 931.1,
+          "w": 61.5,
+          "h": 20,
+          "right": 367.1,
+          "bottom": 951.1
+        },
+        "glyphClear": {
+          "left": 323.8,
+          "right": 335.2,
+          "top": 953.6,
+          "bottom": 45.4
+        },
+        "labelClear": {
+          "left": 305.6,
+          "right": 316.9,
+          "top": 931.1,
+          "bottom": 72.9
+        },
+        "worstGlyph": 45.4,
+        "worstLabel": 72.9
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 594.7,
+          "y": 984.8,
+          "w": 25,
+          "h": 25,
+          "right": 619.7,
+          "bottom": 1009.8
+        },
+        "label": {
+          "x": 575.9,
+          "y": 962.3,
+          "w": 62.5,
+          "h": 20,
+          "right": 638.5,
+          "bottom": 982.3
+        },
+        "glyphClear": {
+          "left": 594.7,
+          "right": 64.3,
+          "top": 984.8,
+          "bottom": 14.2
+        },
+        "labelClear": {
+          "left": 575.9,
+          "right": 45.5,
+          "top": 962.3,
+          "bottom": 41.7
+        },
+        "worstGlyph": 14.2,
+        "worstLabel": 41.7
+      }
+    ],
+    "controlsRect": {
+      "x": 630,
+      "y": 10,
+      "w": 44,
+      "h": 200,
+      "right": 674,
+      "bottom": 210
+    },
+    "leadRect": {
+      "x": 10,
+      "y": 10,
+      "w": 138,
+      "h": 44,
+      "right": 148,
+      "bottom": 54
+    },
+    "viewport": "768x1024",
+    "class": "landscape",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 64.9,
+        "y": 619.1,
+        "w": 25,
+        "h": 25,
+        "right": 89.9,
+        "bottom": 644.1
+      },
+      "label": {
+        "x": 59.6,
+        "y": 596.6,
+        "w": 35.7,
+        "h": 20,
+        "right": 95.2,
+        "bottom": 616.6
+      },
+      "glyphClear": {
+        "left": 64.9,
+        "right": 594.1,
+        "top": 619.1,
+        "bottom": 379.9
+      },
+      "labelClear": {
+        "left": 59.6,
+        "right": 588.8,
+        "top": 596.6,
+        "bottom": 407.4
+      },
+      "worstGlyph": 64.9,
+      "worstLabel": 59.6
+    }
+  },
+  {
+    "mapW": 940,
+    "mapH": 768,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.6286,
+      "lat": 68.123788,
+      "zoom": 8.447,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 70,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 70,
+      "right": 74,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.634295,
+        67.735
+      ],
+      [
+        19.622905,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 277.7,
+      "y": 70,
+      "right": 662.3,
+      "bottom": 756,
+      "w": 384.6,
+      "h": 686
+    },
+    "routeClearance": {
+      "left": 277.7,
+      "right": 277.7,
+      "top": 70,
+      "bottom": 12
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 534.9,
+          "y": 57.8,
+          "w": 25,
+          "h": 25,
+          "right": 559.9,
+          "bottom": 82.8
+        },
+        "label": {
+          "x": 529.4,
+          "y": 35.3,
+          "w": 36,
+          "h": 20,
+          "right": 565.4,
+          "bottom": 55.3
+        },
+        "glyphClear": {
+          "left": 534.9,
+          "right": 380.1,
+          "top": 57.8,
+          "bottom": 685.2
+        },
+        "labelClear": {
+          "left": 529.4,
+          "right": 374.6,
+          "top": 35.3,
+          "bottom": 712.7
+        },
+        "worstGlyph": 57.8,
+        "worstLabel": 35.3
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 438.7,
+          "y": 154.8,
+          "w": 25,
+          "h": 25,
+          "right": 463.7,
+          "bottom": 179.8
+        },
+        "label": {
+          "x": 420,
+          "y": 132.3,
+          "w": 62.3,
+          "h": 20,
+          "right": 482.4,
+          "bottom": 152.3
+        },
+        "glyphClear": {
+          "left": 438.7,
+          "right": 476.3,
+          "top": 154.8,
+          "bottom": 588.2
+        },
+        "labelClear": {
+          "left": 420,
+          "right": 457.6,
+          "top": 132.3,
+          "bottom": 615.7
+        },
+        "worstGlyph": 154.8,
+        "worstLabel": 132.3
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 351.4,
+          "y": 354.5,
+          "w": 25,
+          "h": 25,
+          "right": 376.4,
+          "bottom": 379.5
+        },
+        "label": {
+          "x": 339.5,
+          "y": 332,
+          "w": 48.9,
+          "h": 20,
+          "right": 388.4,
+          "bottom": 352
+        },
+        "glyphClear": {
+          "left": 351.4,
+          "right": 563.6,
+          "top": 354.5,
+          "bottom": 388.5
+        },
+        "labelClear": {
+          "left": 339.5,
+          "right": 551.6,
+          "top": 332,
+          "bottom": 416
+        },
+        "worstGlyph": 351.4,
+        "worstLabel": 332
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 265.6,
+          "y": 467.6,
+          "w": 25,
+          "h": 25,
+          "right": 290.6,
+          "bottom": 492.6
+        },
+        "label": {
+          "x": 260.3,
+          "y": 445.1,
+          "w": 35.7,
+          "h": 20,
+          "right": 295.9,
+          "bottom": 465.1
+        },
+        "glyphClear": {
+          "left": 265.6,
+          "right": 649.4,
+          "top": 467.6,
+          "bottom": 275.4
+        },
+        "labelClear": {
+          "left": 260.3,
+          "right": 644.1,
+          "top": 445.1,
+          "bottom": 302.9
+        },
+        "worstGlyph": 265.6,
+        "worstLabel": 260.3
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 285.6,
+          "y": 607.1,
+          "w": 25,
+          "h": 25,
+          "right": 310.6,
+          "bottom": 632.1
+        },
+        "label": {
+          "x": 283.7,
+          "y": 584.6,
+          "w": 28.9,
+          "h": 20,
+          "right": 312.6,
+          "bottom": 604.6
+        },
+        "glyphClear": {
+          "left": 285.6,
+          "right": 629.4,
+          "top": 607.1,
+          "bottom": 135.9
+        },
+        "labelClear": {
+          "left": 283.7,
+          "right": 627.4,
+          "top": 584.6,
+          "bottom": 163.4
+        },
+        "worstGlyph": 135.9,
+        "worstLabel": 163.4
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 302.6,
+          "y": 732.7,
+          "w": 25,
+          "h": 25,
+          "right": 327.6,
+          "bottom": 757.7
+        },
+        "label": {
+          "x": 302,
+          "y": 710.2,
+          "w": 26.1,
+          "h": 20,
+          "right": 328.1,
+          "bottom": 730.2
+        },
+        "glyphClear": {
+          "left": 302.6,
+          "right": 612.4,
+          "top": 732.7,
+          "bottom": 10.3
+        },
+        "labelClear": {
+          "left": 302,
+          "right": 611.9,
+          "top": 710.2,
+          "bottom": 37.8
+        },
+        "worstGlyph": 10.3,
+        "worstLabel": 37.8
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 453.4,
+          "y": 710.2,
+          "w": 25,
+          "h": 25,
+          "right": 478.4,
+          "bottom": 735.2
+        },
+        "label": {
+          "x": 435.1,
+          "y": 687.7,
+          "w": 61.5,
+          "h": 20,
+          "right": 496.6,
+          "bottom": 707.7
+        },
+        "glyphClear": {
+          "left": 453.4,
+          "right": 461.6,
+          "top": 710.2,
+          "bottom": 32.8
+        },
+        "labelClear": {
+          "left": 435.1,
+          "right": 443.4,
+          "top": 687.7,
+          "bottom": 60.3
+        },
+        "worstGlyph": 32.8,
+        "worstLabel": 60.3
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 649.8,
+          "y": 732.9,
+          "w": 25,
+          "h": 25,
+          "right": 674.8,
+          "bottom": 757.9
+        },
+        "label": {
+          "x": 631,
+          "y": 710.4,
+          "w": 62.5,
+          "h": 20,
+          "right": 693.6,
+          "bottom": 730.4
+        },
+        "glyphClear": {
+          "left": 649.8,
+          "right": 265.2,
+          "top": 732.9,
+          "bottom": 10.1
+        },
+        "labelClear": {
+          "left": 631,
+          "right": 246.4,
+          "top": 710.4,
+          "bottom": 37.6
+        },
+        "worstGlyph": 10.1,
+        "worstLabel": 37.6
+      }
+    ],
+    "controlsRect": {
+      "x": 882,
+      "y": 14,
+      "w": 44,
+      "h": 200,
+      "right": 926,
+      "bottom": 214
+    },
+    "leadRect": {
+      "x": 14,
+      "y": 14,
+      "w": 142,
+      "h": 44,
+      "right": 156,
+      "bottom": 58
+    },
+    "viewport": "1024x768",
+    "class": "landscape",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 265.6,
+        "y": 467.6,
+        "w": 25,
+        "h": 25,
+        "right": 290.6,
+        "bottom": 492.6
+      },
+      "label": {
+        "x": 260.3,
+        "y": 445.1,
+        "w": 35.7,
+        "h": 20,
+        "right": 295.9,
+        "bottom": 465.1
+      },
+      "glyphClear": {
+        "left": 265.6,
+        "right": 649.4,
+        "top": 467.6,
+        "bottom": 275.4
+      },
+      "labelClear": {
+        "left": 260.3,
+        "right": 644.1,
+        "top": 445.1,
+        "bottom": 302.9
+      },
+      "worstGlyph": 265.6,
+      "worstLabel": 260.3
+    }
+  },
+  {
+    "mapW": 1132,
+    "mapH": 800,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.57998,
+      "lat": 68.122818,
+      "zoom": 8.5128,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 70,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 70,
+      "right": 74,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.484568,
+        67.735
+      ],
+      [
+        19.669534,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 390,
+      "y": 70,
+      "right": 792.5,
+      "bottom": 788,
+      "w": 402.6,
+      "h": 718
+    },
+    "routeClearance": {
+      "left": 390,
+      "right": 339.5,
+      "top": 70,
+      "bottom": 12
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 659.8,
+          "y": 57.8,
+          "w": 25,
+          "h": 25,
+          "right": 684.8,
+          "bottom": 82.8
+        },
+        "label": {
+          "x": 654.3,
+          "y": 35.3,
+          "w": 36,
+          "h": 20,
+          "right": 690.3,
+          "bottom": 55.3
+        },
+        "glyphClear": {
+          "left": 659.8,
+          "right": 447.2,
+          "top": 57.8,
+          "bottom": 717.2
+        },
+        "labelClear": {
+          "left": 654.3,
+          "right": 441.7,
+          "top": 35.3,
+          "bottom": 744.7
+        },
+        "worstGlyph": 57.8,
+        "worstLabel": 35.3
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 559.1,
+          "y": 159.4,
+          "w": 25,
+          "h": 25,
+          "right": 584.1,
+          "bottom": 184.4
+        },
+        "label": {
+          "x": 540.4,
+          "y": 136.9,
+          "w": 62.3,
+          "h": 20,
+          "right": 602.7,
+          "bottom": 156.9
+        },
+        "glyphClear": {
+          "left": 559.1,
+          "right": 547.9,
+          "top": 159.4,
+          "bottom": 615.6
+        },
+        "labelClear": {
+          "left": 540.4,
+          "right": 529.3,
+          "top": 136.9,
+          "bottom": 643.1
+        },
+        "worstGlyph": 159.4,
+        "worstLabel": 136.9
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 467.7,
+          "y": 368.3,
+          "w": 25,
+          "h": 25,
+          "right": 492.7,
+          "bottom": 393.3
+        },
+        "label": {
+          "x": 455.8,
+          "y": 345.8,
+          "w": 48.9,
+          "h": 20,
+          "right": 504.7,
+          "bottom": 365.8
+        },
+        "glyphClear": {
+          "left": 467.7,
+          "right": 639.3,
+          "top": 368.3,
+          "bottom": 406.7
+        },
+        "labelClear": {
+          "left": 455.8,
+          "right": 627.3,
+          "top": 345.8,
+          "bottom": 434.2
+        },
+        "worstGlyph": 368.3,
+        "worstLabel": 345.8
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 377.9,
+          "y": 486.8,
+          "w": 25,
+          "h": 25,
+          "right": 402.9,
+          "bottom": 511.8
+        },
+        "label": {
+          "x": 372.6,
+          "y": 464.3,
+          "w": 35.7,
+          "h": 20,
+          "right": 408.3,
+          "bottom": 484.3
+        },
+        "glyphClear": {
+          "left": 377.9,
+          "right": 729.1,
+          "top": 486.8,
+          "bottom": 288.2
+        },
+        "labelClear": {
+          "left": 372.6,
+          "right": 723.7,
+          "top": 464.3,
+          "bottom": 315.7
+        },
+        "worstGlyph": 288.2,
+        "worstLabel": 315.7
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 398.9,
+          "y": 632.7,
+          "w": 25,
+          "h": 25,
+          "right": 423.9,
+          "bottom": 657.7
+        },
+        "label": {
+          "x": 396.9,
+          "y": 610.2,
+          "w": 28.9,
+          "h": 20,
+          "right": 425.8,
+          "bottom": 630.2
+        },
+        "glyphClear": {
+          "left": 398.9,
+          "right": 708.1,
+          "top": 632.7,
+          "bottom": 142.3
+        },
+        "labelClear": {
+          "left": 396.9,
+          "right": 706.2,
+          "top": 610.2,
+          "bottom": 169.8
+        },
+        "worstGlyph": 142.3,
+        "worstLabel": 169.8
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 416.6,
+          "y": 764.2,
+          "w": 25,
+          "h": 25,
+          "right": 441.6,
+          "bottom": 789.2
+        },
+        "label": {
+          "x": 416.1,
+          "y": 741.7,
+          "w": 26.1,
+          "h": 20,
+          "right": 442.1,
+          "bottom": 761.7
+        },
+        "glyphClear": {
+          "left": 416.6,
+          "right": 690.4,
+          "top": 764.2,
+          "bottom": 10.8
+        },
+        "labelClear": {
+          "left": 416.1,
+          "right": 689.9,
+          "top": 741.7,
+          "bottom": 38.3
+        },
+        "worstGlyph": 10.8,
+        "worstLabel": 38.3
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 574.4,
+          "y": 740.6,
+          "w": 25,
+          "h": 25,
+          "right": 599.4,
+          "bottom": 765.6
+        },
+        "label": {
+          "x": 556.2,
+          "y": 718.1,
+          "w": 61.5,
+          "h": 20,
+          "right": 617.7,
+          "bottom": 738.1
+        },
+        "glyphClear": {
+          "left": 574.4,
+          "right": 532.6,
+          "top": 740.6,
+          "bottom": 34.4
+        },
+        "labelClear": {
+          "left": 556.2,
+          "right": 514.3,
+          "top": 718.1,
+          "bottom": 61.9
+        },
+        "worstGlyph": 34.4,
+        "worstLabel": 61.9
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 780,
+          "y": 764.4,
+          "w": 25,
+          "h": 25,
+          "right": 805,
+          "bottom": 789.4
+        },
+        "label": {
+          "x": 761.3,
+          "y": 741.9,
+          "w": 62.5,
+          "h": 20,
+          "right": 823.8,
+          "bottom": 761.9
+        },
+        "glyphClear": {
+          "left": 780,
+          "right": 327,
+          "top": 764.4,
+          "bottom": 10.6
+        },
+        "labelClear": {
+          "left": 761.3,
+          "right": 308.2,
+          "top": 741.9,
+          "bottom": 38.1
+        },
+        "worstGlyph": 10.6,
+        "worstLabel": 38.1
+      }
+    ],
+    "controlsRect": {
+      "x": 1074,
+      "y": 14,
+      "w": 44,
+      "h": 200,
+      "right": 1118,
+      "bottom": 214
+    },
+    "leadRect": {
+      "x": 14,
+      "y": 14,
+      "w": 142,
+      "h": 44,
+      "right": 156,
+      "bottom": 58
+    },
+    "viewport": "1280x800",
+    "class": "landscape",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 377.9,
+        "y": 486.8,
+        "w": 25,
+        "h": 25,
+        "right": 402.9,
+        "bottom": 511.8
+      },
+      "label": {
+        "x": 372.6,
+        "y": 464.3,
+        "w": 35.7,
+        "h": 20,
+        "right": 408.3,
+        "bottom": 484.3
+      },
+      "glyphClear": {
+        "left": 377.9,
+        "right": 729.1,
+        "top": 486.8,
+        "bottom": 288.2
+      },
+      "labelClear": {
+        "left": 372.6,
+        "right": 723.7,
+        "top": 464.3,
+        "bottom": 315.7
+      },
+      "worstGlyph": 288.2,
+      "worstLabel": 315.7
+    }
+  },
+  {
+    "mapW": 1218,
+    "mapH": 768,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.504884,
+      "lat": 68.123788,
+      "zoom": 8.5223,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 70,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 70,
+      "right": 74,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.340234,
+        67.735
+      ],
+      [
+        19.669534,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 471.1,
+      "y": 53.2,
+      "right": 876.3,
+      "bottom": 775.9,
+      "w": 405.2,
+      "h": 722.7
+    },
+    "routeClearance": {
+      "left": 471.1,
+      "right": 341.7,
+      "top": 53.2,
+      "bottom": -7.9
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 742.8,
+          "y": 41,
+          "w": 25,
+          "h": 25,
+          "right": 767.8,
+          "bottom": 66
+        },
+        "label": {
+          "x": 737.2,
+          "y": 18.5,
+          "w": 36,
+          "h": 20,
+          "right": 773.3,
+          "bottom": 38.5
+        },
+        "glyphClear": {
+          "left": 742.8,
+          "right": 450.2,
+          "top": 41,
+          "bottom": 702
+        },
+        "labelClear": {
+          "left": 737.2,
+          "right": 444.7,
+          "top": 18.5,
+          "bottom": 729.5
+        },
+        "worstGlyph": 41,
+        "worstLabel": 18.5
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 641.4,
+          "y": 143.2,
+          "w": 25,
+          "h": 25,
+          "right": 666.4,
+          "bottom": 168.2
+        },
+        "label": {
+          "x": 622.7,
+          "y": 120.7,
+          "w": 62.3,
+          "h": 20,
+          "right": 685,
+          "bottom": 140.7
+        },
+        "glyphClear": {
+          "left": 641.4,
+          "right": 551.6,
+          "top": 143.2,
+          "bottom": 599.8
+        },
+        "labelClear": {
+          "left": 622.7,
+          "right": 533,
+          "top": 120.7,
+          "bottom": 627.3
+        },
+        "worstGlyph": 143.2,
+        "worstLabel": 120.7
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 549.4,
+          "y": 353.6,
+          "w": 25,
+          "h": 25,
+          "right": 574.4,
+          "bottom": 378.6
+        },
+        "label": {
+          "x": 537.5,
+          "y": 331.1,
+          "w": 48.9,
+          "h": 20,
+          "right": 586.4,
+          "bottom": 351.1
+        },
+        "glyphClear": {
+          "left": 549.4,
+          "right": 643.6,
+          "top": 353.6,
+          "bottom": 389.4
+        },
+        "labelClear": {
+          "left": 537.5,
+          "right": 631.6,
+          "top": 331.1,
+          "bottom": 416.9
+        },
+        "worstGlyph": 353.6,
+        "worstLabel": 331.1
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 459,
+          "y": 472.8,
+          "w": 25,
+          "h": 25,
+          "right": 484,
+          "bottom": 497.8
+        },
+        "label": {
+          "x": 453.7,
+          "y": 450.3,
+          "w": 35.7,
+          "h": 20,
+          "right": 489.4,
+          "bottom": 470.3
+        },
+        "glyphClear": {
+          "left": 459,
+          "right": 734,
+          "top": 472.8,
+          "bottom": 270.2
+        },
+        "labelClear": {
+          "left": 453.7,
+          "right": 728.6,
+          "top": 450.3,
+          "bottom": 297.7
+        },
+        "worstGlyph": 270.2,
+        "worstLabel": 297.7
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 480.1,
+          "y": 619.7,
+          "w": 25,
+          "h": 25,
+          "right": 505.1,
+          "bottom": 644.7
+        },
+        "label": {
+          "x": 478.2,
+          "y": 597.2,
+          "w": 28.9,
+          "h": 20,
+          "right": 507.1,
+          "bottom": 617.2
+        },
+        "glyphClear": {
+          "left": 480.1,
+          "right": 712.9,
+          "top": 619.7,
+          "bottom": 123.3
+        },
+        "labelClear": {
+          "left": 478.2,
+          "right": 710.9,
+          "top": 597.2,
+          "bottom": 150.8
+        },
+        "worstGlyph": 123.3,
+        "worstLabel": 150.8
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 498,
+          "y": 752,
+          "w": 25,
+          "h": 25,
+          "right": 523,
+          "bottom": 777
+        },
+        "label": {
+          "x": 497.4,
+          "y": 729.5,
+          "w": 26.1,
+          "h": 20,
+          "right": 523.5,
+          "bottom": 749.5
+        },
+        "glyphClear": {
+          "left": 498,
+          "right": 695,
+          "top": 752,
+          "bottom": -9
+        },
+        "labelClear": {
+          "left": 497.4,
+          "right": 694.5,
+          "top": 729.5,
+          "bottom": 18.5
+        },
+        "worstGlyph": -9,
+        "worstLabel": 18.5
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 656.8,
+          "y": 728.3,
+          "w": 25,
+          "h": 25,
+          "right": 681.8,
+          "bottom": 753.3
+        },
+        "label": {
+          "x": 638.6,
+          "y": 705.8,
+          "w": 61.5,
+          "h": 20,
+          "right": 700.1,
+          "bottom": 725.8
+        },
+        "glyphClear": {
+          "left": 656.8,
+          "right": 536.2,
+          "top": 728.3,
+          "bottom": 14.7
+        },
+        "labelClear": {
+          "left": 638.6,
+          "right": 517.9,
+          "top": 705.8,
+          "bottom": 42.2
+        },
+        "worstGlyph": 14.7,
+        "worstLabel": 42.2
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 863.8,
+          "y": 752.2,
+          "w": 25,
+          "h": 25,
+          "right": 888.8,
+          "bottom": 777.2
+        },
+        "label": {
+          "x": 845,
+          "y": 729.7,
+          "w": 62.5,
+          "h": 20,
+          "right": 907.6,
+          "bottom": 749.7
+        },
+        "glyphClear": {
+          "left": 863.8,
+          "right": 329.2,
+          "top": 752.2,
+          "bottom": -9.2
+        },
+        "labelClear": {
+          "left": 845,
+          "right": 310.4,
+          "top": 729.7,
+          "bottom": 18.3
+        },
+        "worstGlyph": -9.2,
+        "worstLabel": 18.3
+      }
+    ],
+    "controlsRect": {
+      "x": 1160,
+      "y": 14,
+      "w": 44,
+      "h": 200,
+      "right": 1204,
+      "bottom": 214
+    },
+    "leadRect": {
+      "x": 14,
+      "y": 14,
+      "w": 142,
+      "h": 44,
+      "right": 156,
+      "bottom": 58
+    },
+    "viewport": "1366x768",
+    "class": "landscape",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 459,
+        "y": 472.8,
+        "w": 25,
+        "h": 25,
+        "right": 484,
+        "bottom": 497.8
+      },
+      "label": {
+        "x": 453.7,
+        "y": 450.3,
+        "w": 35.7,
+        "h": 20,
+        "right": 489.4,
+        "bottom": 470.3
+      },
+      "glyphClear": {
+        "left": 459,
+        "right": 734,
+        "top": 472.8,
+        "bottom": 270.2
+      },
+      "labelClear": {
+        "left": 453.7,
+        "right": 728.6,
+        "top": 450.3,
+        "bottom": 297.7
+      },
+      "worstGlyph": 270.2,
+      "worstLabel": 297.7
+    }
+  },
+  {
+    "mapW": 1292,
+    "mapH": 900,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.578003,
+      "lat": 68.120275,
+      "zoom": 8.7009,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 70,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 70,
+      "right": 74,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.482493,
+        67.735
+      ],
+      [
+        19.669534,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 446.6,
+      "y": 70,
+      "right": 905.3,
+      "bottom": 888,
+      "w": 458.6,
+      "h": 818
+    },
+    "routeClearance": {
+      "left": 446.6,
+      "right": 386.7,
+      "top": 70,
+      "bottom": 12
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 755.8,
+          "y": 57.9,
+          "w": 25,
+          "h": 25,
+          "right": 780.8,
+          "bottom": 82.9
+        },
+        "label": {
+          "x": 750.2,
+          "y": 35.4,
+          "w": 36,
+          "h": 20,
+          "right": 786.3,
+          "bottom": 55.4
+        },
+        "glyphClear": {
+          "left": 755.8,
+          "right": 511.2,
+          "top": 57.9,
+          "bottom": 817.1
+        },
+        "labelClear": {
+          "left": 750.2,
+          "right": 505.7,
+          "top": 35.4,
+          "bottom": 844.6
+        },
+        "worstGlyph": 57.9,
+        "worstLabel": 35.4
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 641,
+          "y": 173.5,
+          "w": 25,
+          "h": 25,
+          "right": 666,
+          "bottom": 198.5
+        },
+        "label": {
+          "x": 622.4,
+          "y": 151,
+          "w": 62.3,
+          "h": 20,
+          "right": 684.7,
+          "bottom": 171
+        },
+        "glyphClear": {
+          "left": 641,
+          "right": 626,
+          "top": 173.5,
+          "bottom": 701.5
+        },
+        "labelClear": {
+          "left": 622.4,
+          "right": 607.3,
+          "top": 151,
+          "bottom": 729
+        },
+        "worstGlyph": 173.5,
+        "worstLabel": 151
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 537,
+          "y": 411.6,
+          "w": 25,
+          "h": 25,
+          "right": 562,
+          "bottom": 436.6
+        },
+        "label": {
+          "x": 525,
+          "y": 389.1,
+          "w": 48.9,
+          "h": 20,
+          "right": 573.9,
+          "bottom": 409.1
+        },
+        "glyphClear": {
+          "left": 537,
+          "right": 730,
+          "top": 411.6,
+          "bottom": 463.4
+        },
+        "labelClear": {
+          "left": 525,
+          "right": 718.1,
+          "top": 389.1,
+          "bottom": 490.9
+        },
+        "worstGlyph": 411.6,
+        "worstLabel": 389.1
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 434.6,
+          "y": 546.5,
+          "w": 25,
+          "h": 25,
+          "right": 459.6,
+          "bottom": 571.5
+        },
+        "label": {
+          "x": 429.3,
+          "y": 524,
+          "w": 35.7,
+          "h": 20,
+          "right": 465,
+          "bottom": 544
+        },
+        "glyphClear": {
+          "left": 434.6,
+          "right": 832.4,
+          "top": 546.5,
+          "bottom": 328.5
+        },
+        "labelClear": {
+          "left": 429.3,
+          "right": 827,
+          "top": 524,
+          "bottom": 356
+        },
+        "worstGlyph": 328.5,
+        "worstLabel": 356
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 458.5,
+          "y": 712.8,
+          "w": 25,
+          "h": 25,
+          "right": 483.5,
+          "bottom": 737.8
+        },
+        "label": {
+          "x": 456.5,
+          "y": 690.3,
+          "w": 28.9,
+          "h": 20,
+          "right": 485.5,
+          "bottom": 710.3
+        },
+        "glyphClear": {
+          "left": 458.5,
+          "right": 808.5,
+          "top": 712.8,
+          "bottom": 162.2
+        },
+        "labelClear": {
+          "left": 456.5,
+          "right": 806.5,
+          "top": 690.3,
+          "bottom": 189.7
+        },
+        "worstGlyph": 162.2,
+        "worstLabel": 189.7
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 478.7,
+          "y": 862.6,
+          "w": 25,
+          "h": 25,
+          "right": 503.7,
+          "bottom": 887.6
+        },
+        "label": {
+          "x": 478.2,
+          "y": 840.1,
+          "w": 26.1,
+          "h": 20,
+          "right": 504.2,
+          "bottom": 860.1
+        },
+        "glyphClear": {
+          "left": 478.7,
+          "right": 788.3,
+          "top": 862.6,
+          "bottom": 12.4
+        },
+        "labelClear": {
+          "left": 478.2,
+          "right": 787.8,
+          "top": 840.1,
+          "bottom": 39.9
+        },
+        "worstGlyph": 12.4,
+        "worstLabel": 39.9
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 658.5,
+          "y": 835.8,
+          "w": 25,
+          "h": 25,
+          "right": 683.5,
+          "bottom": 860.8
+        },
+        "label": {
+          "x": 640.3,
+          "y": 813.3,
+          "w": 61.5,
+          "h": 20,
+          "right": 701.8,
+          "bottom": 833.3
+        },
+        "glyphClear": {
+          "left": 658.5,
+          "right": 608.5,
+          "top": 835.8,
+          "bottom": 39.2
+        },
+        "labelClear": {
+          "left": 640.3,
+          "right": 590.2,
+          "top": 813.3,
+          "bottom": 66.7
+        },
+        "worstGlyph": 39.2,
+        "worstLabel": 66.7
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 892.8,
+          "y": 862.8,
+          "w": 25,
+          "h": 25,
+          "right": 917.8,
+          "bottom": 887.8
+        },
+        "label": {
+          "x": 874,
+          "y": 840.3,
+          "w": 62.5,
+          "h": 20,
+          "right": 936.5,
+          "bottom": 860.3
+        },
+        "glyphClear": {
+          "left": 892.8,
+          "right": 374.2,
+          "top": 862.8,
+          "bottom": 12.2
+        },
+        "labelClear": {
+          "left": 874,
+          "right": 355.5,
+          "top": 840.3,
+          "bottom": 39.7
+        },
+        "worstGlyph": 12.2,
+        "worstLabel": 39.7
+      }
+    ],
+    "controlsRect": {
+      "x": 1234,
+      "y": 14,
+      "w": 44,
+      "h": 200,
+      "right": 1278,
+      "bottom": 214
+    },
+    "leadRect": {
+      "x": 14,
+      "y": 14,
+      "w": 142,
+      "h": 44,
+      "right": 156,
+      "bottom": 58
+    },
+    "viewport": "1440x900",
+    "class": "landscape",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 434.6,
+        "y": 546.5,
+        "w": 25,
+        "h": 25,
+        "right": 459.6,
+        "bottom": 571.5
+      },
+      "label": {
+        "x": 429.3,
+        "y": 524,
+        "w": 35.7,
+        "h": 20,
+        "right": 465,
+        "bottom": 544
+      },
+      "glyphClear": {
+        "left": 434.6,
+        "right": 832.4,
+        "top": 546.5,
+        "bottom": 328.5
+      },
+      "labelClear": {
+        "left": 429.3,
+        "right": 827,
+        "top": 524,
+        "bottom": 356
+      },
+      "worstGlyph": 328.5,
+      "worstLabel": 356
+    }
+  },
+  {
+    "mapW": 1364,
+    "mapH": 860,
+    "dpr": 2,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "mainOverflowY": 0,
+    "navVisible": true,
+    "camera": {
+      "lng": 18.512974,
+      "lat": 68.121213,
+      "zoom": 8.6956,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "overviewPadding": {
+      "top": 70,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "operationalPadding": {
+      "top": 70,
+      "right": 74,
+      "bottom": 12,
+      "left": 16
+    },
+    "maxBounds": [
+      [
+        17.356413,
+        67.735
+      ],
+      [
+        19.669534,
+        68.4661
+      ]
+    ],
+    "routeBox": {
+      "x": 521.7,
+      "y": 52.9,
+      "right": 978.7,
+      "bottom": 867.9,
+      "w": 457,
+      "h": 815
+    },
+    "routeClearance": {
+      "left": 521.7,
+      "right": 385.3,
+      "top": 52.9,
+      "bottom": -7.9
+    },
+    "markers": [
+      {
+        "name": "Abisko",
+        "glyph": {
+          "x": 829.7,
+          "y": 40.7,
+          "w": 25,
+          "h": 25,
+          "right": 854.7,
+          "bottom": 65.7
+        },
+        "label": {
+          "x": 824.1,
+          "y": 18.2,
+          "w": 36,
+          "h": 20,
+          "right": 860.2,
+          "bottom": 38.2
+        },
+        "glyphClear": {
+          "left": 829.7,
+          "right": 509.3,
+          "top": 40.7,
+          "bottom": 794.3
+        },
+        "labelClear": {
+          "left": 824.1,
+          "right": 503.8,
+          "top": 18.2,
+          "bottom": 821.8
+        },
+        "worstGlyph": 40.7,
+        "worstLabel": 18.2
+      },
+      {
+        "name": "Abiskojaure",
+        "glyph": {
+          "x": 715.3,
+          "y": 156,
+          "w": 25,
+          "h": 25,
+          "right": 740.3,
+          "bottom": 181
+        },
+        "label": {
+          "x": 696.7,
+          "y": 133.5,
+          "w": 62.3,
+          "h": 20,
+          "right": 759,
+          "bottom": 153.5
+        },
+        "glyphClear": {
+          "left": 715.3,
+          "right": 623.7,
+          "top": 156,
+          "bottom": 679
+        },
+        "labelClear": {
+          "left": 696.7,
+          "right": 605,
+          "top": 133.5,
+          "bottom": 706.5
+        },
+        "worstGlyph": 156,
+        "worstLabel": 133.5
+      },
+      {
+        "name": "Alesjaure",
+        "glyph": {
+          "x": 611.7,
+          "y": 393.2,
+          "w": 25,
+          "h": 25,
+          "right": 636.7,
+          "bottom": 418.2
+        },
+        "label": {
+          "x": 599.7,
+          "y": 370.7,
+          "w": 48.9,
+          "h": 20,
+          "right": 648.6,
+          "bottom": 390.7
+        },
+        "glyphClear": {
+          "left": 611.7,
+          "right": 727.3,
+          "top": 393.2,
+          "bottom": 441.8
+        },
+        "labelClear": {
+          "left": 599.7,
+          "right": 715.4,
+          "top": 370.7,
+          "bottom": 469.3
+        },
+        "worstGlyph": 393.2,
+        "worstLabel": 370.7
+      },
+      {
+        "name": "Tjäktja",
+        "glyph": {
+          "x": 509.7,
+          "y": 527.6,
+          "w": 25,
+          "h": 25,
+          "right": 534.7,
+          "bottom": 552.6
+        },
+        "label": {
+          "x": 504.4,
+          "y": 505.1,
+          "w": 35.7,
+          "h": 20,
+          "right": 540,
+          "bottom": 525.1
+        },
+        "glyphClear": {
+          "left": 509.7,
+          "right": 829.3,
+          "top": 527.6,
+          "bottom": 307.4
+        },
+        "labelClear": {
+          "left": 504.4,
+          "right": 824,
+          "top": 505.1,
+          "bottom": 334.9
+        },
+        "worstGlyph": 307.4,
+        "worstLabel": 334.9
+      },
+      {
+        "name": "Sälka",
+        "glyph": {
+          "x": 533.5,
+          "y": 693.3,
+          "w": 25,
+          "h": 25,
+          "right": 558.5,
+          "bottom": 718.3
+        },
+        "label": {
+          "x": 531.5,
+          "y": 670.8,
+          "w": 28.9,
+          "h": 20,
+          "right": 560.4,
+          "bottom": 690.8
+        },
+        "glyphClear": {
+          "left": 533.5,
+          "right": 805.5,
+          "top": 693.3,
+          "bottom": 141.7
+        },
+        "labelClear": {
+          "left": 531.5,
+          "right": 803.6,
+          "top": 670.8,
+          "bottom": 169.2
+        },
+        "worstGlyph": 141.7,
+        "worstLabel": 169.2
+      },
+      {
+        "name": "Singi",
+        "glyph": {
+          "x": 553.6,
+          "y": 842.6,
+          "w": 25,
+          "h": 25,
+          "right": 578.6,
+          "bottom": 867.6
+        },
+        "label": {
+          "x": 553.1,
+          "y": 820.1,
+          "w": 26.1,
+          "h": 20,
+          "right": 579.1,
+          "bottom": 840.1
+        },
+        "glyphClear": {
+          "left": 553.6,
+          "right": 785.4,
+          "top": 842.6,
+          "bottom": -7.6
+        },
+        "labelClear": {
+          "left": 553.1,
+          "right": 784.9,
+          "top": 820.1,
+          "bottom": 19.9
+        },
+        "worstGlyph": -7.6,
+        "worstLabel": 19.9
+      },
+      {
+        "name": "Kebnekaise",
+        "glyph": {
+          "x": 732.8,
+          "y": 815.8,
+          "w": 25,
+          "h": 25,
+          "right": 757.8,
+          "bottom": 840.8
+        },
+        "label": {
+          "x": 714.5,
+          "y": 793.3,
+          "w": 61.5,
+          "h": 20,
+          "right": 776,
+          "bottom": 813.3
+        },
+        "glyphClear": {
+          "left": 732.8,
+          "right": 606.2,
+          "top": 815.8,
+          "bottom": 19.2
+        },
+        "labelClear": {
+          "left": 714.5,
+          "right": 588,
+          "top": 793.3,
+          "bottom": 46.7
+        },
+        "worstGlyph": 19.2,
+        "worstLabel": 46.7
+      },
+      {
+        "name": "Nikkaluokta",
+        "glyph": {
+          "x": 966.2,
+          "y": 842.8,
+          "w": 25,
+          "h": 25,
+          "right": 991.2,
+          "bottom": 867.8
+        },
+        "label": {
+          "x": 947.4,
+          "y": 820.3,
+          "w": 62.5,
+          "h": 20,
+          "right": 1009.9,
+          "bottom": 840.3
+        },
+        "glyphClear": {
+          "left": 966.2,
+          "right": 372.8,
+          "top": 842.8,
+          "bottom": -7.8
+        },
+        "labelClear": {
+          "left": 947.4,
+          "right": 354.1,
+          "top": 820.3,
+          "bottom": 19.7
+        },
+        "worstGlyph": -7.8,
+        "worstLabel": 19.7
+      }
+    ],
+    "controlsRect": {
+      "x": 1306,
+      "y": 14,
+      "w": 44,
+      "h": 200,
+      "right": 1350,
+      "bottom": 214
+    },
+    "leadRect": {
+      "x": 14,
+      "y": 14,
+      "w": 142,
+      "h": 44,
+      "right": 156,
+      "bottom": 58
+    },
+    "viewport": "1512x860",
+    "class": "landscape",
+    "consoleErrors": [],
+    "cameraStableAfterSettle": true,
+    "tjaktja": {
+      "name": "Tjäktja",
+      "glyph": {
+        "x": 509.7,
+        "y": 527.6,
+        "w": 25,
+        "h": 25,
+        "right": 534.7,
+        "bottom": 552.6
+      },
+      "label": {
+        "x": 504.4,
+        "y": 505.1,
+        "w": 35.7,
+        "h": 20,
+        "right": 540,
+        "bottom": 525.1
+      },
+      "glyphClear": {
+        "left": 509.7,
+        "right": 829.3,
+        "top": 527.6,
+        "bottom": 307.4
+      },
+      "labelClear": {
+        "left": 504.4,
+        "right": 824,
+        "top": 505.1,
+        "bottom": 334.9
+      },
+      "worstGlyph": 307.4,
+      "worstLabel": 334.9
+    }
+  }
+]
