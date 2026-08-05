@@ -8,6 +8,9 @@
  *   B. a successful update
  *   C. a failed update (network failure, and a wrong-archive response)
  *   D. a fresh install
+ *   E. a deliberately corrupt 1,234-byte entry in the CURRENT cache, alone and
+ *      alongside a valid legacy archive
+ *   F. remove, from a legacy-only install and from a current install
  *
  * Reproduce:
  *
@@ -125,14 +128,30 @@ const seedLegacy = `(async () => {
 
 const settle = (page, ms = 2500) => page.waitForTimeout(ms);
 
-async function openSettingsMaps(page) {
+/** Expand a Settings accordion, but only when it is collapsed. */
+async function expandSection(page, name) {
+  const button = page.getByRole('button', { name }).first();
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  await settle(page, 1200);
+}
+
+async function openSettingsMaps(page, { readiness = false } = {}) {
   await page.goto(`${BASE}#/settings`, { waitUntil: 'domcontentloaded' });
   await settle(page, 1500);
   const later = page.getByRole('button', { name: 'Later' });
   if (await later.count()) await later.first().click().catch(() => {});
-  const maps = page.getByRole('button', { name: /Offline maps/ });
-  await maps.first().click();
-  await settle(page, 1500);
+  if (readiness) await expandSection(page, /Trail readiness/);
+  await expandSection(page, /Offline maps/);
+}
+
+/** The Offline basemap row inside the Trail readiness accordion. */
+async function readinessBasemapRow(page) {
+  return page.evaluate(() => {
+    const row = [...document.querySelectorAll('.readiness-row')].find((r) =>
+      r.textContent.includes('Offline basemap'),
+    );
+    return row ? row.innerText.replace(/\n+/g, ' | ') : null;
+  });
 }
 
 /** The Offline map card's own text — the surface under test. */
@@ -178,9 +197,10 @@ await withChrome('A-legacy', { width: 1512, height: 860 }, async (page, log) => 
   const afterOpening = await page.evaluate(INVENTORY);
 
   const map = await fitAndShoot(page, 'A-legacy-map-1512x860.png');
-  await openSettingsMaps(page);
+  await openSettingsMaps(page, { readiness: true });
   await page.screenshot({ path: join(OUT, 'A-legacy-settings-1512x860.png') });
   const card = await cardText(page);
+  const readinessRow = await readinessBasemapRow(page);
 
   record('A_legacy_install', {
     seededLegacyBytes: seeded,
@@ -193,6 +213,7 @@ await withChrome('A-legacy', { width: 1512, height: 860 }, async (page, log) => 
     basemapReadFromBlob: log.requests.every((r) => !r.includes('206')) || true,
     pmtilesRequests: log.requests,
     settingsOfflineMapCard: card,
+    readinessRow,
     consoleErrors: log.consoleErrors,
   });
 });
@@ -336,6 +357,134 @@ for (const [label, viewport] of [
     });
   });
 }
+
+// ---- E. a corrupt entry in the CURRENT cache --------------------------------
+
+const seedCorruptCurrent = `(async () => {
+  await navigator.serviceWorker.ready;
+  const key = new URL('/Fjallkompis/${ARCHIVE_PATH}', location.origin).toString();
+  const c = await caches.open('fjallkompis-offline-map-v2');
+  await c.put(key, new Response(new Uint8Array(1234), { status: 200, headers: {
+    'Content-Type': 'application/octet-stream', 'Content-Length': '1234' } }));
+  return (await c.match(key)).clone().blob().then((b) => b.size);
+})()`;
+
+await withChrome('E-invalid', { width: 1512, height: 860 }, async (page, log) => {
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await settle(page);
+  const seeded = await page.evaluate(seedCorruptCurrent);
+  const before = await page.evaluate(INVENTORY);
+
+  // E1 — corrupt current entry, no legacy fallback.
+  await page.goto(`${BASE}#/map`, { waitUntil: 'domcontentloaded' });
+  await settle(page, 4000);
+  const later = page.getByRole('button', { name: 'Later' });
+  if (await later.count()) await later.first().click().catch(() => {});
+  await settle(page, 2000);
+  await page.screenshot({ path: join(OUT, 'E1-invalid-map-1512x860.png') });
+  const afterOpeningMap = await page.evaluate(INVENTORY);
+
+  await openSettingsMaps(page, { readiness: true });
+  const cardInvalid = await cardText(page);
+  await page.screenshot({ path: join(OUT, 'E1-invalid-settings-1512x860.png') });
+  const readinessRow = await readinessBasemapRow(page);
+
+  // E2 — the same corrupt entry, but with a valid legacy archive present.
+  await page.evaluate(seedLegacy);
+  // Hash routing means goto('#/settings') does not remount the card; the
+  // caches were changed from outside the app, so force a real reload.
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await settle(page, 1500);
+  await openSettingsMaps(page, { readiness: true });
+  const cardWithFallback = await cardText(page);
+  const readinessRowWithFallback = await readinessBasemapRow(page);
+  await page.screenshot({ path: join(OUT, 'E2-invalid-plus-legacy-settings-1512x860.png') });
+  const mapWithFallback = await fitAndShoot(page, 'E2-invalid-plus-legacy-map-1512x860.png');
+  const inventoryE2 = await page.evaluate(INVENTORY);
+
+  record('E_invalid_current_archive', {
+    seededCurrentCacheBytes: seeded,
+    cacheInventoryBefore: before,
+    e1_inventoryAfterOpeningMap: afterOpeningMap,
+    e1_nothingDeletedByOpeningTheApp:
+      JSON.stringify(before) === JSON.stringify(afterOpeningMap),
+    e1_corruptBytesStillStored:
+      afterOpeningMap['fjallkompis-offline-map-v2']?.[`/Fjallkompis/${ARCHIVE_PATH}`] === 1234,
+    e1_settingsCard: cardInvalid,
+    e1_readinessRow: readinessRow,
+    e1_reportedAsNeedingRepair: /needs repair/i.test(cardInvalid ?? ''),
+    e1_neverCalledStored: !/Stored on this device/.test(
+      (cardInvalid ?? '').slice(0, (cardInvalid ?? '').indexOf('Terrain relief')),
+    ),
+    e2_settingsCard: cardWithFallback,
+    e2_readinessRow: readinessRowWithFallback,
+    e2_reportedAsUpdate: /Map update available/.test(cardWithFallback ?? ''),
+    e2_neverCallsItRepair: !/needs repair/i.test(
+      (cardWithFallback ?? '').slice(0, (cardWithFallback ?? '').indexOf('Terrain relief')),
+    ),
+    e2_mapRendered: mapWithFallback,
+    e2_inventory: inventoryE2,
+    e2_corruptEntryStillPresentButUnread:
+      inventoryE2['fjallkompis-offline-map-v2']?.[`/Fjallkompis/${ARCHIVE_PATH}`] === 1234,
+    // A PMTiles parse of the 1,234-byte blob throws "wrong magic number".
+    consoleErrors: log.consoleErrors,
+    pmtilesParseErrors: log.consoleErrors.filter((m) => /magic number|pmtiles/i.test(m)),
+    pmtilesRequests: log.requests,
+  });
+});
+
+// ---- F. remove ---------------------------------------------------------------
+
+await withChrome('F-remove', { width: 1512, height: 860 }, async (page, log) => {
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await settle(page);
+  // The removal confirm() is suppressed in headless automation; stub it true.
+  await page.addInitScript(() => {
+    window.confirm = () => true;
+  });
+
+  // F1 — remove a LEGACY-ONLY install.
+  await page.evaluate(seedLegacy);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await settle(page, 1500);
+  const beforeLegacyRemove = await page.evaluate(INVENTORY);
+  await openSettingsMaps(page);
+  await page.getByRole('button', { name: 'Remove from device' }).first().click();
+  await page.waitForFunction(() => document.body.innerText.includes('Not downloaded'), null, {
+    timeout: 30_000,
+  });
+  await settle(page, 1000);
+  const afterLegacyRemove = await page.evaluate(INVENTORY);
+  await page.screenshot({ path: join(OUT, 'F1-after-removing-legacy-1512x860.png') });
+
+  // F2 — download the current revision, then remove it.
+  await page.getByRole('button', { name: 'Download for offline use' }).first().click();
+  await page.waitForFunction(() => document.body.innerText.includes('Saved ('), null, {
+    timeout: 120_000,
+  });
+  await settle(page, 1000);
+  const afterDownload = await page.evaluate(INVENTORY);
+  await page.getByRole('button', { name: 'Remove from device' }).first().click();
+  await page.waitForFunction(() => document.body.innerText.includes('Not downloaded'), null, {
+    timeout: 30_000,
+  });
+  await settle(page, 1000);
+  const afterCurrentRemove = await page.evaluate(INVENTORY);
+
+  record('F_remove_cache_inventory', {
+    f1_beforeRemovingLegacyOnly: beforeLegacyRemove,
+    f1_afterRemovingLegacyOnly: afterLegacyRemove,
+    f1_legacyCacheGone: !Object.keys(afterLegacyRemove).includes('fjallkompis-offline-map-v1'),
+    f1_noEmptyCurrentCacheLeftBehind:
+      !Object.keys(afterLegacyRemove).includes('fjallkompis-offline-map-v2'),
+    f2_afterDownload: afterDownload,
+    f2_afterRemovingCurrent: afterCurrentRemove,
+    f2_currentCacheGone: !Object.keys(afterCurrentRemove).includes('fjallkompis-offline-map-v2'),
+    otherLayerCachesIntactThroughout: ['terrain', 'contours', 'satellite'].every((n) =>
+      Object.keys(afterCurrentRemove).includes(`fjallkompis-offline-${n}-v1`)),
+    consoleErrors: log.consoleErrors,
+  });
+});
 
 writeFileSync(join(OUT, 'runtime-evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
 console.log(`\nWrote ${join(OUT, 'runtime-evidence.json')}`);
