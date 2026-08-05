@@ -94,8 +94,8 @@ test('the three pointers are distinct concepts and all are persisted', () => {
   }
 });
 
-test('the schema is v10 and defaults to no plan', () => {
-  assert.match(migration, /export const SCHEMA_VERSION = 10;/);
+test('the schema is v11 and defaults to no plan', () => {
+  assert.match(migration, /export const SCHEMA_VERSION = 11;/);
   assert.match(migration, /dayPlan: null,/);
   assert.match(migration, /normalizeDayPlan\(\s*raw\.dayPlan,\s*direction,\s*topology,/);
   assert.ok(

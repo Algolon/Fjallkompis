@@ -1034,6 +1034,19 @@ export interface HutUserData {
  */
 export interface PersistentState {
   schemaVersion: number;
+  /**
+   * The trail dossier this personal data belongs to (schema v11+); always
+   * ACTIVE_TRAIL_ID from src/data/trailIdentity.mjs while Kungsleden is the
+   * only trail.
+   *
+   * Personal data references trail content by LOCAL ids (`stageId: 'd1'`, bare
+   * stop ids), which only mean something inside one trail. This envelope-level
+   * id is what lets the app refuse data written for a different route instead
+   * of silently reinterpreting it against the Kungsleden topology. Pre-v11
+   * states carry no id and migrate to this one — they were Kungsleden data by
+   * definition. Internal: never shown in the interface.
+   */
+  trailId: string;
   currentStageId: string | null;
   /**
    * Selected walking direction over the canonical route. Only the direction is
