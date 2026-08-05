@@ -58,6 +58,7 @@ import {
 import type { LatLng } from '../types';
 import { BASE_MAP_PADDING } from '../map/mapPadding.mjs';
 import type { MapPadding } from '../map/mapPadding.mjs';
+import { shouldShowZoomControl } from '../map/mapZoomControl.mjs';
 import { buildFocusFeatures } from '../map/focusFeatures.mjs';
 import type { FocusRoute } from '../map/focusFeatures.mjs';
 
@@ -231,6 +232,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // current viewport shape, and whether the overview expansion is active.
   const constraintsRef = useRef<CameraConstraints | null>(null);
   const boundsExpandedRef = useRef(false);
+  // MapLibre's own zoom control, added and removed as the container crosses
+  // the width threshold (see src/map/mapZoomControl.mjs).
+  const zoomControlRef = useRef<maplibregl.NavigationControl | null>(null);
 
   // Keep latest callbacks reachable from map event handlers without rebinding.
   const callbacksRef = useRef({
@@ -512,17 +516,31 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // constraint set is a function of viewport shape AND padding.
       applyLayoutConstraintsRef.current = applyLayoutConstraints;
 
-      // Zoom buttons are for POINTERS: on touch the gesture is pinch, and
-      // permanent zoom buttons would only compete with the cockpit controls
-      // for the map's edges. No compass either — bearing is locked north-up
-      // (rotation disabled above). Anchored bottom-right so the top-right
-      // control stack owns that edge.
-      if (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) {
-        map.addControl(
-          new maplibregl.NavigationControl({ showCompass: false }),
-          'bottom-right',
-        );
-      }
+      // Zoom buttons are for POINTERS, and only where they fit: the policy
+      // (both gates, and the measured width threshold) lives in the pure
+      // module. Anchored bottom-right so the top-right control stack owns
+      // that edge; no compass — bearing is locked north-up.
+      //
+      // Kept in sync with the CONTAINER, not just the window: the map's own
+      // 'resize' fires whenever the workspace changes shape, so the control
+      // appears and disappears as the layout crosses the threshold.
+      const syncZoomControl = () => {
+        if (!map) return;
+        const show = shouldShowZoomControl({
+          mapWidth: containerRef.current?.clientWidth ?? 0,
+          finePointer:
+            window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false,
+        });
+        if (show && !zoomControlRef.current) {
+          zoomControlRef.current = new maplibregl.NavigationControl({ showCompass: false });
+          map.addControl(zoomControlRef.current, 'bottom-right');
+        } else if (!show && zoomControlRef.current) {
+          map.removeControl(zoomControlRef.current);
+          zoomControlRef.current = null;
+        }
+      };
+      syncZoomControl();
+      map.on('resize', syncZoomControl);
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
       // MapLibre's native fullscreen control is deliberately NOT added:
       // the Map destination is already a viewport-filling workspace, and
@@ -657,6 +675,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       popupRef.current = null;
       markerElsRef.current.clear();
       markers.forEach((m) => m.remove());
+      // The map takes its controls with it; just drop our handle.
+      zoomControlRef.current = null;
       map?.remove();
       mapRef.current = null;
       applyLayoutConstraintsRef.current = null;

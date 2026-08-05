@@ -1,0 +1,130 @@
+{
+  "cases": [
+    {
+      "mapW": 375,
+      "mapH": 611,
+      "finePointer": true,
+      "zoomControl": false,
+      "zoomButtons": [],
+      "overlapping": [],
+      "routeWestClear": 48,
+      "routeEastClear": 48,
+      "scrollZoom": true,
+      "keyboard": true,
+      "doubleClickZoom": true,
+      "touchZoom": true,
+      "zoom": 7.9838,
+      "case": "375x667 fine pointer",
+      "consoleErrors": []
+    },
+    {
+      "mapW": 375,
+      "mapH": 611,
+      "finePointer": false,
+      "zoomControl": false,
+      "zoomButtons": [],
+      "overlapping": [],
+      "routeWestClear": 48,
+      "routeEastClear": 48,
+      "scrollZoom": true,
+      "keyboard": true,
+      "doubleClickZoom": true,
+      "touchZoom": true,
+      "zoom": 7.9838,
+      "case": "375x667 touch",
+      "consoleErrors": []
+    },
+    {
+      "mapW": 676,
+      "mapH": 500,
+      "finePointer": true,
+      "zoomControl": true,
+      "zoomButtons": [
+        "Zoom in",
+        "Zoom out"
+      ],
+      "overlapping": [],
+      "routeWestClear": 237.8,
+      "routeEastClear": 200.5,
+      "scrollZoom": true,
+      "keyboard": true,
+      "doubleClickZoom": true,
+      "touchZoom": true,
+      "zoom": 7.7531,
+      "case": "760x500 fine pointer",
+      "consoleErrors": []
+    },
+    {
+      "mapW": 1132,
+      "mapH": 800,
+      "finePointer": true,
+      "zoomControl": true,
+      "zoomButtons": [
+        "Zoom in",
+        "Zoom out"
+      ],
+      "overlapping": [],
+      "routeWestClear": 390,
+      "routeEastClear": 339.5,
+      "scrollZoom": true,
+      "keyboard": true,
+      "doubleClickZoom": true,
+      "touchZoom": true,
+      "zoom": 8.5128,
+      "case": "1280x800 fine pointer",
+      "consoleErrors": []
+    },
+    {
+      "mapW": 1364,
+      "mapH": 860,
+      "finePointer": true,
+      "zoomControl": true,
+      "zoomButtons": [
+        "Zoom in",
+        "Zoom out"
+      ],
+      "overlapping": [],
+      "routeWestClear": 521.7,
+      "routeEastClear": 385.3,
+      "scrollZoom": true,
+      "keyboard": true,
+      "doubleClickZoom": true,
+      "touchZoom": true,
+      "zoom": 8.6956,
+      "case": "1512x860 fine pointer",
+      "consoleErrors": []
+    }
+  ],
+  "resize": [
+    {
+      "viewport": "1280x800",
+      "mapW": 1132,
+      "zoomControl": true,
+      "overlapping": []
+    },
+    {
+      "viewport": "700x800",
+      "mapW": 560,
+      "zoomControl": false,
+      "overlapping": []
+    },
+    {
+      "viewport": "1280x800",
+      "mapW": 1132,
+      "zoomControl": true,
+      "overlapping": []
+    },
+    {
+      "viewport": "560x800",
+      "mapW": 560,
+      "zoomControl": false,
+      "overlapping": []
+    },
+    {
+      "viewport": "900x800",
+      "mapW": 816,
+      "zoomControl": true,
+      "overlapping": []
+    }
+  ]
+}

@@ -132,24 +132,68 @@ associated Singi / Nikkaluokta glyph clipping — byte-identical before and afte
 
 **3. 180 px blank western margin at 1920×1080** and worse above it.
 
-## Newly surfaced, cosmetic, NOT fixed here
+## Zoom-control collision — surfaced by the rebalance, and FIXED
 
-On a **fine-pointer** viewport 375 px wide — a narrow desktop window, not a
-phone — Nikkaluokta's label now sits under MapLibre's bottom-right zoom
-control. Measured directly:
+The balanced overview narrowed the eastern clearance from 70 px to 48 px, which
+put Nikkaluokta's label under MapLibre's bottom-right zoom control on narrow
+fine-pointer layouts. Fixed by adding a second gate on the control, not by
+touching the composition.
 
-| Viewport | pointer | zoom control rendered | labels overlapping it |
+### Choosing the threshold — measured, not assumed
+
+Sweep: fine pointer, marker glyph / label / route vertex intersecting the
+control group, widths 320–1280 × heights 667 / 800 / 915 / 1000 / 1180
+(`zoom-sweep.json`).
+
+| map container width | 320 | 340 | 360 | 375 | 390 | 412 | 430 | 460 | 480 | 500 | 520 | 540 | 560 | **676+** |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| collides at some height | y | y | y | y | y | y | y | y | y | y | y | y | y | **no** |
+
+Two things the sweep settles:
+
+- **375 px is not the boundary.** Collisions occur at every container width the
+  compact layout can produce, up to and including 560 px. They depend on both
+  axes — at 560 px wide the overlap appears only at 915–1000 px tall — because
+  what actually matters is where the composition puts Nikkaluokta.
+- **Real containers are discrete.** The compact layout caps the map at 560 px;
+  the navigation rail (viewport ≥ 760) starts it at 676 px. Nothing lands in
+  between.
+
+`ZOOM_CONTROL_MIN_MAP_WIDTH = 640` therefore sits in that gap — **80 px above
+the widest colliding container, 36 px below the narrowest clean one** — and is
+deliberately not a CSS breakpoint, so it stays correct if the rail's own width
+is retuned.
+
+### Result
+
+| Case | map width | fine pointer | zoom control | overlapping markers | wheel / keyboard / dbl-click / touch zoom | console |
+| --- | --- | --- | --- | --- | --- | --- |
+| 375×667 fine | 375 | yes | **absent** | **none** | all enabled | 0 |
+| 375×667 touch | 375 | no | absent | none | all enabled | 0 |
+| 760×500 fine | 676 | yes | **present** | none | all enabled | 0 |
+| 1280×800 fine | 1132 | yes | present | none | all enabled | 0 |
+| 1512×860 fine | 1364 | yes | present | none | all enabled | 0 |
+
+Accessible names preserved where the control shows: `Zoom in`, `Zoom out`.
+
+### Resize across the threshold, one page, no reload
+
+| step | viewport | map width | zoom control |
 | --- | --- | --- | --- |
-| 375×667 | fine | yes | **Nikkaluokta** |
-| 375×667 | touch | **no** | none |
-| 390×844 | touch | **no** | none |
-| 1280×800 | fine | yes | none |
-| 1512×860 | fine | yes | none |
+| 1 | 1280×800 | 1132 | present |
+| 2 | 700×800 | 560 | **removed** |
+| 3 | 1280×800 | 1132 | **re-added** |
+| 4 | 560×800 | 560 | removed |
+| 5 | 900×800 | 816 | re-added |
 
-The zoom control is added only for `(hover: hover) and (pointer: fine)`, so it
-does not exist on the phones this PR is about, and the two desktop shapes are
-clear. The control stays fully visible and usable — marker labels are
-`pointer-events: none`. Cause: the east clearance narrowed from 70 px to 48 px,
-which is the intended rebalance. Fixing it by restoring a right inset would
-undo exactly what this PR does; if it matters, the cheaper lever is the
-control-polish PR (PR 3).
+Both directions, repeatedly. The gate is evaluated on the map's own `resize`
+event against `containerRef.clientWidth` — the **container**, not the window,
+so a rail or split view is handled correctly.
+
+### The composition is untouched
+
+Every framing number is identical with and without the gate — 375×667 still
+48 / 48, Δ 0.0, zoom 7.9838. The gate adds no padding, moves no camera, and
+changes no route centring. Hiding the buttons removes a redundancy, not a
+capability: `scrollZoom`, `keyboard`, `doubleClickZoom` and `touchZoomRotate`
+all remain enabled (only rotation is disabled, for the north-up policy).
