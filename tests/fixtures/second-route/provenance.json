@@ -1,0 +1,54 @@
+{
+  "fixture": "delft-pilot.gpx",
+  "purpose": "TEST-ONLY second-route fixture for the vNext multi-trail architecture probe. Never bundled, never loaded at runtime, never a product trail.",
+  "productionTrail": false,
+  "sha256": "e1d41fb2f4397718c4e30e4c9195b3b7a022eaa087564afe68bd6df42df345c3",
+  "origin": {
+    "kind": "restored-from-this-repository-history",
+    "path": "public/gpx/delft-pilot.gpx",
+    "blob": "f989da6e1ca2ed73e2f88c9e12920b19dc4eb6b7",
+    "restoreCommand": "git show 4ada992^:public/gpx/delft-pilot.gpx",
+    "addedBy": "5f35f7b (Create delft-pilot.gpx)",
+    "finalStateBefore": "4ada992 (Beta readiness … remove Delft pilot (0.7.0))",
+    "relatedCommits": [
+      "3403d54 Add temporary feature-flagged Delft pilot mode for Map-tab field testing (0.5.0)",
+      "6271b57 Update delft-pilot.gpx",
+      "e8b07be Sync Delft pilot stage to the updated walkable route (0.5.1)",
+      "056817a Normalize Delft pilot GPX and generate its route data"
+    ]
+  },
+  "geometryProvenance": {
+    "authored": "gpx.studio, drawn with the WALKING ROUTING profile (docs/delft-pilot-test.md §1.1 at commit 4ada992^)",
+    "realWorld": true,
+    "evidence": [
+      "gpx creator attribute is https://gpx.studio",
+      "track points carry real OSM way tags routed onto them: <highway>residential</highway>, <surface>paving_stones</surface>",
+      "the route was physically field-walked on 2026-07-07; results recorded in docs/pilot-results/delft-2026-07-07-summary.md at that commit"
+    ],
+    "invented": false,
+    "note": "No coordinate in this file was created by the probe. The geometry follows real OSM-mapped pavements in Delft, Netherlands."
+  },
+  "shape": {
+    "trackSegments": 2,
+    "trackPoints": 162,
+    "waypoints": 2,
+    "waypointIds": ["START_DELFT", "END_DELFT"],
+    "elevation": "present but flat (<ele>0</ele> on every track point)"
+  },
+  "probeDerivation": {
+    "what": "tests/helpers/secondRouteFixture.mjs derives a 4-segment / 4-waypoint GPX IN MEMORY, splitting the single stage polyline into three stages at existing track-point indices.",
+    "whyNotInventedGeometry": "Every lat/lon stays byte-equal to this file; the two added waypoints sit exactly on existing track points. Only the segment/waypoint framing is derived, because the historical pilot was single-stage and cannot exercise stage ordering, multi-leg days or reversal.",
+    "fileOnDiskRewritten": false
+  },
+  "whyThisRoute": [
+    "different latitude: ~52.0°N vs Kungsleden's ~68°N",
+    "different scale: ~2 km vs ~105 km",
+    "different bounds and aspect: near-square vs strongly north-south",
+    "different waypoints: no STF hut model behind the endpoints",
+    "different segment split: 3 derived stages vs 7 canonical stages",
+    "flat: no meaningful ascent/descent, unlike an alpine route"
+  ],
+  "whyNotAProductTrail": "A ~2 km urban walk is not a multi-day hike and is not a candidate for the product. It is used only as a deliberately DIFFERENT real dataset to falsify architecture claims. Fjällkompis remains a single-trail product with Kungsleden as its only visible trail.",
+  "licensing": "Produced inside this project for its own field test and previously committed to this repository under the project's own terms; reused here unchanged as a test fixture. Underlying road/path geometry derives from OpenStreetMap data via gpx.studio's routing (OSM contributors, ODbL) — consistent with the attribution the app already carries for its map data.",
+  "cleanup": "Delete tests/fixtures/second-route/, tests/helpers/secondRouteFixture.mjs and tests/architecture/. Nothing else references them."
+}
