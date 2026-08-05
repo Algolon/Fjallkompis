@@ -13,15 +13,15 @@
  * source, licence and link is still here — only the grouping changed.
  */
 import { useEffect, useRef } from 'react';
+// App-scoped credits stay with the attribution registry; the trail dossier's
+// own sources and publication identity come from the trail content boundary.
+import { APP_DATA_SOURCES, SOFTWARE_CREDITS, REPOSITORY_URL } from '../data/attribution';
+import type { DataSourceAttribution } from '../data/attribution';
 import {
-  APP_DATA_SOURCES,
-  SOFTWARE_CREDITS,
   TRAIL_DATA_SOURCES,
   TRIP_INFO_SOURCES,
-  REPOSITORY_URL,
-} from '../data/attribution';
-import type { DataSourceAttribution } from '../data/attribution';
-import { trailDossierView } from '../data/trailMetadata.mjs';
+  trailDossierView,
+} from '../trail/activeTrailContent';
 import { APP_VERSION } from '../constants';
 import { formatVerifiedDate } from '../utils/format';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';

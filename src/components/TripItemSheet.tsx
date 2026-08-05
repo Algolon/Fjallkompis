@@ -36,14 +36,15 @@ import {
   WALLET_FILE_ACCEPT,
   validateWalletFile,
 } from '../wallet/walletModel.mjs';
-import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
 import {
+  STOPS_BY_ID,
+  TRANSPORT_ENTRIES,
   curatedOffRoutePlaces,
   journeyPlaceById,
   placeDisplayName,
   placeStayPrefill,
-} from '../data/journeyPlaces.mjs';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
+  stopShortName,
+} from '../trail/activeTrailContent';
 import { useStore } from '../store/AppStore';
 import { formatBytes } from '../map/offlineMap';
 import { ConfirmDialog } from './ConfirmDialog';

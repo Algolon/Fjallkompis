@@ -11,8 +11,12 @@ import {
 import { useStore } from '../store/AppStore';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
-import { STAGES_BY_ID, STAGE_TOPOLOGY } from '../data/stages';
+import {
+  STAGES_BY_ID,
+  STAGE_TOPOLOGY,
+  STOPS_BY_ID,
+  stopShortName,
+} from '../trail/activeTrailContent';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { formatDistanceKm } from '../utils/format';
 import { isReversed } from '../route/direction.mjs';

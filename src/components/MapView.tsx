@@ -24,7 +24,7 @@ import maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ROUTE } from '../route/routeData';
+import { ROUTE } from '../trail/activeTrailContent';
 import {
   isEndpointWaypoint,
   markerAriaLabel,

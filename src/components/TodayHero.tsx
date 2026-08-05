@@ -14,7 +14,7 @@ import {
   Waves,
   Wind,
 } from 'lucide-react';
-import type { StageHighlightIcon } from '../data/stageHighlights.mjs';
+import type { StageHighlightIcon } from '../trail/activeTrailContent';
 import type { ElevationSample } from '../route/types';
 
 /**

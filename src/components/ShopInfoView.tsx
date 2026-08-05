@@ -13,7 +13,7 @@ import {
   STF_LARGE_PRICELIST_URL,
   STF_SMALL_PRICELIST_URL,
   STF_SHOP_OVERVIEW_SOURCE,
-} from '../data/shops.mjs';
+} from '../trail/activeTrailContent';
 import { formatVerifiedDate } from '../utils/format';
 import type { AssortmentProduct, ProductListing, ShopCategory, ShopSize } from '../types';
 

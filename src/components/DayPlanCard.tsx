@@ -6,7 +6,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { downloadJson } from '../utils/exportImport';
 import { DayPlanDaySheet } from './DayPlanDaySheet';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
+import { STAGE_TOPOLOGY, STOPS_BY_ID, stopShortName } from '../trail/activeTrailContent';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { DAY_ACTIVITY_LABELS, hikingLegsOf, newDayLegCandidates } from '../plan/dayPlan.mjs';
 import type { NewDayLegCandidate, NewDayStartLeg } from '../plan/dayPlan.mjs';
@@ -17,7 +17,6 @@ import {
   hasCoverageDifferences,
 } from '../plan/coverageDiagnostics.mjs';
 import { orientedLegEndpoints } from '../plan/hikingLegs.mjs';
-import { STAGE_TOPOLOGY } from '../data/stages';
 import { hikingLead, travelPresentation } from '../plan/dayPresentation.mjs';
 import type { PlannedDay, ResolvedOvernight } from '../plan/plannedDays.mjs';
 import type { DayActivityKind, TripItem } from '../types';
