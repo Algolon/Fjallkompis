@@ -11,21 +11,67 @@
  * the app from ever presenting static data as live or guaranteed.
  *
  * Scope is deliberately limited to services relevant to THIS route
- * (Kiruna ↔ Abisko, the two optional boats, Nikkaluokta → Kiruna) — not STF's
+ * (Kiruna ↔ Abisko, the two optional boats, Kiruna ↔ Nikkaluokta) — not STF's
  * full mountain transport guide. All times/prices are transcribed from the
  * official 2026 sources cited on each entry; nothing is invented.
+ *
+ * BOTH OPERATOR DIRECTIONS ARE STORED SEPARATELY. The route is walked in two
+ * directions, so the trailhead buses are needed both ways, and a return run is
+ * NOT the outward run read backwards: line 91 calls Abisko Turiststation
+ * BEFORE Abisko Östra on the way to Kiruna and after it on the way out, only
+ * the daily northbound-return run stops at the airport, and the two operators'
+ * boarding/drop-off rules invert. Every schedule below is therefore
+ * transcribed from the table for that one real operator direction, and
+ * `directions` says which WALKING direction(s) the service belongs to. Nothing
+ * here is derived by reversing an array.
  */
+import {
+  DEFAULT_DIRECTION,
+  REVERSE_DIRECTION,
+  ROUTE_DIRECTIONS,
+  isRouteDirection,
+  normalizeDirection,
+} from '../route/direction.mjs';
+
+/** Shorthand for a service that means the same thing whichever way you walk. */
+const BOTH_DIRECTIONS = ROUTE_DIRECTIONS;
 
 export const TRANSPORT_FACTS_VERIFIED_ON = '2026-07-12';
+
+/**
+ * The date the two BUS timetables (Länstrafiken line 91 and
+ * Nikkaluoktaexpressen) were re-read in full — both operator directions — to
+ * add the return services below.
+ *
+ * The dataset-wide date above is deliberately NOT bumped to this one: the two
+ * boats and the live train reference were not re-read on that pass, and a
+ * single moved constant would have claimed they were.
+ */
+export const BUS_TIMETABLES_REVERIFIED_ON = '2026-08-05';
 
 /** Line 91 Saturdays where the normal Saturday service is replaced. */
 export const SPECIAL_LINE91_SATURDAYS = ['2026-08-22', '2026-08-29', '2026-09-05'];
 
+/**
+ * The four journey contexts, in reading order.
+ *
+ * `title` is what the section IS and never moves. `blurb` names the actual
+ * endpoints, so for the two trailhead sections it depends on which way the
+ * hiker walks — `blurbByDirection` carries the per-direction wording and the
+ * plain `blurb` is the honest text for when no direction is known, never a
+ * silent stand-in for one of them. Together with each card's own
+ * "operator — A → B" title, this is how the active walking direction stays
+ * readable off the section labels alone.
+ */
 export const TRANSPORT_SECTIONS = [
   {
     id: 'to-trail',
     title: 'Getting to the trail',
-    blurb: 'Kiruna to the Abisko trailhead.',
+    blurb: 'Kiruna to either trailhead — Abisko or Nikkaluokta.',
+    blurbByDirection: {
+      'abisko-to-nikkaluokta': 'Kiruna to the Abisko trailhead.',
+      'nikkaluokta-to-abisko': 'Kiruna to the Nikkaluokta trailhead.',
+    },
   },
   {
     id: 'along-trail',
@@ -35,7 +81,11 @@ export const TRANSPORT_SECTIONS = [
   {
     id: 'from-trail',
     title: 'Leaving the trail',
-    blurb: 'Nikkaluokta back to Kiruna.',
+    blurb: 'Either trailhead back to Kiruna — Nikkaluokta or Abisko.',
+    blurbByDirection: {
+      'abisko-to-nikkaluokta': 'Nikkaluokta back to Kiruna.',
+      'nikkaluokta-to-abisko': 'Abisko back to Kiruna.',
+    },
   },
   {
     id: 'live-alternative',
@@ -55,6 +105,9 @@ export const TRANSPORT_ENTRIES = [
   {
     id: 'line-91',
     context: 'to-trail',
+    // Only a hiker walking Abisko → Nikkaluokta travels TO Abisko. Someone
+    // walking the other way finishes there and needs 'line-91-return'.
+    directions: [DEFAULT_DIRECTION],
     mode: 'bus',
     operator: 'Länstrafiken Norrbotten',
     title: 'Bus line 91 — Kiruna → Abisko',
@@ -141,11 +194,88 @@ export const TRANSPORT_ENTRIES = [
       warning: 'Timetable is a static snapshot — check the official source before travelling.',
     },
   },
+  {
+    id: 'nikkaluoktaexpressen-outbound',
+    context: 'to-trail',
+    // The mirror of 'line-91': the way OUT to the southern trailhead, which is
+    // where a Nikkaluokta → Abisko hiker starts walking.
+    directions: [REVERSE_DIRECTION],
+    mode: 'bus',
+    operator: 'Nikkaluoktaexpressen',
+    title: 'Nikkaluoktaexpressen — Kiruna → Nikkaluokta',
+    direction: 'Kiruna → Nikkaluokta',
+    summary:
+      'The bus out to the southern trailhead. Daily, with a morning and an afternoon departure.',
+    validFrom: '2026-08-10',
+    validTo: '2026-09-20',
+    validityText: '10 August – 20 September 2026',
+    operatingDays: 'Daily (Monday–Sunday)',
+    schedules: [
+      {
+        id: 'morning',
+        label: 'Morning departure',
+        calls: [
+          call('Kiruna Norrmalm', '10:00'),
+          call('Kiruna railway station', '10:10', 'boarding only'),
+          call('Kiruna Stadshustorget', '10:20', 'boarding only'),
+          call('Kiruna Airport', '10:30', 'boarding only'),
+          call('Nikkaluokta Fjällanläggning', '11:30'),
+        ],
+      },
+      {
+        id: 'afternoon',
+        label: 'Afternoon departure',
+        calls: [
+          call('Kiruna Airport', '14:55'),
+          call('Kiruna Stadshustorget', '15:05', 'boarding only'),
+          call('Kiruna Norrmalm', '15:15', 'boarding only'),
+          call('Kiruna railway station', '15:25', 'boarding only'),
+          call('Nikkaluokta Fjällanläggning', '16:30'),
+        ],
+      },
+    ],
+    booking: 'Book online in advance for the normal price.',
+    bookingDeadline:
+      'Online booking closes one hour before the bus leaves its first Kiruna stop.',
+    paymentMethods: 'Onboard by card or SEK cash (surcharge applies)',
+    connections: [
+      'Operator note: the 10:10 departure from Kiruna railway station waits for a late night train until 10:20 if needed.',
+      'Operator note: the 10:30 departure from Kiruna Airport waits for flights scheduled to land by 10:00 — until 10:40 for pre-booked passengers.',
+      'Operator note: the 14:55 departure from Kiruna Airport waits for flights scheduled to land by 14:05 — until 15:05 for pre-booked passengers.',
+      'Operator note: the 15:25 departure from Kiruna railway station waits for a late train until 15:35 if needed.',
+      'These are operator connection notes, not unconditional guarantees.',
+    ],
+    warnings: [
+      'Tickets bought onboard cost the normal price plus SEK 200 per person.',
+      '“Boarding only” stops let passengers on but not off.',
+    ],
+    contact: ['Traffic information: +46 980 813 11'],
+    extraLinks: [
+      { label: 'Timetable (nikkaluoktaexpressen.se)', url: 'https://nikkaluoktaexpressen.se/tidtabell' },
+      { label: 'Operator (English)', url: 'https://nikkaluoktaexpressen.se/?lang=en' },
+    ],
+    source: {
+      title: 'Nikkaluoktaexpressen — timetable (10 Aug – 20 Sep 2026)',
+      url: 'https://savea.objects.dc-fbg1.glesys.net/61bf9c13daa83d2a37d6609a85ae57f0f2e6cbb1.pdf',
+      publisher: 'Nikkaluoktaexpressen',
+      sourceYear: 2026,
+      validFrom: '2026-08-10',
+      validTo: '2026-09-20',
+      lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+      kind: 'static',
+      warning: 'Timetable is a static snapshot — check the official source before travelling.',
+    },
+  },
 
   // ===================== B. BOATS ALONG THE ROUTE =====================
   {
     id: 'alesjaure-boat',
     context: 'along-trail',
+    // Bidirectional with the SAME source and the same times: the operator
+    // publishes one timetable with a sailing FROM the cabin and a sailing FROM
+    // the jetty, and both schedules below are already that source verbatim. A
+    // hiker uses whichever leg matches their day, either way round.
+    directions: BOTH_DIRECTIONS,
     mode: 'boat',
     operator: 'Roland Enoksson',
     title: 'Alesjaure – Abiskojaure boat (optional)',
@@ -196,6 +326,10 @@ export const TRANSPORT_ENTRIES = [
   {
     id: 'laddjujavri-boat',
     context: 'along-trail',
+    // Bidirectional with the same source: the two schedules below ARE the
+    // operator's two crossing directions (lower bridge → Kebnekaise and upper
+    // bridge → Nikkaluokta), each with its own published times.
+    directions: BOTH_DIRECTIONS,
     mode: 'boat',
     operator: 'Enoks – Láddjujávri',
     title: 'Láddjujávri boat (Kebnekaise ⇄ Nikkaluokta)',
@@ -266,6 +400,8 @@ export const TRANSPORT_ENTRIES = [
   {
     id: 'nikkaluoktaexpressen',
     context: 'from-trail',
+    // Only a hiker walking Abisko → Nikkaluokta finishes at Nikkaluokta.
+    directions: [DEFAULT_DIRECTION],
     mode: 'bus',
     operator: 'Nikkaluoktaexpressen',
     title: 'Nikkaluoktaexpressen — Nikkaluokta → Kiruna',
@@ -329,14 +465,124 @@ export const TRANSPORT_ENTRIES = [
       warning: 'Timetable is a static snapshot — check the official source before travelling.',
     },
   },
+  {
+    id: 'line-91-return',
+    context: 'from-trail',
+    // The mirror of 'line-91': the way back from the northern trailhead, which
+    // is where a Nikkaluokta → Abisko hiker finishes walking.
+    directions: [REVERSE_DIRECTION],
+    mode: 'bus',
+    operator: 'Länstrafiken Norrbotten',
+    title: 'Bus line 91 — Abisko → Kiruna',
+    direction: 'Abisko Turiststation → Kiruna',
+    summary:
+      'The reliable fixed-timetable way back from the northern trailhead. Line 91 uses a special mountain fare — buy from the operator; no fixed fare is stored here.',
+    validFrom: '2026-08-17',
+    validTo: '2026-09-20',
+    validityText: '17 August – 20 September 2026',
+    operatingDays: 'Daily, with different afternoon runs by weekday',
+    // Transcribed from the Riksgränsen → Kiruna half of the same PDF, which is
+    // NOT the outward table read upwards: Abisko Turist is called BEFORE
+    // Abisko Östra here, Rensjön is a timed call in this direction only, and
+    // just the daily late-morning run touches the airport.
+    schedules: [
+      {
+        id: 'morning',
+        label: 'Daily — late morning',
+        dayRule: 'Every day',
+        calls: [
+          call('Abisko Turist E10', '11:20'),
+          call('Abisko Östra', '11:25'),
+          call('Rensjön E10', '12:10'),
+          call('Kiruna Airport', '12:40', 'drop-off only'),
+          call('Kiruna Stadshustorget', '12:50', 'drop-off only'),
+          call('Kiruna Sjukhus', '12:55'),
+        ],
+      },
+      {
+        id: 'weekday-afternoon',
+        label: 'Mon–Fri — afternoon',
+        dayRule: 'Monday to Friday',
+        calls: [
+          call('Abisko Turist E10', '17:50'),
+          call('Abisko Östra', '17:55'),
+          call('Rensjön E10', '18:35'),
+          call('Kiruna Stadshustorget', '19:05', 'drop-off only'),
+          call('Kiruna Sjukhus', '19:10'),
+        ],
+      },
+      {
+        id: 'sunday-afternoon',
+        label: 'Sun & public holidays — afternoon',
+        dayRule: 'Sundays and public holidays',
+        calls: [
+          call('Abisko Turist E10', '17:50'),
+          call('Abisko Östra', '17:55'),
+          call('Rensjön E10', '18:35'),
+          call('Kiruna Stadshustorget', '19:05', 'drop-off only'),
+          call('Kiruna Sjukhus', '19:10'),
+        ],
+      },
+      {
+        id: 'saturday-afternoon',
+        label: 'Saturday — afternoon',
+        dayRule: 'Normal Saturdays',
+        exception: 'Does not run on 22 Aug, 29 Aug or 5 Sep 2026 (see the special service).',
+        notDates: SPECIAL_LINE91_SATURDAYS,
+        calls: [
+          call('Abisko Turist E10', '17:40'),
+          call('Abisko Östra', '17:45'),
+          call('Rensjön E10', '18:25'),
+          call('Kiruna Stadshustorget', '18:55', 'drop-off only'),
+          call('Kiruna Sjukhus', '19:00'),
+        ],
+      },
+      {
+        id: 'special-saturday',
+        label: 'Special Saturdays — 22 & 29 Aug, 5 Sep',
+        dayRule: 'These three Saturdays only',
+        exception: 'Replaces the normal Saturday afternoon service on these dates.',
+        onlyDates: SPECIAL_LINE91_SATURDAYS,
+        calls: [
+          call('Abisko Turist E10', '18:40'),
+          call('Abisko Östra', '18:45'),
+          call('Rensjön E10', '19:25'),
+          call('Kiruna Stadshustorget', '19:55', 'drop-off only'),
+          call('Kiruna Sjukhus', '20:00'),
+        ],
+      },
+    ],
+    warnings: [
+      'Special mountain fare — buy from the operator. No fixed fare is stored here.',
+      '“Drop-off only” stops let passengers off but not on.',
+    ],
+    source: {
+      title: 'Länstrafiken — Fjällinje 91/94 (17 Aug – 20 Sep 2026)',
+      url: 'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260817_260920/Fjallinje91o94_91_260817_260920.pdf',
+      publisher: 'Länstrafiken Norrbotten',
+      sourceYear: 2026,
+      validFrom: '2026-08-17',
+      validTo: '2026-09-20',
+      lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+      kind: 'static',
+      warning: 'Timetable is a static snapshot — check the official source before travelling.',
+    },
+  },
 
   // ===================== D. LIVE ALTERNATIVES / VERIFICATION =====================
+  // The train is the live alternative to line 91 on the Kiruna ⇄ Abisko leg,
+  // and it is genuinely useful both ways round. It is stored as two records
+  // for the same reason the buses are: one record, one real travelling
+  // direction — so the endpoints a hiker reads (and the ones "Add to Trip"
+  // copies) are the endpoints of the journey they are actually making. Neither
+  // record stores times; both point at the same live planner.
   {
     id: 'train-kiruna-abisko',
     context: 'live-alternative',
+    directions: [DEFAULT_DIRECTION],
     mode: 'train',
     operator: 'SJ',
-    title: 'Train — Kiruna ⇄ Abisko',
+    title: 'Train — Kiruna → Abisko',
     direction: 'Kiruna railway station → Abisko Östra / Abisko Turiststation',
     summary:
       'A live-planner alternative for reaching Abisko. Unlike the bus, no fixed times are stored — check SJ for your actual travel date and current disruptions.',
@@ -353,6 +599,36 @@ export const TRANSPORT_ENTRIES = [
       title: 'SJ — journey planner & traffic information',
       url: 'https://www.sj.se/en',
       publisher: 'SJ AB',
+      lastVerified: TRANSPORT_FACTS_VERIFIED_ON,
+      kind: 'live',
+      warning: 'Live service — times and disruptions must be checked for the actual travel date.',
+    },
+  },
+  {
+    id: 'train-abisko-kiruna',
+    context: 'live-alternative',
+    directions: [REVERSE_DIRECTION],
+    mode: 'train',
+    operator: 'SJ',
+    title: 'Train — Abisko → Kiruna',
+    direction: 'Abisko Turiststation / Abisko Östra → Kiruna railway station',
+    summary:
+      'A live-planner alternative for leaving from Abisko. Unlike the bus, no fixed times are stored — check SJ for your actual travel date and current disruptions.',
+    live: true,
+    warnings: [
+      'Times and disruption status change by date — always check SJ for your actual travel date.',
+      'No fixed train timetable is stored in the app; this is a live alternative to the bus, not a saved schedule.',
+    ],
+    extraLinks: [
+      { label: 'Plan a journey (sj.se)', url: 'https://www.sj.se/en' },
+      { label: 'Traffic information (sj.se)', url: 'https://www.sj.se/en/traffic-information' },
+    ],
+    source: {
+      title: 'SJ — journey planner & traffic information',
+      url: 'https://www.sj.se/en',
+      publisher: 'SJ AB',
+      // The planner reference itself was not re-read on the bus pass, so it
+      // keeps the date on which it WAS checked.
       lastVerified: TRANSPORT_FACTS_VERIFIED_ON,
       kind: 'live',
       warning: 'Live service — times and disruptions must be checked for the actual travel date.',
@@ -391,6 +667,62 @@ export function entriesForContext(context) {
   return TRANSPORT_ENTRIES.filter((e) => e.context === context);
 }
 
+// --- Direction-aware assembly (pure, testable) -------------------------------
+
+/**
+ * The transport reference as one WALKING direction needs to read it.
+ *
+ * This is the single place where a personal walking direction meets the
+ * reference dataset. It selects whole entries — it never rewrites, mirrors or
+ * reverses one — so "Getting to the trail" always contains a real service that
+ * really runs towards the trailhead the hiker starts from.
+ *
+ * `direction` is deliberately NOT normalised here. An unrecognised value means
+ * "no direction is known", and the honest answer to that is every service
+ * under the endpoint-naming blurbs, not a guess at one of the two — guessing
+ * would present the wrong half of the reference as personal advice. (The app
+ * itself never reaches that branch: `state.routeDirection` is always one of
+ * the two, resolved by the central normalisation in src/route/direction.mjs
+ * when persisted state is loaded.) Nothing is ever dropped silently: an entry
+ * is either in its section or the section it would sit in is empty.
+ *
+ * Returns the four contexts by name, plus a render-ready ordered `sections`
+ * list so presentation needs no direction logic of its own.
+ */
+export function transportSectionsFor(direction) {
+  const active = isRouteDirection(direction) ? direction : null;
+  const applies = (entry) => active === null || entry.directions.includes(active);
+  const forContext = (context) => entriesForContext(context).filter(applies);
+
+  const byContext = {
+    'to-trail': forContext('to-trail'),
+    'along-trail': forContext('along-trail'),
+    'from-trail': forContext('from-trail'),
+    'live-alternative': forContext('live-alternative'),
+  };
+
+  return {
+    /** The direction these sections describe, or null when none is known. */
+    direction: active,
+    toTrail: byContext['to-trail'],
+    alongTrail: byContext['along-trail'],
+    fromTrail: byContext['from-trail'],
+    liveAlternatives: byContext['live-alternative'],
+    sections: TRANSPORT_SECTIONS.map((section) => ({
+      id: section.id,
+      title: section.title,
+      blurb: sectionBlurb(section, active),
+      entries: byContext[section.id],
+    })).filter((section) => section.entries.length > 0),
+  };
+}
+
+/** A section's endpoint-naming blurb for a direction (null → the neutral one). */
+export function sectionBlurb(section, direction) {
+  if (direction === null || !section.blurbByDirection) return section.blurb;
+  return section.blurbByDirection[direction] ?? section.blurb;
+}
+
 /**
  * Explicit, small stop → transport mapping for the Stops → Transport deep link.
  * Kept next to the data so IDs are not scattered across components. Only stops
@@ -401,15 +733,44 @@ export function entriesForContext(context) {
  *    from curated `stop.facilities` (the two optional boats).
  * A `context` opens/focuses a whole section (Abisko → both line 91 and the
  * train are relevant); an `entryId` opens/focuses one entry.
+ *
+ * The two TRAILHEADS carry a target per walking direction, because which
+ * section a hiker wants from them depends on whether they start or finish
+ * there: Abisko is "Getting to the trail" walking south and "Leaving the
+ * trail" walking north, and Nikkaluokta's bus is a different real service each
+ * way. The two boats are on the route itself and mean the same thing either
+ * way, so they stay direction-neutral.
  */
 export const STOP_TRANSPORT_LINKS = {
-  abisko: { via: 'facility', context: 'to-trail', label: 'Getting to the trail' },
-  nikkaluokta: { via: 'facility', entryId: 'nikkaluoktaexpressen', label: 'Bus timetable' },
+  abisko: {
+    via: 'facility',
+    byDirection: {
+      'abisko-to-nikkaluokta': { context: 'to-trail', label: 'Getting to the trail' },
+      'nikkaluokta-to-abisko': { context: 'from-trail', label: 'Leaving the trail' },
+    },
+  },
+  nikkaluokta: {
+    via: 'facility',
+    byDirection: {
+      'abisko-to-nikkaluokta': { entryId: 'nikkaluoktaexpressen', label: 'Bus timetable' },
+      'nikkaluokta-to-abisko': { entryId: 'nikkaluoktaexpressen-outbound', label: 'Bus timetable' },
+    },
+  },
   alesjaure: { via: 'derived', entryId: 'alesjaure-boat', label: 'Boat timetable' },
   kebnekaise: { via: 'derived', entryId: 'laddjujavri-boat', label: 'Boat timetable' },
 };
 
-/** The transport deep-link mapping for a stop, or undefined when none applies. */
-export function transportLinkForStop(stopId) {
-  return STOP_TRANSPORT_LINKS[stopId];
+/**
+ * The resolved transport deep-link for a stop, or undefined when none applies.
+ *
+ * Unlike {@link transportSectionsFor}, this DOES normalise the direction: a
+ * navigation target has to be one place, so "show both" is not available to
+ * it. Normalising is the app's existing central behaviour for a direction that
+ * cannot be recognised (src/route/direction.mjs), and in practice the branch
+ * is unreachable — the caller reads the store, which always holds a valid one.
+ */
+export function transportLinkForStop(stopId, direction) {
+  const link = STOP_TRANSPORT_LINKS[stopId];
+  if (!link || !link.byDirection) return link;
+  return { via: link.via, ...link.byDirection[normalizeDirection(direction)] };
 }
