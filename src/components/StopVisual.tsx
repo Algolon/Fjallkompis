@@ -1,11 +1,19 @@
 /**
  * Visual header for an expanded stop card.
  *
- * If the stop has a local, licensed image (public/images/stops/…) it is shown
- * lazily at a fixed aspect ratio (no layout shift). Otherwise a generated
- * fallback is drawn from the app's own data: the full route's elevation
- * silhouette in the app palette, with a marker at the stop's position along
- * the route — offline by construction, nothing is fetched.
+ * No stop currently ships a photo (see data/stops.ts: we hold no redistribution
+ * right for third-party imagery), so every card draws the generated fallback:
+ * the full route's elevation silhouette in the app palette, with a marker at
+ * the stop's position along the route — our own data, no licence, nothing
+ * fetched. The fallback is decoration, not a photograph, and is exposed as
+ * such: the drawing is hidden from assistive technology and the one fact it
+ * carries stays real text in the tag below it. The card's heading and official
+ * name already name the stop; repeating it in an image label would announce
+ * the same stop three times.
+ *
+ * The image branch remains for a genuinely licensed photo added later under
+ * public/images/stops/ (see the README there) — shown lazily at a fixed aspect
+ * ratio, so adding one causes no layout shift.
  */
 import { useMemo } from 'react';
 import { MapPin } from 'lucide-react';
@@ -96,11 +104,7 @@ export function StopVisual({ stop }: { stop: TrailStop }) {
   const py = sil.elevationAtKm(routeKm);
 
   return (
-    <div
-      className="stop-visual stop-visual-fallback"
-      role="img"
-      aria-label={`${stopShortName(stop)} — position on the route's elevation silhouette, ${routeKm.toFixed(0)} km from ${startName}`}
-    >
+    <div className="stop-visual stop-visual-fallback">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
         <defs>
           <linearGradient id={`stop-sky-${stop.id}`} x1="0" y1="0" x2="0" y2="1">

@@ -262,17 +262,20 @@ test('the Today card verifies local availability and omits itself otherwise', ()
   assert.ok(!btn.slice(7).includes('<button'), 'single button, nothing nested');
 });
 
-test('the button is the owner-approved STF roundel, offline-safe, with a fallback', () => {
-  // The asset ships in the repo and resolves under the Pages base path.
-  assert.match(quickAccess, /import\.meta\.env\.BASE_URL\}images\/stf-logo\.png/);
-  assert.ok(existsSync(join(root, 'public/images/stf-logo.png')), 'logo asset committed');
-  // Decorative mark — the button itself carries the accessible name.
-  assert.match(quickAccess, /<img[\s\S]*?alt=""[\s\S]*?aria-hidden/);
-  assert.match(quickAccess, /aria-label="Open STF membership card"/);
-  // A failed image load falls back to the neutral boxed treatment (IdCard +
-  // STF monogram) — never an invisible touch target.
-  assert.match(quickAccess, /onError=\{\(\) => setLogoFailed\(true\)\}/);
-  assert.match(quickAccess, /logoFailed \?/);
+test('the button is app-owned iconography — the STF mark is not redistributed', () => {
+  // The logo asset is gone from the repo and from this component. We hold no
+  // licence to redistribute the STF mark, and wearing it would imply an
+  // official STF app.
+  assert.ok(!existsSync(join(root, 'public/images/stf-logo.png')), 'logo asset not committed');
+  assert.doesNotMatch(quickAccess, /stf-logo/);
+  assert.doesNotMatch(quickAccess, /<img/, 'no image element in the membership button');
+  // What remains is the neutral card: IdCard glyph + "STF" letters, both
+  // decorative, with the accessible name on the button itself.
   assert.match(quickAccess, /IdCard/);
   assert.match(quickAccess, />\s*STF\s*</);
+  assert.match(quickAccess, /aria-label="Open STF membership card"/);
+  assert.match(quickAccess, /className="stf-card__label" aria-hidden/);
+  // Naming STF in the label is a factual statement of whose card this is —
+  // that reference stays.
+  assert.match(quickAccess, /STF membership card/);
 });
