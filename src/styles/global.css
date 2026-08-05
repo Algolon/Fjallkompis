@@ -2776,7 +2776,11 @@ button.stop-fac:focus-visible {
   margin-top: 12px;
 }
 
-/* --- Stop visual (image or generated fallback) ------------------------------- */
+/* --- Stop visual (a licensed photograph, when one exists) --------------------
+   Only the photo treatment is styled. The generated elevation-silhouette
+   placeholder and its "N km from …" pill were removed with the drawing
+   itself; a stop with no photo renders no container at all, so there is no
+   empty 5:2 box to style. */
 
 .stop-visual {
   margin: 14px 0 0;
@@ -2792,11 +2796,6 @@ button.stop-fac:focus-visible {
   object-fit: cover;
   display: block;
 }
-.stop-visual > svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
 .stop-visual-credit {
   position: absolute;
   right: 6px;
@@ -2806,22 +2805,6 @@ button.stop-fac:focus-visible {
   background: rgba(27, 42, 39, 0.55);
   padding: 2px 6px;
   border-radius: 5px;
-}
-.stop-visual-tag {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--spruce-700);
-  background: rgba(246, 248, 243, 0.9);
-  border: 1px solid var(--line);
-  padding: 3px 8px;
-  border-radius: 999px;
 }
 
 /* --- Today: hero --------------------------------------------------------------- */
@@ -3775,26 +3758,30 @@ button.stop-fac:focus-visible {
   min-width: 0;
   margin-top: 0;
 }
-/* STF membership quick access: a neutral glass card carrying app-owned
-   iconography (IdCard glyph + "STF" letters). It is deliberately NOT the STF
-   mark — we hold no licence to redistribute that logo, and wearing it would
-   imply an official STF app. Affordances stay button-grade: ≥44px target,
-   the glass card's own lift, pressed scale, focus ring on its radius. */
+/* The STF quick access IS the roundel (the owner-supplied, owner-approved
+   asset): a circular button, no visible container. Affordances stay
+   button-grade — ≥44px target, lift shadow, pressed scale, circular focus
+   ring. */
 .stf-card {
-  width: 72px;
-  min-height: 64px;
+  width: 64px;
+  height: 64px;
   flex: 0 0 auto;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 8px;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 0;
-  border-radius: var(--r-md);
-  color: var(--spruce);
+  border-radius: 50%;
+  background: transparent;
   transition: transform 0.08s ease, filter 0.15s ease;
+}
+.stf-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  /* Same two-layer lift as the glass cards, so the badge reads tappable. */
+  box-shadow: var(--glass-shadow);
 }
 .stf-card:active {
   transform: scale(0.94);
@@ -3806,6 +3793,26 @@ button.stop-fac:focus-visible {
 }
 .stf-card:focus-visible {
   outline: 2px solid var(--glacier-700);
+  outline-offset: 3px;
+}
+
+/* Fallback treatment when the logo asset cannot load: the neutral boxed card
+   (IdCard glyph + STF monogram) — never an invisible target. */
+.stf-card--boxed {
+  width: 72px;
+  height: auto;
+  min-height: 64px;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px;
+  border-radius: var(--r-md);
+  color: var(--spruce);
+}
+.stf-card--boxed:focus-visible {
   outline-offset: 2px;
 }
 .stf-card__label {
@@ -3816,7 +3823,12 @@ button.stop-fac:focus-visible {
 }
 @media (max-width: 340px) {
   .stf-card {
+    width: 56px;
+    height: 56px;
+  }
+  .stf-card--boxed {
     width: 64px;
+    height: auto;
   }
   /* The metadata row is never hidden on narrow phones any more — the
      three-row card keeps facilities and elevation on their own full-width

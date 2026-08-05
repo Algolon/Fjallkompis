@@ -3,9 +3,17 @@
  *
  * Fjällkompis is a public repository that publishes a GitHub Pages build. It
  * once shipped eight stop photographs marked in code as "temporary placeholder
- * — do not redistribute" plus a committed STF logo. Nothing in the repository
- * ever established a redistribution right for any of them, so they were
- * removed rather than re-credited.
+ * — do not redistribute", plus a committed STF logo, plus evidence captures
+ * reproducing them. The photographs and the captures were withdrawn and stay
+ * withdrawn: nothing in the repository established a redistribution right, and
+ * a source URL is not a licence.
+ *
+ * The STF membership logo was then restored, deliberately and by itself: it is
+ * the recognisable face of the membership quick access, and the provenance on
+ * record is that the project owner supplied and approved that specific file.
+ * That is an owner decision, NOT a licence granted by STF, and it is scoped to
+ * this one asset — hence an allowlist of exactly one name rather than a
+ * relaxed rule about third-party imagery in general.
  *
  * These tests fence the thing that actually goes wrong: not "does a card look
  * right" but "does an unlicensed byte reach a user". That makes source paths
@@ -44,12 +52,19 @@ const REMOVED_STOP_PHOTOS = [
   'singi.webp',
   'tjaktja.webp',
 ];
-const REMOVED_LOGO = 'stf-logo.png';
+
+/**
+ * The single restored asset, and the single source file allowed to name it.
+ * This list is the whole exception: adding a second entry is a deliberate
+ * rights decision, not a refactor.
+ */
+const RESTORED_LOGO = 'images/stf-logo.png';
+const RESTORED_LOGO_NAME = 'stf-logo.png';
+const LOGO_REFERENCE_ALLOWED_IN = 'src/components/MembershipQuickAccess.tsx';
 
 /** Strings that only ever appeared alongside the unlicensed assets. */
 const FORBIDDEN_STRINGS = [
   'stops-placeholder',
-  'stf-logo',
   'temporary placeholder',
   'do not redistribute',
 ];
@@ -74,39 +89,76 @@ test('the placeholder photo directory is not in the build input', () => {
   );
 });
 
-test('no removed asset survives anywhere under public/', () => {
+test('no withdrawn stop photo survives anywhere under public/', () => {
   const published = walk(join(root, 'public')).map((f) => relative(root, f));
-  for (const name of [...REMOVED_STOP_PHOTOS, REMOVED_LOGO]) {
+  for (const name of REMOVED_STOP_PHOTOS) {
     const hits = published.filter((f) => f.endsWith(`/${name}`));
     assert.deepEqual(hits, [], `${name} must not be published`);
   }
 });
 
-test('production source references none of the removed assets', () => {
+test('the STF logo is published exactly once, and it is a real PNG', () => {
+  const published = walk(join(root, 'public')).map((f) => relative(root, f));
+  const hits = published.filter((f) => f.endsWith(`/${RESTORED_LOGO_NAME}`));
+  assert.deepEqual(hits, [`public/${RESTORED_LOGO}`], 'one copy, at the historical path');
+  // A truncated or placeholder file would still satisfy "exists", so check the
+  // bytes: PNG signature, an IHDR header, and a non-trivial payload.
+  const bytes = readFileSync(join(root, 'public', RESTORED_LOGO));
+  assert.ok(bytes.length > 1024, 'the asset is not an empty or stub file');
+  assert.ok(
+    bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    'valid PNG signature',
+  );
+  assert.equal(bytes.subarray(12, 16).toString('ascii'), 'IHDR');
+});
+
+test('the STF logo is the ONLY third-party raster under public/', () => {
+  // public/ is copied verbatim into dist/, so this is the distribution list.
+  // Everything here must be ours (icons, generated art) or the one allowed
+  // exception — a second brand asset has to be argued for, not slipped in.
+  const rasters = walk(join(root, 'public'))
+    .map((f) => relative(root, f))
+    .filter((f) => /\.(png|jpe?g|webp|gif|avif)$/i.test(f))
+    .sort();
+  const thirdParty = rasters.filter((f) => !f.startsWith('public/icons/'));
+  assert.deepEqual(thirdParty, [`public/${RESTORED_LOGO}`]);
+});
+
+test('production source references no withdrawn asset, and the logo only once', () => {
   const sources = walk(join(root, 'src')).filter((f) => /\.(ts|tsx|mjs|css)$/.test(f));
   assert.ok(sources.length > 50, 'the sweep actually walked the source tree');
+  const logoReferences = [];
   for (const file of sources) {
     const text = readFileSync(file, 'utf8');
+    const rel = relative(root, file);
     for (const needle of FORBIDDEN_STRINGS) {
-      assert.ok(
-        !text.toLowerCase().includes(needle),
-        `${relative(root, file)} still references "${needle}"`,
-      );
+      assert.ok(!text.toLowerCase().includes(needle), `${rel} still references "${needle}"`);
     }
     for (const name of REMOVED_STOP_PHOTOS) {
-      assert.ok(!text.includes(name), `${relative(root, file)} still references ${name}`);
+      assert.ok(!text.includes(name), `${rel} still references ${name}`);
     }
+    if (text.includes('stf-logo')) logoReferences.push(rel);
   }
+  // One asset, one consumer: the membership button. Nothing else in the app
+  // gets to start wearing the mark by copying a path.
+  assert.deepEqual(logoReferences, [LOGO_REFERENCE_ALLOWED_IN]);
 });
 
 test('the build and precache contracts do not name a removed asset', () => {
   // includeAssets is the explicit precache list; globPatterns is the sweep.
   // Neither may name a withdrawn file. The webp pattern itself stays: it is
   // the documented route for a genuinely licensed photo added later.
-  for (const needle of [...FORBIDDEN_STRINGS, REMOVED_LOGO]) {
+  for (const needle of [...FORBIDDEN_STRINGS, ...REMOVED_STOP_PHOTOS]) {
     assert.ok(!viteConfig.includes(needle), `vite.config.ts still names "${needle}"`);
   }
   assert.match(viteConfig, /globPatterns:/, 'the precache sweep is still configured');
+  // The logo is precached by the png glob alone. Naming it in includeAssets
+  // too would emit a second, duplicate precache entry for the same URL.
+  assert.ok(
+    !viteConfig.includes(RESTORED_LOGO_NAME),
+    'the logo rides the glob sweep — it must not also be listed explicitly',
+  );
+  assert.match(viteConfig, /globPatterns: \[[^\]]*png/, 'png is in the sweep, so the logo is cached');
 });
 
 // ---- Stop records are valid, and unchanged, without imagery ----------------
@@ -143,50 +195,67 @@ test('all eight stops still carry their facts, sources and identity', () => {
   assert.ok(stopsSrc.includes('bedCapacity:'));
 });
 
-// ---- The fallback is app-owned, offline and decorative ---------------------
+// ---- No photo means no visual at all — not a stand-in for one --------------
 
-test('the fallback fetches nothing — it is drawn from our own route data', () => {
-  const fallback = stopVisual.slice(stopVisual.indexOf('if (!sil) return null'));
-  assert.doesNotMatch(fallback, /https?:\/\//, 'no external URL in the fallback');
-  assert.doesNotMatch(fallback, /<img/, 'the fallback is not an image request');
-  // url(#…) is an in-document SVG paint reference (our own gradients) and
-  // fetches nothing; any other url() would be a request.
-  assert.doesNotMatch(fallback, /url\((?!#)/, 'no fetched asset either');
-  assert.match(fallback, /<svg /, 'an inline SVG, generated from the elevation profile');
+/**
+ * The elevation-silhouette placeholder is gone. It was a drawing of the whole
+ * route repeated on all eight cards with the dot moved, captioned "N km from
+ * …" — filler where a photo used to be, above a card that already states the
+ * stop's facts. Withdrawing the photos made it the only thing left, which is
+ * what made it read as decoration rather than information.
+ *
+ * What is pinned here is the RULE, not a layout: a stop with no licensed photo
+ * renders no visual header, and nothing may quietly grow back into that slot.
+ */
+test('a stop without a photo renders no visual header at all', () => {
+  assert.match(stopVisual, /if \(!stop\.image\) return null/, 'no photo, no element');
+  // Nothing is drawn in its place. Asserted on CODE, not on prose: the file
+  // comment still explains why the placeholder went, and should.
+  const code = stopVisual.slice(stopVisual.indexOf('import '));
+  assert.doesNotMatch(code, /<svg/, 'no generated drawing');
+  assert.doesNotMatch(code, /stop-visual-tag/, 'no "N km from …" pill');
+  assert.doesNotMatch(code, /MapPin/, 'no pin glyph');
+  // The component no longer reaches for route state at all.
+  assert.doesNotMatch(code, /overviewElevationProfile|stopDistanceKm/, 'no profile plumbing');
+  assert.doesNotMatch(code, /useStore|useMemo/, 'no store or memo work left');
 });
 
-test('the fallback is decoration: hidden from AT, and it never renames the stop', () => {
-  const fallback = stopVisual.slice(stopVisual.indexOf('if (!sil) return null'));
-  // The drawing itself is hidden…
-  assert.match(fallback, /<svg[^>]*aria-hidden/);
-  // …and it is not re-exposed as an image with a label. The card heading and
-  // the official-name paragraph already announce the stop; a role="img" label
-  // would make that three times.
-  assert.doesNotMatch(fallback, /role="img"/);
-  assert.doesNotMatch(fallback, /aria-label=/);
-  // No empty alt text left behind to be announced as content.
-  assert.doesNotMatch(fallback, /alt=""/);
-  // The one real fact it carries stays readable text, not an image label.
-  assert.match(fallback, /className="stop-visual-tag"/);
+test('the placeholder left no dead CSS behind', () => {
+  const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
+  assert.doesNotMatch(css, /\.stop-visual-tag/, 'the pill rule is gone');
+  assert.doesNotMatch(css, /\.stop-visual > svg/, 'the drawing rule is gone');
+  // The photo treatment stays — it is what the container is now for.
+  assert.match(css, /\.stop-visual img/);
 });
 
 test('a licensed photo remains possible, and would be a real photo or nothing', () => {
   // The image branch is kept for a photo we may lawfully redistribute; it is
   // not a decoration path, so it keeps a genuine alt.
-  assert.match(stopVisual, /if \(stop\.image\)/);
+  assert.match(stopVisual, /stop\.image/);
   assert.match(stopVisual, /alt=\{stop\.image\.alt\}/);
+  assert.match(stopVisual, /loading="lazy"/, 'still lazy, still a fixed aspect ratio');
 });
 
-// ---- No STF brand asset, but STF the organisation stays named --------------
+// ---- The one restored asset, and nothing riding along with it --------------
 
-test('the membership button is app-owned iconography, not the STF mark', () => {
-  const quickAccess = readFileSync(
-    join(root, 'src/components/MembershipQuickAccess.tsx'),
-    'utf8',
-  );
-  assert.doesNotMatch(quickAccess, /<img/);
-  assert.match(quickAccess, /IdCard/, 'a generic credential glyph from the existing icon set');
+test('the membership button wears the restored logo, and nothing else does', () => {
+  const quickAccess = readFileSync(join(root, LOGO_REFERENCE_ALLOWED_IN), 'utf8');
+  assert.match(quickAccess, /images\/stf-logo\.png/);
   assert.match(quickAccess, /aria-label="Open STF membership card"/);
+  // The mark is decoration; the button's own label is the accessible name.
+  assert.match(quickAccess, /alt=""/);
+  // The neutral glyph survives as the load-failure fallback, not as a second
+  // brand treatment — one <img> in the whole component.
+  assert.equal((quickAccess.match(/<img/g) ?? []).length, 1);
+  assert.match(quickAccess, /IdCard/, 'a generic credential glyph from the existing icon set');
+});
+
+test('restoring the logo did not restore stop imagery alongside it', () => {
+  // The two decisions are independent and must stay that way: this is the
+  // assertion that catches "while we were at it" scope creep.
+  assert.ok(!existsSync(join(root, 'public/images/stops-placeholder')));
+  assert.doesNotMatch(stopsSrc, /\bimage:/);
+  assert.doesNotMatch(stopVisual, /stf-logo/, 'stop cards do not borrow the membership asset');
 });
 
 test('factual references to STF as an organisation and source are preserved', () => {
@@ -200,12 +269,18 @@ test('factual references to STF as an organisation and source are preserved', ()
 // ---- Committed screenshots are a distribution channel too -------------------
 
 /**
- * Captures in which the membership quick access was on screen also reproduced
- * the STF roundel, so they went with the asset. Pinned by name rather than by
- * pixel inspection on purpose: CI has no image toolchain, and a filename list
- * is the part that must not silently come back.
+ * Two committed evidence captures reproduced a full-size stop PHOTOGRAPH, and
+ * eleven verification captures reproduced the roundel inside a UI shot. All
+ * thirteen stay withdrawn, including now that the logo asset itself is back:
+ * restoring one file the owner supplied is not a reason to re-commit a pile of
+ * historical captures, and the two photo captures were never about the logo at
+ * all. Pinned by name rather than by pixel inspection on purpose: CI has no
+ * image toolchain, and a filename list is the part that must not silently come
+ * back.
  */
 const WITHDRAWN_CAPTURES = [
+  'docs/pr-evidence/2026-07-dr1-closure/after-stops-onpalette-link.png',
+  'docs/pr-evidence/2026-07-dr1-closure/before-stops-default-blue-link.png',
   'docs/verification/tonight-card/after-A-travel-linked-abisko-2qa-320x667.png',
   'docs/verification/tonight-card/after-A-travel-linked-abisko-2qa-375x667.png',
   'docs/verification/tonight-card/after-B-hiking-explicit-abiskojaure-1qa-320x667.png',
