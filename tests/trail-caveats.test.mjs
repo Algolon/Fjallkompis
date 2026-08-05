@@ -358,29 +358,76 @@ test('the navigation caveat reaches the Map and the stage guide', () => {
   assert.ok(files.has('src/screens/SettingsScreen.tsx'), 'finding #1: the fuller explanation');
 });
 
-test('the Map caveat is present in the cockpit itself, not behind a modal', () => {
+test('the Map caveat is inline in the cockpit, not behind a modal', () => {
   const map = code('src/screens/MapScreen.tsx');
-  // Rendered unconditionally inside the lead column that already carries the
-  // map's own notes — so it is there before Locate, during tracking, and with
-  // no GPS at all. Pinned as "no condition guards it", not as a JSX block.
-  const note = map.match(
-    /<p className="map-note map-note--caveat">[\s\S]*?<\/p>/,
-  );
+  const note = map.match(/<p className="map-note map-note--caveat">[\s\S]*?<\/p>/);
   assert.ok(note, 'the caveat is a map note in the cockpit');
   assert.ok(
-    map.includes(`{TRAIL_CAVEATS.navigation.short}`),
+    map.includes('{TRAIL_CAVEATS.navigation.short}'),
     'and it renders the authority string',
   );
-  // No ternary or && guard wraps it. Checked by what immediately precedes the
-  // element: a conditional render in this file opens with `{cond ? (` or
-  // `{cond && (`, so a bare element is one whose preceding token is neither.
-  const before = map.slice(0, map.indexOf(note[0])).trimEnd();
-  assert.ok(
-    !before.endsWith('(') && !before.endsWith('&&') && !before.endsWith('?'),
-    'no condition can hide it — not a missing fix, not a dismissal',
-  );
+  // Inline in the lead column beside the map's own notes — the Map surface
+  // never puts it behind a dialog or a one-time prompt.
   for (const modal of ['ContextHelp', 'showModal', '<dialog']) {
     assert.ok(!map.includes(modal), `the map caveat is not behind ${modal}`);
+  }
+  // …and it is real text, not a hover tooltip on some control.
+  assert.ok(
+    !/title=\{[^}]*CAVEAT/i.test(map),
+    'the caveat is rendered as text, never as a title attribute',
+  );
+});
+
+test('the Map caveat appears whenever the map answers "where am I"', () => {
+  const map = code('src/screens/MapScreen.tsx');
+  // The gate is INTENT, not success: pressing Locate, holding a position, or
+  // running a session. A denied or failed fix leaves geo.status on 'error',
+  // so the caveat is still there beside the refusal it explains.
+  assert.match(
+    map,
+    /const navigating =\s*tracking\.active \|\| geo\.status !== 'idle' \|\| marker != null;/,
+    'the navigating gate covers Locate, a position, and live tracking',
+  );
+  assert.match(
+    map,
+    /\{navigating \? \(\s*<p className="map-note map-note--caveat">/,
+    'and it is what guards the note',
+  );
+  const gate = map.match(/const navigating =([^;]*);/)[1];
+  for (const success of ['lastFix', 'hasFix', 'coord', "'success'"]) {
+    assert.ok(
+      !gate.includes(success),
+      `the gate must not depend on ${success} — a refused Locate is when it matters most`,
+    );
+  }
+});
+
+test('the idle Map keeps the overview fit it was tuned for', () => {
+  // The lead column's measured depth IS the camera's top padding, and this
+  // route's overview already spends its vertical budget (mapPadding.mjs). A
+  // permanently rendered caveat costs ~58px of it and the bounded fit clamps
+  // instead of zooming out, so "Fit route" stops containing the Abisko end.
+  // The gate above is what keeps the planning view exactly as PR #100 left it.
+  const map = code('src/screens/MapScreen.tsx');
+  const element = '<p className="map-note map-note--caveat">';
+  const guard = map.slice(0, map.indexOf(element)).trimEnd();
+  assert.ok(
+    guard.endsWith('{navigating ? ('),
+    'the caveat is absent from the idle overview, so the fit keeps its budget',
+  );
+
+  // The planning surfaces state it with no condition at all, which is what
+  // makes the Map's gate a placement choice rather than a hiding place.
+  for (const [file, register] of [
+    ['src/screens/StagesScreen.tsx', 'short'],
+    ['src/screens/SettingsScreen.tsx', 'full'],
+  ]) {
+    const src = code(file);
+    const before = src.slice(0, src.indexOf(`{TRAIL_CAVEATS.navigation.${register}}`)).trimEnd();
+    assert.ok(
+      !before.endsWith('(') && !before.endsWith('&&') && !before.endsWith('?'),
+      `${file} states the caveat unconditionally`,
+    );
   }
 });
 
