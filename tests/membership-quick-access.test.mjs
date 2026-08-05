@@ -262,19 +262,33 @@ test('the Today card verifies local availability and omits itself otherwise', ()
   assert.ok(!btn.slice(7).includes('<button'), 'single button, nothing nested');
 });
 
-test('the button is app-owned iconography — the STF mark is not redistributed', () => {
-  // The logo asset is gone from the repo and from this component. We hold no
-  // licence to redistribute the STF mark, and wearing it would imply an
-  // official STF app.
-  assert.ok(!existsSync(join(root, 'public/images/stf-logo.png')), 'logo asset not committed');
-  assert.doesNotMatch(quickAccess, /stf-logo/);
-  assert.doesNotMatch(quickAccess, /<img/, 'no image element in the membership button');
-  // What remains is the neutral card: IdCard glyph + "STF" letters, both
-  // decorative, with the accessible name on the button itself.
+test('the button is the STF roundel, offline-safe, with a neutral fallback', () => {
+  // The asset ships in the repo and resolves under the Pages base path, so it
+  // rides the existing png precache glob and works offline.
+  assert.match(quickAccess, /import\.meta\.env\.BASE_URL\}images\/stf-logo\.png/);
+  assert.ok(existsSync(join(root, 'public/images/stf-logo.png')), 'logo asset committed');
+  // The mark is the PRIMARY visual: the state starts un-failed, so the first
+  // render is the logo, and the glyph treatment is reached only by onError.
+  assert.match(quickAccess, /const \[logoFailed, setLogoFailed\] = useState\(false\)/);
+  assert.match(quickAccess, /onError=\{\(\) => setLogoFailed\(true\)\}/);
+  const ternary = quickAccess.indexOf('{logoFailed ? (');
+  assert.ok(ternary > 0, 'the render branches on logoFailed');
+  const glyph = quickAccess.indexOf('<IdCard', ternary);
+  const image = quickAccess.indexOf('<img', ternary);
+  assert.ok(glyph > 0 && image > 0, 'both branches render something');
+  assert.ok(
+    glyph < image,
+    'IdCard is the true (failed) branch and the image the false one — not the reverse',
+  );
+  // Decorative mark — the button itself carries the accessible name, so "STF"
+  // is never announced twice.
+  assert.match(quickAccess, /<img[\s\S]*?alt=""[\s\S]*?aria-hidden/);
+  assert.match(quickAccess, /aria-label="Open STF membership card"/);
+  // The fallback stays a real, visible target: IdCard glyph + STF monogram.
   assert.match(quickAccess, /IdCard/);
   assert.match(quickAccess, />\s*STF\s*</);
-  assert.match(quickAccess, /aria-label="Open STF membership card"/);
   assert.match(quickAccess, /className="stf-card__label" aria-hidden/);
+  assert.match(quickAccess, /stf-card--boxed/);
   // Naming STF in the label is a factual statement of whose card this is —
   // that reference stays.
   assert.match(quickAccess, /STF membership card/);
