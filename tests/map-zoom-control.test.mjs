@@ -25,15 +25,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
 const mapView = read('src/components/MapView.tsx');
 
-// Widest map container the compact layout produces, and the narrowest the
-// rail layout produces (measured; real containers never land in between).
+// From the measured sweep (widths 320–1280 × heights 667/800/915/1000/1180):
+// the widest container observed to collide, and the smallest observed clean at
+// EVERY tested height. Real containers never land in the 561–675 gap — the
+// compact layout caps the map at 560 and the rail starts it at 676 — and that
+// gap was never measured, so the threshold must not sit inside it.
 const WIDEST_COLLIDING = 560;
-const NARROWEST_CLEAN = 676;
+const SMALLEST_PROVEN_CLEAN = 676;
 
 // ---- The policy --------------------------------------------------------------
 
 test('narrow fine-pointer layouts get no zoom control', () => {
-  for (const mapWidth of [320, 360, 375, 412, 430, 500, 560]) {
+  // Includes the whole unmeasured 561–675 gap: the threshold must never be
+  // below a width the sweep actually proved clean.
+  for (const mapWidth of [320, 360, 375, 412, 430, 500, 560, 600, 640, 675]) {
     assert.equal(
       shouldShowZoomControl({ mapWidth, finePointer: true }),
       false,
@@ -58,14 +63,17 @@ test('touch never gets the zoom control, however wide the map', () => {
   }
 });
 
-test('the threshold sits in the measured gap between real container widths', () => {
+test('the threshold is the smallest PROVEN-clean width, not a guess', () => {
   assert.ok(
     ZOOM_CONTROL_MIN_MAP_WIDTH > WIDEST_COLLIDING,
     'above every container width measured to collide',
   );
-  assert.ok(
-    ZOOM_CONTROL_MIN_MAP_WIDTH <= NARROWEST_CLEAN,
-    'at or below the narrowest container measured to be clean',
+  // The strict half: never below a width the sweep actually cleared. A lower
+  // value would be asserting safety for the unmeasured 561–675 band.
+  assert.equal(
+    ZOOM_CONTROL_MIN_MAP_WIDTH,
+    SMALLEST_PROVEN_CLEAN,
+    'the threshold must equal the smallest width measured clean at every tested height',
   );
 });
 

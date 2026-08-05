@@ -26,12 +26,15 @@
  *    compact layout can produce collides at some height, and every width the
  *    rail layout produces is clean at every height tested.
  *
- *    Real containers are discrete: the compact layout caps the map at 560 px,
- *    and the navigation rail (viewport ≥ 760) starts it at 676 px. Nothing
- *    lands in between. The threshold therefore sits in that gap — 80 px above
- *    the widest colliding container and 36 px below the narrowest clean one —
- *    rather than on a CSS breakpoint, so it stays correct if the rail's own
- *    width is ever retuned.
+ *    The threshold is therefore the SMALLEST PROVEN-CLEAN width, 676 px — not
+ *    a rounder number inside the 561–675 px gap, which no layout produces and
+ *    which was never measured. Real containers are discrete: the compact
+ *    layout caps the map at 560 px and the navigation rail (viewport ≥ 760)
+ *    starts it at 676 px, so nothing lands in that gap today and picking a
+ *    value inside it would only look safer than the evidence supports.
+ *
+ *    If a future layout ever produces a container between 561 and 675 px, the
+ *    sweep has to be extended before this number is lowered.
  *
  * Hiding the control costs no capability: `map.scrollZoom` and `map.keyboard`
  * stay enabled (only ROTATION is disabled, for the north-up policy), so wheel,
@@ -43,11 +46,10 @@
  */
 
 /**
- * Narrowest MAP CONTAINER width (CSS px) that may carry the zoom control.
- * See the sweep above; any value in (560, 676] is equivalent for today's
- * layouts.
+ * Narrowest MAP CONTAINER width (CSS px) that may carry the zoom control:
+ * the smallest width the sweep above proved clean at every tested height.
  */
-export const ZOOM_CONTROL_MIN_MAP_WIDTH = 640;
+export const ZOOM_CONTROL_MIN_MAP_WIDTH = 676;
 
 /**
  * @param {object} o

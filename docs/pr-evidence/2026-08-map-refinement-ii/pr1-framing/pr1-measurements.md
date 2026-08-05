@@ -157,12 +157,17 @@ Two things the sweep settles:
   what actually matters is where the composition puts Nikkaluokta.
 - **Real containers are discrete.** The compact layout caps the map at 560 px;
   the navigation rail (viewport ≥ 760) starts it at 676 px. Nothing lands in
-  between.
+  between, and **561–675 px was therefore never measured**.
 
-`ZOOM_CONTROL_MIN_MAP_WIDTH = 640` therefore sits in that gap — **80 px above
-the widest colliding container, 36 px below the narrowest clean one** — and is
-deliberately not a CSS breakpoint, so it stays correct if the rail's own width
-is retuned.
+`ZOOM_CONTROL_MIN_MAP_WIDTH = 676` — the **smallest width proven clean at every
+tested height**. An earlier revision used 640, which sits inside the unmeasured
+561–675 band; that asserted more safety than the evidence supported, so the
+threshold was raised to the proven value. No layout produces a container in
+that band today, so nothing changes behaviourally — but the number is now
+defensible from the sweep alone.
+
+If a future layout ever produces a container between 561 and 675 px, the sweep
+must be extended before this is lowered.
 
 ### Result
 
@@ -178,17 +183,20 @@ Accessible names preserved where the control shows: `Zoom in`, `Zoom out`.
 
 ### Resize across the threshold, one page, no reload
 
-| step | viewport | map width | zoom control |
-| --- | --- | --- | --- |
-| 1 | 1280×800 | 1132 | present |
-| 2 | 700×800 | 560 | **removed** |
-| 3 | 1280×800 | 1132 | **re-added** |
-| 4 | 560×800 | 560 | removed |
-| 5 | 900×800 | 816 | re-added |
+| step | viewport | map width | zoom control | note |
+| --- | --- | --- | --- | --- |
+| 1 | 1280×800 | 1132 | present | |
+| 2 | 759×800 | 560 | **removed** | last compact width |
+| 3 | 760×800 | **676** | **re-added** | first rail width — exactly the threshold |
+| 4 | 700×800 | 560 | removed | |
+| 5 | 1280×800 | 1132 | re-added | |
+| 6 | 560×800 | 560 | removed | |
+| 7 | 900×800 | 816 | re-added | |
 
-Both directions, repeatedly. The gate is evaluated on the map's own `resize`
-event against `containerRef.clientWidth` — the **container**, not the window,
-so a rail or split view is handled correctly.
+Both directions, repeatedly, including the exact 759→760 rail boundary. The
+gate is evaluated on the map's own `resize` event against
+`containerRef.clientWidth` — the **container**, not the window, so a rail or
+split view is handled correctly.
 
 ### The composition is untouched
 

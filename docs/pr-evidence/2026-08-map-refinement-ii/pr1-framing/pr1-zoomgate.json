@@ -103,6 +103,18 @@
       "overlapping": []
     },
     {
+      "viewport": "759x800",
+      "mapW": 560,
+      "zoomControl": false,
+      "overlapping": []
+    },
+    {
+      "viewport": "760x800",
+      "mapW": 676,
+      "zoomControl": true,
+      "overlapping": []
+    },
+    {
       "viewport": "700x800",
       "mapW": 560,
       "zoomControl": false,
