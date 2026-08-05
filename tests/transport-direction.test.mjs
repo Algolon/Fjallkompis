@@ -29,9 +29,20 @@ import {
   TRANSPORT_ENTRIES,
   TRANSPORT_SECTIONS,
   BUS_TIMETABLES_REVERIFIED_ON,
+  TRANSPORT_FACTS_VERIFIED_ON,
   sectionBlurb,
+  timetablePeriodProblems,
+  timetablePeriodsFor,
   transportSectionsFor,
 } from '../src/data/transport.mjs';
+
+/** The four bus records — two services, each stored per operator direction. */
+const BUS_IDS = [
+  'line-91',
+  'line-91-return',
+  'nikkaluoktaexpressen',
+  'nikkaluoktaexpressen-outbound',
+];
 import {
   DEFAULT_DIRECTION,
   REVERSE_DIRECTION,
@@ -46,12 +57,15 @@ const read = (rel) => readFileSync(join(root, rel), 'utf8');
 
 const byId = Object.fromEntries(TRANSPORT_ENTRIES.map((e) => [e.id, e]));
 const ids = (entries) => entries.map((e) => e.id);
-/** Every departure time in an entry, in schedule/call order. */
+/** Every schedule an entry stores, across every published period. */
+const schedulesOf = (entry) =>
+  timetablePeriodsFor(entry).flatMap((p) => p.schedules);
+/** Every departure time in an entry, in period/schedule/call order. */
 const timesOf = (entry) =>
-  (entry.schedules ?? []).flatMap((s) => s.calls.map((c) => c.time ?? ''));
-/** Every named call place in an entry, in schedule/call order. */
+  schedulesOf(entry).flatMap((s) => s.calls.map((c) => c.time).filter(Boolean));
+/** Every named call place in an entry, in period/schedule/call order. */
 const placesOf = (entry) =>
-  (entry.schedules ?? []).flatMap((s) => s.calls.map((c) => c.place).filter(Boolean));
+  schedulesOf(entry).flatMap((s) => s.calls.map((c) => c.place).filter(Boolean));
 
 // ---- 1. Data integrity ------------------------------------------------------
 
@@ -89,21 +103,38 @@ test('ids are unique and every entry carries a source; static ones carry validit
   const all = TRANSPORT_ENTRIES.map((e) => e.id);
   assert.equal(new Set(all).size, all.length, 'transport ids are unique');
   for (const e of TRANSPORT_ENTRIES) {
-    assert.ok(e.source?.url, `${e.id} needs a source url`);
-    assert.ok(e.source?.title, `${e.id} needs a source title`);
-    assert.ok(e.source?.lastVerified, `${e.id} needs a verification date`);
-    if (!e.live) {
-      assert.match(e.validFrom, /^\d{4}-\d{2}-\d{2}$/, `${e.id} needs validFrom`);
-      assert.match(e.validTo, /^\d{4}-\d{2}-\d{2}$/, `${e.id} needs validTo`);
-      assert.ok(e.validityText, `${e.id} needs readable validity`);
+    if (e.live) {
+      assert.ok(e.source?.url, `${e.id} needs a source url`);
+      assert.ok(e.source?.title, `${e.id} needs a source title`);
+      assert.ok(e.source?.lastVerified, `${e.id} needs a verification date`);
+      continue;
     }
+    // Provenance now belongs to the document a time came from, so it is the
+    // PERIOD that has to carry a url, a title, a verification date and a
+    // readable validity — never the service as a whole.
+    const periods = timetablePeriodsFor(e);
+    assert.ok(periods.length > 0, `${e.id} needs at least one stored period`);
+    const periodIds = periods.map((p) => p.id);
+    assert.equal(new Set(periodIds).size, periodIds.length, `${e.id} has duplicate period ids`);
+    for (const p of periods) {
+      assert.ok(p.source?.url, `${e.id}/${p.id} needs a source url`);
+      assert.ok(p.source?.title, `${e.id}/${p.id} needs a source title`);
+      assert.ok(p.source?.lastVerified, `${e.id}/${p.id} needs a verification date`);
+      assert.match(p.validFrom, /^\d{4}-\d{2}-\d{2}$/, `${e.id}/${p.id} needs validFrom`);
+      assert.match(p.validTo, /^\d{4}-\d{2}-\d{2}$/, `${e.id}/${p.id} needs validTo`);
+      assert.ok(p.validityText, `${e.id}/${p.id} needs readable validity`);
+    }
+    // Two tables may never claim the same date — see timetablePeriodProblems.
+    assert.deepEqual(timetablePeriodProblems(e), [], `${e.id} has unsound periods`);
   }
 });
 
 test('schedule ids are unique within their own entry', () => {
   for (const e of TRANSPORT_ENTRIES) {
-    const sched = (e.schedules ?? []).map((s) => s.id);
-    assert.equal(new Set(sched).size, sched.length, `${e.id} has duplicate schedule ids`);
+    for (const p of timetablePeriodsFor(e)) {
+      const sched = p.schedules.map((s) => s.id);
+      assert.equal(new Set(sched).size, sched.length, `${e.id}/${p.id} has duplicate schedule ids`);
+    }
   }
 });
 
@@ -116,7 +147,7 @@ test('each entry’s calls stay inside the journey its direction names', () => {
     'nikkaluoktaexpressen-outbound': [/^Kiruna/, /^Nikkaluokta/],
   };
   for (const [id, [startsWith, endsWith]] of Object.entries(endpoints)) {
-    for (const s of byId[id].schedules) {
+    for (const s of schedulesOf(byId[id])) {
       const places = s.calls.map((c) => c.place);
       assert.match(places[0], startsWith, `${id}/${s.id} starts in the wrong place`);
       assert.match(places[places.length - 1], endsWith, `${id}/${s.id} ends in the wrong place`);
@@ -156,51 +187,100 @@ test('line 91 return keeps the asymmetries the official table actually has', () 
 
   // Abisko Turist is called BEFORE Abisko Östra heading for Kiruna, and
   // after it heading out.
-  const backMorning = back.schedules.find((s) => s.id === 'morning').calls.map((c) => c.place);
-  assert.ok(
-    backMorning.indexOf('Abisko Turist E10') < backMorning.indexOf('Abisko Östra'),
-    'return calls Abisko Turist first',
-  );
-  const outMorning = out.schedules.find((s) => s.id === 'morning').calls.map((c) => c.place);
-  assert.ok(
-    outMorning.indexOf('Abisko Östra') < outMorning.indexOf('Abisko Turist E10'),
-    'outward calls Abisko Östra first',
-  );
-
-  // Only the daily return run touches the airport; the afternoon ones do not.
-  const airportRuns = back.schedules
-    .filter((s) => s.calls.some((c) => c.place === 'Kiruna Airport'))
-    .map((s) => s.id);
-  assert.deepEqual(airportRuns, ['morning']);
+  // Both asymmetries hold in EVERY published period, not just the one that
+  // happens to be in force.
+  for (const p of timetablePeriodsFor(back)) {
+    const backMorning = p.schedules.find((s) => s.id === 'morning').calls.map((c) => c.place);
+    assert.ok(
+      backMorning.indexOf('Abisko Turist E10') < backMorning.indexOf('Abisko Östra'),
+      `${p.id} calls Abisko Turist first`,
+    );
+    // Only the daily late-morning return run touches the airport.
+    const airportRuns = p.schedules
+      .filter((s) => s.calls.some((c) => c.place === 'Kiruna Airport'))
+      .map((s) => s.id);
+    assert.deepEqual(airportRuns, ['morning'], `${p.id} airport calls`);
+  }
+  for (const p of timetablePeriodsFor(out)) {
+    const outMorning = p.schedules.find((s) => s.id === 'morning').calls.map((c) => c.place);
+    assert.ok(
+      outMorning.indexOf('Abisko Östra') < outMorning.indexOf('Abisko Turist E10'),
+      `${p.id} calls Abisko Östra first`,
+    );
+  }
 });
 
 test('boarding and drop-off rules invert with the operator direction', () => {
   const notesFor = (id, place) =>
-    byId[id].schedules
+    schedulesOf(byId[id])
       .flatMap((s) => s.calls)
       .filter((c) => c.place === place)
       .map((c) => c.note);
 
-  // Heading OUT of Kiruna you may only get on; heading in, only off.
-  assert.ok(notesFor('nikkaluoktaexpressen-outbound', 'Kiruna Stadshustorget').every((n) => n === 'boarding only'));
-  assert.ok(notesFor('nikkaluoktaexpressen', 'Kiruna Stadshustorget').every((n) => n === 'drop-off only'));
-  assert.ok(notesFor('line-91', 'Kiruna Stadshustorget').every((n) => n === 'boarding only'));
-  assert.ok(notesFor('line-91-return', 'Kiruna Stadshustorget').every((n) => n === 'drop-off only'));
-});
-
-test('the return timetables record when they were actually read', () => {
-  assert.equal(BUS_TIMETABLES_REVERIFIED_ON, '2026-08-05');
-  for (const id of ['line-91-return', 'nikkaluoktaexpressen-outbound']) {
-    assert.equal(byId[id].source.lastVerified, BUS_TIMETABLES_REVERIFIED_ON);
+  // Heading OUT of Kiruna you may only get on; heading in, only off. A stop a
+  // run actually STARTS from carries no restriction at all (Stadshustorget is
+  // the 3–9 August afternoon departure), so the contract is that the wrong
+  // restriction never appears — not that every call carries one.
+  const outbound = ['nikkaluoktaexpressen-outbound', 'line-91'];
+  const inbound = ['nikkaluoktaexpressen', 'line-91-return'];
+  for (const id of outbound) {
+    const notes = notesFor(id, 'Kiruna Stadshustorget');
+    assert.ok(notes.length > 0, `${id} calls Kiruna Stadshustorget`);
+    assert.ok(notes.some((n) => n === 'boarding only'), `${id} boarding rule`);
+    assert.ok(notes.every((n) => n !== 'drop-off only'), `${id} must never allow drop-off`);
+  }
+  for (const id of inbound) {
+    const notes = notesFor(id, 'Kiruna Stadshustorget');
+    assert.ok(notes.length > 0, `${id} calls Kiruna Stadshustorget`);
+    assert.ok(notes.some((n) => n === 'drop-off only'), `${id} drop-off rule`);
+    assert.ok(notes.every((n) => n !== 'boarding only'), `${id} must never allow boarding`);
   }
 });
 
-test('the return services stay inside the periods the sources already cover', () => {
-  // PR-3 adds the missing periods; nothing here may quietly widen coverage.
-  assert.equal(byId['line-91-return'].validFrom, '2026-08-17');
-  assert.equal(byId['line-91-return'].validTo, '2026-09-20');
-  assert.equal(byId['nikkaluoktaexpressen-outbound'].validFrom, '2026-08-10');
-  assert.equal(byId['nikkaluoktaexpressen-outbound'].validTo, '2026-09-20');
+test('every stored bus timetable records when it was actually read', () => {
+  assert.equal(BUS_TIMETABLES_REVERIFIED_ON, '2026-08-05');
+  // Forward and reverse now carry the SAME date because this pass re-read every
+  // published table in both operator directions. The dataset-wide constant is
+  // deliberately older: the boats and the SJ reference were not re-read.
+  for (const id of BUS_IDS) {
+    for (const p of timetablePeriodsFor(byId[id])) {
+      assert.equal(p.source.lastVerified, BUS_TIMETABLES_REVERIFIED_ON, `${id}/${p.id}`);
+    }
+  }
+  assert.equal(TRANSPORT_FACTS_VERIFIED_ON, '2026-07-12');
+  for (const id of ['alesjaure-boat', 'laddjujavri-boat', 'train-kiruna-abisko']) {
+    assert.equal(
+      timetablePeriodsFor(byId[id])[0]?.source.lastVerified ?? byId[id].source.lastVerified,
+      TRANSPORT_FACTS_VERIFIED_ON,
+      `${id} was not re-read on the bus pass`,
+    );
+  }
+});
+
+test('both operator directions of a service cover exactly the same periods', () => {
+  // A hiker walking one way must not get better coverage than one walking the
+  // other: the two records come from the two halves of the same documents.
+  for (const [forward, reverse] of [
+    ['line-91', 'line-91-return'],
+    ['nikkaluoktaexpressen', 'nikkaluoktaexpressen-outbound'],
+  ]) {
+    const windows = (id) => timetablePeriodsFor(byId[id]).map((p) => [p.validFrom, p.validTo]);
+    assert.deepEqual(windows(reverse), windows(forward), `${forward} vs ${reverse}`);
+  }
+  assert.deepEqual(
+    timetablePeriodsFor(byId['line-91']).map((p) => [p.validFrom, p.validTo]),
+    [
+      ['2026-07-01', '2026-08-16'],
+      ['2026-08-17', '2026-09-20'],
+    ],
+  );
+  assert.deepEqual(
+    timetablePeriodsFor(byId['nikkaluoktaexpressen']).map((p) => [p.validFrom, p.validTo]),
+    [
+      ['2026-08-03', '2026-08-09'],
+      ['2026-08-10', '2026-09-20'],
+    ],
+  );
 });
 
 // ---- 2. Forward assembly ----------------------------------------------------
@@ -355,9 +435,10 @@ test('the connectivity caveats from the caveats pass are still where they were',
 
 test('source, validity and timetable status stay on every card', () => {
   const src = read('src/components/TransportView.tsx');
-  assert.match(src, /timetableStatus\(entry, today\)/);
-  assert.match(src, /entry\.source\.title/);
-  assert.match(src, /entry\.validityText/);
+  assert.match(src, /timetableCoverageFor\(entry, today\)/);
+  // The source shown is the one the displayed times came from.
+  assert.match(src, /source\.title/);
+  assert.match(src, /period\.validityText/);
   assert.match(src, /status === 'expired'/);
   assert.match(src, /entry\.warnings/);
 });
