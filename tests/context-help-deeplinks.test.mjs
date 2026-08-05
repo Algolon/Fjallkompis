@@ -20,6 +20,7 @@ import {
   STOP_TRANSPORT_LINKS,
   transportLinkForStop,
 } from '../src/data/transport.mjs';
+import { DEFAULT_DIRECTION, REVERSE_DIRECTION, ROUTE_DIRECTIONS } from '../src/route/direction.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(join(root, rel), 'utf8');
@@ -48,24 +49,43 @@ test('transportLinkForStop maps exactly the four documented stops', () => {
     'kebnekaise',
     'nikkaluokta',
   ]);
-  assert.equal(transportLinkForStop('salka'), undefined); // no transport entry
-  assert.equal(transportLinkForStop('singi'), undefined);
+  assert.equal(transportLinkForStop('salka', DEFAULT_DIRECTION), undefined); // no transport entry
+  assert.equal(transportLinkForStop('singi', DEFAULT_DIRECTION), undefined);
 });
 
-test('Abisko links to the whole "to-trail" section (line 91 AND train)', () => {
-  const link = transportLinkForStop('abisko');
-  assert.equal(link.via, 'facility');
-  assert.equal(link.context, 'to-trail');
-  assert.equal(link.entryId, undefined, 'must not pin only one Abisko service');
+test('Abisko links to the section that matches the walking direction', () => {
+  // Walking south, Abisko is where you get ON the trail…
+  const forward = transportLinkForStop('abisko', DEFAULT_DIRECTION);
+  assert.equal(forward.via, 'facility');
+  assert.equal(forward.context, 'to-trail');
+  assert.equal(forward.label, 'Getting to the trail');
+  assert.equal(forward.entryId, undefined, 'must not pin only one Abisko service');
+  // …walking north, it is where you get OFF it.
+  const reverse = transportLinkForStop('abisko', REVERSE_DIRECTION);
+  assert.equal(reverse.context, 'from-trail');
+  assert.equal(reverse.label, 'Leaving the trail');
+  assert.equal(reverse.entryId, undefined);
   // Both a bus and the train live in that section.
   const ids = TRANSPORT_ENTRIES.filter((e) => e.context === 'to-trail').map((e) => e.id);
   assert.ok(ids.includes('line-91'));
-  assert.ok(ids.includes('train-kiruna-abisko') || true); // train is live-alternative context
+});
+
+test('Nikkaluokta links to the bus that really runs for the walking direction', () => {
+  assert.equal(
+    transportLinkForStop('nikkaluokta', DEFAULT_DIRECTION).entryId,
+    'nikkaluoktaexpressen',
+  );
+  assert.equal(
+    transportLinkForStop('nikkaluokta', REVERSE_DIRECTION).entryId,
+    'nikkaluoktaexpressen-outbound',
+  );
 });
 
 test('facility-triggered links (Abisko, Nikkaluokta) reuse the Public transport chip', () => {
   for (const id of ['abisko', 'nikkaluokta']) {
-    assert.equal(transportLinkForStop(id).via, 'facility');
+    for (const dir of ROUTE_DIRECTIONS) {
+      assert.equal(transportLinkForStop(id, dir).via, 'facility');
+    }
   }
   // Only Abisko and Nikkaluokta declare a Public transport facility in the
   // curated stops data — so the derived boat stops never duplicate a chip.
@@ -73,22 +93,28 @@ test('facility-triggered links (Abisko, Nikkaluokta) reuse the Public transport 
   assert.equal(ptCount, 2, 'exactly Abisko and Nikkaluokta have a Public transport facility');
 });
 
-test('derived boat links target real boat entries', () => {
-  const alesjaure = transportLinkForStop('alesjaure');
-  const kebnekaise = transportLinkForStop('kebnekaise');
-  assert.equal(alesjaure.via, 'derived');
-  assert.equal(alesjaure.entryId, 'alesjaure-boat');
-  assert.equal(kebnekaise.via, 'derived');
-  assert.equal(kebnekaise.entryId, 'laddjujavri-boat');
+test('derived boat links target real boat entries, whichever way you walk', () => {
+  for (const dir of ROUTE_DIRECTIONS) {
+    const alesjaure = transportLinkForStop('alesjaure', dir);
+    const kebnekaise = transportLinkForStop('kebnekaise', dir);
+    assert.equal(alesjaure.via, 'derived');
+    assert.equal(alesjaure.entryId, 'alesjaure-boat');
+    assert.equal(kebnekaise.via, 'derived');
+    assert.equal(kebnekaise.entryId, 'laddjujavri-boat');
+  }
 });
 
-test('every transport link resolves to real entries / sections', () => {
+test('every transport link resolves to real entries / sections, in both directions', () => {
   const entryIds = new Set(TRANSPORT_ENTRIES.map((e) => e.id));
   const contexts = new Set(TRANSPORT_SECTIONS.map((s) => s.id));
-  for (const link of Object.values(STOP_TRANSPORT_LINKS)) {
-    if (link.entryId) assert.ok(entryIds.has(link.entryId), `entry ${link.entryId}`);
-    if (link.context) assert.ok(contexts.has(link.context), `context ${link.context}`);
-    assert.ok(link.entryId || link.context, 'a link points at something');
+  for (const stopId of Object.keys(STOP_TRANSPORT_LINKS)) {
+    for (const dir of ROUTE_DIRECTIONS) {
+      const link = transportLinkForStop(stopId, dir);
+      if (link.entryId) assert.ok(entryIds.has(link.entryId), `entry ${link.entryId}`);
+      if (link.context) assert.ok(contexts.has(link.context), `context ${link.context}`);
+      assert.ok(link.entryId || link.context, `${stopId}/${dir} points at something`);
+      assert.ok(link.label, `${stopId}/${dir} has a label`);
+    }
   }
 });
 

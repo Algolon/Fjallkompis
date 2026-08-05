@@ -150,7 +150,9 @@ import {
   TRANSPORT_ENTRIES,
   TRANSPORT_SECTIONS,
   TRANSPORT_FACTS_VERIFIED_ON,
+  BUS_TIMETABLES_REVERIFIED_ON,
   entriesForContext,
+  transportSectionsFor,
   timetableStatus,
   transportLinkForStop,
 } from '../data/transport.mjs';
@@ -232,6 +234,8 @@ export const ACTIVE_TRAIL_CONTENT = Object.freeze({
     transport: TRANSPORT_ENTRIES,
     transportSections: TRANSPORT_SECTIONS,
     transportFactsVerifiedOn: TRANSPORT_FACTS_VERIFIED_ON,
+    /** When the two bus timetables were last read in BOTH operator directions. */
+    busTimetablesReverifiedOn: BUS_TIMETABLES_REVERIFIED_ON,
   }),
 
   /**
@@ -332,10 +336,15 @@ export {
   TRANSPORT_ENTRIES,
   TRANSPORT_SECTIONS,
   entriesForContext,
+  transportSectionsFor,
   timetableStatus,
   transportLinkForStop,
 };
-export type { StopTransportLink } from '../data/transport.mjs';
+export type {
+  StopTransportLink,
+  TransportAssembly,
+  ResolvedTransportSection,
+} from '../data/transport.mjs';
 
 // Publication identity and trail-scoped sources
 export { TRAIL_CONTENT, trailDossierView, TRAIL_DATA_SOURCES, TRIP_INFO_SOURCES };

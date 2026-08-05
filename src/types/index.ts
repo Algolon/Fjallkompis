@@ -242,6 +242,13 @@ export interface TransportLink {
 export interface TransportEntry {
   id: string;
   context: TransportContext;
+  /**
+   * The WALKING direction(s) this service belongs to. One entry is always one
+   * real operator direction, so a trailhead bus applies to a single walking
+   * direction and a service that means the same either way lists both. Never
+   * inferred, never derived by reversing another entry.
+   */
+  directions: RouteDirection[];
   mode: TransportMode;
   operator: string;
   title: string;

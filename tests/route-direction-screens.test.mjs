@@ -143,7 +143,10 @@ test('Stages uses the itinerary for order, geometry, guides and header', () => {
 });
 
 test('Stops renders itinerary order with start-relative distances', () => {
-  assert.match(stops, /const \{ itinerary, state \} = useStore\(\)/);
+  assert.match(stops, /const \{ itinerary, state, routeDirection \} = useStore\(\)/);
+  // A trailhead's transport deep link depends on which way the hiker walks.
+  assert.match(stops, /direction=\{routeDirection\}/);
+  assert.match(stops, /transportLinkForStop\(stop\.id, direction\)/);
   assert.match(stops, /const stops = itinerary\.orderedStops/);
   assert.match(stops, /routeKm=\{itinerary\.stopDistanceKm\[stop\.id\] \?\? 0\}/);
   // The first stop shows "Start"; others show recomputed "x km in".

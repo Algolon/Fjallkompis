@@ -27,17 +27,31 @@ test('only route-relevant services are encoded, grouped by journey context', () 
       'alesjaure-boat',
       'laddjujavri-boat',
       'line-91',
+      'line-91-return',
       'nikkaluoktaexpressen',
+      'nikkaluoktaexpressen-outbound',
+      'train-abisko-kiruna',
       'train-kiruna-abisko',
     ].sort(),
   );
-  assert.deepEqual(entriesForContext('to-trail').map((e) => e.id), ['line-91']);
+  // Each context holds both operator directions; which one a hiker sees is the
+  // assembly's job, not the dataset's.
+  assert.deepEqual(entriesForContext('to-trail').map((e) => e.id), [
+    'line-91',
+    'nikkaluoktaexpressen-outbound',
+  ]);
   assert.deepEqual(entriesForContext('along-trail').map((e) => e.id), [
     'alesjaure-boat',
     'laddjujavri-boat',
   ]);
-  assert.deepEqual(entriesForContext('from-trail').map((e) => e.id), ['nikkaluoktaexpressen']);
-  assert.deepEqual(entriesForContext('live-alternative').map((e) => e.id), ['train-kiruna-abisko']);
+  assert.deepEqual(entriesForContext('from-trail').map((e) => e.id), [
+    'nikkaluoktaexpressen',
+    'line-91-return',
+  ]);
+  assert.deepEqual(entriesForContext('live-alternative').map((e) => e.id), [
+    'train-kiruna-abisko',
+    'train-abisko-kiruna',
+  ]);
 });
 
 // ---- Validity / expired-state logic -----------------------------------------
@@ -53,6 +67,7 @@ test('timetableStatus resolves upcoming / valid / expired around the window', ()
 
 test('a live alternative is never expired; an undated entry is "undated"', () => {
   assert.equal(timetableStatus(byId['train-kiruna-abisko'], '2030-01-01'), 'live');
+  assert.equal(timetableStatus(byId['train-abisko-kiruna'], '2030-01-01'), 'live');
   assert.equal(timetableStatus({ live: false }, '2026-07-12'), 'undated');
 });
 
@@ -113,9 +128,11 @@ test('Nikkaluoktaexpressen validity ends after 20 September', () => {
 
 // ---- Static ≠ live ----------------------------------------------------------
 
+const LIVE_IDS = ['train-kiruna-abisko', 'train-abisko-kiruna'];
+
 test('static timetables are never presented as live; only the train is live', () => {
   for (const e of TRANSPORT_ENTRIES) {
-    if (e.id === 'train-kiruna-abisko') {
+    if (LIVE_IDS.includes(e.id)) {
       assert.equal(e.live, true);
       assert.equal(e.source.kind, 'live');
       // A live alternative stores NO fixed timetable.
