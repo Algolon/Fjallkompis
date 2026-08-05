@@ -193,6 +193,30 @@ test('the coverage contract inputs themselves are unchanged', () => {
   assert.deepEqual(route.mapCutoutBounds, [[17.8799, 67.7081], [19.3773, 68.4931]]);
 });
 
+test('the archive stays self-describing: planetiler provenance is embedded', () => {
+  // The committed archive is a binary the repository cannot diff. Its own
+  // metadata block is what makes it auditable later, so a future rebuild must
+  // not silently drop it (pmtiles merge preserves it from the first input).
+  const buf = readFileSync(join(root, KUNGSLEDEN_CONFIG.pmtilesPath));
+  const u64 = (o) => Number(buf.readBigUInt64LE(o));
+  const meta = gunzipSync(buf.subarray(u64(24), u64(24) + u64(32))).toString('utf8');
+  for (const key of [
+    'planetiler:osm:osmosisreplicationtime',
+    'planetiler:osm:osmosisreplicationseq',
+    'planetiler:version',
+    'planetiler:githash',
+  ]) {
+    assert.ok(meta.includes(key), `archive metadata carries ${key}`);
+  }
+  // And the build script records the exact rebuild recipe in human-readable
+  // form, so the archive can be reproduced without reading its binary header.
+  const script = readFileSync(join(root, 'scripts/extract-offline-map.sh'), 'utf8');
+  assert.match(script, /extract-offline-map\.sh 20260709 14 kungsleden/,
+    'the pinned rebuild command is documented');
+  assert.match(script, /2026-07-09T04:00:00Z/, 'the OSM vintage is documented');
+  assert.match(script, /planetiler\s+0\.10\.2/, 'the planetiler version is documented');
+});
+
 test('the overview allowance is declared, bounded and vector-only', () => {
   const ov = KUNGSLEDEN_CONFIG.vectorOverview;
   assert.ok(ov, 'declared in the route manifest');

@@ -25,6 +25,28 @@
 #
 # Requires the pmtiles CLI: https://github.com/protomaps/go-pmtiles/releases
 # (single static binary; put it on PATH or set PMTILES_BIN).
+#
+# ── PROVENANCE OF THE COMMITTED ARCHIVE ──────────────────────────────────────
+# public/maps/kungsleden.pmtiles as committed was produced by:
+#
+#   scripts/extract-offline-map.sh 20260709 14 kungsleden
+#
+#   source build      https://build.protomaps.com/20260709.pmtiles
+#   OSM replication   2026-07-09T04:00:00Z  (osmosis seq 121149)
+#   planetiler        0.10.2, githash 0e5588c4a6e8c29a270a33afe8df62027d889604
+#   basemap version   4.14.10
+#   result            5 904 598 bytes, 9 065 addressed tiles,
+#                     sha256 17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51
+#
+# Re-running that exact command reproduces the archive byte for byte (verified
+# 2026-08-05). Those same values are also embedded in the archive itself as
+# `planetiler:*` metadata — `pmtiles show` prints them, and `pmtiles merge`
+# preserves them from its first input — so the file remains self-describing.
+# BUILD_DATE is NOT defaulted to the pinned date on purpose: a rebuild should
+# be a deliberate choice of vintage, and Protomaps only retains some dailies.
+# Pass the date explicitly to reproduce; omit it to take a fresh vintage, which
+# changes every tile in the archive.
+# ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
@@ -128,7 +150,10 @@ fi
 echo
 echo "Verifying archive…"
 "$PMTILES_BIN" verify "$OUT"
-"$PMTILES_BIN" show "$OUT" | sed -n '1,20p'
+# Print the WHOLE header and metadata block. It was previously truncated to 20
+# lines, which hid the planetiler:* provenance keys and made it look as though
+# the merge had dropped them — it has not.
+"$PMTILES_BIN" show "$OUT"
 
 echo
 ls -lh "$OUT" | awk '{print "Result: " $9 " (" $5 ")"}'

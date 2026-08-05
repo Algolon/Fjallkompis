@@ -137,10 +137,38 @@ shows no such fallback, which is why it alone produced a visible blank. Those
 archives are also release-pinned assets whose rebuild is explicitly out of
 scope here.
 
-## Provenance note
+## Provenance — verified intact
 
-`pmtiles merge` copies metadata from its first input and drops some planetiler
-keys, so the regenerated archive no longer carries
-`planetiler:osm:osmosisreplicationtime` / `…seq` / `…githash`. The source build
-(`20260709`) and the original values are recorded above and in the build
-script, and the extraction is reproducible from them.
+An earlier draft of this note claimed `pmtiles merge` had dropped the
+planetiler metadata keys. **That was wrong**: it came from reading a
+`pmtiles show` call that the build script truncated to 20 lines. The archive
+retains its full provenance block, byte-checked at review:
+
+```
+planetiler:osm:osmosisreplicationtime  2026-07-09T04:00:00Z
+planetiler:osm:osmosisreplicationseq   121149
+planetiler:osm:osmosisreplicationurl   https://planet.osm.org/replication/hour/
+planetiler:version                     0.10.2
+planetiler:githash                     0e5588c4a6e8c29a270a33afe8df62027d889604
+planetiler:buildtime                   2026-03-28T14:41:39.524Z
+version                                4.14.10
+```
+
+Identical to the pre-PR archive's block — `pmtiles merge` preserves metadata
+from its first input. The truncation in the script has been removed so the
+block is visible on every future build, and the same values plus the exact
+rebuild command are recorded in the header of
+`scripts/extract-offline-map.sh`.
+
+**Reproducibility, verified independently at review:** re-running
+
+```
+bash scripts/extract-offline-map.sh 20260709 14 kungsleden
+```
+
+in a clean worktree produced a file **byte-identical** to the committed
+archive (5 904 598 bytes, sha256
+`17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51`).
+
+`BUILD_DATE` is deliberately not defaulted to the pinned date: a rebuild should
+be a conscious choice of OSM vintage, and Protomaps retains only some dailies.
