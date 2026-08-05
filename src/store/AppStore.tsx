@@ -43,7 +43,7 @@ import {
 import { getActiveItinerary } from '../route/activeItinerary';
 import type { ActiveItinerary, ItineraryStage } from '../route/activeItinerary';
 import { isRealIsoDate } from '../utils/dateTimeField.mjs';
-import { STAGE_TOPOLOGY } from '../data/stages';
+import { STAGE_TOPOLOGY } from '../trail/activeTrailContent';
 import {
   addLegToDay,
   createDayPlan as buildDayPlan,

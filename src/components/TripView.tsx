@@ -20,7 +20,13 @@ import {
   transportPrefillFromEntry,
   tripStatusTitle,
 } from '../trip/tripModel.mjs';
-import { journeyPlaceById, placeStayPrefill } from '../data/journeyPlaces.mjs';
+import {
+  STOPS_BY_ID,
+  TRANSPORT_ENTRIES,
+  journeyPlaceById,
+  placeStayPrefill,
+  stopShortName,
+} from '../trail/activeTrailContent';
 import {
   applyMembershipMetadata,
   defaultTitleFromFilename,
@@ -42,8 +48,6 @@ import {
   type TripItemDraft,
   type TripItemPrefill,
 } from './TripItemSheet';
-import { TRANSPORT_ENTRIES } from '../data/transport.mjs';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
 import { formatBytes } from '../map/offlineMap';
 import { downloadBlobFile } from '../utils/exportImport';
 import { formatTripDate, todayIso } from '../utils/format';

@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 import type { TrailStop } from '../types';
 import type { ElevationSample } from '../route/types';
-import { STOPS_BY_ID, stopShortName } from '../data/stops';
+import { STOPS_BY_ID, stopShortName } from '../trail/activeTrailContent';
 import { useStore } from '../store/AppStore';
 
 const W = 400;

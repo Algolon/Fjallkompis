@@ -292,7 +292,18 @@ test('the view never claims the content is checked, current or up to date', () =
 
 test('the credits sheet shows the dossier name and content version', () => {
   const sheet = source('src/components/CreditsSheet.tsx');
-  assert.match(sheet, /import \{ trailDossierView \} from '\.\.\/data\/trailMetadata\.mjs'/);
+  // The view model reaches the sheet through the active trail content
+  // boundary (src/trail/activeTrailContent.ts), which is where application
+  // code reads the dossier since that boundary landed. Both links of the
+  // chain are pinned, so the sheet still cannot restate a name or a version:
+  // the sheet takes it from the boundary, the boundary takes it from this
+  // module, and nothing in between may define it.
+  assert.match(sheet, /import \{[\s\S]*?trailDossierView,?[\s\S]*?\} from '\.\.\/trail\/activeTrailContent'/);
+  assert.match(
+    source('src/trail/activeTrailContent.ts'),
+    /import \{ TRAIL_CONTENT, trailDossierView \} from '\.\.\/data\/trailMetadata\.mjs'/,
+    'and the boundary reads the authority directly',
+  );
   assert.match(sheet, /\{dossier\.name\}/);
   assert.match(sheet, /\{dossier\.contentVersionLabel\}/);
   assert.match(sheet, /\{dossier\.contentVersion\}/);

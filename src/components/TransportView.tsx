@@ -20,7 +20,7 @@ import {
   TRANSPORT_SECTIONS,
   entriesForContext,
   timetableStatus,
-} from '../data/transport.mjs';
+} from '../trail/activeTrailContent';
 import { formatVerifiedDate, todayIso } from '../utils/format';
 import type {
   TimetableStatus,

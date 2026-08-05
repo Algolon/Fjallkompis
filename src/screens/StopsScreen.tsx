@@ -20,19 +20,20 @@ import { FacilityIcon } from '../components/FacilityIcon';
 import { LinkedStaysChooser } from '../components/LinkedStaysChooser';
 import { StopVisual } from '../components/StopVisual';
 import {
+  HUT_TO_WAYPOINT,
   STOPS_BY_ID,
+  WAYPOINT_BY_ID,
   collapsedFacilities,
+  curatedOffRoutePlaces,
   importantAbsences,
+  shopTypeForStop,
+  staysLinkedToPlace,
   stopShortName,
-} from '../data/stops';
-import { shopTypeForStop } from '../data/shops.mjs';
-import { curatedOffRoutePlaces, staysLinkedToPlace } from '../data/journeyPlaces.mjs';
+  transportLinkForStop,
+} from '../trail/activeTrailContent';
 import { tripStayTypeTitle } from '../trip/tripModel.mjs';
-import { transportLinkForStop } from '../data/transport.mjs';
 import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
-import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
-import type { StopTransportLink } from '../data/transport.mjs';
-import type { CuratedOffRoutePlace } from '../data/journeyPlaces.mjs';
+import type { CuratedOffRoutePlace, StopTransportLink } from '../trail/activeTrailContent';
 import type { ShopCategory, TrailStop } from '../types';
 import type { TabId } from '../components/TabBar';
 import type { NavPayload } from './TodayScreen';
