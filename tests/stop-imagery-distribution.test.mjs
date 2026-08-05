@@ -197,6 +197,54 @@ test('factual references to STF as an organisation and source are preserved', ()
   assert.match(attribution, /Svenska Turistföreningen \(STF\)/);
 });
 
+// ---- Committed screenshots are a distribution channel too -------------------
+
+/**
+ * Captures in which the membership quick access was on screen also reproduced
+ * the STF roundel, so they went with the asset. Pinned by name rather than by
+ * pixel inspection on purpose: CI has no image toolchain, and a filename list
+ * is the part that must not silently come back.
+ */
+const WITHDRAWN_CAPTURES = [
+  'docs/verification/tonight-card/after-A-travel-linked-abisko-2qa-320x667.png',
+  'docs/verification/tonight-card/after-A-travel-linked-abisko-2qa-375x667.png',
+  'docs/verification/tonight-card/after-B-hiking-explicit-abiskojaure-1qa-320x667.png',
+  'docs/verification/tonight-card/after-B-hiking-explicit-abiskojaure-1qa-375x667.png',
+  'docs/verification/tonight-card/after-B3-hiking-dated-linked-stay-375x667.png',
+  'docs/verification/tonight-card/after-E-generic-offroute-stay-375x667.png',
+  'docs/verification/tonight-card/before-A-travel-linked-abisko-2qa-375x667.png',
+  'docs/verification/tonight-card/before-B-hiking-explicit-abiskojaure-1qa-375x667.png',
+  'docs/verification/tonight-card/before-B2-hiking-dated-unlinked-stay-375x667.png',
+  'docs/verification/curated-place-tonight/kiruna-320x667.png',
+  'docs/verification/curated-place-tonight/kiruna-375x667.png',
+];
+
+test('no withdrawn brand capture is back in the repository', () => {
+  for (const rel of WITHDRAWN_CAPTURES) {
+    assert.ok(!existsSync(join(root, rel)), `${rel} must stay withdrawn`);
+  }
+});
+
+test('removing them left no dangling link in the evidence docs', () => {
+  // Scoped to the directories this change edited — the repo carries older
+  // unrelated link debt elsewhere, and widening this would just be noise.
+  const dirs = ['docs/verification', 'docs/pr-evidence'];
+  const docs = dirs.flatMap((d) => walk(join(root, d))).filter((f) => f.endsWith('.md'));
+  assert.ok(docs.length > 0, 'the sweep found the evidence READMEs');
+  for (const doc of docs) {
+    const text = readFileSync(doc, 'utf8');
+    for (const [, target] of text.matchAll(/\]\(([^)\s]+)\)/g)) {
+      if (/^(https?:|mailto:|#)/.test(target)) continue;
+      const file = target.split('#')[0];
+      if (!file) continue;
+      assert.ok(
+        existsSync(join(dirname(doc), file)),
+        `${relative(root, doc)} links to missing ${file}`,
+      );
+    }
+  }
+});
+
 // ---- This PR changed no trail fact ----------------------------------------
 
 test('withdrawing imagery is not a content revision', () => {
