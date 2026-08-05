@@ -50,13 +50,13 @@ const V1_STATE = {
   ],
 };
 
-test('schema version is 10', () => {
-  assert.equal(SCHEMA_VERSION, 10);
+test('schema version is 11', () => {
+  assert.equal(SCHEMA_VERSION, 11);
 });
 
-test('v1 → v10: schemaVersion is bumped and core fields survive', () => {
+test('v1 → current: schemaVersion is bumped and core fields survive', () => {
   const s = normalizeState(V1_STATE);
-  assert.equal(s.schemaVersion, 10);
+  assert.equal(s.schemaVersion, SCHEMA_VERSION);
   assert.equal(s.currentStageId, 'd3');
   assert.equal(s.journal.length, 1);
   assert.deepEqual(s.journal[0], V1_STATE.journal[0]);
@@ -189,7 +189,7 @@ test('invalid status/quantity on a seed item resets to seed values, id kept', ()
 test('completely malformed blobs load as defaults', () => {
   for (const bad of [undefined, null, 'x', 9, [], { schemaVersion: 'q' }]) {
     const s = normalizeState(bad, 'd1');
-    assert.equal(s.schemaVersion, 10);
+    assert.equal(s.schemaVersion, SCHEMA_VERSION);
     assert.equal(s.currentStageId, 'd1');
     assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
     assert.ok(!('checklist' in s));
@@ -205,7 +205,7 @@ test('v3 → v4: older state without routeDirection defaults to forward', () => 
   // A realistic v3 payload never carried a direction field.
   const v3 = { schemaVersion: 3, currentStageId: 'd5', hutData: {}, journal: [], packing: [] };
   const s = normalizeState(v3);
-  assert.equal(s.schemaVersion, 10);
+  assert.equal(s.schemaVersion, SCHEMA_VERSION);
   assert.equal(s.routeDirection, 'abisko-to-nikkaluokta');
   // Unrelated data survives untouched.
   assert.equal(s.currentStageId, 'd5');
@@ -492,7 +492,7 @@ function ownedV5State() {
 test('v5 → v6: an owned packing payload gains an empty trip plan, nothing else changes', () => {
   const v5 = ownedV5State();
   const s = normalizeState(v5);
-  assert.equal(s.schemaVersion, 10);
+  assert.equal(s.schemaVersion, SCHEMA_VERSION);
   assert.deepEqual(s.trip, [], 'no trip items are fabricated');
   // The owned snapshot survives field-for-field (plus the v8 worn default):
   // no re-run of the seed merge, no restored deletions, no reset progress.
@@ -615,7 +615,7 @@ test('combined migration is idempotent and never mutates its input', () => {
 
 test('fresh defaultState carries the current template, its version and an empty trip', () => {
   const s = defaultState('d1');
-  assert.equal(s.schemaVersion, 10);
+  assert.equal(s.schemaVersion, SCHEMA_VERSION);
   assert.equal(s.packing.length, SEED_PACKING_ITEMS.length);
   assert.deepEqual(s.trip, []);
 });
@@ -700,7 +700,7 @@ function v6State() {
 test('v6 → v7: an existing payload gains dayPlan: null and nothing else changes', () => {
   const v6 = v6State();
   const s = normalizeState(v6, 'd1', STAGE_COUNT);
-  assert.equal(s.schemaVersion, 10);
+  assert.equal(s.schemaVersion, SCHEMA_VERSION);
   assert.equal(s.dayPlan, null, 'no plan is ever generated for an existing user');
   // Every other field is untouched — the migration paths compose.
   assert.deepEqual(s.packing, withWornDefault(v6.packing));
@@ -856,7 +856,7 @@ test('v9 → v10: one realistic full-state startup migration is coherent across 
   const sourceSnapshot = structuredClone(source);
 
   const migrated = normalizeState(source, 'd1', STAGE_COUNT);
-  assert.equal(migrated.schemaVersion, 10);
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION);
   assert.equal(migrated.currentStageId, 'd4', 'canonical Stage context survives');
   assert.equal(migrated.dayPlan.journeyActive, false, 'migration never activates personal Journey');
   assert.equal(migrated.dayPlan.currentDayId, plan.days[3].id);
@@ -990,7 +990,7 @@ test('v9 → v10 device transfer: an exported v9 blob imports on a v10 device', 
     state: { ...v6State(), schemaVersion: 9, routeDirection: FORWARD, dayPlan: journeyPlan() },
   };
   const s = normalizeState(exported.state, 'd1', STAGE_COUNT);
-  assert.equal(s.schemaVersion, 10);
+  assert.equal(s.schemaVersion, SCHEMA_VERSION);
   assert.equal(s.dayPlan.days.length, 9);
   assert.deepEqual(migratedLegs(s.dayPlan).flat().length, 7, 'every stage exactly once');
 });
@@ -1180,7 +1180,7 @@ test('removing the recovery is representable without touching anything else', ()
 test('a legacy payload from any older schema still lands on dayPlan: null', () => {
   for (const legacy of [V1_STATE, { ...V1_STATE, schemaVersion: 3 }]) {
     const s = normalizeState(legacy, 'd1', STAGE_COUNT);
-    assert.equal(s.schemaVersion, 10);
+    assert.equal(s.schemaVersion, SCHEMA_VERSION);
     assert.equal(s.dayPlan, null);
   }
 });

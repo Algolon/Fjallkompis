@@ -131,11 +131,12 @@ import {
   normalizeWeightGrams,
 } from './packingModel.mjs';
 import { DEFAULT_DIRECTION, normalizeDirection } from '../route/direction.mjs';
+import { ACTIVE_TRAIL_ID, readTrailId, trailIdentityOf } from '../data/trailIdentity.mjs';
 import { normalizeTripItems } from '../trip/tripModel.mjs';
 import { normalizeDayPlan } from '../plan/dayPlan.mjs';
 import { planUsesLegacyHiking } from '../plan/dayPlanMigration.mjs';
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** Fresh seed packing items (deep-ish copy so callers can't mutate the seed). */
 export function seedPackingItems() {
@@ -145,6 +146,7 @@ export function seedPackingItems() {
 export function defaultState(defaultStageId) {
   return {
     schemaVersion: SCHEMA_VERSION,
+    trailId: ACTIVE_TRAIL_ID,
     currentStageId: defaultStageId ?? null,
     routeDirection: DEFAULT_DIRECTION,
     hutData: {},
@@ -339,10 +341,23 @@ function migrateLegacyPacking(raw) {
  * deliberately free of route-data imports. Omitting it means a day plan
  * cannot be validated at all, so it normalises to `null` — the feature's own
  * default, never a crash.
+ *
+ * TRAIL IDENTITY (schema v11). This is the KUNGSLEDEN normaliser: everything
+ * it returns carries `trailId: ACTIVE_TRAIL_ID`. A payload claiming a
+ * different trail is refused OUTRIGHT — it returns the default state without
+ * reading a single personal field, so a foreign `d1` can never be interpreted
+ * against the Kungsleden topology. That refusal is defence in depth: it is
+ * indistinguishable from "unusable input" by design, so callers that must
+ * TELL the two apart (and must not overwrite anything) use {@link readState}
+ * instead. The app only ever goes through readState.
  */
 export function normalizeState(raw, defaultStageId, topology) {
   const base = defaultState(defaultStageId);
   if (!isObject(raw)) return base;
+
+  // Checked FIRST — before direction, pointers, legs or overnights are read,
+  // because every one of those is interpreted against Kungsleden content.
+  if (trailIdentityOf(raw) === 'mismatch') return base;
 
   const templateVersion = ownedTemplateVersion(raw.packingTemplateVersion);
   // The direction resolved just below is the ACTIVE one at load time, so a
@@ -388,6 +403,10 @@ export function normalizeState(raw, defaultStageId, topology) {
 
   return {
     schemaVersion: SCHEMA_VERSION,
+    // Legacy payloads (no claim) and matching payloads both land here, and
+    // both belong to this trail — legacy data predates the field and was
+    // Kungsleden data by definition. A foreign claim never reaches this line.
+    trailId: ACTIVE_TRAIL_ID,
     currentStageId:
       typeof raw.currentStageId === 'string' || raw.currentStageId === null
         ? raw.currentStageId
@@ -405,5 +424,43 @@ export function normalizeState(raw, defaultStageId, topology) {
     trip: normalizeTripItems(raw.trip),
     dayPlan,
     dayPlanRecovery,
+  };
+}
+
+/**
+ * The trail-aware entry point: read an unknown blob (from local storage or an
+ * imported file) and say UNAMBIGUOUSLY whether it belongs to this trail.
+ *
+ * This exists because {@link normalizeState} is total — it must return a state
+ * for any input, so "refused" and "empty" look identical there. Callers that
+ * decide whether to ADOPT data need to tell those apart, and must not write
+ * anything when they cannot.
+ *
+ *   { ok: true,  state, identity: 'match' | 'legacy' }
+ *   { ok: false, reason: 'trail-mismatch', trailId, expectedTrailId }
+ *
+ * On a mismatch NO state is returned at all — there is deliberately nothing a
+ * caller could half-apply. The decision is made before any personal field is
+ * read, so no foreign stage id, overnight or pointer is ever interpreted
+ * against Kungsleden content.
+ *
+ * Pure: it reads, classifies and normalises, and never touches storage. The
+ * atomicity guarantee at the import boundary follows from that — a refused
+ * import has nothing to apply and no side effect to undo.
+ */
+export function readState(raw, defaultStageId, topology) {
+  const identity = trailIdentityOf(raw);
+  if (identity === 'mismatch') {
+    return {
+      ok: false,
+      reason: 'trail-mismatch',
+      trailId: readTrailId(raw),
+      expectedTrailId: ACTIVE_TRAIL_ID,
+    };
+  }
+  return {
+    ok: true,
+    identity,
+    state: normalizeState(raw, defaultStageId, topology),
   };
 }

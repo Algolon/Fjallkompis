@@ -1,5 +1,5 @@
 import type { PersistentState } from '../types';
-import { normalizeState, SCHEMA_VERSION } from './storage';
+import { readState, SCHEMA_VERSION } from './storage';
 
 export interface ExportEnvelope {
   app: 'fjallkompis';
@@ -43,25 +43,42 @@ export function downloadJson(filename: string, data: unknown): void {
   downloadTextFile(filename, JSON.stringify(data, null, 2), 'application/json');
 }
 
+/** Why an import was refused — distinct causes, distinct messages. */
+export type ImportFailureReason = 'invalid-json' | 'unexpected-shape' | 'trail-mismatch';
+
 export type ImportResult =
   | { ok: true; state: PersistentState }
-  | { ok: false; error: string };
+  | { ok: false; error: string; reason: ImportFailureReason };
 
 /**
  * Parse a pasted/loaded JSON string. Accepts either a full export envelope or
  * a bare state object. Never throws — returns a typed result so the UI can
  * show a clear error without losing existing data.
+ *
+ * ATOMICITY. This function is pure: it parses and validates, and writes
+ * nothing. A refused import therefore has no partial effect to undo — the
+ * caller applies state only on `ok: true`, so the current state, stored
+ * documents and pointers are untouched by a failure.
+ *
+ * A backup written for a DIFFERENT trail is refused with its own reason, kept
+ * distinct from corrupt JSON and from an unexpected shape: the file is
+ * perfectly valid, it simply belongs somewhere else, and telling the user it
+ * is broken would be wrong.
  */
 export function parseImport(text: string): ImportResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    return { ok: false, error: 'That file is not valid JSON.' };
+    return { ok: false, reason: 'invalid-json', error: 'That file is not valid JSON.' };
   }
 
   if (typeof parsed !== 'object' || parsed === null) {
-    return { ok: false, error: 'Unexpected file shape — expected an object.' };
+    return {
+      ok: false,
+      reason: 'unexpected-shape',
+      error: 'Unexpected file shape — expected an object.',
+    };
   }
 
   const maybeEnvelope = parsed as Partial<ExportEnvelope>;
@@ -70,6 +87,15 @@ export function parseImport(text: string): ImportResult {
       ? maybeEnvelope.state
       : parsed;
 
-  const state = normalizeState(candidate);
-  return { ok: true, state };
+  const result = readState(candidate);
+  if (!result.ok) {
+    return {
+      ok: false,
+      reason: 'trail-mismatch',
+      error:
+        'This backup belongs to a different trail. Fjällkompis is set up for the ' +
+        'Kungsleden, so nothing was imported and your trip data is unchanged.',
+    };
+  }
+  return { ok: true, state: result.state };
 }
