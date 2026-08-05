@@ -33,10 +33,9 @@
   display: none;
 }
 
-/* Linked Travel-document quick access beside Tonight. A circular glass control
-   on the same 64 px rhythm as the membership card beside it — the ticket is a
-   round glyph, membership a rounded card, so the two read as siblings without
-   either one needing a brand mark to tell them apart. */
+/* Linked Travel-document quick access beside Tonight. The ticket action uses
+   the same circular weight and 64 px rhythm as the STF roundel, but stays a
+   neutral glass control: the STF mark remains visually unique. */
 .ticket-card {
   width: 64px;
   height: 64px;

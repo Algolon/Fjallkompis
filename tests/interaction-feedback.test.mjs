@@ -66,15 +66,19 @@ test('keyboard focus rings remain, and the STF ring is circular', () => {
   ]) {
     assert.ok(css.includes(selector), `${selector} focus state exists`);
   }
-  // The membership card is a rounded card (the STF roundel was removed — no
-  // licence to redistribute the mark), and its outline follows that radius.
-  const stf = css.slice(css.indexOf('.stf-card {'), css.indexOf('.stf-card:active'));
-  assert.match(stf, /border-radius: var\(--r-md\)/);
-  assert.doesNotMatch(stf, /border-radius: 50%/);
+  // The roundel is a circle and its outline follows it (outline hugs
+  // border-radius in every supporting browser).
+  const stf = css.slice(css.indexOf('.stf-card {'), css.indexOf('.stf-card img'));
+  assert.match(stf, /border-radius: 50%/);
   assert.match(
     css,
-    /\.stf-card:focus-visible \{\n  outline: 2px solid var\(--glacier-700\);\n  outline-offset: 2px;\n\}/,
+    /\.stf-card:focus-visible \{\n  outline: 2px solid var\(--glacier-700\);\n  outline-offset: 3px;\n\}/,
   );
+  // The load-failure fallback is a rounded card, so its ring follows that
+  // radius instead — the same override the boxed treatment always carried.
+  const boxed = css.slice(css.indexOf('.stf-card--boxed {'), css.indexOf('.stf-card__label'));
+  assert.match(boxed, /border-radius: var\(--r-md\)/);
+  assert.match(boxed, /\.stf-card--boxed:focus-visible \{\n  outline-offset: 2px;\n\}/);
 });
 
 test('no blanket outline removal without a replacement', () => {
