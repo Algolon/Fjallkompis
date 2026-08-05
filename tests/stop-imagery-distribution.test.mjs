@@ -195,38 +195,45 @@ test('all eight stops still carry their facts, sources and identity', () => {
   assert.ok(stopsSrc.includes('bedCapacity:'));
 });
 
-// ---- The fallback is app-owned, offline and decorative ---------------------
+// ---- No photo means no visual at all — not a stand-in for one --------------
 
-test('the fallback fetches nothing — it is drawn from our own route data', () => {
-  const fallback = stopVisual.slice(stopVisual.indexOf('if (!sil) return null'));
-  assert.doesNotMatch(fallback, /https?:\/\//, 'no external URL in the fallback');
-  assert.doesNotMatch(fallback, /<img/, 'the fallback is not an image request');
-  // url(#…) is an in-document SVG paint reference (our own gradients) and
-  // fetches nothing; any other url() would be a request.
-  assert.doesNotMatch(fallback, /url\((?!#)/, 'no fetched asset either');
-  assert.match(fallback, /<svg /, 'an inline SVG, generated from the elevation profile');
+/**
+ * The elevation-silhouette placeholder is gone. It was a drawing of the whole
+ * route repeated on all eight cards with the dot moved, captioned "N km from
+ * …" — filler where a photo used to be, above a card that already states the
+ * stop's facts. Withdrawing the photos made it the only thing left, which is
+ * what made it read as decoration rather than information.
+ *
+ * What is pinned here is the RULE, not a layout: a stop with no licensed photo
+ * renders no visual header, and nothing may quietly grow back into that slot.
+ */
+test('a stop without a photo renders no visual header at all', () => {
+  assert.match(stopVisual, /if \(!stop\.image\) return null/, 'no photo, no element');
+  // Nothing is drawn in its place. Asserted on CODE, not on prose: the file
+  // comment still explains why the placeholder went, and should.
+  const code = stopVisual.slice(stopVisual.indexOf('import '));
+  assert.doesNotMatch(code, /<svg/, 'no generated drawing');
+  assert.doesNotMatch(code, /stop-visual-tag/, 'no "N km from …" pill');
+  assert.doesNotMatch(code, /MapPin/, 'no pin glyph');
+  // The component no longer reaches for route state at all.
+  assert.doesNotMatch(code, /overviewElevationProfile|stopDistanceKm/, 'no profile plumbing');
+  assert.doesNotMatch(code, /useStore|useMemo/, 'no store or memo work left');
 });
 
-test('the fallback is decoration: hidden from AT, and it never renames the stop', () => {
-  const fallback = stopVisual.slice(stopVisual.indexOf('if (!sil) return null'));
-  // The drawing itself is hidden…
-  assert.match(fallback, /<svg[^>]*aria-hidden/);
-  // …and it is not re-exposed as an image with a label. The card heading and
-  // the official-name paragraph already announce the stop; a role="img" label
-  // would make that three times.
-  assert.doesNotMatch(fallback, /role="img"/);
-  assert.doesNotMatch(fallback, /aria-label=/);
-  // No empty alt text left behind to be announced as content.
-  assert.doesNotMatch(fallback, /alt=""/);
-  // The one real fact it carries stays readable text, not an image label.
-  assert.match(fallback, /className="stop-visual-tag"/);
+test('the placeholder left no dead CSS behind', () => {
+  const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
+  assert.doesNotMatch(css, /\.stop-visual-tag/, 'the pill rule is gone');
+  assert.doesNotMatch(css, /\.stop-visual > svg/, 'the drawing rule is gone');
+  // The photo treatment stays — it is what the container is now for.
+  assert.match(css, /\.stop-visual img/);
 });
 
 test('a licensed photo remains possible, and would be a real photo or nothing', () => {
   // The image branch is kept for a photo we may lawfully redistribute; it is
   // not a decoration path, so it keeps a genuine alt.
-  assert.match(stopVisual, /if \(stop\.image\)/);
+  assert.match(stopVisual, /stop\.image/);
   assert.match(stopVisual, /alt=\{stop\.image\.alt\}/);
+  assert.match(stopVisual, /loading="lazy"/, 'still lazy, still a fixed aspect ratio');
 });
 
 // ---- The one restored asset, and nothing riding along with it --------------

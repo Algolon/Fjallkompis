@@ -54,11 +54,12 @@ const coordOf = (stopId: string) => {
 /**
  * No stop ships a photograph. `image` stays optional and simply absent: the
  * app has no redistribution right for third-party photos of these places, and
- * an absent field is the honest way to say so. Stops render the generated
- * route-silhouette fallback (see components/StopVisual) — drawn from our own
- * route data, so it needs no licence and works offline. Add an `image` here
- * only for a photo whose licence permits redistribution; the format and the
- * public/images/stops/ location are documented in the README there.
+ * an absent field is the honest way to say so. A stop without one simply has
+ * no visual header (see components/StopVisual) — the card leads with its facts
+ * instead of with a placeholder standing in for a missing photo. Add an
+ * `image` here only for a photo whose licence permits redistribution; the
+ * format and the public/images/stops/ location are documented in the README
+ * there.
  */
 const CURATED: Omit<TrailStop, 'coord'>[] = [
   {
@@ -242,7 +243,7 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
  * Optional local, licensed images. Files are expected under
  * public/images/stops/<id>.webp — see public/images/stops/README.md for how
  * to add one. No STF or third-party photos are hotlinked or bundled; stops
- * without an image get a generated route-silhouette fallback in the UI.
+ * without an image simply show no visual header.
  */
 export const STOPS: TrailStop[] = CURATED.map((s) => ({ ...s, coord: coordOf(s.id) }));
 
