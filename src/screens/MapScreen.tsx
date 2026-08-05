@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ChevronRight, TriangleAlert } from 'lucide-react';
+import { ChevronRight, Compass, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { MapView, type MapViewHandle, type ImageryMode } from '../components/MapView';
 import { MapScopeControl, type ScopeOption } from '../components/MapScopeControl';
@@ -17,6 +17,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useRouteTracking } from '../hooks/useRouteTracking';
 import {
   STOPS_BY_ID,
+  TRAIL_CAVEATS,
   WAYPOINT_BY_ID,
   collapsedFacilities,
   importantAbsences,
@@ -520,6 +521,23 @@ export function MapScreen({
                   <span>{message}</span>
                 </p>
               ) : null}
+              {/* The one PERMANENT thing in the cockpit, and the reason it is
+                  permanent: this screen shows a position, a route line and
+                  on/off-route feedback, so it reads like a navigator whether
+                  or not Locate or tracking was used, and whether or not a fix
+                  ever arrives. Stating it once, quietly, in the same lead
+                  column as every other map note beats a modal nobody reopens.
+                  Plain paper rather than the warn tone — a standing condition
+                  of use, not a failure — and no role="status", because it
+                  never changes and must not compete with the live notes above
+                  it. It costs the camera its measured depth like any other
+                  note (see measurePadding) and, alone among the cockpit
+                  surfaces, it passes pointer events through: nothing here is
+                  interactive, so it must never swallow a pan or a pinch. */}
+              <p className="map-note map-note--caveat">
+                <Compass size={15} strokeWidth={2} aria-hidden />
+                <span>{TRAIL_CAVEATS.navigation.short}</span>
+              </p>
             </div>
 
             <MapControlStack

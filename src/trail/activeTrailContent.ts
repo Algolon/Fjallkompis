@@ -34,9 +34,10 @@
  *
  * WHAT BELONGS HERE
  * -----------------
- * The verified dossier: route and stages, places, editorial route content,
- * reference logistics, and the sources behind them. In other words: what a
- * hiker TRUSTS about the trail, independent of their own trip.
+ * The verified dossier: route and stages, places, editorial route content
+ * (including the standing operational caveats), reference logistics, and the
+ * sources behind them. In other words: what a hiker TRUSTS about the trail,
+ * independent of their own trip.
  *
  * WHAT DOES NOT
  * -------------
@@ -112,6 +113,7 @@ import {
 } from '../data/journeyPlaces.mjs';
 import { STAGE_EDITORIAL } from '../data/stageEditorial.mjs';
 import { STAGE_GUIDES, GUIDE_SOURCES, stageGuide } from '../data/stageGuides.mjs';
+import { TRAIL_CAVEATS } from '../data/trailCaveats.mjs';
 import {
   HIGHLIGHT_TYPES,
   STAGE_HIGHLIGHT_IDS,
@@ -206,6 +208,14 @@ export const ACTIVE_TRAIL_CONTENT = Object.freeze({
   editorial: Object.freeze({
     stageGuides: STAGE_GUIDES,
     guideSources: GUIDE_SOURCES,
+    /**
+     * Standing operational caveats — what is true on every stage, every day,
+     * about navigating with this app and about depending on a phone. They sit
+     * beside the guides because they answer the same question the guides do
+     * ("what should I know before I walk this?"), only for the whole dossier
+     * rather than one stage.
+     */
+    caveats: TRAIL_CAVEATS,
     stageEditorial: STAGE_EDITORIAL,
     highlightTypes: HIGHLIGHT_TYPES,
     stageHighlightIds: STAGE_HIGHLIGHT_IDS,
@@ -301,8 +311,10 @@ export {
   experienceTrack,
   experienceWaypoint,
 };
+export { TRAIL_CAVEATS };
 export type { StageGuide } from '../data/stageGuides.mjs';
 export type { StageHighlight, StageHighlightIcon } from '../data/stageHighlights.mjs';
+export type { TrailCaveat, TrailCaveats } from '../data/trailCaveats.mjs';
 
 // Reference logistics — shops and transport
 export {
