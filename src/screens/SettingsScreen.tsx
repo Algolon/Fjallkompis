@@ -129,7 +129,19 @@ function TrailReadinessCard({
         />
         <ReadinessRow
           label="Offline basemap"
-          value={basemap.downloaded ? formatBytes(basemap.sizeBytes) : 'Not stored'}
+          // A superseded archive still counts as ready — it works offline —
+          // but the row must not read as up to date; the Offline maps panel
+          // below is where the update itself lives. Unusable stored data is
+          // NOT ready and says so rather than showing its size.
+          value={
+            basemap.needsRepair
+              ? 'Needs repair'
+              : basemap.updateAvailable
+                ? 'Update available'
+                : basemap.downloaded
+                  ? formatBytes(basemap.sizeBytes)
+                  : 'Not stored'
+          }
           done={basemap.downloaded}
           pending={basemap.checking}
         />

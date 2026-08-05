@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import {
   archiveUrl,
   downloadArchive,
+  ARCHIVE_MISMATCH_ERROR,
   formatBytes,
   getArchiveStatus,
   removeArchive,
@@ -16,6 +17,8 @@ import {
   TERRAIN_ARCHIVE,
   VECTOR_ARCHIVE,
   type ArchiveSpec,
+  type ArchiveState,
+  type OfflineMapStatus,
 } from '../map/offlineMap';
 import {
   BASEMAP_SOURCE_INFO,
@@ -28,8 +31,15 @@ import { SourceSummary } from './SourceSummary';
 /** Combined download state of a card's archives (usually one; relief: two). */
 interface CombinedStatus {
   supported: boolean;
+  /** A USABLE archive is stored — current OR a shipped superseded revision. */
   downloaded: boolean;
   sizeBytes: number | null;
+  /** 'legacy' when a superseded revision is in use; 'invalid' when unusable. */
+  state: ArchiveState;
+  /** Bytes the replacement download will store, when a revision is declared. */
+  expectedBytes: number | null;
+  updateAvailable: boolean;
+  needsRepair: boolean;
 }
 
 export type ArchiveCombinedStatus = CombinedStatus & { checking: boolean };
@@ -38,8 +48,38 @@ type Phase =
   | { kind: 'checking' }
   | { kind: 'idle'; status: CombinedStatus }
   | { kind: 'downloading'; loaded: number; total: number | null }
-  | { kind: 'done'; sizeBytes: number }
-  | { kind: 'error'; message: string };
+  | { kind: 'done'; sizeBytes: number };
+
+/**
+ * Fold per-archive statuses into the one state a card shows. A card is only up
+ * to date when every archive it manages is. Unusable data wins over everything
+ * — it is the one state that needs the user to act — then anything missing
+ * reads as not downloaded (the primary button offers to complete the set), and
+ * anything superseded reads as an update. Never as current.
+ */
+function combineStatuses(statuses: OfflineMapStatus[]): CombinedStatus {
+  const downloaded = statuses.every((s) => s.downloaded);
+  const state: ArchiveState = statuses.some((s) => s.state === 'invalid')
+    ? 'invalid'
+    : !downloaded
+      ? 'absent'
+      : statuses.some((s) => s.state === 'legacy')
+        ? 'legacy'
+        : 'current';
+  return {
+    supported: statuses.every((s) => s.supported),
+    downloaded,
+    sizeBytes: statuses.every((s) => s.sizeBytes != null)
+      ? statuses.reduce((sum, s) => sum + (s.sizeBytes ?? 0), 0)
+      : null,
+    state,
+    expectedBytes: statuses.every((s) => s.expectedBytes != null)
+      ? statuses.reduce((sum, s) => sum + (s.expectedBytes ?? 0), 0)
+      : null,
+    updateAvailable: state === 'legacy',
+    needsRepair: state === 'invalid',
+  };
+}
 
 interface ArchiveCardProps {
   /**
@@ -66,20 +106,17 @@ export function useCombinedArchiveStatus(specs: ArchiveSpec[]): ArchiveCombinedS
     supported: false,
     downloaded: false,
     sizeBytes: null,
+    state: 'absent',
+    expectedBytes: null,
+    updateAvailable: false,
+    needsRepair: false,
   });
 
   useEffect(() => {
     let alive = true;
     void Promise.all(specs.map((s) => getArchiveStatus(s))).then((statuses) => {
       if (!alive) return;
-      setStatus({
-        checking: false,
-        supported: statuses.every((s) => s.supported),
-        downloaded: statuses.every((s) => s.downloaded),
-        sizeBytes: statuses.every((s) => s.sizeBytes != null)
-          ? statuses.reduce((sum, s) => sum + (s.sizeBytes ?? 0), 0)
-          : null,
-      });
+      setStatus({ checking: false, ...combineStatuses(statuses) });
     });
     return () => {
       alive = false;
@@ -100,21 +137,15 @@ function ArchiveCard({
   embedded = false,
 }: ArchiveCardProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
+  // Held apart from `phase` on purpose: a failed download must not erase what
+  // the device still has. After an error the card falls back to the real
+  // status — for a superseded archive that is "update available", never
+  // "not downloaded".
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
     const statuses = await Promise.all(specs.map((s) => getArchiveStatus(s)));
-    setPhase({
-      kind: 'idle',
-      status: {
-        supported: statuses.every((s) => s.supported),
-        // Partial downloads (e.g. an aborted two-file fetch) count as not
-        // downloaded, so the primary button offers to complete the set.
-        downloaded: statuses.every((s) => s.downloaded),
-        sizeBytes: statuses.every((s) => s.sizeBytes != null)
-          ? statuses.reduce((sum, s) => sum + (s.sizeBytes ?? 0), 0)
-          : null,
-      },
-    });
+    setPhase({ kind: 'idle', status: combineStatuses(statuses) });
   };
 
   useEffect(() => {
@@ -123,6 +154,7 @@ function ArchiveCard({
   }, [specs.map((s) => s.cacheName).join('|')]);
 
   const download = async () => {
+    setError(null);
     setPhase({ kind: 'downloading', loaded: 0, total: null });
     try {
       // Sequential download with combined progress. The total is only shown
@@ -144,19 +176,25 @@ function ArchiveCard({
       }
       setPhase({ kind: 'done', sizeBytes: size });
     } catch (e) {
-      setPhase({
-        kind: 'error',
-        message:
-          e instanceof Error && e.message
+      setError(
+        // A rejected archive arrived intact — its message is already the whole
+        // story, and "check your connection" would be the wrong advice.
+        e instanceof Error && e.name === ARCHIVE_MISMATCH_ERROR
+          ? e.message
+          : e instanceof Error && e.message
             ? `${e.message} — check your connection and try again.`
             : 'Download failed — check your connection and try again.',
-      });
+      );
+      // Re-read the caches rather than assuming: nothing was replaced, so the
+      // previously stored archive is still there and still usable offline.
+      await refresh();
     }
   };
 
   const remove = async () => {
     if (confirm(removeConfirm)) {
       for (const spec of specs) await removeArchive(spec);
+      setError(null);
       await refresh();
     }
   };
@@ -169,6 +207,11 @@ function ArchiveCard({
       : phase.kind === 'idle'
         ? phase.status.sizeBytes
         : null;
+  // A completed download is current by construction — downloadArchive refuses
+  // to store an archive that fails its revision contract.
+  const updateAvailable = phase.kind === 'idle' && phase.status.updateAvailable;
+  const needsRepair = phase.kind === 'idle' && phase.status.needsRepair;
+  const expectedBytes = phase.kind === 'idle' ? phase.status.expectedBytes : null;
 
   const content = (
     <>
@@ -195,19 +238,33 @@ function ArchiveCard({
         <span>
           {phase.kind === 'downloading'
             ? 'Downloading…'
-            : downloaded
-              ? '✓ Stored on this device'
-              : 'Not downloaded'}
+            : needsRepair
+              ? // "Map data needs repair" for the basemap; the heading keeps
+                // the wording right for any other card that gains a revision.
+                `${sourceHeading} needs repair`
+              : updateAvailable
+                ? 'Map update available'
+                : downloaded
+                  ? '✓ Stored on this device'
+                  : 'Not downloaded'}
         </span>
       </div>
       <div className="row-between" style={{ marginTop: 8 }}>
-        <span className="muted">File size</span>
+        <span className="muted">
+          {updateAvailable || needsRepair ? 'Stored now' : 'File size'}
+        </span>
         <span className="tnum">
           {phase.kind === 'downloading'
             ? `${formatBytes(phase.loaded)}${phase.total ? ` / ${formatBytes(phase.total)}` : ''}`
             : formatBytes(sizeBytes)}
         </span>
       </div>
+      {(updateAvailable || needsRepair) && expectedBytes != null ? (
+        <div className="row-between" style={{ marginTop: 8 }}>
+          <span className="muted">{needsRepair ? 'Expected size' : 'Update size'}</span>
+          <span className="tnum">{formatBytes(expectedBytes)}</span>
+        </div>
+      ) : null}
 
       {phase.kind === 'downloading' ? (
         <progress
@@ -226,19 +283,61 @@ function ArchiveCard({
         </p>
       ) : null}
 
-      {phase.kind === 'error' ? (
-        <p className="banner-warn" style={{ marginTop: 12 }}>
-          <span>⚠️</span>
-          <span>{phase.message}</span>
+      {updateAvailable ? (
+        <p className="banner-info" style={{ marginTop: 12 }}>
+          <span aria-hidden>↻</span>
+          <span>
+            The map on this device still works offline. A newer map-data
+            package is available; updating downloads it first and replaces the
+            old one only once it has arrived.
+          </span>
         </p>
       ) : null}
 
-      {downloaded ? (
+      {needsRepair ? (
+        <p className="banner-info" style={{ marginTop: 12 }}>
+          <span aria-hidden>↻</span>
+          <span>
+            The stored map data is incomplete, so it is not being used —
+            downloading it again replaces it. Until then the map needs a
+            connection.
+          </span>
+        </p>
+      ) : null}
+
+      {error ? (
+        <p className="banner-warn" style={{ marginTop: 12 }}>
+          <span>⚠️</span>
+          <span>{error}</span>
+        </p>
+      ) : null}
+
+      {needsRepair ? (
+        <>
+          {/* Not "Download for offline use": there IS data here, it just
+              cannot be used. Remove stays available so the unusable bytes can
+              be cleared without downloading first. */}
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 12 }}
+            onClick={download}
+          >
+            Download map data again
+          </button>
+          <button className="btn btn-danger btn-block" style={{ marginTop: 10 }} onClick={remove}>
+            Remove from device
+          </button>
+        </>
+      ) : downloaded ? (
         <>
           {/* While downloading, `downloaded` is false and the primary
               button below renders instead, so no disabled state is needed. */}
-          <button className="btn btn-block" style={{ marginTop: 12 }} onClick={download}>
-            Re-download / update
+          <button
+            className={`btn btn-block ${updateAvailable ? 'btn-primary' : ''}`}
+            style={{ marginTop: 12 }}
+            onClick={download}
+          >
+            {updateAvailable ? 'Update map data' : 'Re-download / update'}
           </button>
           <button className="btn btn-danger btn-block" style={{ marginTop: 10 }} onClick={remove}>
             Remove from device

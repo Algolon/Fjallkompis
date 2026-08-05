@@ -19,12 +19,50 @@
  *     RangeRequestsPlugin (configured in vite.config.ts), so plain fetch
  *     paths also work offline. Caching individual 206 responses would NOT
  *     be sufficient — only the full response is ever cached.
+ *
+ * An archive may also declare a REVISION (see src/map/archiveRevision.mjs).
+ * The vector basemap does, because its public URL is deliberately stable
+ * across rebuilds: without a revision contract a device that downloaded the
+ * archive before the 2026-08 rebuild would keep serving the superseded file
+ * forever. This module is the browser adapter — the decision table, the cache
+ * probing and the legacy pruning are pure and live next door.
  */
+import {
+  archiveFetchUrl,
+  probeArchiveCaches,
+  removeArchiveRevision,
+  storeArchiveRevision,
+  ARCHIVE_MISMATCH_ERROR,
+  VECTOR_ARCHIVE_CACHE,
+  VECTOR_ARCHIVE_LEGACY_CACHES,
+  VECTOR_ARCHIVE_REVISION,
+  type ArchiveRevision,
+  type ArchiveState,
+} from './archiveRevision.mjs';
+
+export type { ArchiveRevision, ArchiveState };
+export { ARCHIVE_MISMATCH_ERROR };
 
 /** Descriptor for one downloadable PMTiles archive. */
 export interface ArchiveSpec {
-  /** Cache Storage cache name (kept in sync with vite.config.ts). */
+  /**
+   * Cache Storage cache holding the CURRENT copy of this archive. The vector
+   * basemap's name is owned by the revision contract and imported by
+   * vite.config.ts too, so the service worker cannot drift onto another cache.
+   */
   cacheName: string;
+  /**
+   * Superseded caches for the SAME archive, newest first — read as an offline
+   * fallback and deleted only after the current revision downloads
+   * successfully. Only a revisioned archive declares any.
+   */
+  legacyCacheNames?: readonly string[];
+  /**
+   * Pins which build of the archive counts as current. Absent for archives
+   * that have only ever had one revision (terrain, contours, satellite),
+   * whose status stays existence-only.
+   */
+  revision?: ArchiveRevision;
   /** Same-origin path under BASE_URL (default location / dev fallback). */
   path: string;
   /**
@@ -40,7 +78,9 @@ const sameOriginUrl = (path: string): string =>
   new URL(`${import.meta.env.BASE_URL}${path}`, window.location.origin).toString();
 
 export const VECTOR_ARCHIVE: ArchiveSpec = {
-  cacheName: 'fjallkompis-offline-map-v1',
+  cacheName: VECTOR_ARCHIVE_CACHE,
+  legacyCacheNames: VECTOR_ARCHIVE_LEGACY_CACHES,
+  revision: VECTOR_ARCHIVE_REVISION,
   path: 'maps/kungsleden.pmtiles',
 };
 
@@ -105,23 +145,70 @@ export function satelliteMapUrl(): string {
 
 export interface OfflineMapStatus {
   supported: boolean;
+  /**
+   * A USABLE archive is stored on this device — the current revision or a
+   * shipped legacy one. False for an unusable current-cache entry.
+   */
   downloaded: boolean;
+  /** Bytes stored; for 'invalid', the size of the unusable entry. */
   sizeBytes: number | null;
+  /** Unrevisioned archives only ever report 'current' or 'absent'. */
+  state: ArchiveState;
+  /** Bytes the current revision must have, or null when none is declared. */
+  expectedBytes: number | null;
+  /** A newer archive revision is available to download (state === 'legacy'). */
+  updateAvailable: boolean;
+  /** Stored data that cannot be used and must be downloaded again. */
+  needsRepair: boolean;
 }
+
+const UNSUPPORTED: OfflineMapStatus = {
+  supported: false,
+  downloaded: false,
+  sizeBytes: null,
+  state: 'absent',
+  expectedBytes: null,
+  updateAvailable: false,
+  needsRepair: false,
+};
+
+/** What the archive-revision contract needs to probe one spec's caches. */
+const probeSpec = (spec: ArchiveSpec) => ({
+  cacheName: spec.cacheName,
+  url: archiveUrl(spec),
+  legacyCacheNames: spec.legacyCacheNames ?? [],
+  expectedBytes: spec.revision?.bytes ?? null,
+});
 
 export async function getArchiveStatus(spec: ArchiveSpec): Promise<OfflineMapStatus> {
-  if (!('caches' in window)) return { supported: false, downloaded: false, sizeBytes: null };
-  const cache = await caches.open(spec.cacheName);
-  const match = await cache.match(archiveUrl(spec));
-  if (!match) return { supported: true, downloaded: false, sizeBytes: null };
-  const blob = await match.clone().blob();
-  return { supported: true, downloaded: true, sizeBytes: blob.size };
+  if (!('caches' in window)) return UNSUPPORTED;
+  const { state, sizeBytes, expectedBytes, downloaded, updateAvailable, needsRepair } =
+    await probeArchiveCaches(caches, probeSpec(spec));
+  return {
+    supported: true,
+    downloaded,
+    sizeBytes,
+    state,
+    expectedBytes,
+    updateAvailable,
+    needsRepair,
+  };
 }
 
-/** Cached full-file blob for an archive, or null if not downloaded. */
+/**
+ * Cached full-file blob for an archive, or null when there is nothing safe to
+ * read. Prefers the current revision and falls back to a shipped legacy one,
+ * so an offline device keeps a working map until it has downloaded the
+ * replacement — but an unusable current-cache entry resolves to null rather
+ * than to a blob PMTiles would choke on.
+ */
 export async function getArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
   if (!('caches' in window)) return null;
-  const cache = await caches.open(spec.cacheName);
+  const { cacheName } = await probeArchiveCaches(caches, probeSpec(spec));
+  // Null for 'invalid' and 'absent' alike — the classification, not the mere
+  // presence of bytes, decides whether the map gets a blob at all.
+  if (!cacheName) return null;
+  const cache = await caches.open(cacheName);
   const match = await cache.match(archiveUrl(spec));
   return match ? match.blob() : null;
 }
@@ -129,14 +216,28 @@ export async function getArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
 /**
  * Download the full PMTiles file and store it as a single complete response.
  * Reports progress when the server provides Content-Length.
+ *
+ * Migration order matters and is deliberate: the archive is assembled in
+ * memory, checked against the declared revision, and only then written — so a
+ * fetch that fails, is cancelled, or returns the wrong archive leaves the
+ * device exactly as it was. Superseded caches are pruned strictly AFTER the
+ * successful write, which is the only point at which the old copy stops being
+ * the device's working map.
  */
 export async function downloadArchive(
   spec: ArchiveSpec,
   onProgress: (loadedBytes: number, totalBytes: number | null) => void,
 ): Promise<number> {
   const url = archiveUrl(spec);
-  // cache: 'no-store' so we bypass any stale HTTP-cache copy on re-download.
-  const res = await fetch(url, { cache: 'no-store' });
+  // Two separate bypasses, because there are two caches in the way:
+  //   - cache: 'no-store' skips a stale HTTP-cache copy;
+  //   - the ?rev= fetch URL takes the request out of the service worker's
+  //     CacheFirst route, which would otherwise answer it from Cache Storage
+  //     without ever reaching the server (measured — see archiveFetchUrl).
+  // The Cache Storage key below stays the bare `url`.
+  const res = await fetch(archiveFetchUrl(url, spec.revision?.id ?? null), {
+    cache: 'no-store',
+  });
   if (!res.ok) throw new Error(`Map download failed (HTTP ${res.status})`);
 
   const total = Number(res.headers.get('Content-Length')) || null;
@@ -160,24 +261,32 @@ export async function downloadArchive(
   }
 
   const blob = new Blob(chunks, { type: 'application/octet-stream' });
-  const cache = await caches.open(spec.cacheName);
-  await cache.put(
-    url,
-    new Response(blob, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': String(blob.size),
-      },
-    }),
+
+  // Verify → store → prune, in that order and nowhere else.
+  const { bytes } = await storeArchiveRevision(
+    caches,
+    probeSpec(spec),
+    blob,
+    (b) =>
+      new Response(b, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': String(b.size),
+        },
+      }),
   );
-  return blob.size;
+  return bytes;
 }
 
+/**
+ * Remove an archive from the device, superseded revisions included. Deletes
+ * the caches by name, so nothing is left behind — not the entry, not an empty
+ * cache, and never another archive's cache.
+ */
 export async function removeArchive(spec: ArchiveSpec): Promise<void> {
   if (!('caches' in window)) return;
-  const cache = await caches.open(spec.cacheName);
-  await cache.delete(archiveUrl(spec));
+  await removeArchiveRevision(caches, probeSpec(spec));
 }
 
 // ---- Vector-basemap convenience wrappers (existing call sites) ------------

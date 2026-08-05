@@ -1,0 +1,330 @@
+{
+  "A_legacy_install": {
+    "seededLegacyBytes": 5603107,
+    "cacheInventoryBeforeOpening": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "cacheInventoryAfterOpeningApp": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "nothingDeletedByOpeningTheApp": true,
+    "noCurrentCacheConjured": true,
+    "mapRendered": {
+      "hasCanvas": true,
+      "attribution": "© OpenStreetMap · Protomaps"
+    },
+    "basemapReadFromBlob": true,
+    "pmtilesRequests": [
+      "200 _seed-legacy.pmtiles",
+      "200 maps/kungsleden-satellite.pmtiles",
+      "200 maps/kungsleden-terrain.pmtiles",
+      "200 maps/kungsleden-contours.pmtiles"
+    ],
+    "settingsOfflineMapCard": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nMap update available\nStored now\n5.3 MB\nUpdate size\n5.6 MB\n↻\nThe map on this device still works offline. A newer map-data package is available; updating downloads it first and replaces the old one only once it has arrived.\nUpdate map dataRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\n✓ Stored on this device\nFile size\n3 kB\nRe-download / updateRemove from device\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "readinessRow": "Offline basemap | Ready | Update available",
+    "consoleErrors": []
+  },
+  "B_successful_update": {
+    "cacheInventoryBefore": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "cacheInventoryAfter": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v2": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5904598
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "storedBytes": 5904598,
+    "exactlyCurrentBytes": true,
+    "legacyCacheRemoved": true,
+    "otherLayerCachesIntact": true,
+    "downloadRequests": [
+      "200 maps/kungsleden.pmtiles?rev=kungsleden-vector-2026-08-overview-corridor",
+      "200 maps/kungsleden-satellite.pmtiles",
+      "200 maps/kungsleden-terrain.pmtiles",
+      "200 maps/kungsleden-contours.pmtiles"
+    ],
+    "serverFetchBypassedCaches": true,
+    "settingsCardBefore": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nMap update available\nStored now\n5.3 MB\nUpdate size\n5.6 MB\n↻\nThe map on this device still works offline. A newer map-data package is available; updating downloads it first and replaces the old one only once it has arrived.\nUpdate map dataRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "settingsCardAfter": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\n✓ Stored on this device\nFile size\n5.6 MB\n✓\nSaved (5.6 MB). It now works without a connection.\nRe-download / updateRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "mapAfterUpdate": {
+      "hasCanvas": true,
+      "attribution": "© OpenStreetMap · Protomaps"
+    },
+    "consoleErrors": []
+  },
+  "C_failed_update": {
+    "cacheInventoryBefore": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "c1_afterNetworkFailure": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "c1_legacyPreserved": true,
+    "c1_noCurrentCacheWritten": true,
+    "c1_settingsCard": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nMap update available\nStored now\n5.3 MB\nUpdate size\n5.6 MB\n↻\nThe map on this device still works offline. A newer map-data package is available; updating downloads it first and replaces the old one only once it has arrived.\n⚠️\nFailed to fetch — check your connection and try again.\nUpdate map dataRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "c1_mapStillUsable": {
+      "hasCanvas": true,
+      "attribution": "© OpenStreetMap · Protomaps"
+    },
+    "c2_afterWrongArchive": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "c2_legacyPreserved": true,
+    "c2_wrongBytesNotStored": true,
+    "c2_settingsCard": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nMap update available\nStored now\n5.3 MB\nUpdate size\n5.6 MB\n↻\nThe map on this device still works offline. A newer map-data package is available; updating downloads it first and replaces the old one only once it has arrived.\n⚠️\nMap download did not match the expected archive (got 5603107 bytes, expected 5904598). Nothing was replaced — your existing offline map is untouched.\nUpdate map dataRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_FAILED"
+    ]
+  },
+  "D_fresh_install_desktop": {
+    "viewport": {
+      "width": 1512,
+      "height": 860
+    },
+    "cacheInventoryBefore": {
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "cacheInventoryAfter": {
+      "fjallkompis-offline-map-v2": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5904598
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "storedBytes": 5904598,
+    "wentStraightToCurrentRevision": true,
+    "noLegacyCacheCreated": true,
+    "settingsCardBefore": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "settingsCardAfter": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\n✓ Stored on this device\nFile size\n5.6 MB\n✓\nSaved (5.6 MB). It now works without a connection.\nRe-download / updateRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "consoleErrors": []
+  },
+  "D_fresh_install_phone": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cacheInventoryBefore": {
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "cacheInventoryAfter": {
+      "fjallkompis-offline-map-v2": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5904598
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "storedBytes": 5904598,
+    "wentStraightToCurrentRevision": true,
+    "noLegacyCacheCreated": true,
+    "settingsCardBefore": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "settingsCardAfter": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\n✓ Stored on this device\nFile size\n5.6 MB\n✓\nSaved (5.6 MB). It now works without a connection.\nRe-download / updateRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "consoleErrors": []
+  },
+  "E_invalid_current_archive": {
+    "seededCurrentCacheBytes": 1234,
+    "cacheInventoryBefore": {
+      "fjallkompis-offline-map-v2": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 1234
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "e1_inventoryAfterOpeningMap": {
+      "fjallkompis-offline-map-v2": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 1234
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "e1_nothingDeletedByOpeningTheApp": true,
+    "e1_corruptBytesStillStored": true,
+    "e1_settingsCard": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nMap data needs repair\nStored now\n1 kB\nExpected size\n5.6 MB\n↻\nThe stored map data is incomplete, so it is not being used — downloading it again replaces it. Until then the map needs a connection.\nDownload map data againRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "e1_readinessRow": "Offline basemap | Needs attention | Needs repair",
+    "e1_reportedAsNeedingRepair": true,
+    "e1_neverCalledStored": true,
+    "e2_settingsCard": "Offline map\nA bounded OpenStreetMap-derived basemap of the Kungsleden area (Abisko–Nikkaluokta + ~12 km of surrounding terrain). Download it while online; the route itself always works offline.\nStatus\nMap update available\nStored now\n5.3 MB\nUpdate size\n5.6 MB\n↻\nThe map on this device still works offline. A newer map-data package is available; updating downloads it first and replaces the old one only once it has arrived.\nUpdate map dataRemove from device\nMAP DATA\nSource & licence\n© OpenStreetMap contributors · Protomaps\nTerrain relief\nHillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nELEVATION DATA\nSource & licence\nTerrain derived from Copernicus DEM GLO-30\nProduced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved\nSatellite imagery\nSentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap.\nStatus\nNot downloaded\nFile size\n—\nDownload for offline use\nIMAGERY\nSource & licence\nSentinel-2 cloudless by EOX\nContains modified Copernicus Sentinel data 2024",
+    "e2_readinessRow": "Offline basemap | Ready | Update available",
+    "e2_reportedAsUpdate": true,
+    "e2_neverCallsItRepair": true,
+    "e2_mapRendered": {
+      "hasCanvas": true,
+      "attribution": "© OpenStreetMap · Protomaps"
+    },
+    "e2_inventory": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-map-v2": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 1234
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "e2_corruptEntryStillPresentButUnread": true,
+    "consoleErrors": [],
+    "pmtilesParseErrors": [],
+    "pmtilesRequests": [
+      "206 maps/kungsleden.pmtiles",
+      "200 maps/kungsleden-satellite.pmtiles",
+      "200 maps/kungsleden-terrain.pmtiles",
+      "200 maps/kungsleden-contours.pmtiles",
+      "206 maps/kungsleden.pmtiles",
+      "206 maps/kungsleden.pmtiles",
+      "206 maps/kungsleden.pmtiles",
+      "206 maps/kungsleden.pmtiles",
+      "206 maps/kungsleden.pmtiles",
+      "206 maps/kungsleden.pmtiles",
+      "200 _seed-legacy.pmtiles",
+      "206 maps/kungsleden-satellite.pmtiles",
+      "206 maps/kungsleden-terrain.pmtiles",
+      "206 maps/kungsleden-contours.pmtiles"
+    ]
+  },
+  "F_remove_cache_inventory": {
+    "f1_beforeRemovingLegacyOnly": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v1": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5603107
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "f1_afterRemovingLegacyOnly": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "f1_legacyCacheGone": true,
+    "f1_noEmptyCurrentCacheLeftBehind": true,
+    "f2_afterDownload": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-map-v2": {
+        "/Fjallkompis/maps/kungsleden.pmtiles": 5904598
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "f2_afterRemovingCurrent": {
+      "fjallkompis-offline-contours-v1": {
+        "https://sentinel.test/fjallkompis-offline-contours-v1": 22
+      },
+      "fjallkompis-offline-satellite-v1": {
+        "https://sentinel.test/fjallkompis-offline-satellite-v1": 33
+      },
+      "fjallkompis-offline-terrain-v1": {
+        "https://sentinel.test/fjallkompis-offline-terrain-v1": 11
+      },
+      "workbox-precache-v2-http://localhost:4740/Fjallkompis/": "(app-shell precache)"
+    },
+    "f2_currentCacheGone": true,
+    "otherLayerCachesIntactThroughout": true,
+    "consoleErrors": []
+  }
+}
