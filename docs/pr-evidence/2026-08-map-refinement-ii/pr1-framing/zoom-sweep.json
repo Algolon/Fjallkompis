@@ -1,0 +1,278 @@
+[
+  {
+    "mapW": 560,
+    "mapH": 859,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 521,
+      "y": 747,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [
+      "Nikkaluokta"
+    ],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "700x915"
+  },
+  {
+    "mapW": 676,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 637,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "760x915"
+  },
+  {
+    "mapW": 716,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 677,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "800x915"
+  },
+  {
+    "mapW": 776,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 737,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "860x915"
+  },
+  {
+    "mapW": 816,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 777,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "900x915"
+  },
+  {
+    "mapW": 876,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 837,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "960x915"
+  },
+  {
+    "mapW": 940,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 901,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "1024x915"
+  },
+  {
+    "mapW": 1036,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 997,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "1120x915"
+  },
+  {
+    "mapW": 1132,
+    "mapH": 915,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 1093,
+      "y": 803,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "1280x915"
+  },
+  {
+    "mapW": 560,
+    "mapH": 944,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 521,
+      "y": 832,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [
+      "Nikkaluokta"
+    ],
+    "glyphs": [
+      "Nikkaluokta"
+    ],
+    "routeHits": 0,
+    "viewport": "700x1000"
+  },
+  {
+    "mapW": 676,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 637,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "760x1000"
+  },
+  {
+    "mapW": 716,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 677,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "800x1000"
+  },
+  {
+    "mapW": 776,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 737,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "860x1000"
+  },
+  {
+    "mapW": 816,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 777,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "900x1000"
+  },
+  {
+    "mapW": 876,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 837,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "960x1000"
+  },
+  {
+    "mapW": 940,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 901,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "1024x1000"
+  },
+  {
+    "mapW": 1036,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 997,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "1120x1000"
+  },
+  {
+    "mapW": 1132,
+    "mapH": 1000,
+    "zoomPresent": true,
+    "ctrl": {
+      "x": 1093,
+      "y": 888,
+      "w": 29,
+      "h": 58
+    },
+    "labels": [],
+    "glyphs": [],
+    "routeHits": 0,
+    "viewport": "1280x1000"
+  }
+]

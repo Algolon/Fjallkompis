@@ -21,13 +21,16 @@ import { dirname, join } from 'node:path';
 import {
   BASE_MAP_PADDING,
   MAX_PADDING_FRACTION,
+  MARKER_LABEL_SAFE_X,
   cameraPaddingFor,
+  overviewPaddingFor,
   visibleMapRect,
 } from '../src/map/mapPadding.mjs';
 import {
   cameraConstraintsFor,
   activeBoundsForZoom,
   overviewEnvelope,
+  mercX,
   mercY,
 } from '../src/map/cameraBounds.mjs';
 
@@ -158,6 +161,172 @@ test('the expansion still only applies below the zoom threshold', () => {
     route.userBounds,
     'the strict rectangle is always the coverage contract',
   );
+});
+
+// ---- The fit-scale correction (Map Refinement II PR 1) ----------------------
+//
+// `cameraConstraintsFor` used to derive the overview scale from the padded
+// HEIGHT alone, on the reasoning that the route is far taller than wide. That
+// is true of landscape but false of phone portrait, where the padded viewport
+// is narrow enough that the route's width needs the coarser scale. The scale
+// now comes from whichever axis binds, and BOTH expansions follow it.
+
+const ROUTE_MERC_W = mercX(route.bounds[1][0]) - mercX(route.bounds[0][0]);
+const ROUTE_MERC_H = mercY(route.bounds[1][1]) - mercY(route.bounds[0][1]);
+const USER_MERC_H = mercY(route.userBounds[1][1]) - mercY(route.userBounds[0][1]);
+const USER_MERC_W = mercX(route.userBounds[1][0]) - mercX(route.userBounds[0][0]);
+
+/** m/px each axis needs, and which one therefore sets the scale. */
+const axisNeeds = (w, h, padding) => {
+  const needW = ROUTE_MERC_W / (w - padding.left - padding.right);
+  const needH = ROUTE_MERC_H / (h - padding.top - padding.bottom);
+  return { needW, needH, scale: Math.max(needW, needH), binds: needW > needH ? 'width' : 'height' };
+};
+
+const overviewFor = (w, h) => overviewPaddingFor({ viewportWidth: w, viewportHeight: h, topInset: LEAD });
+
+test('phone portrait is width-bound, and the scale follows the width', () => {
+  // The regression this PR exists for. 390x788 with the overview contract:
+  // width needs a coarser scale than height, and the OLD height-only formula
+  // therefore reported "no vertical expansion needed" for a view that is in
+  // fact taller than the user bounds.
+  const padding = overviewFor(390, 788);
+  const a = axisNeeds(390, 788, padding);
+  assert.equal(a.binds, 'width', 'this shape is width-bound');
+
+  const heightOnlyView = 788 * a.needH;
+  assert.ok(heightOnlyView < USER_MERC_H, 'the old formula saw no vertical problem…');
+  const trueView = 788 * a.scale;
+  assert.ok(trueView > USER_MERC_H, '…but the real fitted view exceeds the user bounds');
+
+  const c = constraints(390, 788, padding);
+  assert.ok(c.overviewBounds, 'so the expansion must be granted');
+  const [[, os], [, on]] = c.overviewBounds;
+  assert.ok(os < route.userBounds[0][1] && on > route.userBounds[1][1], 'widened north AND south');
+});
+
+test('landscape stays height-bound and keeps strict north/south bounds', () => {
+  for (const [w, h] of [[1132, 800], [1218, 768], [1364, 860], [2412, 1080]]) {
+    const padding = overviewFor(w, h);
+    assert.equal(axisNeeds(w, h, padding).binds, 'height', `${w}x${h} is height-bound`);
+    const c = constraints(w, h, padding);
+    if (!c.overviewBounds) continue;
+    assert.equal(c.overviewBounds[0][1], route.userBounds[0][1], `${w}x${h}: south unchanged`);
+    assert.equal(c.overviewBounds[1][1], route.userBounds[1][1], `${w}x${h}: north unchanged`);
+  }
+});
+
+test('a shape at the route aspect picks the correct limiting axis either side', () => {
+  // The route's Mercator aspect is the crossover. Straddle it with two
+  // usable rectangles that differ only slightly and check the axis flips.
+  const aspect = ROUTE_MERC_W / ROUTE_MERC_H;
+  const usableH = 600;
+  const base = { top: 0, right: 0, bottom: 0, left: 0 };
+  const narrower = Math.floor(usableH * aspect) - 10;
+  const wider = Math.ceil(usableH * aspect) + 10;
+  assert.equal(axisNeeds(narrower, usableH, base).binds, 'width', 'narrower than the route aspect');
+  assert.equal(axisNeeds(wider, usableH, base).binds, 'height', 'wider than the route aspect');
+  // And exactly at the aspect the two demands agree to within a pixel's worth.
+  const at = axisNeeds(Math.round(usableH * aspect), usableH, base);
+  assert.ok(Math.abs(at.needW - at.needH) / at.scale < 0.02, 'the crossover is continuous');
+});
+
+test('both expansions are derived from the SAME selected scale', () => {
+  // East/west carries a 5% slack factor, north/south is exact — but both
+  // start from one m/px. Check the implied scale matches on a width-bound
+  // shape, where the two formulas would disagree if either used its own axis.
+  const padding = overviewFor(390, 788);
+  const { scale } = axisNeeds(390, 788, padding);
+  const c = constraints(390, 788, padding);
+  const [[ow, os], [oe, on]] = c.overviewBounds;
+  const envelope = overviewEnvelope(route.mapCutoutBounds);
+
+  // Each edge is clamped to the envelope INDEPENDENTLY (the z7 tile grid is
+  // not centred on the route, so the slack is asymmetric), so assert per edge:
+  // exactly the requested widening, or precisely at the cap.
+  const edge = (got, want, capDistance, label) =>
+    assert.ok(
+      Math.abs(got - want) < 1 || capDistance < 1,
+      `${label}: expected ${want.toFixed(1)} m of widening, got ${got.toFixed(1)}`,
+    );
+
+  const wantV = Math.max(0, (788 * scale - USER_MERC_H) / 2);
+  edge(mercY(route.userBounds[0][1]) - mercY(os), wantV,
+    Math.abs(mercY(os) - mercY(envelope[0][1])), 'south');
+  edge(mercY(on) - mercY(route.userBounds[1][1]), wantV,
+    Math.abs(mercY(on) - mercY(envelope[1][1])), 'north');
+
+  const wantH = Math.max(0, (390 * scale * 1.05 - USER_MERC_W) / 2);
+  edge(mercX(route.userBounds[0][0]) - mercX(ow), wantH,
+    Math.abs(mercX(ow) - mercX(envelope[0][0])), 'west');
+  edge(mercX(oe) - mercX(route.userBounds[1][0]), wantH,
+    Math.abs(mercX(oe) - mercX(envelope[1][0])), 'east');
+});
+
+test('the corrected scale never expands past the physical envelope', () => {
+  const [[ew, es], [ee, en]] = overviewEnvelope(route.mapCutoutBounds);
+  for (const [w, h] of [[320, 512], [375, 611], [390, 788], [430, 876], [360, 944], [2412, 1080], [3292, 1440]]) {
+    const c = constraints(w, h, overviewFor(w, h));
+    if (!c.overviewBounds) continue;
+    const [[ow, os], [oe, on]] = c.overviewBounds;
+    assert.ok(mercX(ow) >= mercX(ew) - 1e-6, `${w}x${h}: west inside the envelope`);
+    assert.ok(mercX(oe) <= mercX(ee) + 1e-6, `${w}x${h}: east inside the envelope`);
+    assert.ok(mercY(os) >= mercY(es) - 1e-6, `${w}x${h}: south inside the envelope`);
+    assert.ok(mercY(on) <= mercY(en) + 1e-6, `${w}x${h}: north inside the envelope`);
+  }
+});
+
+test('hysteresis is unchanged by the scale correction', () => {
+  const c = constraints(390, 788, overviewFor(390, 788));
+  const t = c.zoomThreshold;
+  // Inside the dead band the current state is held, whichever it is.
+  assert.equal(activeBoundsForZoom(c, t, true).expanded, true, 'held expanded at the threshold');
+  assert.equal(activeBoundsForZoom(c, t, false).expanded, false, 'held strict at the threshold');
+  assert.equal(activeBoundsForZoom(c, t + 0.06, true).expanded, false, 'leaves above +0.05');
+  assert.equal(activeBoundsForZoom(c, t - 0.06, false).expanded, true, 'enters below −0.05');
+});
+
+// ---- The overview padding contract ------------------------------------------
+
+test('the overview padding is horizontally balanced', () => {
+  for (const [w, h] of [[320, 512], [375, 611], [390, 788], [430, 876], [360, 944], [1132, 800], [1364, 860]]) {
+    const p = overviewPaddingFor({ viewportWidth: w, viewportHeight: h, topInset: LEAD, bottomInset: 0 });
+    assert.equal(p.left, p.right, `${w}x${h}: equal side margins`);
+  }
+});
+
+test('the overview padding reserves the declared marker-label allowance', () => {
+  const p = overviewPaddingFor({ viewportWidth: 375, viewportHeight: 611, topInset: LEAD });
+  assert.equal(p.left, Math.max(BASE_MAP_PADDING.left, BASE_MAP_PADDING.right) + MARKER_LABEL_SAFE_X);
+  // The allowance must actually cover the widest label the marker system
+  // renders, or a waypoint on the route's extreme longitude clips.
+  const WIDEST_LABEL_PX = 62.5; // Nikkaluokta — see mapPadding.mjs
+  assert.ok(
+    MARKER_LABEL_SAFE_X >= WIDEST_LABEL_PX / 2,
+    'half the widest label fits inside the allowance',
+  );
+});
+
+test('the overview padding keeps the scope clearance but not the control stack', () => {
+  const p = overviewPaddingFor({ viewportWidth: 375, viewportHeight: 611, topInset: LEAD });
+  assert.equal(p.top, BASE_MAP_PADDING.top + LEAD, 'the scope control is genuinely across the top');
+  assert.equal(p.bottom, BASE_MAP_PADDING.bottom, 'no bottom band on an idle map');
+  // The operational padding DOES charge the stack; the overview must not.
+  const operational = paddingFor(375, 611);
+  assert.equal(operational.right, BASE_MAP_PADDING.right + STACK);
+  assert.ok(p.right < operational.right, 'the overview is not charged the stack');
+});
+
+test('the tracking pill still reaches the overview padding while it exists', () => {
+  const idle = overviewPaddingFor({ viewportWidth: 375, viewportHeight: 611, topInset: LEAD });
+  const live = overviewPaddingFor({ viewportWidth: 375, viewportHeight: 611, topInset: LEAD, bottomInset: 74 });
+  assert.equal(live.bottom, idle.bottom + 74);
+});
+
+test('the overview padding can never consume the viewport either', () => {
+  const p = overviewPaddingFor({ viewportWidth: 120, viewportHeight: 100, topInset: 200, bottomInset: 200 });
+  assert.ok(p.left + p.right <= 120 * MAX_PADDING_FRACTION + 1);
+  assert.ok(p.top + p.bottom <= 100 * MAX_PADDING_FRACTION + 1);
 });
 
 test('growing the dock never widens the bounds beyond the envelope', () => {
