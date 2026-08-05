@@ -234,6 +234,35 @@ export interface TransportLink {
 }
 
 /**
+ * One published timetable document for a service.
+ *
+ * Operators republish the same service several times a season, and a new table
+ * is not an edit of the old one — operating days, call order and times can all
+ * change. So a period owns everything that belongs to that document (validity,
+ * operating days, schedules, its own connection notes and its own source), and
+ * the service entry keeps only what survives republication.
+ */
+export interface TimetablePeriod {
+  id: string;
+  /** ISO validity of this document, inclusive at both ends. */
+  validFrom: string;
+  validTo: string;
+  /** Human-readable validity, e.g. "1 July – 16 August 2026". */
+  validityText?: string;
+  operatingDays?: string;
+  /**
+   * Whether the stored calls are the document's full stop list, or the stops
+   * that matter for this route. 'selected' is surfaced in the UI — a shortened
+   * list must never read as a complete one.
+   */
+  stopCoverage?: 'complete' | 'selected';
+  schedules: TransportSchedule[];
+  /** Connection notes that quote this period's own times. */
+  connections?: string[];
+  source: SourceMeta;
+}
+
+/**
  * One transport service relevant to this route. A fixed timetable carries
  * `validFrom`/`validTo`; a `live` alternative (train) deliberately has no
  * hard-coded times — only official planner links — because its times and
@@ -254,6 +283,18 @@ export interface TransportEntry {
   title: string;
   direction?: string;
   summary: string;
+  /**
+   * Every stored timetable document for this service, in publication order.
+   * Present on services the operator republishes mid-season; a service with a
+   * single table may instead carry the fields below directly, which
+   * `timetablePeriodsFor` reads as the one period it has always been.
+   */
+  timetablePeriods?: TimetablePeriod[];
+  /**
+   * The official page listing ALL of this operator's timetables — the honest
+   * answer when no stored period covers the date the hiker is asking about.
+   */
+  operatorTimetables?: TransportLink;
   /** ISO static-timetable validity (absent for live alternatives). */
   validFrom?: string;
   validTo?: string;
@@ -273,23 +314,52 @@ export interface TransportEntry {
   live?: boolean;
   contact?: string[];
   extraLinks?: TransportLink[];
-  source: SourceMeta;
+  /**
+   * Provenance for a service whose timetable lives on the entry itself.
+   * Services that carry `timetablePeriods` put the source on each period, so
+   * the document a hiker is shown is always the one those times came from.
+   */
+  source?: SourceMeta;
 }
 
 /**
- * Validity state of a timetable relative to a given date:
+ * What the stored timetables can say about one date:
  *  - live: a live-planner alternative (no fixed timetable to expire);
- *  - undated: a fixed service with no encoded validity range;
- *  - upcoming: before its validity window;
- *  - valid: inside its validity window;
- *  - expired: after its validity window — surfaced as "check source", never hidden.
+ *  - valid: exactly one stored period covers the date;
+ *  - upcoming: the date is before every stored period;
+ *  - expired: the date is after every stored period;
+ *  - uncovered: the date falls in a gap between stored periods;
+ *  - undated: no usable date, or the service stores no validity range;
+ *  - ambiguous: two stored periods claim the date — a data fault, never
+ *    resolved by silently picking one.
+ *
+ * Only `valid` and `live` mean the app can show times for that date. The other
+ * five all mean "no verified timetable stored for this date", which is a
+ * statement about Fjällkompis, never about whether the service runs.
  */
 export type TimetableStatus =
   | 'live'
   | 'undated'
   | 'upcoming'
   | 'valid'
-  | 'expired';
+  | 'expired'
+  | 'uncovered'
+  | 'ambiguous';
+
+/** The resolved answer for one entry and one date. */
+export interface TimetableCoverage {
+  status: TimetableStatus;
+  /** The date this answer is about, or null when none is known. */
+  date: string | null;
+  /** The single period whose times apply, or null when none does. */
+  period: TimetablePeriod | null;
+  /** Every stored period, in publication order. */
+  periods: TimetablePeriod[];
+  /** Earliest stored period starting after `date`. */
+  nextPeriod: TimetablePeriod | null;
+  /** Latest stored period ending before `date`. */
+  previousPeriod: TimetablePeriod | null;
+}
 
 // ---- Stages -----------------------------------------------------------------
 

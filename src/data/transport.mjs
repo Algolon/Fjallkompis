@@ -24,6 +24,16 @@
  * transcribed from the table for that one real operator direction, and
  * `directions` says which WALKING direction(s) the service belongs to. Nothing
  * here is derived by reversing an array.
+ *
+ * A SERVICE AND A TIMETABLE PERIOD ARE DIFFERENT THINGS. An operator republishes
+ * the same service under a new table several times a season, so an entry that
+ * carries fixed times owns a list of `timetablePeriods`: each one is a single
+ * published document with its own validity, its own operating days, its own
+ * schedules and its own source metadata. Everything that stays true across
+ * republications (operator, endpoints, fares, booking rules) stays on the entry
+ * and is written once. Periods never overlap, gaps between them are visible
+ * rather than papered over, and the app never presents one period's times as
+ * another's — see {@link timetableCoverageFor}.
  */
 import {
   DEFAULT_DIRECTION,
@@ -39,15 +49,38 @@ const BOTH_DIRECTIONS = ROUTE_DIRECTIONS;
 export const TRANSPORT_FACTS_VERIFIED_ON = '2026-07-12';
 
 /**
- * The date the two BUS timetables (Länstrafiken line 91 and
- * Nikkaluoktaexpressen) were re-read in full — both operator directions — to
- * add the return services below.
+ * The date every stored BUS timetable (Länstrafiken line 91 and
+ * Nikkaluoktaexpressen) was last read in full — every published period, both
+ * operator directions, straight from the official PDFs.
  *
  * The dataset-wide date above is deliberately NOT bumped to this one: the two
- * boats and the live train reference were not re-read on that pass, and a
+ * boats and the live train reference were not re-read on this pass, and a
  * single moved constant would have claimed they were.
  */
 export const BUS_TIMETABLES_REVERIFIED_ON = '2026-08-05';
+
+/**
+ * The six roadside halts between Kiruna and Nikkaluokta that Nikkaluoktaexpressen
+ * serves ON REQUEST ("x = The bus stops for boarding or disembarking if needed").
+ * The official table prints them with no time, so they carry none here either —
+ * listing them is what makes the stored call list the COMPLETE table rather than
+ * a silently shortened one.
+ *
+ * Each operator direction prints its own order; both are written out in full
+ * below, because neither is allowed to be derived by reversing the other.
+ */
+const ON_REQUEST = 'stops on request';
+
+/** Where a hiker can reach every published table for a service, not just a period. */
+const LANSTRAFIKEN_TIMETABLES = {
+  label: 'All line 91 timetables (Länstrafiken)',
+  url: 'https://lanstrafikennorrbotten.se/tidtabeller',
+};
+
+const NIKKALUOKTAEXPRESSEN_TIMETABLES = {
+  label: 'All timetables (nikkaluoktaexpressen.se)',
+  url: 'https://nikkaluoktaexpressen.se/tidtabell',
+};
 
 /** Line 91 Saturdays where the normal Saturday service is replaced. */
 export const SPECIAL_LINE91_SATURDAYS = ['2026-08-22', '2026-08-29', '2026-09-05'];
@@ -100,6 +133,24 @@ const call = (place, time, note) => ({
   ...(note ? { note } : {}),
 });
 
+const haltsTowardsNikkaluokta = () => [
+  call('Kaalasjärvi vägskäl', null, ON_REQUEST),
+  call('Puoltsa', null, ON_REQUEST),
+  call('Holmajärvi', null, ON_REQUEST),
+  call('Laukkuluspa', null, ON_REQUEST),
+  call('Årosjåkk', null, ON_REQUEST),
+  call('Pirttivuopio', null, ON_REQUEST),
+];
+
+const haltsTowardsKiruna = () => [
+  call('Pirttivuopio', null, ON_REQUEST),
+  call('Årosjåkk', null, ON_REQUEST),
+  call('Laukkuluspa', null, ON_REQUEST),
+  call('Holmajärvi', null, ON_REQUEST),
+  call('Puoltsa', null, ON_REQUEST),
+  call('Kaalasjärvi vägskäl', null, ON_REQUEST),
+];
+
 export const TRANSPORT_ENTRIES = [
   // ===================== A. GETTING TO THE TRAIL =====================
   {
@@ -114,85 +165,151 @@ export const TRANSPORT_ENTRIES = [
     direction: 'Kiruna → Abisko Turiststation',
     summary:
       'The reliable fixed-timetable way to the trailhead. Line 91 uses a special mountain fare — buy from the operator; no fixed fare is stored here.',
-    validFrom: '2026-08-17',
-    validTo: '2026-09-20',
-    validityText: '17 August – 20 September 2026',
-    operatingDays: 'Daily, with different afternoon runs by weekday',
-    schedules: [
-      {
-        id: 'morning',
-        label: 'Daily — morning',
-        dayRule: 'Every day',
-        calls: [
-          call('Kiruna Sjukhus', '08:20'),
-          call('Kiruna Stadshustorget', '08:25', 'boarding only'),
-          call('Abisko Östra', '09:35'),
-          call('Abisko Turist E10', '09:40'),
-        ],
-      },
-      {
-        id: 'weekday-afternoon',
-        label: 'Mon–Fri — afternoon',
-        dayRule: 'Monday to Friday',
-        calls: [
-          call('Kiruna Stadshustorget', '14:35', 'boarding only'),
-          call('Kiruna Airport', '14:45', 'boarding only'),
-          call('Abisko Östra', '15:55'),
-          call('Abisko Turist E10', '16:00'),
-        ],
-      },
-      {
-        id: 'sunday-afternoon',
-        label: 'Sun & public holidays — afternoon',
-        dayRule: 'Sundays and public holidays',
-        calls: [
-          call('Kiruna Stadshustorget', '14:35', 'boarding only'),
-          call('Kiruna Airport', '14:45', 'boarding only'),
-          call('Abisko Östra', '15:55'),
-          call('Abisko Turist E10', '16:00'),
-        ],
-      },
-      {
-        id: 'saturday-afternoon',
-        label: 'Saturday — afternoon',
-        dayRule: 'Normal Saturdays',
-        exception: 'Does not run on 22 Aug, 29 Aug or 5 Sep 2026 (see the special service).',
-        notDates: SPECIAL_LINE91_SATURDAYS,
-        calls: [
-          call('Kiruna Stadshustorget', '14:35', 'boarding only'),
-          call('Abisko Östra', '15:45'),
-          call('Abisko Turist E10', '15:50'),
-        ],
-      },
-      {
-        id: 'special-saturday',
-        label: 'Special Saturdays — 22 & 29 Aug, 5 Sep',
-        dayRule: 'These three Saturdays only',
-        exception: 'Replaces the normal Saturday afternoon service on these dates.',
-        onlyDates: SPECIAL_LINE91_SATURDAYS,
-        calls: [
-          call('Kiruna Stadshustorget', '15:35', 'boarding only'),
-          call('Kiruna Airport', '15:45', 'boarding only'),
-          call('Abisko Östra', '16:55'),
-          call('Abisko Turist E10', '17:00'),
-        ],
-      },
-    ],
     warnings: [
       'Special mountain fare — buy from the operator. No fixed fare is stored here.',
       '“Boarding only” stops let passengers on but not off.',
     ],
-    source: {
-      title: 'Länstrafiken — Fjällinje 91/94 (17 Aug – 20 Sep 2026)',
-      url: 'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260817_260920/Fjallinje91o94_91_260817_260920.pdf',
-      publisher: 'Länstrafiken Norrbotten',
-      sourceYear: 2026,
-      validFrom: '2026-08-17',
-      validTo: '2026-09-20',
-      lastVerified: TRANSPORT_FACTS_VERIFIED_ON,
-      kind: 'static',
-      warning: 'Timetable is a static snapshot — check the official source before travelling.',
-    },
+    operatorTimetables: LANSTRAFIKEN_TIMETABLES,
+    // Länstrafiken republishes line 91 mid-season: the high-summer table runs
+    // two identical daily services, and from 17 August the afternoon splits by
+    // weekday. The two documents are transcribed separately below; neither is
+    // an edit of the other.
+    timetablePeriods: [
+      {
+        id: 'line-91-2026-07-01',
+        validFrom: '2026-07-01',
+        validTo: '2026-08-16',
+        validityText: '1 July – 16 August 2026',
+        operatingDays: 'Daily — the same two runs every day',
+        // The stored calls are the ones this route needs (Kiruna and the two
+        // Abisko stops). Line 91 continues to Riksgränsen and the official
+        // table also lists halts that carry no time, so this is a selection.
+        stopCoverage: 'selected',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Daily — morning',
+            dayRule: 'Every day',
+            calls: [
+              call('Kiruna Sjukhus', '08:20'),
+              call('Kiruna Stadshustorget', '08:25', 'boarding only'),
+              call('Abisko Östra', '09:35'),
+              call('Abisko Turist E10', '09:40'),
+            ],
+          },
+          {
+            id: 'afternoon',
+            label: 'Daily — afternoon',
+            dayRule: 'Every day',
+            calls: [
+              call('Kiruna Sjukhus', '15:45'),
+              call('Kiruna Stadshustorget', '15:50', 'boarding only'),
+              call('Kiruna Airport', '16:00', 'boarding only'),
+              call('Abisko Östra', '17:10'),
+              call('Abisko Turist E10', '17:15'),
+            ],
+          },
+        ],
+        source: {
+          title: 'Länstrafiken — Fjällinje 91/94 (1 Jul – 16 Aug 2026)',
+          url: 'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260701_260816/Fjallinje91o94_91_260701_260816.pdf',
+          publisher: 'Länstrafiken Norrbotten',
+          sourceYear: 2026,
+          validFrom: '2026-07-01',
+          validTo: '2026-08-16',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+      {
+        id: 'line-91-2026-08-17',
+        validFrom: '2026-08-17',
+        validTo: '2026-09-20',
+        validityText: '17 August – 20 September 2026',
+        operatingDays: 'Daily, with different afternoon runs by weekday',
+        stopCoverage: 'selected',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Daily — morning',
+            dayRule: 'Every day',
+            calls: [
+              call('Kiruna Sjukhus', '08:20'),
+              call('Kiruna Stadshustorget', '08:25', 'boarding only'),
+              call('Abisko Östra', '09:35'),
+              call('Abisko Turist E10', '09:40'),
+            ],
+          },
+          {
+            id: 'weekday-afternoon',
+            label: 'Mon–Fri — afternoon',
+            // The column is headed "Hfr M-F" — Helgfri måndag–fredag — so a
+            // public holiday falling on a weekday does NOT get this run.
+            dayRule: 'Weekdays except public holidays',
+            calls: [
+              call('Kiruna Sjukhus', '14:30'),
+              call('Kiruna Stadshustorget', '14:35', 'boarding only'),
+              call('Kiruna Airport', '14:45', 'boarding only'),
+              call('Abisko Östra', '15:55'),
+              call('Abisko Turist E10', '16:00'),
+            ],
+          },
+          {
+            id: 'sunday-afternoon',
+            label: 'Sun & public holidays — afternoon',
+            dayRule: 'Sundays and public holidays',
+            calls: [
+              call('Kiruna Sjukhus', '14:30'),
+              call('Kiruna Stadshustorget', '14:35', 'boarding only'),
+              call('Kiruna Airport', '14:45', 'boarding only'),
+              call('Abisko Östra', '15:55'),
+              call('Abisko Turist E10', '16:00'),
+            ],
+          },
+          {
+            id: 'saturday-afternoon',
+            label: 'Saturday — afternoon',
+            // Headed "Helgfri Lördag": a Saturday that is also a public
+            // holiday is covered by the Sohd column, not this one.
+            dayRule: 'Saturdays except public holidays',
+            exception: 'Does not run on 22 Aug, 29 Aug or 5 Sep 2026 (see the special service).',
+            notDates: SPECIAL_LINE91_SATURDAYS,
+            calls: [
+              call('Kiruna Sjukhus', '14:30'),
+              call('Kiruna Stadshustorget', '14:35', 'boarding only'),
+              call('Abisko Östra', '15:45'),
+              call('Abisko Turist E10', '15:50'),
+            ],
+          },
+          {
+            id: 'special-saturday',
+            label: 'Special Saturdays — 22 & 29 Aug, 5 Sep',
+            dayRule: 'These three Saturdays only',
+            exception: 'Replaces the normal Saturday afternoon service on these dates.',
+            onlyDates: SPECIAL_LINE91_SATURDAYS,
+            calls: [
+              call('Kiruna Sjukhus', '15:30'),
+              call('Kiruna Stadshustorget', '15:35', 'boarding only'),
+              call('Kiruna Airport', '15:45', 'boarding only'),
+              call('Abisko Östra', '16:55'),
+              call('Abisko Turist E10', '17:00'),
+            ],
+          },
+        ],
+        source: {
+          title: 'Länstrafiken — Fjällinje 91/94 (17 Aug – 20 Sep 2026)',
+          url: 'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260817_260920/Fjallinje91o94_91_260817_260920.pdf',
+          publisher: 'Länstrafiken Norrbotten',
+          sourceYear: 2026,
+          validFrom: '2026-08-17',
+          validTo: '2026-09-20',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+    ],
   },
   {
     id: 'nikkaluoktaexpressen-outbound',
@@ -206,65 +323,133 @@ export const TRANSPORT_ENTRIES = [
     direction: 'Kiruna → Nikkaluokta',
     summary:
       'The bus out to the southern trailhead. Daily, with a morning and an afternoon departure.',
-    validFrom: '2026-08-10',
-    validTo: '2026-09-20',
-    validityText: '10 August – 20 September 2026',
-    operatingDays: 'Daily (Monday–Sunday)',
-    schedules: [
-      {
-        id: 'morning',
-        label: 'Morning departure',
-        calls: [
-          call('Kiruna Norrmalm', '10:00'),
-          call('Kiruna railway station', '10:10', 'boarding only'),
-          call('Kiruna Stadshustorget', '10:20', 'boarding only'),
-          call('Kiruna Airport', '10:30', 'boarding only'),
-          call('Nikkaluokta Fjällanläggning', '11:30'),
-        ],
-      },
-      {
-        id: 'afternoon',
-        label: 'Afternoon departure',
-        calls: [
-          call('Kiruna Airport', '14:55'),
-          call('Kiruna Stadshustorget', '15:05', 'boarding only'),
-          call('Kiruna Norrmalm', '15:15', 'boarding only'),
-          call('Kiruna railway station', '15:25', 'boarding only'),
-          call('Nikkaluokta Fjällanläggning', '16:30'),
-        ],
-      },
-    ],
     booking: 'Book online in advance for the normal price.',
     bookingDeadline:
       'Online booking closes one hour before the bus leaves its first Kiruna stop.',
     paymentMethods: 'Onboard by card or SEK cash (surcharge applies)',
-    connections: [
-      'Operator note: the 10:10 departure from Kiruna railway station waits for a late night train until 10:20 if needed.',
-      'Operator note: the 10:30 departure from Kiruna Airport waits for flights scheduled to land by 10:00 — until 10:40 for pre-booked passengers.',
-      'Operator note: the 14:55 departure from Kiruna Airport waits for flights scheduled to land by 14:05 — until 15:05 for pre-booked passengers.',
-      'Operator note: the 15:25 departure from Kiruna railway station waits for a late train until 15:35 if needed.',
-      'These are operator connection notes, not unconditional guarantees.',
-    ],
     warnings: [
       'Tickets bought onboard cost the normal price plus SEK 200 per person.',
       '“Boarding only” stops let passengers on but not off.',
     ],
     contact: ['Traffic information: +46 980 813 11'],
     extraLinks: [
-      { label: 'Timetable (nikkaluoktaexpressen.se)', url: 'https://nikkaluoktaexpressen.se/tidtabell' },
       { label: 'Operator (English)', url: 'https://nikkaluoktaexpressen.se/?lang=en' },
     ],
-    source: {
-      title: 'Nikkaluoktaexpressen — timetable (10 Aug – 20 Sep 2026)',
-      url: 'https://savea.objects.dc-fbg1.glesys.net/61bf9c13daa83d2a37d6609a85ae57f0f2e6cbb1.pdf',
-      publisher: 'Nikkaluoktaexpressen',
-      sourceYear: 2026,
-      validFrom: '2026-08-10',
-      validTo: '2026-09-20',
-      lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
-      kind: 'static',
-      warning: 'Timetable is a static snapshot — check the official source before travelling.',
-    },
+    operatorTimetables: NIKKALUOKTAEXPRESSEN_TIMETABLES,
+    // The operator publishes the first week of August as its own table. The
+    // morning departure is unchanged across the two, but the afternoon run is
+    // a genuinely different service: it starts in town instead of at the
+    // airport, and the airport call moves to the end of the Kiruna leg. The
+    // connection notes quote period-specific times, so they live with their
+    // period rather than on the service.
+    timetablePeriods: [
+      {
+        id: 'nikkaluoktaexpressen-outbound-2026-08-03',
+        validFrom: '2026-08-03',
+        validTo: '2026-08-09',
+        validityText: '3 – 9 August 2026',
+        operatingDays: 'Daily (Monday–Sunday)',
+        stopCoverage: 'complete',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Morning departure',
+            calls: [
+              call('Kiruna Norrmalm', '10:00'),
+              call('Kiruna railway station', '10:10', 'boarding only'),
+              call('Kiruna Stadshustorget', '10:20', 'boarding only'),
+              call('Kiruna Airport', '10:30', 'boarding only'),
+              ...haltsTowardsNikkaluokta(),
+              call('Nikkaluokta Fjällanläggning', '11:30'),
+            ],
+          },
+          {
+            id: 'afternoon',
+            label: 'Afternoon departure',
+            // Kiruna railway station and Kiruna Airport are both printed at
+            // 15:25 in this table. Transcribed as published.
+            calls: [
+              call('Kiruna Stadshustorget', '15:05'),
+              call('Kiruna Norrmalm', '15:15', 'boarding only'),
+              call('Kiruna railway station', '15:25', 'boarding only'),
+              call('Kiruna Airport', '15:25', 'boarding only'),
+              ...haltsTowardsNikkaluokta(),
+              call('Nikkaluokta Fjällanläggning', '16:30'),
+            ],
+          },
+        ],
+        connections: [
+          'Operator note: the 10:10 departure from Kiruna railway station waits for a late night train until 10:20 if needed.',
+          'Operator note: the 10:30 departure from Kiruna Airport waits for flights scheduled to land by 10:00 — until 10:40 for pre-booked passengers.',
+          'Operator note: the 15:25 departure from Kiruna railway station waits for a late train until 15:35 if needed.',
+          'Operator note: the 15:25 departure from Kiruna Airport waits for flights scheduled to land by 14:55 — until 15:35 for pre-booked passengers.',
+          'These are operator connection notes, not unconditional guarantees.',
+        ],
+        source: {
+          title: 'Nikkaluoktaexpressen — timetable (3 – 9 Aug 2026)',
+          url: 'https://savea.objects.dc-fbg1.glesys.net/dcb3c3c442927beb37b40d85b0a35af90e641d64.pdf',
+          publisher: 'Nikkaluoktaexpressen',
+          sourceYear: 2026,
+          validFrom: '2026-08-03',
+          validTo: '2026-08-09',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+      {
+        id: 'nikkaluoktaexpressen-outbound-2026-08-10',
+        validFrom: '2026-08-10',
+        validTo: '2026-09-20',
+        validityText: '10 August – 20 September 2026',
+        operatingDays: 'Daily (Monday–Sunday)',
+        stopCoverage: 'complete',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Morning departure',
+            calls: [
+              call('Kiruna Norrmalm', '10:00'),
+              call('Kiruna railway station', '10:10', 'boarding only'),
+              call('Kiruna Stadshustorget', '10:20', 'boarding only'),
+              call('Kiruna Airport', '10:30', 'boarding only'),
+              ...haltsTowardsNikkaluokta(),
+              call('Nikkaluokta Fjällanläggning', '11:30'),
+            ],
+          },
+          {
+            id: 'afternoon',
+            label: 'Afternoon departure',
+            calls: [
+              call('Kiruna Airport', '14:55'),
+              call('Kiruna Stadshustorget', '15:05', 'boarding only'),
+              call('Kiruna Norrmalm', '15:15', 'boarding only'),
+              call('Kiruna railway station', '15:25', 'boarding only'),
+              ...haltsTowardsNikkaluokta(),
+              call('Nikkaluokta Fjällanläggning', '16:30'),
+            ],
+          },
+        ],
+        connections: [
+          'Operator note: the 10:10 departure from Kiruna railway station waits for a late night train until 10:20 if needed.',
+          'Operator note: the 10:30 departure from Kiruna Airport waits for flights scheduled to land by 10:00 — until 10:40 for pre-booked passengers.',
+          'Operator note: the 14:55 departure from Kiruna Airport waits for flights scheduled to land by 14:05 — until 15:05 for pre-booked passengers.',
+          'Operator note: the 15:25 departure from Kiruna railway station waits for a late train until 15:35 if needed.',
+          'These are operator connection notes, not unconditional guarantees.',
+        ],
+        source: {
+          title: 'Nikkaluoktaexpressen — timetable (10 Aug – 20 Sep 2026)',
+          url: 'https://savea.objects.dc-fbg1.glesys.net/61bf9c13daa83d2a37d6609a85ae57f0f2e6cbb1.pdf',
+          publisher: 'Nikkaluoktaexpressen',
+          sourceYear: 2026,
+          validFrom: '2026-08-10',
+          validTo: '2026-09-20',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+    ],
   },
 
   // ===================== B. BOATS ALONG THE ROUTE =====================
@@ -407,63 +592,125 @@ export const TRANSPORT_ENTRIES = [
     title: 'Nikkaluoktaexpressen — Nikkaluokta → Kiruna',
     direction: 'Nikkaluokta → Kiruna',
     summary: 'The bus back to Kiruna from the southern trailhead. Daily, with a morning and an afternoon departure.',
-    validFrom: '2026-08-10',
-    validTo: '2026-09-20',
-    validityText: '10 August – 20 September 2026',
-    operatingDays: 'Daily (Monday–Sunday)',
-    schedules: [
-      {
-        id: 'morning',
-        label: 'Morning departure',
-        calls: [
-          call('Nikkaluokta Fjällanläggning', '11:50'),
-          call('Kiruna Airport', '12:50', 'drop-off only'),
-          call('Kiruna Stadshustorget', '13:00', 'drop-off only'),
-          call('Kiruna railway station', '13:10', 'drop-off only'),
-          call('Kiruna Norrmalm', '13:20', 'drop-off only'),
-        ],
-      },
-      {
-        id: 'afternoon',
-        label: 'Afternoon departure',
-        calls: [
-          call('Nikkaluokta Fjällanläggning', '16:40'),
-          call('Kiruna railway station', '17:45', 'drop-off only'),
-          call('Kiruna Norrmalm', '17:55', 'drop-off only'),
-          call('Kiruna Stadshustorget', '18:05', 'drop-off only'),
-          call('Kiruna Airport', '18:15', 'drop-off only'),
-        ],
-      },
-    ],
     booking: 'Book online in advance for the normal price.',
     bookingDeadline: 'Online booking closes one hour before departure from Nikkaluokta.',
     paymentMethods: 'Onboard by card or SEK cash (surcharge applies)',
-    connections: [
-      'Operator note: the 11:50 bus connects to flights departing no earlier than 13:40.',
-      'Operator note: the 16:40 bus connects to the night train scheduled around 17:58/18:01.',
-      'Operator note: the 16:40 bus connects to flights departing no earlier than 19:05.',
-      'These are operator connection notes, not unconditional guarantees.',
-    ],
     warnings: [
       'Tickets bought onboard cost the normal price plus SEK 200 per person.',
       '“Drop-off only” stops are served only when passengers need to get off.',
     ],
     contact: ['Traffic information: +46 980 813 11'],
     extraLinks: [
-      { label: 'Timetable (nikkaluoktaexpressen.se)', url: 'https://nikkaluoktaexpressen.se/tidtabell' },
       { label: 'Operator (English)', url: 'https://nikkaluoktaexpressen.se/?lang=en' },
     ],
-    source: {
-      title: 'Nikkaluoktaexpressen — timetable (10 Aug – 20 Sep 2026)',
-      url: 'https://savea.objects.dc-fbg1.glesys.net/61bf9c13daa83d2a37d6609a85ae57f0f2e6cbb1.pdf',
-      publisher: 'Nikkaluoktaexpressen',
-      sourceYear: 2026,
-      validFrom: '2026-08-10',
-      validTo: '2026-09-20',
-      lastVerified: TRANSPORT_FACTS_VERIFIED_ON,
-      kind: 'static',
-      warning: 'Timetable is a static snapshot — check the official source before travelling.',
-    },
+    operatorTimetables: NIKKALUOKTAEXPRESSEN_TIMETABLES,
+    // Same two published periods as the outbound service, read from the
+    // Nikkaluokta → Kiruna half of each document. The afternoon run differs
+    // between them in the order of the Kiruna calls, not just the times.
+    timetablePeriods: [
+      {
+        id: 'nikkaluoktaexpressen-2026-08-03',
+        validFrom: '2026-08-03',
+        validTo: '2026-08-09',
+        validityText: '3 – 9 August 2026',
+        operatingDays: 'Daily (Monday–Sunday)',
+        stopCoverage: 'complete',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Morning departure',
+            calls: [
+              call('Nikkaluokta Fjällanläggning', '11:50'),
+              ...haltsTowardsKiruna(),
+              call('Kiruna Airport', '12:50', 'drop-off only'),
+              call('Kiruna Stadshustorget', '13:00', 'drop-off only'),
+              call('Kiruna railway station', '13:10', 'drop-off only'),
+              call('Kiruna Norrmalm', '13:20', 'drop-off only'),
+            ],
+          },
+          {
+            id: 'afternoon',
+            label: 'Afternoon departure',
+            calls: [
+              call('Nikkaluokta Fjällanläggning', '16:40'),
+              ...haltsTowardsKiruna(),
+              call('Kiruna railway station', '17:45', 'drop-off only'),
+              call('Kiruna Airport', '18:00', 'drop-off only'),
+              call('Kiruna Stadshustorget', '18:10', 'drop-off only'),
+              call('Kiruna Norrmalm', '18:20', 'drop-off only'),
+            ],
+          },
+        ],
+        connections: [
+          'Operator note: the 11:50 bus connects to flights departing no earlier than 13:40.',
+          'Operator note: the 16:40 bus connects to the night train scheduled around 17:58/18:01.',
+          'Operator note: the 16:40 bus connects to flights departing no earlier than 18:45.',
+          'These are operator connection notes, not unconditional guarantees.',
+        ],
+        source: {
+          title: 'Nikkaluoktaexpressen — timetable (3 – 9 Aug 2026)',
+          url: 'https://savea.objects.dc-fbg1.glesys.net/dcb3c3c442927beb37b40d85b0a35af90e641d64.pdf',
+          publisher: 'Nikkaluoktaexpressen',
+          sourceYear: 2026,
+          validFrom: '2026-08-03',
+          validTo: '2026-08-09',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+      {
+        id: 'nikkaluoktaexpressen-2026-08-10',
+        validFrom: '2026-08-10',
+        validTo: '2026-09-20',
+        validityText: '10 August – 20 September 2026',
+        operatingDays: 'Daily (Monday–Sunday)',
+        stopCoverage: 'complete',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Morning departure',
+            calls: [
+              call('Nikkaluokta Fjällanläggning', '11:50'),
+              ...haltsTowardsKiruna(),
+              call('Kiruna Airport', '12:50', 'drop-off only'),
+              call('Kiruna Stadshustorget', '13:00', 'drop-off only'),
+              call('Kiruna railway station', '13:10', 'drop-off only'),
+              call('Kiruna Norrmalm', '13:20', 'drop-off only'),
+            ],
+          },
+          {
+            id: 'afternoon',
+            label: 'Afternoon departure',
+            calls: [
+              call('Nikkaluokta Fjällanläggning', '16:40'),
+              ...haltsTowardsKiruna(),
+              call('Kiruna railway station', '17:45', 'drop-off only'),
+              call('Kiruna Norrmalm', '17:55', 'drop-off only'),
+              call('Kiruna Stadshustorget', '18:05', 'drop-off only'),
+              call('Kiruna Airport', '18:15', 'drop-off only'),
+            ],
+          },
+        ],
+        connections: [
+          'Operator note: the 11:50 bus connects to flights departing no earlier than 13:40.',
+          'Operator note: the 16:40 bus connects to the night train scheduled around 17:58/18:01.',
+          'Operator note: the 16:40 bus connects to flights departing no earlier than 19:05.',
+          'These are operator connection notes, not unconditional guarantees.',
+        ],
+        source: {
+          title: 'Nikkaluoktaexpressen — timetable (10 Aug – 20 Sep 2026)',
+          url: 'https://savea.objects.dc-fbg1.glesys.net/61bf9c13daa83d2a37d6609a85ae57f0f2e6cbb1.pdf',
+          publisher: 'Nikkaluoktaexpressen',
+          sourceYear: 2026,
+          validFrom: '2026-08-10',
+          validTo: '2026-09-20',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+    ],
   },
   {
     id: 'line-91-return',
@@ -477,96 +724,149 @@ export const TRANSPORT_ENTRIES = [
     direction: 'Abisko Turiststation → Kiruna',
     summary:
       'The reliable fixed-timetable way back from the northern trailhead. Line 91 uses a special mountain fare — buy from the operator; no fixed fare is stored here.',
-    validFrom: '2026-08-17',
-    validTo: '2026-09-20',
-    validityText: '17 August – 20 September 2026',
-    operatingDays: 'Daily, with different afternoon runs by weekday',
-    // Transcribed from the Riksgränsen → Kiruna half of the same PDF, which is
-    // NOT the outward table read upwards: Abisko Turist is called BEFORE
-    // Abisko Östra here, Rensjön is a timed call in this direction only, and
-    // just the daily late-morning run touches the airport.
-    schedules: [
-      {
-        id: 'morning',
-        label: 'Daily — late morning',
-        dayRule: 'Every day',
-        calls: [
-          call('Abisko Turist E10', '11:20'),
-          call('Abisko Östra', '11:25'),
-          call('Rensjön E10', '12:10'),
-          call('Kiruna Airport', '12:40', 'drop-off only'),
-          call('Kiruna Stadshustorget', '12:50', 'drop-off only'),
-          call('Kiruna Sjukhus', '12:55'),
-        ],
-      },
-      {
-        id: 'weekday-afternoon',
-        label: 'Mon–Fri — afternoon',
-        dayRule: 'Monday to Friday',
-        calls: [
-          call('Abisko Turist E10', '17:50'),
-          call('Abisko Östra', '17:55'),
-          call('Rensjön E10', '18:35'),
-          call('Kiruna Stadshustorget', '19:05', 'drop-off only'),
-          call('Kiruna Sjukhus', '19:10'),
-        ],
-      },
-      {
-        id: 'sunday-afternoon',
-        label: 'Sun & public holidays — afternoon',
-        dayRule: 'Sundays and public holidays',
-        calls: [
-          call('Abisko Turist E10', '17:50'),
-          call('Abisko Östra', '17:55'),
-          call('Rensjön E10', '18:35'),
-          call('Kiruna Stadshustorget', '19:05', 'drop-off only'),
-          call('Kiruna Sjukhus', '19:10'),
-        ],
-      },
-      {
-        id: 'saturday-afternoon',
-        label: 'Saturday — afternoon',
-        dayRule: 'Normal Saturdays',
-        exception: 'Does not run on 22 Aug, 29 Aug or 5 Sep 2026 (see the special service).',
-        notDates: SPECIAL_LINE91_SATURDAYS,
-        calls: [
-          call('Abisko Turist E10', '17:40'),
-          call('Abisko Östra', '17:45'),
-          call('Rensjön E10', '18:25'),
-          call('Kiruna Stadshustorget', '18:55', 'drop-off only'),
-          call('Kiruna Sjukhus', '19:00'),
-        ],
-      },
-      {
-        id: 'special-saturday',
-        label: 'Special Saturdays — 22 & 29 Aug, 5 Sep',
-        dayRule: 'These three Saturdays only',
-        exception: 'Replaces the normal Saturday afternoon service on these dates.',
-        onlyDates: SPECIAL_LINE91_SATURDAYS,
-        calls: [
-          call('Abisko Turist E10', '18:40'),
-          call('Abisko Östra', '18:45'),
-          call('Rensjön E10', '19:25'),
-          call('Kiruna Stadshustorget', '19:55', 'drop-off only'),
-          call('Kiruna Sjukhus', '20:00'),
-        ],
-      },
-    ],
     warnings: [
       'Special mountain fare — buy from the operator. No fixed fare is stored here.',
       '“Drop-off only” stops let passengers off but not on.',
     ],
-    source: {
-      title: 'Länstrafiken — Fjällinje 91/94 (17 Aug – 20 Sep 2026)',
-      url: 'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260817_260920/Fjallinje91o94_91_260817_260920.pdf',
-      publisher: 'Länstrafiken Norrbotten',
-      sourceYear: 2026,
-      validFrom: '2026-08-17',
-      validTo: '2026-09-20',
-      lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
-      kind: 'static',
-      warning: 'Timetable is a static snapshot — check the official source before travelling.',
-    },
+    operatorTimetables: LANSTRAFIKEN_TIMETABLES,
+    // Transcribed from the Riksgränsen → Kiruna half of each PDF, which is NOT
+    // the outward table read upwards: Abisko Turist is called BEFORE Abisko
+    // Östra here, Rensjön is a timed call in this direction only, and only
+    // some runs touch the airport.
+    timetablePeriods: [
+      {
+        id: 'line-91-return-2026-07-01',
+        validFrom: '2026-07-01',
+        validTo: '2026-08-16',
+        validityText: '1 July – 16 August 2026',
+        operatingDays: 'Daily — the same two runs every day',
+        stopCoverage: 'selected',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Daily — late morning',
+            dayRule: 'Every day',
+            calls: [
+              call('Abisko Turist E10', '11:20'),
+              call('Abisko Östra', '11:25'),
+              call('Rensjön E10', '12:10'),
+              call('Kiruna Airport', '12:40', 'drop-off only'),
+              call('Kiruna Stadshustorget', '12:50', 'drop-off only'),
+              call('Kiruna Sjukhus', '12:55'),
+            ],
+          },
+          {
+            id: 'evening',
+            label: 'Daily — evening',
+            dayRule: 'Every day',
+            calls: [
+              call('Abisko Turist E10', '18:50'),
+              call('Abisko Östra', '18:55'),
+              call('Rensjön E10', '19:35'),
+              call('Kiruna Stadshustorget', '20:05', 'drop-off only'),
+              call('Kiruna Sjukhus', '20:10'),
+            ],
+          },
+        ],
+        source: {
+          title: 'Länstrafiken — Fjällinje 91/94 (1 Jul – 16 Aug 2026)',
+          url: 'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260701_260816/Fjallinje91o94_91_260701_260816.pdf',
+          publisher: 'Länstrafiken Norrbotten',
+          sourceYear: 2026,
+          validFrom: '2026-07-01',
+          validTo: '2026-08-16',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+      {
+        id: 'line-91-return-2026-08-17',
+        validFrom: '2026-08-17',
+        validTo: '2026-09-20',
+        validityText: '17 August – 20 September 2026',
+        operatingDays: 'Daily, with different afternoon runs by weekday',
+        stopCoverage: 'selected',
+        schedules: [
+          {
+            id: 'morning',
+            label: 'Daily — late morning',
+            dayRule: 'Every day',
+            calls: [
+              call('Abisko Turist E10', '11:20'),
+              call('Abisko Östra', '11:25'),
+              call('Rensjön E10', '12:10'),
+              call('Kiruna Airport', '12:40', 'drop-off only'),
+              call('Kiruna Stadshustorget', '12:50', 'drop-off only'),
+              call('Kiruna Sjukhus', '12:55'),
+            ],
+          },
+          {
+            id: 'weekday-afternoon',
+            label: 'Mon–Fri — afternoon',
+            dayRule: 'Weekdays except public holidays',
+            calls: [
+              call('Abisko Turist E10', '17:50'),
+              call('Abisko Östra', '17:55'),
+              call('Rensjön E10', '18:35'),
+              call('Kiruna Stadshustorget', '19:05', 'drop-off only'),
+              call('Kiruna Sjukhus', '19:10'),
+            ],
+          },
+          {
+            id: 'sunday-afternoon',
+            label: 'Sun & public holidays — afternoon',
+            dayRule: 'Sundays and public holidays',
+            calls: [
+              call('Abisko Turist E10', '17:50'),
+              call('Abisko Östra', '17:55'),
+              call('Rensjön E10', '18:35'),
+              call('Kiruna Stadshustorget', '19:05', 'drop-off only'),
+              call('Kiruna Sjukhus', '19:10'),
+            ],
+          },
+          {
+            id: 'saturday-afternoon',
+            label: 'Saturday — afternoon',
+            dayRule: 'Saturdays except public holidays',
+            exception: 'Does not run on 22 Aug, 29 Aug or 5 Sep 2026 (see the special service).',
+            notDates: SPECIAL_LINE91_SATURDAYS,
+            calls: [
+              call('Abisko Turist E10', '17:40'),
+              call('Abisko Östra', '17:45'),
+              call('Rensjön E10', '18:25'),
+              call('Kiruna Stadshustorget', '18:55', 'drop-off only'),
+              call('Kiruna Sjukhus', '19:00'),
+            ],
+          },
+          {
+            id: 'special-saturday',
+            label: 'Special Saturdays — 22 & 29 Aug, 5 Sep',
+            dayRule: 'These three Saturdays only',
+            exception: 'Replaces the normal Saturday afternoon service on these dates.',
+            onlyDates: SPECIAL_LINE91_SATURDAYS,
+            calls: [
+              call('Abisko Turist E10', '18:40'),
+              call('Abisko Östra', '18:45'),
+              call('Rensjön E10', '19:25'),
+              call('Kiruna Stadshustorget', '19:55', 'drop-off only'),
+              call('Kiruna Sjukhus', '20:00'),
+            ],
+          },
+        ],
+        source: {
+          title: 'Länstrafiken — Fjällinje 91/94 (17 Aug – 20 Sep 2026)',
+          url: 'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260817_260920/Fjallinje91o94_91_260817_260920.pdf',
+          publisher: 'Länstrafiken Norrbotten',
+          sourceYear: 2026,
+          validFrom: '2026-08-17',
+          validTo: '2026-09-20',
+          lastVerified: BUS_TIMETABLES_REVERIFIED_ON,
+          kind: 'static',
+          warning: 'Timetable is a static snapshot — check the official source before travelling.',
+        },
+      },
+    ],
   },
 
   // ===================== D. LIVE ALTERNATIVES / VERIFICATION =====================
@@ -638,21 +938,137 @@ export const TRANSPORT_ENTRIES = [
 
 // --- Validity logic (pure, testable) -----------------------------------------
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const isDatedPeriod = (p) =>
+  ISO_DATE.test(p?.validFrom ?? '') && ISO_DATE.test(p?.validTo ?? '');
+
+/**
+ * Every stored timetable period for an entry, in publication order.
+ *
+ * An entry that predates the period model (the two boats) keeps its validity,
+ * schedules and source on the entry itself; that is read here as the single
+ * period it always was, so every consumer sees one shape and no service needs
+ * a second code path just to say "this one only ever had one table".
+ */
+export function timetablePeriodsFor(entry) {
+  if (entry?.timetablePeriods?.length) return entry.timetablePeriods;
+  if (!entry || entry.live || !entry.schedules?.length) return [];
+  return [
+    {
+      id: entry.id,
+      ...(entry.validFrom ? { validFrom: entry.validFrom } : {}),
+      ...(entry.validTo ? { validTo: entry.validTo } : {}),
+      ...(entry.validityText ? { validityText: entry.validityText } : {}),
+      ...(entry.operatingDays ? { operatingDays: entry.operatingDays } : {}),
+      schedules: entry.schedules,
+      source: entry.source,
+    },
+  ];
+}
+
+/**
+ * What the stored timetables can honestly say about one date.
+ *
+ * The distinction this exists to protect: "the service is out of season" and
+ * "Fjällkompis has no verified table for this date" are different claims, and
+ * only the operator can make the first one. So a date no stored period covers
+ * never silently borrows the nearest table's times — `period` is null and the
+ * caller has to say so out loud.
+ *
+ * ISO date strings compare correctly with < / >, so no Date parsing is needed.
+ *  - 'live'      → a live-planner alternative; there is no table to date;
+ *  - 'valid'     → exactly one stored period covers the date;
+ *  - 'upcoming'  → the date is before every stored period;
+ *  - 'expired'   → the date is after every stored period;
+ *  - 'uncovered' → the date falls in a gap BETWEEN stored periods;
+ *  - 'undated'   → no usable date, or the service stores no validity at all;
+ *  - 'ambiguous' → two stored periods claim the same date. That is a data
+ *    fault, never a user's problem to resolve, so this refuses to pick one.
+ *    {@link timetablePeriodProblems} fences the shipped dataset against it.
+ *
+ * `nextPeriod` / `previousPeriod` are the neighbouring stored tables, so the
+ * three uncovered-in-practice states can name what IS stored instead of
+ * leaving a hiker with a bare "no".
+ */
+export function timetableCoverageFor(entry, dateIso) {
+  const periods = timetablePeriodsFor(entry);
+  const date = ISO_DATE.test(dateIso ?? '') ? dateIso : null;
+  const dated = periods.filter(isDatedPeriod);
+
+  const resolve = (status, period) => {
+    const after = dated.filter((p) => date !== null && p.validFrom > date);
+    const before = dated.filter((p) => date !== null && p.validTo < date);
+    return {
+      status,
+      date,
+      period: period ?? null,
+      periods,
+      nextPeriod: after.length
+        ? after.reduce((a, b) => (a.validFrom <= b.validFrom ? a : b))
+        : null,
+      previousPeriod: before.length
+        ? before.reduce((a, b) => (a.validTo >= b.validTo ? a : b))
+        : null,
+    };
+  };
+
+  if (entry?.live) return resolve('live', null);
+  // A stored table with no encoded validity: show it, claim nothing by date.
+  if (dated.length === 0) return resolve('undated', periods.length === 1 ? periods[0] : null);
+  if (date === null) return resolve('undated', null);
+
+  const covering = dated.filter((p) => date >= p.validFrom && date <= p.validTo);
+  if (covering.length > 1) return resolve('ambiguous', null);
+  if (covering.length === 1) return resolve('valid', covering[0]);
+
+  const earliest = dated.reduce((a, b) => (a.validFrom <= b.validFrom ? a : b));
+  const latest = dated.reduce((a, b) => (a.validTo >= b.validTo ? a : b));
+  if (date < earliest.validFrom) return resolve('upcoming', null);
+  if (date > latest.validTo) return resolve('expired', null);
+  return resolve('uncovered', null);
+}
+
 /**
  * Validity state of a transport entry relative to an ISO date (yyyy-mm-dd).
- * ISO date strings compare correctly with < / >, so no Date parsing is needed.
- *  - 'live'     → a live-planner alternative (no fixed timetable to expire);
- *  - 'undated'  → a fixed service with no encoded validity window;
- *  - 'upcoming' → before its window (not yet valid);
- *  - 'valid'    → inside its window;
- *  - 'expired'  → after its window — surfaced as "check source", never hidden.
+ * The status half of {@link timetableCoverageFor}, kept as its own name because
+ * that is what a status pill actually asks for.
  */
 export function timetableStatus(entry, todayIso) {
-  if (entry.live) return 'live';
-  if (!entry.validFrom || !entry.validTo) return 'undated';
-  if (todayIso < entry.validFrom) return 'upcoming';
-  if (todayIso > entry.validTo) return 'expired';
-  return 'valid';
+  return timetableCoverageFor(entry, todayIso).status;
+}
+
+/**
+ * Data faults in one entry's stored periods, as human-readable strings.
+ *
+ * Overlapping periods are the fault this exists for: with two tables claiming
+ * one date there is no honest way to choose, so the dataset must not contain
+ * any. Empty result = sound data; the test suite asserts that for every entry.
+ */
+export function timetablePeriodProblems(entry) {
+  const problems = [];
+  const periods = entry?.timetablePeriods ?? [];
+  const seen = new Set();
+  for (const p of periods) {
+    if (seen.has(p.id)) problems.push(`duplicate period id "${p.id}"`);
+    seen.add(p.id);
+    if (!isDatedPeriod(p)) {
+      problems.push(`period "${p.id}" has no usable validFrom/validTo`);
+      continue;
+    }
+    if (p.validTo < p.validFrom) problems.push(`period "${p.id}" ends before it starts`);
+  }
+  const dated = periods.filter(isDatedPeriod);
+  for (let i = 0; i < dated.length; i += 1) {
+    for (let j = i + 1; j < dated.length; j += 1) {
+      const a = dated[i];
+      const b = dated[j];
+      if (a.validFrom <= b.validTo && b.validFrom <= a.validTo) {
+        problems.push(`periods "${a.id}" and "${b.id}" overlap`);
+      }
+    }
+  }
+  return problems;
 }
 
 /** Whether a specific schedule run operates on an ISO date (special-date rules). */

@@ -1,4 +1,6 @@
 import type {
+  TimetableCoverage,
+  TimetablePeriod,
   TimetableStatus,
   TransportContext,
   TransportEntry,
@@ -49,10 +51,20 @@ export declare function sectionBlurb(
   direction: RouteDirection | null,
 ): string;
 
+export declare function timetablePeriodsFor(
+  entry: TransportEntry,
+): TimetablePeriod[];
+export declare function timetableCoverageFor(
+  entry: TransportEntry,
+  dateIso: string | null | undefined,
+): TimetableCoverage;
 export declare function timetableStatus(
   entry: TransportEntry,
-  todayIso: string,
+  todayIso: string | null | undefined,
 ): TimetableStatus;
+export declare function timetablePeriodProblems(
+  entry: TransportEntry,
+): string[];
 export declare function scheduleRunsOn(
   schedule: TransportSchedule,
   iso: string,

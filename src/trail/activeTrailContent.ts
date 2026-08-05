@@ -153,6 +153,9 @@ import {
   BUS_TIMETABLES_REVERIFIED_ON,
   entriesForContext,
   transportSectionsFor,
+  timetableCoverageFor,
+  timetablePeriodsFor,
+  timetablePeriodProblems,
   timetableStatus,
   transportLinkForStop,
 } from '../data/transport.mjs';
@@ -337,6 +340,9 @@ export {
   TRANSPORT_SECTIONS,
   entriesForContext,
   transportSectionsFor,
+  timetableCoverageFor,
+  timetablePeriodsFor,
+  timetablePeriodProblems,
   timetableStatus,
   transportLinkForStop,
 };
