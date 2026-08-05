@@ -18,11 +18,13 @@ import { ContextHelp } from './ContextHelp';
 import { useStore } from '../store/AppStore';
 import {
   TRAIL_CAVEATS,
-  timetableStatus,
+  timetableCoverageFor,
   transportSectionsFor,
 } from '../trail/activeTrailContent';
 import { formatVerifiedDate, todayIso } from '../utils/format';
 import type {
+  TimetableCoverage,
+  TimetablePeriod,
   TimetableStatus,
   TransportContext,
   TransportEntry,
@@ -41,7 +43,14 @@ const MODE_LABEL: Record<TransportMode, string> = {
   boat: 'Boat',
 };
 
-/** Status pill — shape + text, never colour alone. Expired also carries an icon. */
+/**
+ * Status pill — shape + text, never colour alone. Expired also carries an icon.
+ *
+ * Four of these mean the same thing to a hiker: the app cannot give times for
+ * that date. The pill says WHICH of the four, and {@link NoTimetableNotice}
+ * always spells out what it means — a pill on its own must never be read as
+ * "the service is not running", which is the one thing this data cannot know.
+ */
 function StatusBadge({ status, entry }: { status: TimetableStatus; entry: TransportEntry }) {
   if (status === 'live') {
     return <span className="pill pill-glacier">Live times</span>;
@@ -55,12 +64,132 @@ function StatusBadge({ status, entry }: { status: TimetableStatus; entry: Transp
     );
   }
   if (status === 'upcoming') {
-    return <span className="pill">Seasonal</span>;
+    return <span className="pill">Not yet valid</span>;
+  }
+  if (status === 'uncovered') {
+    return <span className="pill">No timetable</span>;
+  }
+  if (status === 'ambiguous') {
+    return <span className="pill">Check source</span>;
   }
   if (status === 'valid') {
     return <span className="pill pill-good">In season</span>;
   }
   return <span className="pill">{MODE_LABEL[entry.mode]}</span>;
+}
+
+/** "1 July – 16 August 2026" for each stored table, for the "what we do have" line. */
+function storedRangesText(periods: TimetablePeriod[]): string {
+  return periods.map((p) => p.validityText ?? `${p.validFrom} – ${p.validTo}`).join('; ');
+}
+
+/**
+ * The honest answer when no stored period covers the date being asked about.
+ *
+ * It says three separate things on purpose: what the app does not have, what it
+ * does have, and who to ask instead. Leaving out the middle one turns a data
+ * gap into "no service"; leaving out the last one leaves a hiker with nowhere
+ * to go. It is never hidden behind a disclosure.
+ */
+function NoTimetableNotice({
+  coverage,
+  entry,
+}: {
+  coverage: TimetableCoverage;
+  entry: TransportEntry;
+}) {
+  const { status } = coverage;
+  if (status !== 'upcoming' && status !== 'expired' && status !== 'uncovered' && status !== 'ambiguous') {
+    return null;
+  }
+  const expired = status === 'expired';
+  const reason =
+    status === 'upcoming'
+      ? 'The stored timetable has not started yet.'
+      : status === 'expired'
+        ? 'The stored timetable has run out.'
+        : status === 'uncovered'
+          ? 'This date falls between the stored timetables.'
+          : 'Two stored timetables disagree about this date.';
+
+  return (
+    <p className={expired ? 'banner-warn' : 'banner-info'} style={{ marginTop: 14 }}>
+      {expired ? (
+        <TriangleAlert size={15} strokeWidth={2} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
+      ) : (
+        <Info size={15} strokeWidth={2} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
+      )}
+      <span>
+        <strong>No timetable for this date.</strong> {reason} Fjällkompis has no verified{' '}
+        {MODE_LABEL[entry.mode].toLowerCase()} timetable stored for{' '}
+        {coverage.date ? formatVerifiedDate(coverage.date) : 'this date'}. The service may still
+        run — check {entry.operator} before travelling.
+        {coverage.periods.length ? (
+          <>
+            {' '}
+            Stored timetables: {storedRangesText(coverage.periods)}.
+          </>
+        ) : null}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * One stored timetable other than the one in force, shown inside the card's
+ * disclosure. It repeats the validity and the source link because a period is
+ * only readable next to the dates and the document it came from.
+ */
+function StoredPeriod({ period }: { period: TimetablePeriod }) {
+  return (
+    <div className="tp-period">
+      <div className="tp-block-head">
+        <CalendarRange size={14} strokeWidth={2} aria-hidden />
+        {period.validityText ?? `${period.validFrom} – ${period.validTo}`}
+      </div>
+      {period.operatingDays ? <p className="tp-meta">Runs: {period.operatingDays}</p> : null}
+      <div className="tp-scheds">
+        {period.schedules.map((s) => (
+          <ScheduleBlock key={s.id} schedule={s} />
+        ))}
+      </div>
+      <StopCoverageNote period={period} />
+      {period.connections?.length ? (
+        <ul className="tp-bullets">
+          {period.connections.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="tp-meta">
+        Source: {period.source.title} · Checked {formatVerifiedDate(period.source.lastVerified)}
+      </p>
+      <a
+        className="btn btn-ghost btn-block"
+        href={period.source.url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
+        Official timetable — {period.validityText ?? 'this period'}
+      </a>
+    </div>
+  );
+}
+
+/**
+ * Says out loud when the stored calls are a selection rather than the whole
+ * table. Line 91 runs on to Riksgränsen and its official table also lists
+ * halts with no times, so a hiker must not read the four or five calls here as
+ * "these are all the stops".
+ */
+function StopCoverageNote({ period }: { period: TimetablePeriod }) {
+  if (period.stopCoverage !== 'selected') return null;
+  return (
+    <p className="tp-meta">
+      Selected stops for this route — the official timetable lists every stop on the line.
+    </p>
+  );
 }
 
 function ScheduleBlock({ schedule }: { schedule: TransportSchedule }) {
@@ -111,9 +240,24 @@ function TransportCard({
   const linkedItem = state.trip.find(
     (i) => i.kind === 'transport' && i.linkedTransportId === entry.id,
   );
-  const status = timetableStatus(entry, today);
-  const validity =
-    entry.live ? 'Live times' : entry.validityText ?? (entry.validFrom ? '' : 'Check source');
+  // One resolution for the whole card: which stored table applies to the date
+  // being asked about, and what the honest answer is when none does.
+  const coverage = timetableCoverageFor(entry, today);
+  const { status, period } = coverage;
+  const otherPeriods = coverage.periods.filter((p) => p !== period);
+  const source = period?.source ?? entry.source ?? null;
+  const connections = period?.connections ?? entry.connections;
+  const validity = entry.live
+    ? 'Live times'
+    : period
+      ? period.validityText ?? ''
+      : coverage.periods.length > 1
+        ? `${coverage.periods.length} stored timetables`
+        : 'No timetable for this date';
+  // Other periods are worth a look on their own when none is in force — that
+  // is the only place the times still live.
+  const [showOthers, setShowOthers] = useState(period === null);
+  const othersId = `tp-others-${entry.id}`;
 
   return (
     <ListDisclosure
@@ -130,40 +274,31 @@ function TransportCard({
       onToggle={onToggle}
       headingLevel={headingLevel}
     >
-      {/* Expired: visible, never hidden */}
-      {status === 'expired' ? (
-        <p className="banner-warn" style={{ marginTop: 14 }}>
-          <TriangleAlert size={15} strokeWidth={2} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>
-            <strong>Timetable expired.</strong> This {MODE_LABEL[entry.mode].toLowerCase()}{' '}
-            timetable was valid {entry.validityText}. Check the official source for the current
-            schedule.
-          </span>
-        </p>
-      ) : null}
+      {/* No usable stored table for this date: visible, never hidden */}
+      <NoTimetableNotice coverage={coverage} entry={entry} />
 
-      <p className="stop-summary" style={{ marginTop: status === 'expired' ? 10 : 14 }}>
+      <p className="stop-summary" style={{ marginTop: period || entry.live ? 14 : 10 }}>
         {entry.summary}
       </p>
 
       {entry.direction ? <p className="stop-desc" style={{ marginTop: 6 }}>{entry.direction}</p> : null}
 
-      {/* Validity / operating days */}
+      {/* Validity / operating days — of the table actually in force */}
       {!entry.live ? (
         <div className="tp-facts">
-          {entry.validityText ? (
+          {period?.validityText ? (
             <span className="stop-fact-row">
               <CalendarRange size={15} strokeWidth={1.8} aria-hidden />
               <span>
-                <strong>Valid:</strong> {entry.validityText}
+                <strong>Valid:</strong> {period.validityText}
               </span>
             </span>
           ) : null}
-          {entry.operatingDays ? (
+          {period?.operatingDays ? (
             <span className="stop-fact-row">
               <Info size={15} strokeWidth={1.8} aria-hidden />
               <span>
-                <strong>Runs:</strong> {entry.operatingDays}
+                <strong>Runs:</strong> {period.operatingDays}
               </span>
             </span>
           ) : null}
@@ -178,12 +313,38 @@ function TransportCard({
         </div>
       ) : null}
 
-      {/* Schedules */}
-      {entry.schedules?.length ? (
-        <div className="tp-scheds">
-          {entry.schedules.map((s) => (
-            <ScheduleBlock key={s.id} schedule={s} />
-          ))}
+      {/* Schedules — only ever the period that covers the date */}
+      {period?.schedules.length ? (
+        <>
+          <div className="tp-scheds">
+            {period.schedules.map((s) => (
+              <ScheduleBlock key={s.id} schedule={s} />
+            ))}
+          </div>
+          <StopCoverageNote period={period} />
+        </>
+      ) : null}
+
+      {/* Every other stored table, one tap away. Open by default when nothing
+          is in force, because then this is where the times are. */}
+      {otherPeriods.length ? (
+        <div className="tp-block">
+          <button
+            type="button"
+            className="btn btn-ghost btn-block"
+            aria-expanded={showOthers}
+            aria-controls={othersId}
+            onClick={() => setShowOthers((v) => !v)}
+          >
+            <CalendarRange size={15} strokeWidth={1.8} aria-hidden />
+            {showOthers ? 'Hide' : 'Show'}{' '}
+            {period ? 'other stored timetables' : 'stored timetables'} ({otherPeriods.length})
+          </button>
+          <div id={othersId} hidden={!showOthers}>
+            {otherPeriods.map((p) => (
+              <StoredPeriod key={p.id} period={p} />
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -230,12 +391,12 @@ function TransportCard({
         </div>
       ) : null}
 
-      {/* Connections */}
-      {entry.connections?.length ? (
+      {/* Connections — these quote a period's own times, so they follow it */}
+      {connections?.length ? (
         <div className="tp-block">
           <div className="tp-block-head">Connections</div>
           <ul className="tp-bullets">
-            {entry.connections.map((c) => (
+            {connections.map((c) => (
               <li key={c}>{c}</li>
             ))}
           </ul>
@@ -298,21 +459,45 @@ function TransportCard({
         </div>
       ) : null}
 
-      {/* Source + official links */}
+      {/* Source + official links. The source shown is the document the times
+          above actually came from; with no period in force there is no such
+          document, so the operator's own timetable index takes its place
+          rather than a dated PDF that does not apply. */}
       <div className="stop-source">
-        <p>
-          {entry.source.kind === 'live' ? 'Live service' : 'Static timetable snapshot'} · Source:{' '}
-          {entry.source.title} · Checked {formatVerifiedDate(entry.source.lastVerified)}
-        </p>
-        <a
-          className="btn btn-ghost btn-block"
-          href={entry.source.url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
-          {entry.source.kind === 'live' ? `Check ${entry.operator} live` : `Official timetable — ${entry.operator}`}
-        </a>
+        {source ? (
+          <>
+            <p>
+              {source.kind === 'live' ? 'Live service' : 'Static timetable snapshot'} · Source:{' '}
+              {source.title} · Checked {formatVerifiedDate(source.lastVerified)}
+            </p>
+            <a
+              className="btn btn-ghost btn-block"
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
+              {source.kind === 'live'
+                ? `Check ${entry.operator} live`
+                : `Official timetable — ${entry.operator}`}
+            </a>
+          </>
+        ) : null}
+        {/* Only where it earns its place: with a period in force each stored
+            table already links its own document, so this would be a third
+            near-identical button. With none in force it is the whole answer to
+            "then where do I look?". */}
+        {entry.operatorTimetables && !period ? (
+          <a
+            className="btn btn-ghost btn-block"
+            href={entry.operatorTimetables.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
+            {entry.operatorTimetables.label}
+          </a>
+        ) : null}
         {entry.extraLinks?.map((l) => (
           <a
             key={l.url}

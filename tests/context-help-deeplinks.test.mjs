@@ -182,9 +182,17 @@ test('Stops: mountain-cabin banner is now context help beside the title', () => 
 
 test('critical warnings remain rendered without an extra tap', () => {
   const transport = read('src/components/TransportView.tsx');
-  assert.match(transport, /Timetable expired/, 'expired banner stays visible');
+  // The expired banner became the wider "no verified timetable for this date"
+  // notice, which covers expired as one of its four reasons. It is still the
+  // first thing inside an opened card, never behind the periods disclosure.
+  assert.match(transport, /No timetable for this date/, 'the no-timetable notice stays visible');
+  assert.match(transport, /The stored timetable has run out/, 'expired still says so');
   assert.match(transport, /banner-warn/, 'warnings render inline');
-  assert.match(transport, /pill pill-warn|pill pill-good|Live times|Seasonal/, 'status badges stay');
+  assert.ok(
+    transport.indexOf('<NoTimetableNotice') < transport.indexOf('aria-controls={othersId}'),
+    'the notice renders above the stored-timetables disclosure',
+  );
+  assert.match(transport, /pill pill-warn|pill pill-good|Live times/, 'status badges stay');
   assert.match(transport, /bookingDeadline/, 'booking deadline stays visible');
 
   const stops = read('src/screens/StopsScreen.tsx');

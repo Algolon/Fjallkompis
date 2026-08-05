@@ -4656,6 +4656,18 @@ span.trip-attach-open {
   line-height: 1.5;
 }
 
+/* A stored timetable other than the one in force. Indented behind a rule so a
+   period that does NOT apply today can never be mistaken for the one that
+   does, however far the card is scrolled. */
+.tp-period {
+  margin-top: 12px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+.tp-period + .tp-period {
+  margin-top: 16px;
+}
+
 /* Two-column Shop/Transport on roomy viewports — same treatment as the other
    Lists categories (compact stays single-column). */
 @media (min-width: 900px) and (min-height: 500px) {
