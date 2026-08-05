@@ -1,4 +1,4 @@
-import type { FacilityId, StopFacility, StopImage, TrailStop } from '../types';
+import type { FacilityId, StopFacility, TrailStop } from '../types';
 import { HUT_TO_WAYPOINT, WAYPOINT_BY_ID } from '../route/routeData';
 
 /**
@@ -52,22 +52,17 @@ const coordOf = (stopId: string) => {
 };
 
 /**
- * TEMPORARY placeholder photos (public/images/stops-placeholder/) for private
- * use only — most are STF press/website photos and are NOT licensed for
- * redistribution. Replace with own trip photos in public/images/stops/
- * (see the README there) before sharing the app or repo publicly.
+ * No stop ships a photograph. `image` stays optional and simply absent: the
+ * app has no redistribution right for third-party photos of these places, and
+ * an absent field is the honest way to say so. Stops render the generated
+ * route-silhouette fallback (see components/StopVisual) — drawn from our own
+ * route data, so it needs no licence and works offline. Add an `image` here
+ * only for a photo whose licence permits redistribution; the format and the
+ * public/images/stops/ location are documented in the README there.
  */
-const placeholder = (stopId: string, alt: string, credit = 'STF'): StopImage => ({
-  src: `${import.meta.env.BASE_URL}images/stops-placeholder/${stopId}.webp`,
-  alt,
-  credit,
-  license: 'temporary placeholder — do not redistribute',
-});
-
 const CURATED: Omit<TrailStop, 'coord'>[] = [
   {
     id: 'abisko',
-    image: placeholder('abisko', 'STF Abisko Turiststation buildings above the Abiskojåkka canyon'),
     name: 'STF Abisko Turiststation',
     type: 'mountain-station',
     summary:
@@ -96,7 +91,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
   },
   {
     id: 'abiskojaure',
-    image: placeholder('abiskojaure', 'Red cabins of STF Abiskojaure among birch trees, reached by a boardwalk'),
     name: 'STF Abiskojaure Mountain cabin',
     type: 'mountain-cabin',
     summary: 'Lakeside mountain cabin in the birch forest, with a shop and sauna.',
@@ -118,7 +112,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
   },
   {
     id: 'alesjaure',
-    image: placeholder('alesjaure', 'Aerial view of the STF Alesjaure cabins on a knoll above the braided lake delta'),
     name: 'STF Alesjaure Mountain cabin',
     type: 'mountain-cabin',
     summary:
@@ -141,7 +134,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
   },
   {
     id: 'tjaktja',
-    image: placeholder('tjaktja', 'The lone STF Tjäktja cabin in the barren high valley below Tjäktja Pass'),
     name: 'STF Tjäktja Mountain cabin',
     type: 'mountain-cabin',
     summary: 'Small, exposed mountain cabin below Tjäktja Pass.',
@@ -158,7 +150,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
   },
   {
     id: 'salka',
-    image: placeholder('salka', 'Row of STF Sälka cabins beside the stream, a reindeer grazing nearby'),
     name: 'STF Sälka Mountain cabin',
     type: 'mountain-cabin',
     summary: 'Well-equipped valley cabin with shop and sauna.',
@@ -180,7 +171,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
   },
   {
     id: 'singi',
-    image: placeholder('singi', 'STF Singi cabin on the open heath beneath a steep valley wall'),
     name: 'STF Singi Mountain cabin',
     type: 'mountain-cabin',
     summary: 'Remote junction cabin where the route turns toward Kebnekaise.',
@@ -197,7 +187,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
   },
   {
     id: 'kebnekaise',
-    image: placeholder('kebnekaise', 'The stone main building of STF Kebnekaise Mountain Station under the peaks'),
     name: 'STF Kebnekaise Mountain Station',
     type: 'mountain-station',
     summary: 'Full-service mountain station at the foot of Sweden’s highest mountain.',
@@ -224,7 +213,6 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
   },
   {
     id: 'nikkaluokta',
-    image: placeholder('nikkaluokta', 'Red lodge buildings at Nikkaluokta, the southern end of the trail', 'Wikimedia Commons'),
     name: 'Nikkaluokta',
     type: 'village',
     summary:

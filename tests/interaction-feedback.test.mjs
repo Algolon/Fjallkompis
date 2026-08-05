@@ -66,13 +66,14 @@ test('keyboard focus rings remain, and the STF ring is circular', () => {
   ]) {
     assert.ok(css.includes(selector), `${selector} focus state exists`);
   }
-  // The roundel is a circle and its outline follows it (outline hugs
-  // border-radius in every supporting browser).
-  const stf = css.slice(css.indexOf('.stf-card {'), css.indexOf('.stf-card img'));
-  assert.match(stf, /border-radius: 50%/);
+  // The membership card is a rounded card (the STF roundel was removed — no
+  // licence to redistribute the mark), and its outline follows that radius.
+  const stf = css.slice(css.indexOf('.stf-card {'), css.indexOf('.stf-card:active'));
+  assert.match(stf, /border-radius: var\(--r-md\)/);
+  assert.doesNotMatch(stf, /border-radius: 50%/);
   assert.match(
     css,
-    /\.stf-card:focus-visible \{\n  outline: 2px solid var\(--glacier-700\);\n  outline-offset: 3px;\n\}/,
+    /\.stf-card:focus-visible \{\n  outline: 2px solid var\(--glacier-700\);\n  outline-offset: 2px;\n\}/,
   );
 });
 

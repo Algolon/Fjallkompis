@@ -117,6 +117,15 @@ deviation from the icon-supports-text rule). If the image ever fails to
 load, the button falls back to the previous neutral boxed IdCard + "STF"
 treatment — never an invisible target.
 
+> **Superseded 2026-08-05 — the roundel is gone.** The paragraph above is
+> kept as the record of what was specified and built, not as current
+> behaviour. "Owner-approved" recorded that the project owner supplied the
+> file; it was never evidence of a licence from Svenska Turistföreningen to
+> redistribute their mark from a public repository and Pages build. The
+> asset was removed and the boxed IdCard + "STF" treatment — formerly the
+> load-failure fallback — became the only membership button. See
+> `fix: remove unlicensed placeholder imagery`.
+
 ## Content contracts
 
 | Card | Source (single source of truth) | Empty/partial behaviour | Destination |

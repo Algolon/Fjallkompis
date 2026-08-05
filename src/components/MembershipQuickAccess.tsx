@@ -23,8 +23,13 @@ import type { WalletDocument } from '../types';
  * broken Today button. One ticket opens immediately; several open a compact
  * chooser first. PDFs use the platform viewer/download fallback and images use
  * the same centred quick viewer as the STF membership card.
+ *
+ * The membership button is app-owned iconography — an IdCard glyph over the
+ * "STF" letters — not the STF mark. We hold no licence to redistribute that
+ * logo, and a Fjällkompis screen wearing it would also imply an official STF
+ * app, which this is not. Naming STF in the label is a plain statement of
+ * whose card this is and stays.
  */
-const STF_LOGO_SRC = `${import.meta.env.BASE_URL}images/stf-logo.png`;
 export function MembershipQuickAccess() {
   const { currentPlannedDay } = useStore();
   const wallet = useWalletDocuments();
@@ -51,7 +56,6 @@ export function MembershipQuickAccess() {
     heading: string;
   } | null>(null);
   const [choosingTickets, setChoosingTickets] = useState(false);
-  const [logoFailed, setLogoFailed] = useState(false);
 
   // Verify every candidate blob on THIS device before offering an action.
   useEffect(() => {
@@ -112,33 +116,18 @@ export function MembershipQuickAccess() {
   return (
     <>
       {availableMembership ? (
-        logoFailed ? (
-          <button
-            className="today-action-card today-glass today-glass--light stf-card stf-card--boxed"
-            onClick={() => void open(availableMembership, 'STF membership card')}
-            aria-label="Open STF membership card"
-          >
-            <IdCard size={22} strokeWidth={1.8} aria-hidden />
-            <span className="stf-card__label" aria-hidden>
-              STF
-            </span>
-          </button>
-        ) : (
-          <button
-            className="stf-card"
-            onClick={() => void open(availableMembership, 'STF membership card')}
-            aria-label="Open STF membership card"
-          >
-            {/* The button carries the accessible name; the mark is decorative. */}
-            <img
-              src={STF_LOGO_SRC}
-              alt=""
-              aria-hidden
-              draggable={false}
-              onError={() => setLogoFailed(true)}
-            />
-          </button>
-        )
+        <button
+          className="today-action-card today-glass today-glass--light stf-card"
+          onClick={() => void open(availableMembership, 'STF membership card')}
+          aria-label="Open STF membership card"
+        >
+          {/* The button carries the accessible name; glyph and letters are
+              decoration, so neither is announced a second time. */}
+          <IdCard size={22} strokeWidth={1.8} aria-hidden />
+          <span className="stf-card__label" aria-hidden>
+            STF
+          </span>
+        </button>
       ) : null}
 
       {availableTickets.length > 0 ? (
