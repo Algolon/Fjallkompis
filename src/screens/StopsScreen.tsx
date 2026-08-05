@@ -34,7 +34,7 @@ import {
 import { tripStayTypeTitle } from '../trip/tripModel.mjs';
 import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
 import type { CuratedOffRoutePlace, StopTransportLink } from '../trail/activeTrailContent';
-import type { ShopCategory, TrailStop } from '../types';
+import type { RouteDirection, ShopCategory, TrailStop } from '../types';
 import type { TabId } from '../components/TabBar';
 import type { NavPayload } from './TodayScreen';
 
@@ -118,6 +118,7 @@ function TripNote({ stop }: { stop: TrailStop }) {
 function StopCard({
   stop,
   routeKm,
+  direction,
   open,
   onToggle,
   headerRef,
@@ -130,6 +131,11 @@ function StopCard({
   stop: TrailStop;
   /** Cumulative km from the selected itinerary start (0 at the start stop). */
   routeKm: number;
+  /**
+   * The active walking direction. A trailhead's transport link depends on it:
+   * Abisko is where you get ON the trail one way round and OFF it the other.
+   */
+  direction: RouteDirection;
   open: boolean;
   onToggle: () => void;
   headerRef: (el: HTMLButtonElement | null) => void;
@@ -151,7 +157,7 @@ function StopCard({
   // Deep links out of the expanded panel (never the collapsed header icons).
   // The Shop chip opens the matching shop-TYPE category, not a location card.
   const shopType = shopTypeForStop(stop.id);
-  const tpLink = transportLinkForStop(stop.id);
+  const tpLink = transportLinkForStop(stop.id, direction);
   const shortName = stopShortName(stop);
 
   return (
@@ -531,7 +537,7 @@ export function StopsScreen({
 }) {
   // Stops in the ACTIVE itinerary's walking order, with route-km measured from
   // the selected start (facilities/notes stay tied to the STABLE stop id).
-  const { itinerary, state } = useStore();
+  const { itinerary, state, routeDirection } = useStore();
   const stops = itinerary.orderedStops;
   const startStop = itinerary.startStopId ? STOPS_BY_ID[itinerary.startStopId] : null;
   const endStop = itinerary.endStopId ? STOPS_BY_ID[itinerary.endStopId] : null;
@@ -664,6 +670,7 @@ export function StopsScreen({
             key={stop.id}
             stop={stop}
             routeKm={itinerary.stopDistanceKm[stop.id] ?? 0}
+            direction={routeDirection}
             open={openId === stop.id}
             onToggle={() => setOpenId((cur) => (cur === stop.id ? null : stop.id))}
             headerRef={(el) => {

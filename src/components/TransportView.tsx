@@ -18,10 +18,8 @@ import { ContextHelp } from './ContextHelp';
 import { useStore } from '../store/AppStore';
 import {
   TRAIL_CAVEATS,
-  TRANSPORT_ENTRIES,
-  TRANSPORT_SECTIONS,
-  entriesForContext,
   timetableStatus,
+  transportSectionsFor,
 } from '../trail/activeTrailContent';
 import { formatVerifiedDate, todayIso } from '../utils/format';
 import type {
@@ -368,9 +366,25 @@ export function TransportView({
   onViewInTrip?: (itemId: string) => void;
 } = {}) {
   const today = useMemo(() => todayIso(), []);
-  const validEntry = initialEntryId && TRANSPORT_ENTRIES.some((e) => e.id === initialEntryId)
-    ? initialEntryId
-    : undefined;
+
+  // The whole reference is assembled for the direction the hiker walks — which
+  // service belongs in which section, and how each section names its
+  // endpoints. This view holds no direction logic of its own: it never
+  // reverses, relabels or filters a service, and there is no string handling
+  // anywhere below that could turn one route into its opposite.
+  const { routeDirection } = useStore();
+  const { sections } = useMemo(
+    () => transportSectionsFor(routeDirection),
+    [routeDirection],
+  );
+
+  // A deep link may only open a service that is actually on screen for this
+  // direction, so a stale target scrolls nowhere rather than silently
+  // expanding a card the hiker cannot see.
+  const validEntry =
+    initialEntryId && sections.some((s) => s.entries.some((e) => e.id === initialEntryId))
+      ? initialEntryId
+      : undefined;
   const [open, setOpen] = useState<Set<string>>(
     () => new Set(validEntry ? [validEntry] : []),
   );
@@ -418,34 +432,34 @@ export function TransportView({
         <span>{TRAIL_CAVEATS.connectivity.short}</span>
       </p>
 
-      {TRANSPORT_SECTIONS.map((section) => {
-        const entries = entriesForContext(section.id);
-        if (entries.length === 0) return null;
-        return (
-          <section key={section.id} aria-label={section.title}>
-            <div id={`tp-section-${section.id}`} className="section-label" tabIndex={-1}>
-              {section.title}
-            </div>
-            <p className="card-sub" style={{ margin: '-4px 2px 10px' }}>
-              {section.blurb}
-            </p>
-            <div className="stack">
-              {entries.map((entry, i) => (
-                <TransportCard
-                  key={entry.id}
-                  entry={entry}
-                  today={today}
-                  open={open.has(entry.id)}
-                  onToggle={() => toggle(entry.id)}
-                  headingLevel={i === 0 ? 'h2' : 'h3'}
-                  onAddToTrip={onAddToTrip}
-                  onViewInTrip={onViewInTrip}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      {sections.map((section) => (
+        <section key={section.id} aria-label={section.title}>
+          <div id={`tp-section-${section.id}`} className="section-label" tabIndex={-1}>
+            {section.title}
+          </div>
+          {/* The blurb names the actual endpoints for the active walking
+              direction ("Kiruna to the Abisko trailhead" / "Abisko back to
+              Kiruna"), so which way round the reference is being read is
+              legible from the section labels alone. */}
+          <p className="card-sub" style={{ margin: '-4px 2px 10px' }}>
+            {section.blurb}
+          </p>
+          <div className="stack">
+            {section.entries.map((entry, i) => (
+              <TransportCard
+                key={entry.id}
+                entry={entry}
+                today={today}
+                open={open.has(entry.id)}
+                onToggle={() => toggle(entry.id)}
+                headingLevel={i === 0 ? 'h2' : 'h3'}
+                onAddToTrip={onAddToTrip}
+                onViewInTrip={onViewInTrip}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
     </>
   );
 }
