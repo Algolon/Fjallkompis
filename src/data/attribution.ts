@@ -13,8 +13,23 @@
  */
 import { FACTS_VERIFIED_ON } from './stops';
 
+/**
+ * Which question a source answers.
+ *
+ *  - `'trail'` — part of the curated trail dossier: what a hiker trusts about
+ *                the route itself. Versioned by TRAIL_CONTENT.contentVersion
+ *                (src/data/trailMetadata.mjs).
+ *  - `'app'`   — how the software renders and what it is built on. Versioned
+ *                by the app release.
+ *
+ * Required, so a new source cannot silently land in the wrong group — and so
+ * the two rendered lists provably partition the shipped sources between them.
+ */
+export type AttributionScope = 'trail' | 'app';
+
 export interface DataSourceAttribution {
   id: string;
+  scope: AttributionScope;
   /** True only while the source's data actually ships in the app. */
   present: boolean;
   /** Display name of the dataset, e.g. "Topographic basemap". */
@@ -41,6 +56,7 @@ export interface DataSourceAttribution {
 export const DATA_SOURCES: DataSourceAttribution[] = [
   {
     id: 'osm-protomaps-basemap',
+    scope: 'app',
     present: true,
     name: 'Topographic basemap',
     label: '© OpenStreetMap contributors · Protomaps',
@@ -55,6 +71,7 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
   },
   {
     id: 'sentinel2-eox',
+    scope: 'app',
     present: true,
     name: 'Satellite imagery',
     label: 'Sentinel-2 cloudless by EOX',
@@ -69,6 +86,7 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
   },
   {
     id: 'route-gpx',
+    scope: 'trail',
     present: true,
     name: 'Route & hut waypoints',
     label: 'Verified GPX track · gpx.studio',
@@ -79,6 +97,7 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
   },
   {
     id: 'stops-snapshot',
+    scope: 'trail',
     present: true,
     name: 'Hut & facility details',
     label: 'STF & Nikkaluokta websites (curated snapshot)',
@@ -88,6 +107,7 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
   },
   {
     id: 'copernicus-dem',
+    scope: 'app',
     present: true,
     name: 'Terrain relief',
     // Compact DESCRIPTION only — deliberately no shorthand copyright line:
@@ -111,6 +131,7 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
   // ---- Not yet shipped — flip `present` when the archive actually exists ----
   {
     id: 'lantmateriet-ortofoto',
+    scope: 'app',
     present: false,
     name: 'Aerial imagery',
     label: 'Ortofoto Nedladdning · © Lantmäteriet',
@@ -128,6 +149,18 @@ export const DATA_SOURCE_BY_ID: Record<string, DataSourceAttribution> =
 
 /** Sources whose data currently ships in the app (the only ones rendered). */
 export const PRESENT_DATA_SOURCES = DATA_SOURCES.filter((s) => s.present);
+
+/**
+ * The shipped sources, split by the question they answer. Together these two
+ * are exactly PRESENT_DATA_SOURCES — the scope field is required, so no source
+ * can fall between them and none is rendered twice.
+ */
+export const TRAIL_DATA_SOURCES = PRESENT_DATA_SOURCES.filter(
+  (s) => s.scope === 'trail',
+);
+export const APP_DATA_SOURCES = PRESENT_DATA_SOURCES.filter(
+  (s) => s.scope === 'app',
+);
 
 export const BASEMAP_SOURCE_INFO = DATA_SOURCE_BY_ID['osm-protomaps-basemap'];
 export const SATELLITE_SOURCE_INFO = DATA_SOURCE_BY_ID['sentinel2-eox'];
