@@ -20,6 +20,10 @@ import {
   type TabId,
 } from './components/TabBar';
 import { SectionShell } from './components/SectionShell';
+import {
+  SectionBackdrop,
+  type SectionThemeId,
+} from './components/SectionBackdrop';
 import { TodayScreen, type NavPayload } from './screens/TodayScreen';
 import { MapScreen } from './screens/MapScreen';
 import { StagesScreen } from './screens/StagesScreen';
@@ -317,9 +321,22 @@ function AppShell() {
     navigateToDestination(tab, section, payload);
   };
 
+  // Section colour identity (section-themes.css): Guide is glacier, Plan is
+  // cloudberry/copper. ONE class on the shell drives every semantic token —
+  // the SectionShell subnav, the home screen and all subroutes inherit it;
+  // no component checks the pathname. The bottom navigation is deliberately
+  // NOT themed: all ordinary tabs share one neutral active treatment, and
+  // Today's spruce centre disc stays the only differentiated item. Today,
+  // Map and Settings run unthemed (spruce is the neutral default).
+  const sectionTheme: SectionThemeId | null =
+    nav.tab === 'guide' || nav.tab === 'plan' ? nav.tab : null;
+
   return (
     <>
-      <div className="app" ref={shellRef}>
+      <div
+        className={`app${sectionTheme ? ` theme-${sectionTheme}` : ''}`}
+        ref={shellRef}
+      >
         {/* Two instances of the SAME navigation (shared route table, active
             state and handler); CSS displays exactly one per viewport. The
             rail sits before <main> so that on tablet/desktop the keyboard
@@ -330,6 +347,10 @@ function AppShell() {
             Guide/Plan tab from a section returns to that tab's home (the
             resolver yields section null), the standard pop-to-root idiom. */}
         <TabBar active={nav.tab} onChange={navigate} variant="rail" />
+        {/* The section's contour backdrop lives OUTSIDE the keyed <main>
+            remount so it persists across home ↔ subroute navigation — no
+            flicker, no re-request, no first-frame resize. */}
+        {sectionTheme ? <SectionBackdrop section={sectionTheme} /> : null}
         {/* key forces the fade-in animation per destination change */}
         <main key={`${nav.tab}${nav.section ? `-${nav.section}` : ''}`}>
           <Screens

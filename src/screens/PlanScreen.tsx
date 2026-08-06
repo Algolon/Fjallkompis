@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo } from 'react';
 import {
   Backpack,
   BedDouble,
@@ -37,13 +37,6 @@ import type { ListsDeepLink, NavPayload } from './TodayScreen';
  * essentials warning appears only when essentialNotPacked > 0. Everything
  * behind it is existing local state; no cloud, no account.
  */
-
-/**
- * Decorative topographic background — a real contour crop near the trail,
- * extracted from the app's own contour archive (see
- * public/images/plan/README.md for provenance) and themed copper in CSS.
- */
-const PLAN_BG_SRC = `${import.meta.env.BASE_URL}images/plan/contours.svg`;
 
 export function PlanScreen({
   onOpenSection,
@@ -107,12 +100,8 @@ export function PlanScreen({
 
   return (
     <div className="screen screen--plan plan-screen">
-      <div
-        className="screen-bg screen-bg--plan"
-        aria-hidden
-        style={{ '--screen-bg-image': `url("${PLAN_BG_SRC}")` } as CSSProperties}
-      />
-
+      {/* The copper contour backdrop is rendered by the app shell
+          (SectionBackdrop) so it persists across Plan's subroutes. */}
       <ScreenHeader eyebrow="Your trip" title="Plan">
         Plan your days, pack your gear and keep travel details and documents
         close — stored on this device.
