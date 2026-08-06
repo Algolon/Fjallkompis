@@ -33,25 +33,10 @@ const read = (p) => readFileSync(join(root, p), 'utf8');
  * a new shape, add it here — this table IS the capability migration matrix.
  */
 const CALL_SITES = [
-  // Today Prepare cards
-  { from: 'TodayPrepare', target: ['map'], dest: { tab: 'map', section: null } },
-  { from: 'TodayPrepare', target: ['stages'], dest: { tab: 'guide', section: 'stages' } },
-  {
-    from: 'TodayPrepare packing card',
-    target: ['checklist', { lists: { section: 'packing' } }],
-    dest: { tab: 'plan', section: 'packing' },
-  },
-  {
-    from: 'TodayPrepare travel & stays card',
-    target: ['checklist', { lists: { section: 'trip' } }],
-    dest: { tab: 'plan', section: 'trip' },
-  },
-  {
-    from: 'TodayPrepare readiness card',
-    target: ['settings', { settings: { section: 'readiness' } }],
-    dest: { tab: 'settings', section: null },
-  },
-  // Today On route
+  // (The former Today Prepare cards are gone with the Prepare mode itself —
+  //  their preparation summaries live on the Plan dashboard now, which
+  //  navigates through openSection, not through legacy targets.)
+  // Today
   {
     from: 'Today Stage guide',
     target: ['stages', { guideStageId: 'd3' }],
@@ -75,7 +60,7 @@ const CALL_SITES = [
   {
     from: 'Today Trip plan link',
     target: ['checklist', { lists: { section: 'trip' } }],
-    dest: { tab: 'plan', section: 'trip' },
+    dest: { tab: 'plan', section: 'travel' },
   },
   // Map
   {
@@ -102,23 +87,23 @@ const CALL_SITES = [
   {
     from: 'Stops → Track stay',
     target: ['checklist', { lists: { section: 'trip', trackStayPlaceId: 'p1' } }],
-    dest: { tab: 'plan', section: 'trip' },
+    dest: { tab: 'plan', section: 'travel' },
   },
   {
     from: 'Stops → View stay',
     target: ['checklist', { lists: { section: 'trip', tripItemId: 't1' } }],
-    dest: { tab: 'plan', section: 'trip' },
+    dest: { tab: 'plan', section: 'travel' },
   },
   // Guide → Transport's Trip launches (vNext cross-tab)
   {
     from: 'Guide Transport → Add to Trip',
     target: ['plan', { lists: { addTransportEntryId: 'line-91-return' } }],
-    dest: { tab: 'plan', section: 'trip' },
+    dest: { tab: 'plan', section: 'travel' },
   },
   {
     from: 'Guide Transport → View in Trip',
     target: ['plan', { lists: { tripItemId: 't1' } }],
-    dest: { tab: 'plan', section: 'trip' },
+    dest: { tab: 'plan', section: 'travel' },
   },
   // Trip → View place (back out to the dossier)
   {

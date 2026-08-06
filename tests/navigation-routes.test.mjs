@@ -26,13 +26,16 @@ import {
 } from '../src/navigation/routes.mjs';
 
 test('the five destinations keep their order, labels and hashes', () => {
+  // Today is deliberately the CENTRE item — the operational home flanked by
+  // the reference tabs (Guide, Map) and the personal tabs (Plan, Settings).
   assert.deepEqual(TAB_ROUTES, [
-    { tab: 'today', hash: '#/today', label: 'Today' },
-    { tab: 'map', hash: '#/map', label: 'Map' },
     { tab: 'guide', hash: '#/guide', label: 'Guide' },
+    { tab: 'map', hash: '#/map', label: 'Map' },
+    { tab: 'today', hash: '#/today', label: 'Today' },
     { tab: 'plan', hash: '#/plan', label: 'Plan' },
     { tab: 'settings', hash: '#/settings', label: 'Settings' },
   ]);
+  assert.equal(TAB_ROUTES[2].tab, 'today', 'Today is the centre of five');
 });
 
 test('default destination is Today', () => {
@@ -42,16 +45,19 @@ test('default destination is Today', () => {
 
 test('Guide and Plan own exactly the vNext sections, in index order', () => {
   assert.deepEqual(GUIDE_SECTIONS, ['stages', 'stops', 'shops', 'transport']);
-  assert.deepEqual(PLAN_SECTIONS, ['day', 'trip', 'packing']);
+  // Plan's dashboard order: Day plan, Packing, then the Travel & stays and
+  // Wallet tiles — Travel and Wallet are SEPARATE destinations over the
+  // same local stores (trip items vs stored documents).
+  assert.deepEqual(PLAN_SECTIONS, ['day', 'packing', 'travel', 'wallet']);
 });
 
 test('every capability has exactly ONE canonical hash', () => {
   const hashes = DESTINATION_ROUTES.map((r) => r.hash);
   assert.equal(new Set(hashes).size, hashes.length, 'no duplicate hashes');
   assert.deepEqual(hashes, [
-    '#/today',
-    '#/map',
     '#/guide',
+    '#/map',
+    '#/today',
     '#/plan',
     '#/settings',
     '#/guide/stages',
@@ -59,8 +65,9 @@ test('every capability has exactly ONE canonical hash', () => {
     '#/guide/shops',
     '#/guide/transport',
     '#/plan/day',
-    '#/plan/trip',
     '#/plan/packing',
+    '#/plan/travel',
+    '#/plan/wallet',
   ]);
   // An alias never doubles as a canonical address.
   for (const legacy of LEGACY_HASH_ALIASES.keys()) {
@@ -95,6 +102,12 @@ test('the pre-vNext public hashes redirect to their new destination', () => {
   // Lists' sections split between Guide and Plan; the honest single target
   // for a saved #/lists link is the Plan home, which reaches them all.
   assert.deepEqual(destinationForHash('#/lists'), { tab: 'plan', section: null });
+  // The pilot shell's short-lived combined trip route split into Travel &
+  // stays and Wallet; a saved link opens Travel & stays (the trip items).
+  assert.deepEqual(destinationForHash('#/plan/trip'), {
+    tab: 'plan',
+    section: 'travel',
+  });
 });
 
 test('destinationForHash tolerates a trailing slash', () => {

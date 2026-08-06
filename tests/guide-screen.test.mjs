@@ -1,10 +1,13 @@
 /**
- * Guide — the read-only trail dossier's home (vNext).
+ * Guide — the read-only trail dossier's home (vNext experience pass).
  *
- * Contract: every dossier category is reachable from the index, the data
- * entrance is ACTIVE_TRAIL_CONTENT (the application-facing content
- * boundary), the header makes no global reviewed-on claim, and browsing
- * writes nothing — the Guide home does not even import the store.
+ * Contract: EXACTLY four primary tiles (Stages & highlights, Stops &
+ * places, Shops & supplies, Transport) in a 2×2 grid — no Sources &
+ * credits tile (Settings owns that), no standalone Highlights tile
+ * (highlights live inside the stages, and the stage screen says so). Each
+ * tile carries an icon, a title and one descriptive sentence. The data
+ * entrance stays the content boundary, the header makes no completeness or
+ * reviewed-on claim, and browsing writes nothing.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,29 +18,63 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const guide = readFileSync(join(root, 'src/screens/GuideScreen.tsx'), 'utf8');
 const app = readFileSync(join(root, 'src/App.tsx'), 'utf8');
+const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
 
-test('the Guide home indexes every dossier category', () => {
-  for (const title of [
-    "title: 'Stages'",
-    "title: 'Stops & places'",
-    "title: 'Highlights & detours'",
-    "title: 'Shops & resupply'",
-    "title: 'Transport'",
-    "title: 'Sources & credits'",
+test('the Guide home is exactly the four dossier tiles', () => {
+  const tiles = [...guide.matchAll(/section: '(\w+)',\n\s+title: '([^']+)'/g)].map(
+    (m) => ({ section: m[1], title: m[2] }),
+  );
+  assert.deepEqual(tiles, [
+    { section: 'stages', title: 'Stages & highlights' },
+    { section: 'stops', title: 'Stops & places' },
+    { section: 'shops', title: 'Shops & supplies' },
+    { section: 'transport', title: 'Transport' },
+  ]);
+  // Retired home entries: Sources & credits belongs to Settings; the
+  // standalone Highlights row folded into Stages & highlights.
+  assert.ok(!guide.includes('Sources & credits'), 'no sources tile');
+  assert.ok(!guide.includes('CreditsSheet'), 'no credits sheet on the home');
+  assert.ok(!/title: 'Highlights/.test(guide), 'no standalone highlights tile');
+});
+
+test('each tile has an icon, a title and one descriptive sentence', () => {
+  assert.match(guide, /guide-tile__icon/);
+  assert.match(guide, /guide-tile__title/);
+  assert.match(guide, /guide-tile__sub/);
+  for (const sub of [
+    'Day guides, terrain, viewpoints and side trips',
+    'Huts, facilities and places near the route',
+    'Food, fuel and resupply along the trail',
+    'Buses, boats and trains to and from the trail',
   ]) {
-    assert.ok(guide.includes(title), `index row exists: ${title}`);
+    assert.ok(guide.includes(sub), `description present: ${sub}`);
   }
-  // Sources open the existing CreditsSheet — one implementation, no copy.
-  assert.match(guide, /<CreditsSheet open=\{creditsOpen\}/);
+  // A 2×2 grid, not Settings-style rows.
+  assert.match(guide, /className="guide-grid"/);
+  assert.match(css, /\.guide-grid \{[^}]*grid-template-columns: 1fr 1fr/s);
+});
+
+test('the introduction claims scope, never completeness', () => {
+  assert.match(guide, /Trail information for preparing and hiking/);
+  assert.ok(!/all (the )?information you need/i.test(guide), 'no absolute claim');
+  assert.match(guide, /eyebrow="Trail dossier"/);
+});
+
+test('Stages & highlights genuinely reaches the highlights', () => {
+  // The tile opens the canonical stage experience…
+  assert.match(app, /case 'stages':[\s\S]*?<StagesScreen/);
+  const stages = readFileSync(join(root, 'src/screens/StagesScreen.tsx'), 'utf8');
+  // …whose header now carries the same name and names the highlight kinds,
+  // and whose stage cards render the existing per-stage disclosure.
+  assert.match(stages, /title="Stages & highlights"/);
+  assert.match(stages, /viewpoints, side trips and\s+expeditions/);
+  assert.match(stages, /HighlightsAndDetours/);
 });
 
 test('every Guide section is rendered by the shell (nothing is orphaned)', () => {
-  // The four routed sections all appear in App's guide switch.
-  assert.match(app, /case 'stages':[\s\S]*?<StagesScreen/);
   assert.match(app, /case 'stops':[\s\S]*?<StopsScreen/);
   assert.match(app, /case 'shops':[\s\S]*?<GuideShopsScreen/);
   assert.match(app, /case 'transport':[\s\S]*?<GuideTransportScreen/);
-  // Each wrapped in the SectionShell with a way back to the Guide home.
   const guideCase = app.slice(app.indexOf("case 'guide':"), app.indexOf("case 'plan':"));
   const shells = guideCase.match(/<SectionShell label="Guide"/g) ?? [];
   assert.equal(shells.length, 4, 'all four sections carry the back affordance');
@@ -47,15 +84,11 @@ test('Guide reads through the content boundary and shows the honest edition', ()
   assert.match(
     guide,
     /from '\.\.\/trail\/activeTrailContent'/,
-    'ACTIVE_TRAIL_CONTENT is the data entrance',
+    'the content boundary is the data entrance',
   );
   assert.ok(!guide.includes("from '../data/"), 'no direct data imports');
-  // The trail name and content version come from the dossier view model.
   assert.match(guide, /trailDossierView\(\)/);
   assert.match(guide, /\{dossier\.contentVersionLabel\} \{dossier\.contentVersion\}/);
-  // No global freshness claim: the view model's fullyReviewedOn (null until
-  // a real whole-dossier review exists) is deliberately not rendered, and
-  // no hand-written date claim sneaks in.
   assert.ok(!guide.includes('fullyReviewedOn'), 'no reviewed-on rendering');
   assert.ok(!/reviewed on/i.test(guide), 'no textual review claim');
   assert.ok(!/up to date/i.test(guide), 'no freshness claim');
@@ -68,8 +101,9 @@ test('browsing the Guide home writes nothing', () => {
 });
 
 test('Guide keeps its personal actions cross-tab, not in-dossier', () => {
-  // Transport's Add to Trip / View in Trip navigate to Plan → Trip with a
-  // one-shot launch payload — the dossier itself stays read-only.
+  // Transport's Add to Trip / View in Trip navigate to Plan → Travel &
+  // stays with a one-shot launch payload — the dossier itself stays
+  // read-only.
   assert.match(
     guide,
     /onNavigate\('plan', \{ lists: \{ addTransportEntryId: entryId \} \}\)/,

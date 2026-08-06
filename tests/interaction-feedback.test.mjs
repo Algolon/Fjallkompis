@@ -39,7 +39,6 @@ test('tap highlight is disabled through one shared button/link rule', () => {
 
 test('every Today control has a custom pressed state', () => {
   for (const selector of [
-    '.today-mode__tab:active',
     '.today-action-card:active',
     '.hero-action:active',
     '.journey-step:active .journey-dot',
@@ -52,13 +51,12 @@ test('every Today control has a custom pressed state', () => {
     assert.ok(css.includes(selector), `${selector} pressed state exists`);
   }
   // Pressed feedback is restrained movement (scale), not a colour flash.
+  // (The Prepare/On-route mode capsule left with the mode itself — vNext.)
   assert.match(css, /\.stf-card:active \{\n  transform: scale\(0\.9\d\);\n\}/);
-  assert.match(css, /\.today-mode__tab:active \{\n  transform: scale\(0\.9\d\);\n\}/);
 });
 
 test('keyboard focus rings remain, and the STF ring is circular', () => {
   for (const selector of [
-    '.today-mode__tab:focus-visible',
     '.today-action-card:focus-visible',
     '.stf-card:focus-visible',
     '.tab:focus-visible .tab-pill',

@@ -88,7 +88,6 @@ test('no user-facing copy in src/ presents the Daily checklist as active', () =>
     'src/navigation/routes.mjs', // legacy internal id documented as non-URL
     'src/navigation/resolveNavTarget.mjs', // maps the legacy id onto Guide/Plan
     'src/screens/StopsScreen.tsx', // navigates via the legacy 'checklist' id
-    'src/components/TodayPrepare.tsx', // Prepare cards navigate via the same id
     'src/components/TodayOnRoute.tsx', // Travel days link to Trip via the same id
     'src/types/index.ts', // schema-v3 migration comment
     'src/utils/stateMigration.mjs', // migration doc for the dropped key
