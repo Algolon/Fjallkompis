@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact_id: ${{ steps.pages-artifact.outputs.artifact_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -113,20 +115,110 @@ jobs:
           actual_sha="$(sha256sum "$f" | awk '{print $1}')"
           [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: built archive SHA-256 mismatch"; exit 1; }
           echo "✓ dist/maps/kungsleden-satellite.pmtiles present, sha256 verified"
-      - uses: actions/upload-pages-artifact@v3
+      - id: pages-artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # actions/deploy-pages@v4 hard-caps its wait at 10 minutes and cancels
+      # deployments that are still healthy but slow. Poll the same official
+      # Pages API for up to 45 minutes without cancelling on a local timeout.
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/github-script@v7
+        env:
+          ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
         with:
-          # Pages deployments can sit in GitHub's queue longer than the
-          # default 10 minutes during backend slowdowns; wait up to 30.
-          timeout: 1800000
+          github-token: ${{ github.token }}
+          script: |
+            const artifactId = Number(process.env.ARTIFACT_ID)
+            if (!Number.isSafeInteger(artifactId) || artifactId <= 0) {
+              throw new Error(`Invalid Pages artifact id: ${process.env.ARTIFACT_ID}`)
+            }
+
+            const { owner, repo } = context.repo
+            const oidcToken = await core.getIDToken()
+            const created = await github.request(
+              'POST /repos/{owner}/{repo}/pages/deployments',
+              {
+                owner,
+                repo,
+                artifact_id: artifactId,
+                pages_build_version: context.sha,
+                oidc_token: oidcToken,
+              },
+            )
+
+            const deploymentId =
+              created.data.id ??
+              created.data.status_url?.split('/').filter(Boolean).pop() ??
+              context.sha
+            const rawPageUrl =
+              created.data.page_url ?? `https://${owner}.github.io/${repo}/`
+            const pageUrl = /^https?:\/\//.test(rawPageUrl)
+              ? rawPageUrl
+              : `https://${rawPageUrl}`
+            core.setOutput('page_url', pageUrl)
+            core.info(`Created Pages deployment ${deploymentId} for ${context.sha}`)
+
+            const failures = new Map([
+              ['deployment_failed', 'Pages deployment failed'],
+              ['deployment_perms_error', 'Pages deployment permissions failed'],
+              ['deployment_content_failed', 'Pages rejected the artifact content'],
+              ['deployment_cancelled', 'Pages deployment was cancelled'],
+              ['deployment_lost', 'Pages deployment stopped reporting status'],
+            ])
+            const deadline = Date.now() + 45 * 60 * 1000
+            let transientErrors = 0
+            let lastStatus = ''
+
+            while (Date.now() < deadline) {
+              await new Promise(resolve => setTimeout(resolve, 5000))
+
+              try {
+                const response = await github.request(
+                  'GET /repos/{owner}/{repo}/pages/deployments/{deploymentId}',
+                  { owner, repo, deploymentId },
+                )
+                transientErrors = 0
+                const status = response.data.status
+
+                if (status !== lastStatus) {
+                  core.info(`Pages deployment status: ${status}`)
+                  lastStatus = status
+                }
+
+                if (status === 'succeed') {
+                  core.info(`Published ${pageUrl}`)
+                  return
+                }
+                if (failures.has(status)) {
+                  throw new Error(`${failures.get(status)} (${status})`)
+                }
+              } catch (error) {
+                if (error.message?.includes('Pages deployment')) {
+                  throw error
+                }
+                transientErrors += 1
+                core.warning(
+                  `Status check ${transientErrors} failed: ${error.message}`,
+                )
+                if (transientErrors >= 20) {
+                  throw new Error('Too many consecutive Pages status errors')
+                }
+              }
+            }
+
+            // Do not cancel a healthy backend deployment merely because the
+            // workflow-side wait expired.
+            throw new Error(
+              `Pages deployment ${deploymentId} did not finish within 45 minutes`,
+            )
