@@ -55,30 +55,23 @@
  * Plain ESM so tests/camera-bounds.test.mjs can fence the maths in node.
  */
 
-/** Web-Mercator helpers (metres). */
-const R = 6378137;
-const MERC_MAX = Math.PI * R;
+import {
+  MERC_MAX,
+  mercX,
+  mercY,
+  invMercX,
+  invMercY,
+  mercPerPixel,
+  overviewEnvelopeFor,
+  rasterRenderableCoverage,
+  vectorSourceCoverage,
+} from './overviewEnvelope.mjs';
 
-export function mercX(lon) {
-  return (lon * Math.PI * R) / 180;
-}
-
-export function mercY(lat) {
-  return R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
-}
-
-export function invMercX(x) {
-  return (x / (Math.PI * R)) * 180;
-}
-
-export function invMercY(y) {
-  return ((2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * 180) / Math.PI;
-}
-
-/** Mercator metres per CSS pixel at a zoom (MapLibre's 512px world tile). */
-export function mercPerPixel(zoom) {
-  return (2 * MERC_MAX) / (512 * Math.pow(2, zoom));
-}
+// The Mercator helpers moved to overviewEnvelope.mjs (which owns the tile
+// maths that needs them); re-exported here so existing importers and tests
+// keep one import site.
+export { MERC_MAX, mercX, mercY, invMercX, invMercY, mercPerPixel };
+export { overviewEnvelopeFor, rasterRenderableCoverage, vectorSourceCoverage };
 
 /**
  * Camera constraints for a viewport, from the coverage contract:
@@ -97,35 +90,48 @@ export function mercPerPixel(zoom) {
  * Pure function of (contract, viewport, padding) so node tests can pin the
  * behaviour for every supported viewport class.
  */
-/** Lowest generated terrain zoom (kept in sync with build-terrain-map.sh). */
+/**
+ * Lowest generated terrain zoom (kept in sync with build-terrain-map.sh).
+ * Terrain and satellite share it; it is the level whose footprint bounds
+ * their RENDERABLE extent, because MapLibre falls back to an ancestor raster
+ * tile when the requested child is missing.
+ */
 export const TERRAIN_MIN_ZOOM = 7;
 
 /**
- * The PHYSICAL overview envelope: the extent guaranteed to carry real data
- * at overview zooms, pulled in by a 2 km margin on every edge.
- *
- *  - east/west: the z7 tile-aligned footprint of the data bounds
- *    (build-terrain-map.sh generates real DEM for exactly this), which is
- *    considerably wider than the cutout;
- *  - north/south: the data bounds themselves — every archive is cut to
- *    them, so they are covered by construction. No tile-grid extension is
- *    claimed vertically: the cap stays inside what is provably there.
- *
- * Overview bounds are capped to this, so no viewport — however wide, and
- * whatever its overlay padding — can pan onto unshaded map.
+ * @deprecated Superseded by the per-source-zoom model in
+ * src/map/overviewEnvelope.mjs. Kept as the RASTER (terrain/satellite)
+ * renderable extent, which is what this always actually described — it was
+ * only ever wrong as a cap on the VECTOR overview, whose real footprint at
+ * overview zooms is much wider and, crucially, differs per zoom.
  */
 export function overviewEnvelope(dataBounds) {
-  const [[dw, ds], [de, dn]] = dataBounds;
-  const tile = (2 * MERC_MAX) / Math.pow(2, TERRAIN_MIN_ZOOM);
+  const c = rasterRenderableCoverage(dataBounds, TERRAIN_MIN_ZOOM);
   const marginM = 2000;
-  const x0 = Math.floor((mercX(dw) + MERC_MAX) / tile) * tile - MERC_MAX;
-  const x1 = Math.ceil((mercX(de) + MERC_MAX) / tile) * tile - MERC_MAX;
   return [
-    [invMercX(x0 + marginM), invMercY(mercY(ds) + marginM)],
-    [invMercX(x1 - marginM), invMercY(mercY(dn) - marginM)],
+    [invMercX(mercX(c.west) + marginM), invMercY(mercY(c.south) + marginM)],
+    [invMercX(mercX(c.east) - marginM), invMercY(mercY(c.north) - marginM)],
   ];
 }
 
+/**
+ * Camera constraints for a viewport.
+ *
+ *  - `interactionBounds`: maxBounds while zoomed IN (always the contract's
+ *    strict rectangle);
+ *  - `overviewBounds`: maxBounds while zoomed OUT below `zoomThreshold` —
+ *    the safe overview envelope for this container, or null when the strict
+ *    bounds already host the fit;
+ *  - `zoomThreshold`: the zoom at which the viewport is exactly as wide (or
+ *    tall) as the user bounds; below it the viewport cannot avoid spanning
+ *    them, so the overview envelope applies.
+ *  - `envelope`: the full reasoning behind `overviewBounds` — desired
+ *    extent, vector coverage at the effective source zoom, renderable raster
+ *    coverage, and which of them bound the result. Carried so the framing
+ *    evidence and tests can inspect the decision, not just its outcome.
+ *
+ * Pure function of (contract, viewport, padding).
+ */
 export function cameraConstraintsFor({
   userBounds,
   routeBounds,
@@ -135,103 +141,36 @@ export function cameraConstraintsFor({
   padding,
 }) {
   const [[uw, us], [ue, un]] = userBounds;
-  const [[rw, rs], [re, rn]] = routeBounds;
   const userMercW = mercX(ue) - mercX(uw);
   const userMercH = mercY(un) - mercY(us);
 
   // Zoom at which the viewport spans exactly the user bounds. Below EITHER
   // axis's threshold the viewport cannot avoid spanning the bounds in that
-  // direction, so the expansion (whichever edges it widened) applies from
-  // the higher of the two.
+  // direction, so the expansion applies from the higher of the two.
   const zoomThreshold = Math.max(
     Math.log2((2 * MERC_MAX) / userMercW) + Math.log2(viewportWidth / 512),
     Math.log2((2 * MERC_MAX) / userMercH) + Math.log2(viewportHeight / 512),
   );
 
-  // ROUTE-OVERVIEW FIT SCALE — set by whichever axis actually binds.
-  //
-  // This used to be `routeMercH / usableH`, on the reasoning that "the route
-  // is far taller than wide" so height must bind. That holds for landscape,
-  // but NOT for phone portrait: once the padded viewport is narrow enough,
-  // the route's 86.3 km width needs a coarser scale than its 153.9 km height
-  // does. Measured on every audited phone (Phase A, §4c) — 320×568 through
-  // 430×932 and a tall 360×1000 are all width-bound, and the height-only
-  // formula underestimated the required scale by 3.3–43.6 %.
-  //
-  // Underestimating it here is not cosmetic: `halfExpand`/`halfExpandV` below
-  // are derived from this scale, so too small a value silently reports "no
-  // expansion needed" for a viewport that does need one. MapLibre then clamps
-  // the requested fit against the un-widened user bounds — which is how a
-  // tall phone ended up parked exactly on its zoom threshold with the route
-  // pushed off the west edge.
-  //
-  // MapLibre's own fitBounds picks the same larger-of-the-two scale, so this
-  // is simply the constraint maths agreeing with the fit it has to permit.
-  const padV = (padding?.top ?? 0) + (padding?.bottom ?? 0);
-  const padH = (padding?.left ?? 0) + (padding?.right ?? 0);
-  const usableH = Math.max(1, viewportHeight - padV);
-  const usableW = Math.max(1, viewportWidth - padH);
-  const routeMercH = mercY(rn) - mercY(rs);
-  const routeMercW = mercX(re) - mercX(rw);
-  const fitMercPerPx = Math.max(routeMercW / usableW, routeMercH / usableH);
-  const fitViewMercW = viewportWidth * fitMercPerPx;
-
-  // 5% slack so the fitted view never lands exactly on the constraint.
-  const halfExpand = Math.max(0, (fitViewMercW * 1.05 - userMercW) / 2);
-
-  // NORTH/SOUTH expansion — the layout-aware padding contract.
-  // The cockpit's scope control covers the top of the map (and a live
-  // -tracking pill the bottom, while a session runs), so the fitted overview
-  // needs MORE viewport height than the route itself. On phones that view can
-  // be taller than the user bounds, and plain maxBounds would clamp the zoom
-  // and push the route's ends back under the overlays. This is the same
-  // mechanism as the east/west expansion above — deterministic, active only
-  // below the zoom threshold, and capped to the physical envelope — applied
-  // to the axis the padding actually squeezes. NO slack factor here: the
-  // vertical fit is exact, so viewports whose padded overview already fits
-  // keep strictly unchanged north/south bounds.
-  //
-  // (This used to cite a permanent status dock along the bottom. That dock
-  // was removed in 0.27.0; the idle map reserves no bottom band at all, and
-  // `bottomInset` is non-zero only while the tracking pill exists.)
-  const fitViewMercH = viewportHeight * fitMercPerPx;
-  const halfExpandV = Math.max(0, (fitViewMercH - userMercH) / 2);
-
-  // Each expanded edge is clamped INDEPENDENTLY to the physical overview
-  // envelope (the z7 tile grid is not centred on the route, so the slack is
-  // asymmetric — a symmetric cap would waste it). Within the envelope the
-  // clamped bounds still host the fitted view for every regular viewport;
-  // only extreme ultrawide shapes (≳2:1 usable aspect, e.g. 21:9
-  // fullscreen) exhaust it, and then MapLibre fits the widest COVERED view
-  // instead — the route slightly over-fills the height rather than the map
-  // ever showing unshaded flanks.
-  let west = mercX(uw) - halfExpand;
-  let east = mercX(ue) + halfExpand;
-  if (dataBounds && halfExpand > 0) {
-    const [[ew], [ee]] = overviewEnvelope(dataBounds);
-    west = Math.max(west, mercX(ew));
-    east = Math.min(east, mercX(ee));
-  }
-  let south = mercY(us) - halfExpandV;
-  let north = mercY(un) + halfExpandV;
-  if (dataBounds && halfExpandV > 0) {
-    const [[, es], [, en]] = overviewEnvelope(dataBounds);
-    south = Math.max(south, mercY(es));
-    north = Math.min(north, mercY(en));
+  // Without a coverage contract there is nothing to expand safely into.
+  if (!dataBounds) {
+    return { interactionBounds: userBounds, overviewBounds: null, zoomThreshold, envelope: null };
   }
 
-  const overviewBounds =
-    halfExpand > 0 || halfExpandV > 0
-      ? [
-          [invMercX(west), halfExpandV > 0 ? invMercY(south) : us],
-          [invMercX(east), halfExpandV > 0 ? invMercY(north) : un],
-        ]
-      : null;
+  const envelope = overviewEnvelopeFor({
+    routeBounds,
+    userBounds,
+    cutoutBounds: dataBounds,
+    viewportWidth,
+    viewportHeight,
+    padding,
+  });
 
   return {
     interactionBounds: userBounds,
-    overviewBounds,
+    overviewBounds: envelope.overviewBounds,
     zoomThreshold,
+    envelope,
   };
 }
 

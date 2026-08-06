@@ -479,7 +479,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         // docs/maps/thunderforest-outdoors-benchmark.md §2): lets reviewers
         // jump the camera to the test locations from the console. Stripped
         // from builds.
-        (window as unknown as Record<string, unknown>).__fjallkompisMap = map;
+        const dev = window as unknown as Record<string, unknown>;
+        dev.__fjallkompisMap = map;
+        // Settled camera moves since mount. The framing evidence harness
+        // asserts ONE settled move for the initial overview — a fit-then-
+        // nudge or a correction loop shows up here as a second.
+        dev.__fjallkompisCameraMoves = 0;
+        map.on('moveend', () => {
+          dev.__fjallkompisCameraMoves = (dev.__fjallkompisCameraMoves as number) + 1;
+        });
       }
 
       // Swap between the strict user bounds and the overview expansion as

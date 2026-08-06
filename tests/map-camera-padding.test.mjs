@@ -33,6 +33,7 @@ import {
   mercX,
   mercY,
 } from '../src/map/cameraBounds.mjs';
+import { desiredOverviewExtent, vectorSourceCoverage } from '../src/map/overviewEnvelope.mjs';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -105,38 +106,67 @@ const constraints = (w, h, padding) =>
     padding,
   });
 
-test('a cockpit-padded phone overview expands north/south, inside the envelope', () => {
-  // 320x568 → 512px of workspace: the dock and pill leave ~330px for a
+/**
+ * The view the fit actually produces — centre and half-extent in Mercator
+ * metres. THE invariant every expansion below is measured against: maxBounds
+ * must contain this box, and must not be wider than it needs to be.
+ */
+const fittedView = (w, h, padding) => {
+  const d = desiredOverviewExtent({ routeBounds: route.bounds, viewportWidth: w, viewportHeight: h, padding });
+  return {
+    west: d.routeCx - d.halfWidth, east: d.routeCx + d.halfWidth,
+    south: d.centreY - d.halfHeight, north: d.centreY + d.halfHeight,
+    scale: d.scale,
+  };
+};
+
+test('a cockpit-padded phone overview expands to hold the fitted view', () => {
+  // 320x568 → 512px of workspace: the lead column leaves ~434px for a
   // 153.9 km (Mercator) route, so the fitted view is TALLER than the user
   // bounds. Without the expansion MapLibre would clamp the zoom and push the
-  // route's ends back under the dock.
-  const c = constraints(320, 512, paddingFor(320, 512));
+  // route's ends back under the overlays.
+  const padding = paddingFor(320, 512);
+  const c = constraints(320, 512, padding);
   assert.ok(c.overviewBounds, 'the padded overview needs the expansion');
   const [[, os], [, on]] = c.overviewBounds;
+  const view = fittedView(320, 512, padding);
   const [[, us], [, un]] = route.userBounds;
-  assert.ok(os < us && on > un, 'widened north AND south');
-  // Level 2 stays inside level 3 — real data, never a crop edge.
-  const [[, es], [, en]] = overviewEnvelope(route.mapCutoutBounds);
-  assert.ok(os >= es - 1e-9 && on <= en + 1e-9, 'capped by the physical envelope');
+
+  // The bounds hold the fitted view on whichever edges it overhangs. The
+  // padding is top-heavy, so the view sits NORTH of the user-bounds centre
+  // and the two edges need different amounts — asserting a symmetric
+  // widening here is what the old model got wrong.
+  assert.ok(mercY(os) <= view.south + 1e-6, 'south holds the fitted view');
+  assert.ok(mercY(on) >= view.north - 1e-6, 'north holds the fitted view');
+  assert.ok(os <= us && on >= un, 'never narrower than the interaction bounds');
+
+  // Inside real vector coverage at the zoom this overview renders at.
+  const cov = vectorSourceCoverage(c.envelope.sourceZoom, route.mapCutoutBounds);
+  assert.ok(os >= cov.south - 1e-9 && on <= cov.north + 1e-9, 'inside vector coverage');
 });
 
 test('the vertical expansion is exactly what the padded fit needs (or the cap)', () => {
   const padding = paddingFor(320, 512);
   const c = constraints(320, 512, padding);
-  const routeMercH = mercY(route.bounds[1][1]) - mercY(route.bounds[0][1]);
-  const usableH = 512 - padding.top - padding.bottom;
-  const need = (512 * (routeMercH / usableH) - (mercY(route.userBounds[1][1]) - mercY(route.userBounds[0][1]))) / 2;
-  const [[, es], [, en]] = overviewEnvelope(route.mapCutoutBounds);
+  const view = fittedView(320, 512, padding);
+  const cov = vectorSourceCoverage(c.envelope.sourceZoom, route.mapCutoutBounds);
   const [[, os], [, on]] = c.overviewBounds;
-  const gotSouth = mercY(route.userBounds[0][1]) - mercY(os);
-  assert.ok(need > 0, 'this viewport genuinely needs it');
-  // Either the exact requirement, or the envelope cap — never more.
-  assert.ok(gotSouth <= need + 1, 'never wider than the fit requires');
+  const [[, us], [, un]] = route.userBounds;
+
+  // Each edge is the fitted view's own edge, the interaction bound, or the
+  // coverage cap — never anything wider.
+  const atOneOf = (got, candidates) =>
+    candidates.some((want) => Math.abs(got - want) < 1);
   assert.ok(
-    Math.abs(gotSouth - need) < 1 || Math.abs(mercY(os) - mercY(es)) < 1,
-    'exact fit, or clamped precisely at the envelope',
+    atOneOf(mercY(os), [view.south, mercY(us), mercY(cov.south)]),
+    'south is the fit, the strict bound, or the cap',
   );
-  assert.ok(mercY(on) <= mercY(en) + 1e-6);
+  assert.ok(
+    atOneOf(mercY(on), [view.north, mercY(un), mercY(cov.north)]),
+    'north is the fit, the strict bound, or the cap',
+  );
+  assert.ok(mercY(os) >= mercY(cov.south) - 1e-6, 'never past real data, south');
+  assert.ok(mercY(on) <= mercY(cov.north) + 1e-6, 'never past real data, north');
 });
 
 test('viewports whose padded overview already fits keep the strict bounds', () => {
@@ -186,7 +216,7 @@ const axisNeeds = (w, h, padding) => {
 const overviewFor = (w, h) => overviewPaddingFor({ viewportWidth: w, viewportHeight: h, topInset: LEAD });
 
 test('phone portrait is width-bound, and the scale follows the width', () => {
-  // The regression this PR exists for. 390x788 with the overview contract:
+  // The regression PR #100 exists for. 390x788 with the overview contract:
   // width needs a coarser scale than height, and the OLD height-only formula
   // therefore reported "no vertical expansion needed" for a view that is in
   // fact taller than the user bounds.
@@ -201,8 +231,10 @@ test('phone portrait is width-bound, and the scale follows the width', () => {
 
   const c = constraints(390, 788, padding);
   assert.ok(c.overviewBounds, 'so the expansion must be granted');
+  const view = fittedView(390, 788, padding);
   const [[, os], [, on]] = c.overviewBounds;
-  assert.ok(os < route.userBounds[0][1] && on > route.userBounds[1][1], 'widened north AND south');
+  assert.ok(mercY(os) <= view.south + 1e-6, 'south holds the fitted view');
+  assert.ok(mercY(on) >= view.north - 1e-6, 'north holds the fitted view');
 });
 
 test('landscape stays height-bound and keeps strict north/south bounds', () => {
@@ -238,41 +270,40 @@ test('both expansions are derived from the SAME selected scale', () => {
   const padding = overviewFor(390, 788);
   const { scale } = axisNeeds(390, 788, padding);
   const c = constraints(390, 788, padding);
+  const view = fittedView(390, 788, padding);
+  assert.ok(Math.abs(view.scale - scale) < 1e-9, 'one scale drives both axes');
+
   const [[ow, os], [oe, on]] = c.overviewBounds;
-  const envelope = overviewEnvelope(route.mapCutoutBounds);
+  const cov = vectorSourceCoverage(c.envelope.sourceZoom, route.mapCutoutBounds);
 
-  // Each edge is clamped to the envelope INDEPENDENTLY (the z7 tile grid is
-  // not centred on the route, so the slack is asymmetric), so assert per edge:
-  // exactly the requested widening, or precisely at the cap.
-  const edge = (got, want, capDistance, label) =>
-    assert.ok(
-      Math.abs(got - want) < 1 || capDistance < 1,
-      `${label}: expected ${want.toFixed(1)} m of widening, got ${got.toFixed(1)}`,
-    );
+  // Horizontal: symmetric about the route, sized to the fit + slack, capped.
+  const routeCx = (mercX(route.bounds[0][0]) + mercX(route.bounds[1][0])) / 2;
+  const wantHalf = Math.min(
+    Math.max((390 * scale * 1.05) / 2, USER_MERC_W / 2),
+    Math.min(routeCx - mercX(cov.west), mercX(cov.east) - routeCx),
+  );
+  assert.ok(Math.abs((routeCx - mercX(ow)) - wantHalf) < 1, 'west half-width');
+  assert.ok(Math.abs((mercX(oe) - routeCx) - wantHalf) < 1, 'east half-width');
 
-  const wantV = Math.max(0, (788 * scale - USER_MERC_H) / 2);
-  edge(mercY(route.userBounds[0][1]) - mercY(os), wantV,
-    Math.abs(mercY(os) - mercY(envelope[0][1])), 'south');
-  edge(mercY(on) - mercY(route.userBounds[1][1]), wantV,
-    Math.abs(mercY(on) - mercY(envelope[1][1])), 'north');
-
-  const wantH = Math.max(0, (390 * scale * 1.05 - USER_MERC_W) / 2);
-  edge(mercX(route.userBounds[0][0]) - mercX(ow), wantH,
-    Math.abs(mercX(ow) - mercX(envelope[0][0])), 'west');
-  edge(mercX(oe) - mercX(route.userBounds[1][0]), wantH,
-    Math.abs(mercX(oe) - mercX(envelope[1][0])), 'east');
+  // Vertical: the fitted view's own edges, from the SAME scale.
+  assert.ok(mercY(os) <= view.south + 1e-6 && mercY(on) >= view.north - 1e-6,
+    'vertical holds the view the same scale produced');
 });
 
-test('the corrected scale never expands past the physical envelope', () => {
-  const [[ew, es], [ee, en]] = overviewEnvelope(route.mapCutoutBounds);
-  for (const [w, h] of [[320, 512], [375, 611], [390, 788], [430, 876], [360, 944], [2412, 1080], [3292, 1440]]) {
-    const c = constraints(w, h, overviewFor(w, h));
+test('the corrected scale never expands past real vector coverage', () => {
+  // Every supported shape, including the ones the corrected scale grants a
+  // bigger expansion to: the result must still be inside the data.
+  for (const [w, h] of [[320, 512], [360, 744], [390, 788], [412, 859], [430, 876],
+                        [676, 500], [1132, 800], [1364, 860], [1772, 1080]]) {
+    const padding = overviewFor(w, h);
+    const c = constraints(w, h, padding);
     if (!c.overviewBounds) continue;
+    const cov = vectorSourceCoverage(c.envelope.sourceZoom, route.mapCutoutBounds);
     const [[ow, os], [oe, on]] = c.overviewBounds;
-    assert.ok(mercX(ow) >= mercX(ew) - 1e-6, `${w}x${h}: west inside the envelope`);
-    assert.ok(mercX(oe) <= mercX(ee) + 1e-6, `${w}x${h}: east inside the envelope`);
-    assert.ok(mercY(os) >= mercY(es) - 1e-6, `${w}x${h}: south inside the envelope`);
-    assert.ok(mercY(on) <= mercY(en) + 1e-6, `${w}x${h}: north inside the envelope`);
+    assert.ok(ow >= cov.west - 1e-9, `${w}x${h}: west inside coverage`);
+    assert.ok(oe <= cov.east + 1e-9, `${w}x${h}: east inside coverage`);
+    assert.ok(os >= cov.south - 1e-9, `${w}x${h}: south inside coverage`);
+    assert.ok(on <= cov.north + 1e-9, `${w}x${h}: north inside coverage`);
   }
 });
 
@@ -329,19 +360,19 @@ test('the overview padding can never consume the viewport either', () => {
   assert.ok(p.top + p.bottom <= 100 * MAX_PADDING_FRACTION + 1);
 });
 
-test('growing the dock never widens the bounds beyond the envelope', () => {
-  // Absurd overlay growth (a tracking warning stack plus a three-line dock):
-  // the expansion saturates at the physical envelope instead of walking off
-  // the data.
-  const padding = cameraPaddingFor({
-    viewportWidth: 320,
-    viewportHeight: 512,
-    topInset: 160,
-    rightInset: STACK,
-    bottomInset: 160,
-  });
-  const c = constraints(320, 512, padding);
-  const [[, es], [, en]] = overviewEnvelope(route.mapCutoutBounds);
-  const [[, os], [, on]] = c.overviewBounds;
-  assert.ok(os >= es - 1e-9 && on <= en + 1e-9, 'still inside the physical envelope');
+test('growing the bottom band never widens the bounds beyond real coverage', () => {
+  // A live-tracking pill deepens the bottom inset, which shrinks the usable
+  // height, which coarsens the scale, which demands a wider view. However
+  // deep it gets, the bounds stay inside the data.
+  for (const bottomInset of [0, 40, 80, 160, 240]) {
+    const padding = overviewPaddingFor({
+      viewportWidth: 390, viewportHeight: 788, topInset: 54, bottomInset,
+    });
+    const c = constraints(390, 788, padding);
+    if (!c.overviewBounds) continue;
+    const cov = vectorSourceCoverage(c.envelope.sourceZoom, route.mapCutoutBounds);
+    const [[ow, os], [oe, on]] = c.overviewBounds;
+    assert.ok(ow >= cov.west - 1e-9 && oe <= cov.east + 1e-9, `inset ${bottomInset}: horizontal`);
+    assert.ok(os >= cov.south - 1e-9 && on <= cov.north + 1e-9, `inset ${bottomInset}: vertical`);
+  }
 });
