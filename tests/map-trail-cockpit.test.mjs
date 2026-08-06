@@ -327,28 +327,43 @@ test('MapView frames the route and operational geometry by different contracts',
     /overviewPaddingRef\.current = overviewPadding \?\? padding \?\? DEFAULT_PADDING/,
     'falls back rather than losing a padding entirely',
   );
-  // ONE fit helper, switched by an explicit mode — never duplicated arithmetic.
-  assert.match(
-    mapView,
-    /const pad = mode === 'overview' \? overviewPaddingRef\.current : paddingRef\.current/,
+  // ONE operational fit helper for stages and focused content…
+  assert.match(mapView, /const fitBounds = \(bounds: \[\[number, number\], \[number, number\]\]\) => \{/);
+  assert.match(mapView, /if \(stage\) fitBounds\(stage\.bounds\)/);
+  // …and NO 'overview' mode left in it: the full-route camera is a
+  // constrained fit that fitBounds cannot express, so it must be impossible
+  // to reach a whole-route framing through this helper by accident.
+  assert.ok(
+    !/fitBounds\([^)]*'overview'\)/.test(mapView),
+    'no bounds-fit may frame the full route',
   );
-  assert.match(mapView, /if \(stage\) fitBounds\(stage\.bounds, 'content'\)/);
+  assert.ok(
+    !/mode === 'overview'/.test(mapView),
+    "the fit helper no longer carries an 'overview' mode",
+  );
   assert.match(mapView, /map\.fitBounds\(b, \{ padding: paddingRef\.current/, 'focused routes');
   // The full-route overview is NOT a bounds-fit: it is a constrained fit
   // (route-centred, then translated back inside the active mode's renderable
   // envelope), which fitBounds cannot express. Both the initial camera and
   // "Fit route" call the SAME solver, which is a stronger guarantee than
   // sharing a padding rectangle — they cannot disagree at all.
-  assert.match(mapView, /overviewCameraRef\.current = computeOverviewCamera/);
   assert.match(
     mapView,
     /const initialCamera = computeOverviewCamera\(\);[\s\S]{0,600}center: \[initialCamera\.camera\.lng, initialCamera\.camera\.lat\],\s*\n\s*zoom: initialCamera\.camera\.zoom,/,
     'the initial camera is the solved overview camera',
   );
+  // EVERY full-route path goes through the one solver: initial camera,
+  // imperative Fit route, and the return from stage mode.
+  assert.match(mapView, /applyOverviewCameraRef\.current = applyOverviewCamera/);
   assert.match(
     mapView,
-    /fitRoute: \(\) => \{[\s\S]{0,400}overviewCameraRef\.current\?\.\(\)/,
-    'Fit route re-solves the same camera',
+    /fitRoute: \(\) => \{\s*\n\s*applyOverviewCameraRef\.current\?\.\(\);/,
+    'Fit route goes through the shared overview path',
+  );
+  assert.match(
+    mapView,
+    /if \(stage\) fitBounds\(stage\.bounds\);\s*\n\s*else applyOverviewCameraRef\.current\?\.\(\);/,
+    'stage → full route goes through the same shared overview path',
   );
   // The constraints exist to permit that overview, so they share its rectangle.
   assert.match(mapView, /padding: overviewPaddingRef\.current,\s*\}\);/);

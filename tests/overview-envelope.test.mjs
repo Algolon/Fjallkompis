@@ -438,12 +438,21 @@ test('the camera is solved once — no second adjustment is expressible', () => 
   const fn = src.slice(src.indexOf('export function overviewCameraFor('));
   assert.ok(!/easeTo|panBy|setCenter|jumpTo/.test(fn), 'the model issues no camera commands');
   const mv = readFileSync(join(root, 'src/components/MapView.tsx'), 'utf8');
-  const fitStart = mv.indexOf('fitRoute: () => {');
-  // Search for the NEXT fitStage after fitRoute: the handle interface declares
-  // one earlier in the file, and slicing to that would produce nothing.
-  const fit = mv.slice(fitStart, mv.indexOf('fitStage:', fitStart));
-  assert.equal((fit.match(/easeTo|jumpTo|panBy|setCenter/g) ?? []).length, 1,
-    'Fit route applies exactly one camera command');
+  // The shared overview path issues exactly ONE camera command per call:
+  // jumpTo or easeTo, never both, and never followed by a correction.
+  const start = mv.indexOf('const applyOverviewCamera = (jump = false)');
+  const body = mv.slice(start, mv.indexOf('applyOverviewCameraRef.current = applyOverviewCamera', start));
+  assert.ok(start > -1, 'the shared overview path exists');
+  assert.equal((body.match(/m\.jumpTo\(/g) ?? []).length, 1);
+  assert.equal((body.match(/m\.easeTo\(/g) ?? []).length, 1);
+  assert.match(body, /if \(jump\) m\.jumpTo\(camera\);\s*\n\s*else m\.easeTo\(/, 'exclusive branches');
+  assert.ok(!/panBy|setCenter/.test(body), 'no corrective nudge');
+  // maxBounds is widened BEFORE the move, or a stale bound would clamp the
+  // target and force exactly the second move this design avoids.
+  assert.ok(
+    body.indexOf('setMaxBounds') < body.indexOf('if (jump)'),
+    'bounds are applied before the camera moves',
+  );
 });
 
 test('contours never constrain the overview', () => {
@@ -504,4 +513,75 @@ test('the overview padding contract from PR #100 is untouched', () => {
   assert.equal(pad.left, 16 + 32, 'base side + label allowance');
   assert.equal(pad.top, 12 + 58);
   assert.equal(pad.bottom, 12);
+});
+
+// ---- MapView wiring: the ACTIVE imagery mode picks the contract -------------
+
+const mapViewSrc = readFileSync(join(root, 'src/components/MapView.tsx'), 'utf8');
+
+test('MapView solves against the SELECTED imagery mode, not resolution order', () => {
+  // The blocking defect: coverage was derived from whichever archive resolved
+  // first, so with both archives present a Satellite overview still solved as
+  // Terrain. The mode must come from the imagery prop.
+  const fn = mapViewSrc.slice(
+    mapViewSrc.indexOf('const activeCoverageMode = ()'),
+    mapViewSrc.indexOf('const computeOverviewCamera'),
+  );
+  assert.ok(fn.length > 0, 'activeCoverageMode exists');
+  assert.match(fn, /imageryRef\.current === 'satellite'/, 'branches on the SELECTED mode');
+  assert.match(fn, /satelliteAvailableRef\.current \? 'satellite' : 'vector'/);
+  assert.match(fn, /terrainAvailableRef\.current \? 'terrain' : 'vector'/);
+  // Availability alone must no longer decide the contract.
+  assert.ok(
+    !/terrain\.sourceUrl != null\s*\n?\s*\?\s*'terrain'/.test(mapViewSrc),
+    'the resolution-order chain is gone',
+  );
+  // …and the solver is handed that mode, evaluated per call.
+  assert.match(mapViewSrc, /mode: activeCoverageMode\(\),/);
+});
+
+test('imagery is read at solve time, so toggling never recenters the map', () => {
+  // imageryRef is refreshed every render but nothing reacts to it: the new
+  // mode becomes authoritative on the NEXT explicit full-route overview.
+  assert.match(mapViewSrc, /imageryRef\.current = imagery;/, 'kept current every render');
+  const imageryEffect = mapViewSrc.slice(mapViewSrc.indexOf('// ---- Basemap imagery toggle'));
+  const body = imageryEffect.slice(0, imageryEffect.indexOf('}, [imagery, loaded]);'));
+  assert.ok(
+    !/applyOverviewCamera|easeTo|jumpTo|fitBounds|setCenter|panBy/.test(body),
+    'the imagery toggle issues no camera command',
+  );
+});
+
+test('EVERY full-route path goes through the one solver', () => {
+  // Initial camera, imperative Fit route, and the stage → full-route return.
+  assert.match(mapViewSrc, /const initialCamera = computeOverviewCamera\(\);/);
+  assert.match(mapViewSrc, /fitRoute: \(\) => \{\s*\n\s*applyOverviewCameraRef\.current\?\.\(\);/);
+  assert.match(
+    mapViewSrc,
+    /if \(stage\) fitBounds\(stage\.bounds\);\s*\n\s*else applyOverviewCameraRef\.current\?\.\(\);/,
+  );
+  // No bounds-fit may frame the whole route any more.
+  assert.ok(!/fitBounds\([^)]*routeRef\.current\.bounds/.test(mapViewSrc));
+  assert.ok(!/'overview'\)/.test(mapViewSrc), "no 'overview' fit mode remains");
+});
+
+test('the shared overview path updates maxBounds coherently with the fit', () => {
+  const start = mapViewSrc.indexOf('const applyOverviewCamera = (jump = false)');
+  const body = mapViewSrc.slice(start, mapViewSrc.indexOf('applyOverviewCameraRef.current =', start));
+  assert.match(body, /constraintsRef\.current = computeConstraints\(\);/, 're-derives the contract');
+  assert.match(body, /setMaxBounds\(/, 'and applies it');
+  assert.ok(body.indexOf('setMaxBounds') < body.indexOf('if (jump)'), 'before moving');
+});
+
+test('a Satellite overview is solved against SATELLITE coverage', () => {
+  // Same footprint as terrain today, but derived from the satellite archive's
+  // own contract — so a future satellite rebuild moves this and nothing else.
+  for (const [W, H] of [[1512, 860], [1920, 1080]]) {
+    const sat = cameraFor(W, H, 'satellite');
+    const cov = coverageForMode('satellite', CUTOUT);
+    assert.equal(sat.mode, 'satellite');
+    assert.ok(sat.visibleExtent[0][0] >= cov.west - EPS, `${W}x${H}: west inside satellite`);
+    assert.ok(sat.visibleExtent[1][0] <= cov.east + EPS, `${W}x${H}: east inside satellite`);
+    assert.equal(sat.routeComplete, true, `${W}x${H}: complete route in Satellite mode`);
+  }
 });
