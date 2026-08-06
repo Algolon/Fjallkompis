@@ -13,7 +13,7 @@ export type TabId = 'today' | 'map' | 'guide' | 'plan' | 'settings';
 /** Guide's dossier sections (see navigation/routes.mjs GUIDE_SECTIONS). */
 export type GuideSection = 'stages' | 'stops' | 'shops' | 'transport';
 /** Plan's personal sections (see navigation/routes.mjs PLAN_SECTIONS). */
-export type PlanSection = 'day' | 'trip' | 'packing';
+export type PlanSection = 'day' | 'packing' | 'travel' | 'wallet';
 export type SectionId = GuideSection | PlanSection;
 
 /**
@@ -61,17 +61,29 @@ export function TabBar({
     <nav className={`tabbar tabbar--${variant}`} aria-label="Primary">
       {TAB_ROUTES.map(({ tab, label }) => {
         const Icon = TAB_ICONS[tab];
+        // Today is the centre destination and gets a subtly elevated disc in
+        // the BOTTOM BAR only (the rail keeps a uniform column). Same button
+        // semantics, same aria-current, same size in both states — states
+        // differ through fill and a restrained shadow, never geometry, and
+        // the control navigates only; it never implies add/start/create.
+        const centred = tab === 'today' && variant === 'bar';
         return (
           <button
             key={tab}
-            className="tab"
+            className={`tab${centred ? ' tab--center' : ''}`}
             aria-current={active === tab ? 'page' : undefined}
             onClick={() => onChange(tab)}
           >
             {/* Pill wraps icon + label so the active tab reads as one chip —
                 legible from shape + fill, not colour alone. */}
             <span className="tab-pill">
-              <Icon className="ic" />
+              {centred ? (
+                <span className="tab-center-disc" aria-hidden>
+                  <Icon className="ic" />
+                </span>
+              ) : (
+                <Icon className="ic" />
+              )}
               <span className="tab-label">{label}</span>
             </span>
           </button>

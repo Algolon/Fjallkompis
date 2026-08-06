@@ -27,11 +27,17 @@
  * every device class (bottom tab bar, rail and sidebar all render this).
  * Guarded by tests/navigation-routes.test.mjs: changing mobile tab order is
  * a deliberate act, not a side effect.
+ *
+ * Today sits deliberately in the CENTRE: it is the operational home during
+ * the hike, flanked by the two reference tabs (Guide, Map) on the left and
+ * the two personal tabs (Plan, Settings) on the right. The tab bar gives
+ * the centre item a subtly elevated treatment (TabBar.tsx) — it stays an
+ * ordinary navigation destination, never an action button.
  */
 export const TAB_ROUTES = [
-  { tab: 'today', hash: '#/today', label: 'Today' },
-  { tab: 'map', hash: '#/map', label: 'Map' },
   { tab: 'guide', hash: '#/guide', label: 'Guide' },
+  { tab: 'map', hash: '#/map', label: 'Map' },
+  { tab: 'today', hash: '#/today', label: 'Today' },
   { tab: 'plan', hash: '#/plan', label: 'Plan' },
   { tab: 'settings', hash: '#/settings', label: 'Settings' },
 ];
@@ -41,8 +47,8 @@ export const DEFAULT_TAB = 'today';
 /** Guide's dossier sections, in index order. */
 export const GUIDE_SECTIONS = ['stages', 'stops', 'shops', 'transport'];
 
-/** Plan's personal sections, in index order. */
-export const PLAN_SECTIONS = ['day', 'trip', 'packing'];
+/** Plan's personal sections, in dashboard order. */
+export const PLAN_SECTIONS = ['day', 'packing', 'travel', 'wallet'];
 
 /**
  * Every canonical destination: the five tab homes plus one sub-route per
@@ -67,14 +73,17 @@ export const DESTINATION_ROUTES = [
  * Pre-vNext public hashes → their canonical destination, so bookmarks and
  * saved links keep working. Stages and Stops moved into the Guide dossier;
  * a saved #/lists link opens the Plan home (Lists' sections split between
- * Guide and Plan, so the honest target is the index that reaches them all).
- * '#/huts' and '#/checklist' were internal ids, never URLs, and still
- * resolve to null.
+ * Guide and Plan, so the honest target is the index that reaches them all);
+ * the pilot shell's short-lived combined '#/plan/trip' split into Travel &
+ * stays and Wallet — a saved trip link opens Travel & stays, where the trip
+ * items live. '#/huts' and '#/checklist' were internal ids, never URLs, and
+ * still resolve to null.
  */
 export const LEGACY_HASH_ALIASES = new Map([
   ['#/stages', '#/guide/stages'],
   ['#/stops', '#/guide/stops'],
   ['#/lists', '#/plan'],
+  ['#/plan/trip', '#/plan/travel'],
 ]);
 
 const HASH_TO_DESTINATION = new Map(DESTINATION_ROUTES.map((r) => [r.hash, r]));

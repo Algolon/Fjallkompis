@@ -37,8 +37,10 @@ function destinationForListsLink(link) {
   if (link.transportId || link.transportContext) {
     return { tab: 'guide', section: 'transport' };
   }
+  // Trip launches carry trip ITEMS (transport movements and stays), so they
+  // land on Travel & stays — the Wallet is the document-oriented view.
   if (link.tripItemId || link.trackStayPlaceId || link.addTransportEntryId) {
-    return { tab: 'plan', section: 'trip' };
+    return { tab: 'plan', section: 'travel' };
   }
   switch (link.section) {
     case 'shops':
@@ -46,7 +48,7 @@ function destinationForListsLink(link) {
     case 'transport':
       return { tab: 'guide', section: 'transport' };
     case 'trip':
-      return { tab: 'plan', section: 'trip' };
+      return { tab: 'plan', section: 'travel' };
     default:
       return { tab: 'plan', section: 'packing' };
   }
