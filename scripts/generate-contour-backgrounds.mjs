@@ -24,11 +24,18 @@
  *   1. read the pinned tile(s) via `pmtiles tile` (gzip → inflate);
  *   2. decode the Mapbox Vector Tile protobuf by hand (met the format's
  *      published spec; ~90 lines — deliberately no new dependency);
- *   3. stitch tile-local geometry into one plane, scale to a 1024 viewBox;
- *   4. drop tiny fragments, simplify (Ramer–Douglas–Peucker), then smooth
+ *   3. CLIP each tile's geometry to its own cell. MVT tiles carry a buffer
+ *      beyond their nominal extent, so without clipping every interior seam
+ *      of the tile block draws the same contour TWICE — two 0.5-opacity
+ *      strokes stack to visibly darker bands (measured ≈7% of stroke pixels
+ *      vs ≈0.2% on the untiled Today asset);
+ *   4. map the clipped fragments into one plane and STITCH same-elevation
+ *      fragments back together across the seams, so each contour is one
+ *      continuous polyline again (no cap-dots, no per-side smoothing kinks);
+ *   5. drop tiny fragments, simplify (Ramer–Douglas–Peucker), then smooth
  *      with Catmull-Rom → cubic Bézier — the same reprocessing character
  *      as the original Today asset (public/images/today/README.md);
- *   5. emit a single-<g> SVG: one muted stroke, no fills, no labels; the
+ *   6. emit a single-<g> SVG: one muted stroke, no fills, no labels; the
  *      theme colour is baked per asset, the base colour lives in CSS.
  *
  * The regions are geographically REAL crops (bounds in each asset's
@@ -100,7 +107,11 @@ const VIEWBOX_H = 453.5;
 /** Contour interval kept from the source (metres) — the 100 m index lines. */
 const INDEX_INTERVAL_M = 100;
 const MIN_PATH_LENGTH = 12; // viewBox units — drops sliver fragments
-const RDP_EPSILON = 0.32; // viewBox units — grid-step noise, not structure
+const RDP_EPSILON = 0.45; // viewBox units — grid-step noise, not structure
+/** Chaikin corner-cutting passes between RDP and Catmull-Rom: relaxes the
+ *  z13 grid jitter the point-interpolating Catmull-Rom would otherwise trace
+ *  faithfully, moving the line character toward Today's calmer flow. */
+const CHAIKIN_PASSES = 1;
 
 // ---------------------------------------------------------------------------
 // Tile reading
@@ -259,6 +270,116 @@ function decodeTilePaths(buf) {
 // Geometry processing
 // ---------------------------------------------------------------------------
 
+/**
+ * Clip a polyline to the tile's own cell [0, extent]². MVT geometry extends
+ * into a buffer around the cell so tiles render seamlessly on their own —
+ * but assembled into one plane that buffer means every interior seam is
+ * double-drawn. Returns the fragments that lie inside, with exact crossing
+ * points on the cell boundary (Liang–Barsky per segment).
+ */
+function clipToCell(points, extent) {
+  const inside = ([x, y]) => x >= 0 && x <= extent && y >= 0 && y <= extent;
+  const fragments = [];
+  let current = null;
+  const push = (pt) => {
+    if (!current) {
+      current = [pt];
+    } else {
+      const last = current[current.length - 1];
+      if (last[0] !== pt[0] || last[1] !== pt[1]) current.push(pt);
+    }
+  };
+  const flush = () => {
+    if (current && current.length >= 2) fragments.push(current);
+    current = null;
+  };
+  for (let i = 1; i < points.length; i++) {
+    const [x1, y1] = points[i - 1];
+    const [x2, y2] = points[i];
+    // Liang–Barsky parametric clip of the segment against the cell.
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    let t0 = 0;
+    let t1 = 1;
+    let ok = true;
+    for (const [p, q] of [
+      [-dx, x1 - 0],
+      [dx, extent - x1],
+      [-dy, y1 - 0],
+      [dy, extent - y1],
+    ]) {
+      if (p === 0) {
+        if (q < 0) { ok = false; break; }
+      } else {
+        const r = q / p;
+        if (p < 0) {
+          if (r > t1) { ok = false; break; }
+          if (r > t0) t0 = r;
+        } else {
+          if (r < t0) { ok = false; break; }
+          if (r < t1) t1 = r;
+        }
+      }
+    }
+    if (!ok) {
+      flush(); // segment fully outside — the line leaves the cell
+      continue;
+    }
+    const a = [x1 + t0 * dx, y1 + t0 * dy];
+    const b = [x1 + t1 * dx, y1 + t1 * dy];
+    if (t0 > 0) flush(); // re-entering: start a new fragment at the boundary
+    push(a);
+    push(b);
+    if (t1 < 1) flush(); // exiting: fragment ends on the boundary
+    else if (!inside(points[i])) flush();
+  }
+  flush();
+  return fragments;
+}
+
+/**
+ * Stitch clipped fragments back into continuous polylines across the tile
+ * seams. Adjacent tiles quantise the same source contour independently, so
+ * matching seam endpoints agree only within a small tolerance; joining is
+ * restricted to fragments of the SAME elevation (contours of one elevation
+ * never cross, so within-tolerance neighbours on a seam are the same line).
+ * The junction pair is healed to its midpoint.
+ */
+function stitchFragments(fragments, tolerance) {
+  const merged = fragments.map((f) => ({ points: f.points.slice(), elev: f.elev }));
+  const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= tolerance;
+  let joined = true;
+  while (joined) {
+    joined = false;
+    outer: for (let i = 0; i < merged.length; i++) {
+      for (let j = i + 1; j < merged.length; j++) {
+        if (merged[i].elev !== merged[j].elev) continue;
+        const A = merged[i].points;
+        const B = merged[j].points;
+        let next = null;
+        if (near(A[A.length - 1], B[0])) next = [...A, ...B];
+        else if (near(A[A.length - 1], B[B.length - 1])) next = [...A, ...B.slice().reverse()];
+        else if (near(A[0], B[0])) next = [...A.slice().reverse(), ...B];
+        else if (near(A[0], B[B.length - 1])) next = [...B, ...A];
+        if (next) {
+          // Heal the junction: replace the touching pair with its midpoint.
+          const k = A.length; // junction sits between next[k-1] and next[k]
+          const mid = [
+            (next[k - 1][0] + next[k][0]) / 2,
+            (next[k - 1][1] + next[k][1]) / 2,
+          ];
+          next.splice(k - 1, 2, mid);
+          merged[i].points = next;
+          merged.splice(j, 1);
+          joined = true;
+          break outer;
+        }
+      }
+    }
+  }
+  return merged;
+}
+
 function pathLength(points) {
   let len = 0;
   for (let i = 1; i < points.length; i++) {
@@ -289,6 +410,24 @@ function rdp(points, epsilon) {
     ...rdp(points.slice(0, maxIdx + 1), epsilon).slice(0, -1),
     ...rdp(points.slice(maxIdx), epsilon),
   ];
+}
+
+/** One Chaikin corner-cutting pass (open polyline; endpoints kept). */
+function chaikin(points, passes) {
+  let pts = points;
+  for (let n = 0; n < passes; n++) {
+    if (pts.length < 3) return pts;
+    const out = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i];
+      const [bx, by] = pts[i + 1];
+      out.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+      out.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+    }
+    out.push(pts[pts.length - 1]);
+    pts = out;
+  }
+  return pts;
 }
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -338,7 +477,7 @@ function regionPaths(archive, region) {
   const windowW = span * (VIEWBOX_W / VIEWBOX_H);
   const windowX0 = (span - windowW) / 2;
   const scale = VIEWBOX_H / span; // tile-fractions → viewBox units
-  const all = [];
+  const fragments = [];
   for (let dy = 0; dy < span; dy++) {
     for (let dx = 0; dx < span; dx++) {
       const buf = readTile(archive, z, x0 + dx, y0 + dy);
@@ -349,16 +488,23 @@ function regionPaths(archive, region) {
         // lines holds the visual density beside the Today asset while the
         // SHAPE comes from the most detailed tiles the archive has.
         if (!Number.isFinite(elev) || elev % INDEX_INTERVAL_M !== 0) continue;
-        const mapped = points.map(([px, py]) => [
-          (px / extent + dx - windowX0) * scale,
-          (py / extent + dy) * scale,
-        ]);
-        all.push(mapped);
+        // Clip to THIS tile's cell so the shared buffer band is drawn by
+        // exactly one tile — the double-stroke seam fix.
+        for (const clipped of clipToCell(points, extent)) {
+          const mapped = clipped.map(([px, py]) => [
+            (px / extent + dx - windowX0) * scale,
+            (py / extent + dy) * scale,
+          ]);
+          fragments.push({ points: mapped, elev });
+        }
       }
     }
   }
-  return all
-    .map((p) => rdp(p, RDP_EPSILON))
+  // Rejoin the clipped halves across seams (tolerance ≈ half a viewBox unit
+  // — well below the spacing between neighbouring 100 m index lines, and
+  // enough for per-tile quantisation drift at the crossing points).
+  return stitchFragments(fragments, 0.5)
+    .map((f) => chaikin(rdp(f.points, RDP_EPSILON), CHAIKIN_PASSES))
     .filter((p) => pathLength(p) >= MIN_PATH_LENGTH)
     // Paths entirely outside the portrait window would only bloat the file;
     // the viewBox clips them when the SVG is rendered.
@@ -381,7 +527,9 @@ function emitRegion(archive, region) {
      Extraction: scripts/generate-contour-backgrounds.mjs — z${region.z} tiles
      x${region.x0}-${region.x0 + region.span - 1} y${region.y0}-${region.y0 + region.span - 1}
      (approx ${nw.lat.toFixed(3)}N ${nw.lon.toFixed(3)}E to ${se.lat.toFixed(3)}N ${se.lon.toFixed(3)}E),
-     ${INDEX_INTERVAL_M} m index contours only, RDP-simplified (${RDP_EPSILON})
+     ${INDEX_INTERVAL_M} m index contours only, seam-clipped to each tile's
+     own cell and re-stitched across tiles (one stroke per contour — never
+     the doubled buffer band), RDP-simplified (${RDP_EPSILON}), Chaikin-relaxed
      and Catmull-Rom smoothed. The viewBox is Today's, so the shared
      stroke-width renders at the same weight on every screen. Geographically
      real crop, purely decorative: no labels, no scale, never a navigation
