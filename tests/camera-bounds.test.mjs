@@ -17,12 +17,17 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
+  mercX,
+  mercY,
+  vectorSourceCoverage,
   cameraConstraintsFor,
   activeBoundsForZoom,
   overviewEnvelope,
-  mercX,
   MIN_ZOOM_BACKSTOP,
 } from '../src/map/cameraBounds.mjs';
+
+/** Degrees of float slack: a capped edge sits exactly on a coverage edge. */
+const EPS = 1e-9;
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -69,8 +74,8 @@ test('square desktop viewports (1:1 map card) get an uncapped exact-fit expansio
   // only a few km of slack to the envelope's east edge, which is exactly
   // why the CSS floor must not drop further without re-running this
   // maths.
-  const [[ew], [ee]] = overviewEnvelope(route.mapCutoutBounds);
   const [[uw, us], [ue, un]] = route.userBounds;
+  const routeCx = (mercX(route.bounds[0][0]) + mercX(route.bounds[1][0])) / 2;
   for (const size of [300, 340, 450, 600, 838]) {
     const c = constraintsFor(size, size);
     assert.ok(c.overviewBounds, `${size}²: square fit needs the expansion`);
@@ -78,23 +83,19 @@ test('square desktop viewports (1:1 map card) get an uncapped exact-fit expansio
     assert.ok(ow < uw && oe > ue, `${size}²: widened east/west`);
     assert.equal(os, us, 'south edge unchanged');
     assert.equal(on, un, 'north edge unchanged');
-    // Exact fit, not the envelope cap: the same constraints WITHOUT the
-    // physical envelope must produce identical bounds.
-    const uncapped = cameraConstraintsFor({
-      userBounds: route.userBounds,
-      routeBounds: route.bounds,
-      viewportWidth: size,
-      viewportHeight: size,
-      padding: PADDING,
-    });
-    assert.deepEqual(
-      c.overviewBounds,
-      uncapped.overviewBounds,
-      `${size}²: exact fit uncapped — envelope headroom holds`,
+    // SYMMETRIC about the route centre — the composition contract. The old
+    // model clamped the east edge alone against a tile cell that is not
+    // centred on the route, which is what pushed wide views east.
+    assert.ok(
+      Math.abs((routeCx - mercX(ow)) - (mercX(oe) - routeCx)) < 1,
+      `${size}²: symmetric about the route centre`,
     );
-    // …and strictly inside the envelope, with real margin on both edges.
-    assert.ok(ow > ew && oe < ee, `${size}²: strictly inside the physical envelope`);
-    // Threshold is a real overview zoom above the backstop.
+    // The exact fit, not a cap: vector coverage still has headroom here.
+    assert.equal(c.envelope.cappedByVector, false, `${size}²: exact fit, uncapped`);
+    assert.ok(
+      c.envelope.halfWidths.applied <= c.envelope.halfWidths.vector + 1e-6,
+      `${size}²: inside physical vector coverage`,
+    );
     assert.ok(
       c.zoomThreshold > MIN_ZOOM_BACKSTOP && c.zoomThreshold < 12,
       `${size}²: sane zoom threshold`,
@@ -102,9 +103,10 @@ test('square desktop viewports (1:1 map card) get an uncapped exact-fit expansio
   }
 });
 
-test('wide viewports get an east/west overview expansion, north/south unchanged', () => {
-  // Tablet landscape fullscreen and desktop fullscreen — both fit inside
-  // the physical envelope, so their expansion is sized exactly to the fit.
+test('wide viewports get a SYMMETRIC east/west expansion, north/south unchanged', () => {
+  // Tablet landscape and a laptop — both need a view wider than the user
+  // bounds, and both have vector headroom, so the expansion is sized exactly
+  // to the fit and centred on the route.
   for (const [w, h] of [[1024, 768], [1512, 945]]) {
     const c = constraintsFor(w, h);
     assert.ok(c.overviewBounds, `${w}x${h}: needs the overview expansion`);
@@ -113,40 +115,40 @@ test('wide viewports get an east/west overview expansion, north/south unchanged'
     assert.ok(ow < uw && oe > ue, `${w}x${h}: widened east/west`);
     assert.equal(os, us, 'south edge unchanged');
     assert.equal(on, un, 'north edge unchanged');
-    // Sized to the fit (with the 5% slack), each edge independently clamped
-    // to the physical envelope — the z7 grid is asymmetric around the
-    // route, so the east edge clamps first.
+
+    // Sized to the fit (with the 5 % slack) and symmetric about the route.
+    const routeCx = (mercX(route.bounds[0][0]) + mercX(route.bounds[1][0])) / 2;
     const padV = PADDING.top + PADDING.bottom;
-    const routeMercH =
-      mercY(route.bounds[1][1]) - mercY(route.bounds[0][1]);
-    const half = ((routeMercH / (h - padV)) * w * 1.05 - (mercX(ue) - mercX(uw))) / 2;
-    const [[ew2], [ee2]] = overviewEnvelope(route.mapCutoutBounds);
-    const expWest = Math.max(mercX(uw) - half, mercX(ew2));
-    const expEast = Math.min(mercX(ue) + half, mercX(ee2));
-    assert.ok(Math.abs(mercX(ow) - expWest) < 1, `${w}x${h}: west edge as constructed`);
-    assert.ok(Math.abs(mercX(oe) - expEast) < 1, `${w}x${h}: east edge as constructed`);
-    // Level 2 must stay inside level 3: overview bounds within the physical
-    // overview envelope (real z7 terrain footprint − margin).
-    assert.ok(ow >= ew2 && oe <= ee2, `${w}x${h}: overview inside physical envelope`);
-    // Threshold is a real overview zoom (below it the viewport spans the
-    // full user-bounds width) and sits above the backstop.
+    const routeMercH = mercY(route.bounds[1][1]) - mercY(route.bounds[0][1]);
+    const wantHalf = ((routeMercH / (h - padV)) * w * 1.05) / 2;
+    assert.ok(
+      Math.abs((routeCx - mercX(ow)) - wantHalf) < 1,
+      `${w}x${h}: west edge is the fit's own half-width`,
+    );
+    assert.ok(
+      Math.abs((mercX(oe) - routeCx) - wantHalf) < 1,
+      `${w}x${h}: east edge is the same half-width`,
+    );
+
+    // Inside real vector coverage at the zoom this overview renders at.
+    const cov = vectorSourceCoverage(c.envelope.sourceZoom, route.mapCutoutBounds);
+    // EPS: a capped edge lands exactly on a coverage edge, and the Mercator
+    // round trip moves it by ~1e-14 degrees.
+    assert.ok(ow >= cov.west - EPS && oe <= cov.east + EPS, `${w}x${h}: inside vector coverage`);
     assert.ok(c.zoomThreshold > MIN_ZOOM_BACKSTOP && c.zoomThreshold < 12);
   }
+
   // Phone landscape (product-blocked by the RotateGuard; reachable only in
-  // exotic embeds): its exact fit would out-span the envelope, so it gets
-  // the capped safe expansion instead of the exact fit.
+  // exotic embeds): its exact fit out-spans the data, so it is capped —
+  // symmetrically, so the route stays centred rather than sliding east.
   const pl = constraintsFor(812, 375);
-  const [[ew], [ee]] = overviewEnvelope(route.mapCutoutBounds);
   assert.ok(pl.overviewBounds, 'phone landscape still expands');
+  const cov = vectorSourceCoverage(pl.envelope.sourceZoom, route.mapCutoutBounds);
   assert.ok(
-    pl.overviewBounds[0][0] >= ew && pl.overviewBounds[1][0] <= ee,
-    'phone landscape expansion capped inside the physical envelope',
+    pl.overviewBounds[0][0] >= cov.west - EPS && pl.overviewBounds[1][0] <= cov.east + EPS,
+    'phone landscape expansion capped inside vector coverage',
   );
 });
-
-// mercY is not exported for the fit math above — import it lazily to keep
-// the test honest against the same implementation.
-import { mercY } from '../src/map/cameraBounds.mjs';
 
 test('activeBoundsForZoom applies hysteresis and cannot oscillate', () => {
   const c = constraintsFor(1512, 945);
@@ -165,25 +167,23 @@ test('activeBoundsForZoom applies hysteresis and cannot oscillate', () => {
   assert.equal(activeBoundsForZoom(p, 5, true).expanded, false);
 });
 
-test('extreme ultrawide viewports cap the expansion at the physical envelope', () => {
-  // 21:9 fullscreen would need a wider fit than real z7 terrain provides;
-  // the cap trades a slightly over-filled route height for never showing
-  // unshaded flanks. Regular 16:9/16:10 desktops stay uncapped.
+test('extreme ultrawide viewports cap the expansion at real vector coverage', () => {
+  // 21:9 fullscreen wants a wider fit than the archive carries. The cap
+  // trades a slightly over-filled route height for never revealing blank
+  // map — and stays symmetric, so the route does not slide sideways.
   const c = constraintsFor(3440, 1440);
   assert.ok(c.overviewBounds, 'still expands');
   const [[ow], [oe]] = c.overviewBounds;
-  const [[ew], [ee]] = overviewEnvelope(route.mapCutoutBounds);
-  assert.ok(ow >= ew && oe <= ee, 'capped inside the physical envelope');
-  const uncapped = cameraConstraintsFor({
-    userBounds: route.userBounds,
-    routeBounds: route.bounds,
-    viewportWidth: 3440,
-    viewportHeight: 1440,
-    padding: PADDING,
-  });
+  const cov = vectorSourceCoverage(c.envelope.sourceZoom, route.mapCutoutBounds);
+  assert.ok(ow >= cov.west - EPS && oe <= cov.east + EPS, 'capped inside vector coverage');
+  assert.equal(c.envelope.cappedByVector, true, 'the cap actually bound');
   assert.ok(
-    mercX(uncapped.overviewBounds[1][0]) - mercX(uncapped.overviewBounds[0][0]) >
-      mercX(oe) - mercX(ow),
+    c.envelope.halfWidths.applied < c.envelope.halfWidths.needed,
     'the cap actually reduced the requested expansion',
+  );
+  const routeCx = (mercX(route.bounds[0][0]) + mercX(route.bounds[1][0])) / 2;
+  assert.ok(
+    Math.abs((routeCx - mercX(ow)) - (mercX(oe) - routeCx)) < 1,
+    'a capped envelope is still symmetric about the route',
   );
 });
