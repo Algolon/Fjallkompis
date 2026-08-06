@@ -30,22 +30,12 @@ export const GUIDE_SOURCES = {
     label: 'STF — Signature Trail: Kungsleden from Abisko',
     url: 'https://www.swedishtouristassociation.com/trails/signature-trail-kungsleden-abisko/',
   },
-  'stf-stage-abiskojaure-alesjaure': {
-    label: 'STF — stage guide Abiskojaure–Alesjaure',
-    url: 'https://www.swedishtouristassociation.com/guides/stages/stf-abiskojaure-stf-alesjaure/',
-  },
-  'stf-stage-tjaktja-salka': {
-    label: 'STF — trail section Tjäktja–Sälka',
-    url: 'https://www.swedishtouristassociation.com/trail-sections/tjaktja-salka/',
-  },
-  'stf-stage-salka-singi': {
-    label: 'STF — stage guide Sälka–Singi',
-    url: 'https://www.swedishtouristassociation.com/guides/stages/stf-salka-stf-singi/',
-  },
-  'stf-stage-singi-kebnekaise': {
-    label: 'STF — trail section Singi–Kebnekaise',
-    url: 'https://www.swedishtouristassociation.com/trail-sections/stf-singi-stf-kebnekaise/',
-  },
+  // NOTE (2026-08-06): STF's per-stage pages (guides/stages/… and
+  // trail-sections/…) were retired — the old URLs now 404 or silently
+  // redirect to the generic /guides/trails/ hub, so they no longer support
+  // any claim. Stage-level citations point at the STF Signature Trail page
+  // (which describes every day of this route) plus the per-stage Naturkartan
+  // (Länsstyrelsen Norrbotten) pages.
   'stf-tjaktja': {
     label: 'STF — Tjäktja Mountain cabin',
     url: 'https://www.swedishtouristassociation.com/facilities/stf-tjaktja-mountain-cabin/',
@@ -139,11 +129,7 @@ export const STAGE_GUIDES = {
       'A long, exposed day with few sheltered spots — check the forecast before committing',
       'In high season a small private boat can shorten the walk along Alisjávri; it is seasonal and never guaranteed, so don’t plan around it',
     ],
-    sourceIds: [
-      'stf-stage-abiskojaure-alesjaure',
-      'naturkartan-bd26',
-      'stf-kungsleden-abisko',
-    ],
+    sourceIds: ['naturkartan-bd26', 'stf-kungsleden-abisko'],
     lastVerified: '2026-07-11',
   },
   d3: {
@@ -179,9 +165,12 @@ export const STAGE_GUIDES = {
       'In poor visibility or hard wind this is the most serious point of the week; the pass shelter is for rest and emergencies, not accommodation',
       'Streams below the descent can run high with meltwater after warm days or rain',
     ],
+    // The "about 1,150 m / highest point" figure is STF's own (Signature
+    // Trail page); Wikipedia's article gives a lower rounded height and is
+    // kept only for the pass geography and shelter, never for the 1,150 m.
     sourceIds: [
+      'stf-kungsleden-abisko',
       'wikipedia-tjaktjapasset',
-      'stf-stage-tjaktja-salka',
       'stf-salka',
     ],
     lastVerified: '2026-07-11',
@@ -199,7 +188,7 @@ export const STAGE_GUIDES = {
       'Singi has no shop and no sauna — carry what you need from Sälka',
       'Wet sections vary with weather and meltwater, even on this easier day',
     ],
-    sourceIds: ['stf-stage-salka-singi', 'naturkartan-bd38', 'stf-singi'],
+    sourceIds: ['stf-kungsleden-abisko', 'naturkartan-bd38', 'stf-singi'],
     lastVerified: '2026-07-11',
   },
   d6: {
@@ -217,7 +206,7 @@ export const STAGE_GUIDES = {
       'The station area is far busier than the cabins: Kebnekaise summit traffic joins here',
     ],
     sourceIds: [
-      'stf-stage-singi-kebnekaise',
+      'stf-kungsleden-abisko',
       'naturkartan-bd40',
       'stf-kebnekaise',
     ],

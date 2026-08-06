@@ -248,9 +248,11 @@ const CURATED: RouteExperience[] = [
     whyNotice:
       'A sustained climb lifts you out of the woods onto open mountain heath — the day the landscape changes character. Look back over the forest you’ve left.',
     source: {
-      label: 'STF — stage guide Abiskojaure–Alesjaure',
-      url: 'https://www.swedishtouristassociation.com/guides/stages/stf-abiskojaure-stf-alesjaure/',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      // The retired STF stage page redirected to a generic hub; Naturkartan's
+      // BD26 stage page names the Kieronbacken climb past the treeline.
+      label: 'Naturkartan — Abiskojaure–Alesjaure',
+      url: 'https://www.naturkartan.se/en/norrbottens-lan/vandringsled-bd26-mellan-abiskojaure-och-alesjaure_e',
+      lastVerified: '2026-08-06',
     },
     confidence: 'high',
   },
@@ -306,9 +308,11 @@ const CURATED: RouteExperience[] = [
     whyNotice:
       'The larger river crossings on this open stage are bridged; the suspension bridge over Šiellajohka is the notable one — a swaying span over fast glacial water.',
     source: {
-      label: 'STF — stage guide Abiskojaure–Alesjaure',
-      url: 'https://www.swedishtouristassociation.com/guides/stages/stf-abiskojaure-stf-alesjaure/',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      // BD26 names this exact crossing ("the suspension bridge across
+      // Šiellajohka"); the retired STF stage page redirects to a hub.
+      label: 'Naturkartan — Abiskojaure–Alesjaure',
+      url: 'https://www.naturkartan.se/en/norrbottens-lan/vandringsled-bd26-mellan-abiskojaure-och-alesjaure_e',
+      lastVerified: '2026-08-06',
     },
     confidence: 'high',
   },
@@ -387,11 +391,13 @@ const CURATED: RouteExperience[] = [
     nearestStopId: 'tjaktja',
     summary: 'The highest point of the Kungsleden — a 30 km valley opens south.',
     whyNotice:
-      'At about 1,150 m this is the highest point of the whole Kungsleden. From the top a vast glacial valley (Tjäktjavagge) unrolls south — the grandest single panorama of the week. An unstaffed wind-shelter sits near the top; expect fierce wind, and possibly old snow into summer.',
+      'Around 1,150 m according to STF — the highest point of the whole Kungsleden. From the top a vast glacial valley (Tjäktjavagge) unrolls south — the grandest single panorama of the week. An unstaffed wind-shelter sits near the top; expect fierce wind, and possibly old snow into summer.',
     source: {
-      label: 'Wikipedia — Tjäktjapasset',
-      url: 'https://en.wikipedia.org/wiki/Tj%C3%A4ktjapasset',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      // The 1,150 m figure is STF's own; Wikipedia rounds the pass lower
+      // (~1,100 m) and cannot carry that precision.
+      label: 'STF — Signature Trail: Kungsleden from Abisko',
+      url: 'https://www.swedishtouristassociation.com/trails/signature-trail-kungsleden-abisko/',
+      lastVerified: '2026-08-06',
     },
     confidence: 'high',
   },
@@ -408,6 +414,14 @@ const CURATED: RouteExperience[] = [
     summary: 'Textbook glacial geomorphology near the pass.',
     whyNotice:
       'Moraine mounds gather where several valleys meet below the pass — U-valley, moraine and hanging side-valleys, all legible in one view.',
+    // KNOWN OPEN (PR-4, 2026-08-06): this source URL is a hard 404 (STF
+    // retired its trail-section pages) and NO reachable authoritative page
+    // was found that supports the moraine claim (checked: STF Signature
+    // Trail, STF Tjäktja cabin, Wikipedia Tjäktjapasset/Kungsleden, Swedish
+    // Wikipedia Tjäktjavagge — the last supports only the valley junction).
+    // Deliberately left citing the dead page rather than faking support;
+    // PR-7 must re-source or reword this record. Pinned by
+    // tests/source-integrity.test.mjs.
     source: {
       label: 'STF — trail section Tjäktja–Sälka',
       url: 'https://www.swedishtouristassociation.com/trail-sections/tjaktja-salka/',
@@ -426,11 +440,14 @@ const CURATED: RouteExperience[] = [
     nearestStopId: 'salka',
     summary: 'Widely called the route’s prettiest reveal.',
     whyNotice:
-      'Below the pass the valley opens into green grasslands, braided sparkling rivers and veiled arctic peaks — reindeer are often seen here.',
+      'Below the pass the rocky ground gives way and the descent opens into vast, green Tjäktjavagge — the landscape turns lusher with every step down.',
     source: {
-      label: 'STF — trail section Tjäktja–Sälka',
-      url: 'https://www.swedishtouristassociation.com/trail-sections/tjaktja-salka/',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      // STF: "As you descend into the impressive Tjäktjavagge valley, the
+      // landscape becomes increasingly lush." The old braided-rivers and
+      // reindeer clauses had no surviving source and were trimmed.
+      label: 'STF — Signature Trail: Kungsleden from Abisko',
+      url: 'https://www.swedishtouristassociation.com/trails/signature-trail-kungsleden-abisko/',
+      lastVerified: '2026-08-06',
     },
     confidence: 'high',
   },
@@ -513,14 +530,17 @@ const CURATED: RouteExperience[] = [
     routeRelationship: 'A branch from Sälka up the valley toward Nallo',
     summary: 'A dramatic side valley reached from Sälka.',
     whyNotice:
-      'From Sälka a well-marked path branches up a dramatic side valley toward Nallo — a worthwhile out-and-back for hikers with a spare half-day or an extra night.',
+      'From Sälka a route branches up a dramatic side valley toward Nallo, about 10 km each way. STF notes there is no marked trail to Nallo, so it suits confident navigators with a spare half-day or an extra night.',
     description:
       'An out-and-back up the valley from Sälka and back the same way. Best tackled from an overnight rather than squeezed into a stage.',
     weatherSensitivity: 'medium',
     source: {
-      label: 'STF — trail section Tjäktja–Sälka',
-      url: 'https://www.swedishtouristassociation.com/trail-sections/tjaktja-salka/',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      // The cabin's own page: reached from STF Sälka (10 km) with "no marked
+      // hiking or skiing trails to STF Nallo" — the earlier wording claimed
+      // a marked path, contradicting the operator, and was corrected.
+      label: 'STF — Nallo Mountain cabin',
+      url: 'https://www.swedishtouristassociation.com/facilities/stf-nallo-mountain-cabin/',
+      lastVerified: '2026-08-06',
     },
     confidence: 'medium',
   },
@@ -560,9 +580,11 @@ const CURATED: RouteExperience[] = [
     whyNotice:
       'Even on this easier day many streams are crossed — the suspension bridges over the Gaskkasjohka are the ones you notice, spanning clear meltwater on the valley floor.',
     source: {
-      label: 'STF — stage guide Sälka–Singi',
-      url: 'https://www.swedishtouristassociation.com/guides/stages/stf-salka-stf-singi/',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      // BD38 names these crossings ("the suspension bridges across
+      // Gaskkasjohka"); the retired STF stage page redirects to a hub.
+      label: 'Naturkartan — Sälka–Singi',
+      url: 'https://www.naturkartan.se/en/norrbottens-lan/vandringsled-bd38-mellan-salka-och-singi',
+      lastVerified: '2026-08-06',
     },
     confidence: 'high',
   },
@@ -775,9 +797,9 @@ const CURATED: RouteExperience[] = [
     nearestStopId: 'kebnekaise',
     routeRelationship: 'Western route · extra day from Kebnekaise Fjällstation',
     weatherSensitivity: 'high',
-    summary: 'Sweden’s highest peak — a full alpine day from the station.',
+    summary: 'Sweden’s highest mountain — a full alpine day from the station.',
     whyNotice:
-      'The Western route (Västra leden) is the standard ascent of Sweden’s highest mountain. The glaciated south peak has thinned below the ice-free north peak — the summit you climb is now the lower of the two, a measured climate story you stand on top of.',
+      'The Western route (Västra leden) is the standard ascent of Sweden’s highest mountain. Its glaciated south peak and ice-free north peak sit close in height: the glacier summit’s measured height varies with season and snow, and it has thinned over the decades — a climate story you stand on top of.',
     description:
       'Marked from the station, it crosses high boulder ground via Kitteldalen and Kaffedalen and finishes over a glacier to the summit. A very long day; conditions and daylight decide feasibility as much as fitness.',
     expedition: {
@@ -796,10 +818,22 @@ const CURATED: RouteExperience[] = [
       ],
     },
     source: {
+      // Climbing context (routes, guiding, "height varies throughout the
+      // year, as the summit is a glacier").
       label: 'STF — Climbing Kebnekaise',
       url: 'https://www.swedishtouristassociation.com/guides/climbing-kebnekaise/',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      lastVerified: '2026-08-06',
     },
+    // Elevation-change context: the south peak's long-term decline and the
+    // north peak's fixed rock height are geographic/historical facts the
+    // climbing guide does not carry.
+    additionalSources: [
+      {
+        label: 'Wikipedia — Kebnekaise',
+        url: 'https://en.wikipedia.org/wiki/Kebnekaise',
+        lastVerified: '2026-08-06',
+      },
+    ],
     confidence: 'high',
   },
   {
@@ -831,14 +865,18 @@ const CURATED: RouteExperience[] = [
     weatherSensitivity: 'high',
     summary: 'A high-alpine glacier cirque and glaciology research station.',
     whyNotice:
-      'A marked trail climbs into a rock-and-ice amphitheatre ringed by glaciers (Storglaciären, Isfallsglaciären). Storglaciären holds the world’s longest continuous glacier mass-balance record — a superb “active rest day” alternative to a summit.',
+      'The trail climbs to the high Tarfala valley, where Stockholm University’s research station monitors the surrounding glaciers. Storglaciären’s mass-balance series, measured every year since 1946, is the world’s longest of its kind — a superb “active rest day” alternative to a summit.',
     description:
       'A long round trip with a stiff climb through birch, over suspension bridges and stone fields — some airy, slippery snow patches. High-alpine terrain; carry food and layers and check the weather.',
     season: { fromMonth: 7, toMonth: 9 },
     source: {
-      label: 'STF — Glacier research at Tarfala',
-      url: 'https://www.swedishtouristassociation.com/activities/kebnekaise-glacier-research-at-tarfala/',
-      lastVerified: EXPERIENCES_VERIFIED_ON,
+      // The station operator's own research page (the retired STF activity
+      // page redirects to a generic discover hub): first Storglaciären
+      // mass-balance measurements spring 1946, "the world's longest of its
+      // kind". Research claims cite the researchers, not a tourism page.
+      label: 'Tarfala Research Station (Stockholm University) — research',
+      url: 'https://www.su.se/english/divisions/tarfala-research-station/research',
+      lastVerified: '2026-08-06',
     },
     confidence: 'high',
   },
