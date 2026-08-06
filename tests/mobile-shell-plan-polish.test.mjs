@@ -48,7 +48,13 @@ test('Packing places the warning opposite its label and keeps content full-width
 
 test('Pack and Worn weight rows use distinct decorative object masks', () => {
   assert.match(css, /\.plan-packing__col:nth-child\(2\) \.plan-count::before/);
-  assert.match(css, /\.plan-count:nth-child\(1\)::before[\s\S]*?backpack silhouette/);
-  assert.match(css, /\.plan-count:nth-child\(2\)::before[\s\S]*?shirt silhouette/);
+  assert.match(
+    css,
+    /\.plan-packing__col:nth-child\(2\) \.plan-count:nth-child\(1\)::before\s*\{[\s\S]*?mask-image:/,
+  );
+  assert.match(
+    css,
+    /\.plan-packing__col:nth-child\(2\) \.plan-count:nth-child\(2\)::before\s*\{[\s\S]*?mask-image:/,
+  );
   assert.ok((css.match(/mask-image:/g) ?? []).length >= 4, 'prefixed and standard masks exist');
 });
