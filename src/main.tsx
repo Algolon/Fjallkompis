@@ -5,6 +5,7 @@ import './styles/global.css';
 import './styles/map-popup-polish.css';
 import './styles/today-polish.css';
 import './styles/mobile-shell-plan-polish.css';
+import './styles/section-themes.css';
 
 if (import.meta.env.DEV) {
   // Development-only route-data diagnostics (mirrors the generator output).
