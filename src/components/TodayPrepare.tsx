@@ -15,9 +15,9 @@ import { tripPlanSummary } from '../trip/tripModel.mjs';
 import { STOPS_BY_ID, stopShortName } from '../trail/activeTrailContent';
 import { formatDistanceKm, formatGrams } from '../utils/format';
 import type { NavPayload } from '../screens/TodayScreen';
-import type { TabId } from './TabBar';
+import type { NavTarget } from './TabBar';
 
-type Navigate = (t: TabId, payload?: NavPayload) => void;
+type Navigate = (t: NavTarget, payload?: NavPayload) => void;
 
 /**
  * Today — Prepare: the pre-departure dashboard. Read-only summaries over the

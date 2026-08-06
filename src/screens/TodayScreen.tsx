@@ -6,10 +6,37 @@ import { TodayOnRoute } from '../components/TodayOnRoute';
 import { resolveTodayArrivalStay } from '../plan/todayArrivalStay.mjs';
 import { readTodayMode, saveTodayMode } from '../utils/todayMode.mjs';
 import type { TodayMode } from '../utils/todayMode.mjs';
-import type { TabId } from '../components/TabBar';
-import type { LatLng } from '../types';
-import type { ListsDeepLink } from './ListsScreen';
+import type { NavTarget } from '../components/TabBar';
+import type { LatLng, ShopCategory, TransportContext } from '../types';
 import type { SettingsDeepLinkSection } from './SettingsScreen';
+
+/**
+ * Lists-era section ids — still the deep-link payload vocabulary for the
+ * sections that used to live under Lists. The navigation resolver
+ * (navigation/resolveNavTarget.mjs) maps them onto their vNext owners:
+ * shops/transport → Guide, trip/packing → Plan.
+ */
+export type ListsSection = 'packing' | 'shops' | 'transport' | 'trip';
+
+/**
+ * One-shot deep-link payload into a Lists-era sub-section (from a Stop's
+ * Shop / transport chips, a stop's Track stay action, or Guide → Transport's
+ * Trip launches). In-memory only — a fresh visit or refresh opens the plain
+ * destination.
+ */
+export interface ListsDeepLink {
+  section?: ListsSection;
+  /** Shops opens this shop-TYPE category (from a Stop's Shop chip). */
+  shopType?: ShopCategory;
+  transportId?: string;
+  transportContext?: TransportContext;
+  /** Trip opens this item's editor (from a place's View stay action). */
+  tripItemId?: string;
+  /** Trip opens a prefilled Stay form for this Journey Place (Track stay). */
+  trackStayPlaceId?: string;
+  /** Trip opens a prefilled personal transport form (Transport's Add to Trip). */
+  addTransportEntryId?: string;
+}
 
 export interface NavPayload {
   /** Stops & places: open this route stop (existing Today/Map deep links). */
@@ -60,7 +87,7 @@ export interface NavPayload {
   };
 }
 
-type Navigate = (t: TabId, payload?: NavPayload) => void;
+type Navigate = (t: NavTarget, payload?: NavPayload) => void;
 
 /**
  * Decorative topographic-contour background (local SVG, PWA-precached).

@@ -1,34 +1,41 @@
 import {
   IconToday,
   IconMap,
-  IconStages,
-  IconHuts,
+  IconJournal,
   IconLists,
   IconSettings,
 } from './Icons';
 import { TAB_ROUTES } from '../navigation/routes.mjs';
 
-export type TabId =
-  | 'today'
-  | 'map'
-  | 'stages'
-  | 'huts'
-  | 'checklist'
-  | 'settings';
+/** The five vNext primary destinations: Today, Map, Guide, Plan, Settings. */
+export type TabId = 'today' | 'map' | 'guide' | 'plan' | 'settings';
+
+/** Guide's dossier sections (see navigation/routes.mjs GUIDE_SECTIONS). */
+export type GuideSection = 'stages' | 'stops' | 'shops' | 'transport';
+/** Plan's personal sections (see navigation/routes.mjs PLAN_SECTIONS). */
+export type PlanSection = 'day' | 'trip' | 'packing';
+export type SectionId = GuideSection | PlanSection;
+
+/**
+ * Historical navigate() targets still used by screen wiring ('checklist' is
+ * the retired Lists destination). They are call-site vocabulary only — never
+ * tabs, never URLs; navigation/resolveNavTarget.mjs maps each onto its
+ * five-tab destination, so no call site had to be rewritten.
+ */
+export type LegacyNavTarget = 'stages' | 'huts' | 'checklist';
+export type NavTarget = TabId | LegacyNavTarget;
 
 // Destination order and labels come from the shared route table
 // (src/navigation/routes.mjs) so the bottom tab bar, the tablet rail and the
 // desktop sidebar can never drift apart — they are all this one component,
 // restyled by CSS at wider breakpoints (see "Adaptive navigation" in
-// global.css). Internal ids 'huts' / 'checklist' are historical and kept:
-// screen wiring references them, only the user-facing labels changed
-// ('checklist' is the Lists destination — the packing list).
+// global.css). Guide reuses the journal/book glyph (the dossier), Plan the
+// checklist glyph (personal preparation) — existing icons, no new set.
 const TAB_ICONS: Record<TabId, (p: { className?: string }) => JSX.Element> = {
   today: IconToday,
   map: IconMap,
-  stages: IconStages,
-  huts: IconHuts,
-  checklist: IconLists,
+  guide: IconJournal,
+  plan: IconLists,
   settings: IconSettings,
 };
 

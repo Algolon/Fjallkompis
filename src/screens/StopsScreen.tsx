@@ -35,7 +35,7 @@ import { tripStayTypeTitle } from '../trip/tripModel.mjs';
 import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
 import type { CuratedOffRoutePlace, StopTransportLink } from '../trail/activeTrailContent';
 import type { RouteDirection, ShopCategory, TrailStop } from '../types';
-import type { TabId } from '../components/TabBar';
+import type { NavTarget } from '../components/TabBar';
 import type { NavPayload } from './TodayScreen';
 
 /** The Track/View/N-stays chip label for a place with `count` linked stays. */
@@ -533,7 +533,7 @@ export function StopsScreen({
 }: {
   /** One-shot: open (and scroll to) this route stop or off-route place. */
   initialPlaceId?: string | null;
-  onNavigate: (tab: TabId, payload?: NavPayload) => void;
+  onNavigate: (tab: NavTarget, payload?: NavPayload) => void;
 }) {
   // Stops in the ACTIVE itinerary's walking order, with route-km measured from
   // the selected start (facilities/notes stay tied to the STABLE stop id).

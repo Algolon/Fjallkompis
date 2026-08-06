@@ -38,11 +38,11 @@ import type { PlannedDay } from '../plan/plannedDays.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
 import type { DayActivityKind, RouteDirection, TripItem } from '../types';
 import type { NavPayload } from '../screens/TodayScreen';
-import type { TabId } from './TabBar';
+import type { NavTarget } from './TabBar';
 import type { TodaySource } from '../plan/effectiveToday.mjs';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
-type Navigate = (t: TabId, payload?: NavPayload) => void;
+type Navigate = (t: NavTarget, payload?: NavPayload) => void;
 
 /**
  * "Sat 5 Sep" — the compact hero date, formatted from the PLAN's stored date.

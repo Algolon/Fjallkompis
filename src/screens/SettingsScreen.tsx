@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
+  Copy,
 } from 'lucide-react';
 import { useStore } from '../store/AppStore';
 import { ROUTE_DIRECTIONS } from '../route/direction.mjs';
@@ -22,12 +23,11 @@ import {
   formatBytes,
 } from '../components/OfflineMapCard';
 import { CreditsSheet } from '../components/CreditsSheet';
-import { DayPlanCard } from '../components/DayPlanCard';
-import type { TabId } from '../components/TabBar';
 import { InstallCard, installStatusText } from '../components/InstallCard';
 import { useTrailReadiness } from '../hooks/useTrailReadiness';
-import { TRAIL_CAVEATS } from '../trail/activeTrailContent';
-import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
+import { TRAIL_CAVEATS, trailDossierView } from '../trail/activeTrailContent';
+import { SCHEMA_VERSION } from '../utils/stateMigration.mjs';
+import { buildDiagnosticSummary } from '../utils/diagnosticSummary.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 type SettingsSection = 'install' | 'maps' | 'backup' | 'sources';
@@ -306,34 +306,24 @@ function RouteDirectionCard() {
 
 export function SettingsScreen({
   initialSection = null,
-  onNavigate,
 }: {
   /** One-shot deep link (e.g. Today Prepare's readiness card): open this
    *  section on arrival. Plain tab navigation keeps everything collapsed. */
   initialSection?: SettingsDeepLinkSection | null;
-  /** The app's tab navigator — used by exactly one control: the Day plan's
-   *  "Preview", which opens the previewed planned day on Today. */
-  onNavigate?: (tab: TabId) => void;
 }) {
-  const { state, replaceState, resetAll, routeDirection, dayPlan, plannedDays } =
-    useStore();
+  const { state, replaceState, resetAll, routeDirection } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  // The collapsed summary states the plan without expanding it. With no plan
-  // it invites one — it never implies a plan exists.
-  const dayPlanSummary = dayPlan
-    ? `${plannedDays.length} ${plannedDays.length === 1 ? 'day' : 'days'} from ${
-        formatDateFieldLabel(dayPlan.startDate) ?? dayPlan.startDate
-      }`
-    : 'Not set up — plan your journey day by day';
+  // Shared aggregate (same hook the Trail readiness card reads) — reused by
+  // the diagnostic summary so both surfaces report identical asset states.
+  const readiness = useTrailReadiness();
   // Every Settings section starts collapsed for a consistent, scannable list
   // (Route direction is still first; its collapsed summary shows the current
   // choice). Route direction and Trail readiness each own an independent
   // boolean; the grouped foldouts below share a single-open group — same
   // shared SettingsAccordion behaviour, no section is open on load unless a
-  // one-shot deep link asked for it.
+  // one-shot deep link asked for it. (The Day plan moved to Plan — vNext.)
   const [directionOpen, setDirectionOpen] = useState(false);
-  const [dayPlanOpen, setDayPlanOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(initialSection === 'readiness');
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -386,6 +376,54 @@ export function SettingsScreen({
     setOpenSection((current) => (current === id ? null : id));
   };
 
+  // "Copy diagnostic summary" — pilot helper. Only whitelisted TECHNICAL
+  // facts reach the builder (see diagnosticSummary.mjs): versions, schema,
+  // platform, direction and offline asset states. Never notes, trip data,
+  // documents or anything personal.
+  const assetStatus = (asset: {
+    downloaded: boolean;
+    sizeBytes: number | null;
+    checking: boolean;
+  }) =>
+    asset.checking
+      ? 'checking'
+      : asset.downloaded
+        ? `stored (${formatBytes(asset.sizeBytes ?? 0)})`
+        : 'not stored';
+
+  const doCopyDiagnostics = async () => {
+    const dossier = trailDossierView();
+    const summary = buildDiagnosticSummary({
+      appVersion: APP_VERSION,
+      content: `${dossier.contentVersion} (${dossier.name})`,
+      schemaVersion: SCHEMA_VERSION,
+      routeDirection: directionLabel(routeDirection),
+      platform: navigator.userAgent,
+      displayMode: window.matchMedia?.('(display-mode: standalone)').matches
+        ? 'standalone'
+        : 'browser',
+      serviceWorker: readiness.swControlled ? 'active' : 'not controlling',
+      storage: readiness.storageOk ? 'available' : 'unavailable',
+      offlineBasemap: readiness.basemap.needsRepair
+        ? 'needs repair'
+        : assetStatus(readiness.basemap),
+      terrain: assetStatus(readiness.terrain),
+      satellite: assetStatus(readiness.satellite),
+    });
+    try {
+      await navigator.clipboard.writeText(summary);
+      setNotice({
+        kind: 'ok',
+        text: 'Diagnostic summary copied — paste it into your report.',
+      });
+    } catch {
+      setNotice({
+        kind: 'err',
+        text: 'Could not copy automatically. Long-press to copy the app version below instead.',
+      });
+    }
+  };
+
   return (
     <div className="screen screen--settings">
       <ScreenHeader eyebrow="Trail readiness" title="Settings">
@@ -421,19 +459,6 @@ export function SettingsScreen({
         onToggle={() => setDirectionOpen((current) => !current)}
       >
         <RouteDirectionCard />
-      </SettingsAccordion>
-
-      {/* Day plan — directly after Route direction, because a plan describes a
-          journey in ONE walking direction and changing direction removes it.
-          Same accordion system; the summary shows the plan without expanding. */}
-      <SettingsAccordion
-        id="day-plan"
-        title="Day plan"
-        summary={dayPlanSummary}
-        open={dayPlanOpen}
-        onToggle={() => setDayPlanOpen((current) => !current)}
-      >
-        <DayPlanCard onNavigate={onNavigate} />
       </SettingsAccordion>
 
       <TrailReadinessCard
@@ -549,6 +574,16 @@ export function SettingsScreen({
       </div>
 
       <CreditsSheet open={creditsOpen} onClose={() => setCreditsOpen(false)} />
+
+      {/* Pilot feedback helper: one tap copies the technical facts a report
+          needs (versions, platform, offline asset states) — nothing personal. */}
+      <button
+        className="btn btn-ghost btn-block"
+        style={{ marginTop: 14 }}
+        onClick={() => void doCopyDiagnostics()}
+      >
+        <Copy size={15} strokeWidth={1.8} aria-hidden /> Copy diagnostic summary
+      </button>
 
       <p className="app-version">Fjällkompis · prototype · v{APP_VERSION}</p>
     </div>

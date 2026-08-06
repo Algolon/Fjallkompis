@@ -327,6 +327,68 @@ h3 {
   line-height: 1.45;
 }
 
+/* --- vNext Guide/Plan shell ----------------------------------------------- */
+
+/* Slim sub-navigation row above an embedded Guide/Plan section screen
+   (SectionShell). The row absorbs the top safe-area inset; the wrapped
+   .screen's own top padding is compensated below so the two never stack. */
+.subnav {
+  padding: calc(var(--safe-top) + 10px) 16px 0;
+}
+.subnav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px 6px 4px;
+  margin-left: -4px;
+  min-height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--glacier-700);
+  font-size: 14px;
+  font-weight: 600;
+}
+.subnav-back:active {
+  background: var(--paper-2);
+}
+.section-shell .screen {
+  padding-top: 12px;
+}
+
+/* Guide/Plan home index — one tappable card per section. The list is a
+   .stack (the stack's gap owns the rhythm); only row layout and type live
+   here, on the shared .card surface. */
+.index-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.index-row__main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.index-row__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.index-row__sub {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.index-row__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+.index-row:active {
+  background: var(--paper-bright);
+}
+
 /* --- Cards --------------------------------------------------------------- */
 
 .card {
@@ -5027,6 +5089,13 @@ span.trip-attach-open {
     max-width: 680px;
     margin-inline: auto;
     padding: calc(var(--safe-top) + 20px) 24px 24px;
+  }
+  /* The Guide/Plan section subnav aligns with that centred column. */
+  .subnav {
+    width: 100%;
+    max-width: 680px;
+    margin-inline: auto;
+    padding: calc(var(--safe-top) + 16px) 24px 0;
   }
   /* The Map keeps its full-bleed workspace beside the rail: no centred
      column, no page gutters — the map is the content. */
