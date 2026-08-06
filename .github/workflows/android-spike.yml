@@ -1,0 +1,130 @@
+name: Android spike APK
+
+# Builds the Capacitor Android wrapper and publishes a DEBUG APK as a
+# workflow artifact, so the wrapper can be installed on a physical phone
+# without anyone needing Android Studio.
+#
+# THIS WORKFLOW NEVER TOUCHES PRODUCTION. It has no `pages` permission, no
+# `id-token`, and no deployment step; it cannot publish to GitHub Pages and it
+# cannot publish to Google Play. The only credential involved is the standard
+# Android debug keystore, which Gradle generates on the runner and which is
+# worthless outside a developer install — no release signing material is
+# referenced, stored or required.
+#
+# It is also deliberately NOT wired into every pull request: unrelated PRs
+# should not pay for a Gradle build. It runs on pushes to the spike branch
+# (which includes every update to the spike PR) and on demand.
+
+on:
+  push:
+    branches: [agent/android-capacitor-spike]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A group of its own. Sharing the Pages group would let an APK build cancel
+  # a production deployment, or be cancelled by one.
+  group: android-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Test, build and assemble debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Same Node major as pr-ci.yml and deploy.yml — the wrapper must be
+          # built by the toolchain the rest of the project is validated on.
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - run: npm ci
+
+      # ---- Regression gates: the shared application must still be sound -----
+      #
+      # These are the same three checks pr-ci.yml runs, in the same order, and
+      # they run BEFORE anything Android-specific. If the wrapper has broken
+      # the web app, this job fails here rather than shipping a green APK
+      # built from a broken tree.
+      - name: Test suite
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Web build (GitHub Pages target — regression gate only, never deployed)
+        run: npm run build
+
+      # ---- The native target ------------------------------------------------
+      #
+      # This overwrites dist/ with the WebView build (relative base, no service
+      # worker). verify-native-build.mjs then proves that on the real output —
+      # it is what stops a stale Pages build being packaged into the APK.
+      - name: Native build
+        run: npm run build:native
+
+      - name: Verify the native web bundle
+        run: npm run verify:native
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Ensure the compile SDK and build tools are installed
+        # The runner image ships the Android SDK with its licences already
+        # accepted, so this is a no-op when the packages are present and a
+        # non-interactive install when they are not.
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Gradle assembleDebug
+        # Debug signing config only — Gradle uses the standard auto-generated
+        # ~/.android/debug.keystore. No secrets are read and none are needed.
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Name the APK and record its size
+        id: apk
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          src=android/app/build/outputs/apk/debug/app-debug.apk
+          out="fjallkompis-${version}-android-spike-debug.apk"
+          mkdir -p artifact
+          cp "$src" "artifact/${out}"
+          size="$(du -h "artifact/${out}" | cut -f1)"
+          echo "name=${out}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Android spike APK"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| File | \`${out}\` |"
+            echo "| Size | ${size} |"
+            echo "| Application id | \`com.algolon.fjallkompis\` (provisional) |"
+            echo "| Signing | debug keystore — **not** for distribution |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          # Referenced by name in the spike PR description and the final
+          # report; do not rename without updating both.
+          name: fjallkompis-android-spike-debug
+          # Only the APK. No mapping files, no intermediates, no web build.
+          path: artifact/*.apk
+          if-no-files-found: error
+          retention-days: 30
