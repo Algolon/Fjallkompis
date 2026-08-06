@@ -20,6 +20,18 @@ html {
   background-color: var(--tabbar-surface-opaque);
 }
 
+/* The Guide/Plan contour layers intentionally sit at z-index:-1 so they remain
+   behind all screen content. Once the root document canvas became opaque,
+   Chromium could composite those fixed negative-z descendants behind `html`
+   after their first frame, making the contours appear briefly and then vanish.
+   Give the app its own stacking context: negative-z decorative layers now stay
+   behind app content but above the document canvas. `isolation` changes no
+   geometry, positioning or pointer behaviour and also covers a shell-level
+   backdrop used by the in-progress section-theme pass. */
+.app {
+  isolation: isolate;
+}
+
 /* Today has its own circular state shape. The generic tab press rule paints
    the old rounded rectangle around icon + label for one frame; explicitly
    suppress that container feedback for Today in both inactive and active

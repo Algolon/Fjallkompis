@@ -5,8 +5,9 @@
  * The browser document canvas and compact tab bar share their light surface,
  * while installed-PWA brand chrome stays spruce; the standalone Android
  * system navigation bar remains OS-owned rather than represented as a second
- * web-manifest colour. The remaining tests pin the Today press-state, Packing
- * warning placement and Pack/Worn cues.
+ * web-manifest colour. The app's stacking context keeps negative-z contour
+ * backdrops above that opaque document canvas. The remaining tests pin the
+ * Today press-state, Packing warning placement and Pack/Worn cues.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,6 +38,10 @@ test('the browser canvas matches the tab bar while installed-PWA chrome stays sp
   assert.match(vite, /theme_color:\s*'#2f4a3d'/);
   assert.doesNotMatch(html, /name="theme-color" content="#d4ded1"/);
   assert.doesNotMatch(vite, /theme_color:\s*'#d4ded1'/);
+});
+
+test('the opaque browser canvas cannot cover negative-z contour backdrops', () => {
+  assert.match(css, /\.app\s*\{[\s\S]*?isolation:\s*isolate;?[\s\S]*?\}/);
 });
 
 test('Today never flashes the retired rectangular pressed container', () => {
