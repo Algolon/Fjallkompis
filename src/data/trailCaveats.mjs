@@ -107,6 +107,9 @@ export const TRAIL_CAVEATS = Object.freeze({
       'before you leave, and plan so that a phone call, a Swish or card payment, or ' +
       'a live planner link is never the only way to reach, pay or check something.',
     guideSourceIds: Object.freeze([]),
-    tripInfoSourceNames: Object.freeze(['Boats along the route']),
+    tripInfoSourceNames: Object.freeze([
+      'Alesjaure–Abiskojaure boat',
+      'Láddjujávri boat',
+    ]),
   }),
 });
