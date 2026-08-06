@@ -33,7 +33,8 @@ import {
   PlanScreen,
   PlanDayScreen,
   PlanPackingScreen,
-  PlanTripScreen,
+  PlanTravelScreen,
+  PlanWalletScreen,
 } from './screens/PlanScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PwaLifecycle } from './components/PwaLifecycle';
@@ -132,16 +133,22 @@ function Screens({
               <PlanDayScreen onNavigate={navigate} />
             </SectionShell>
           );
-        case 'trip':
-          return (
-            <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
-              <PlanTripScreen deepLink={nav.payload?.lists} onNavigate={navigate} />
-            </SectionShell>
-          );
         case 'packing':
           return (
             <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
               <PlanPackingScreen />
+            </SectionShell>
+          );
+        case 'travel':
+          return (
+            <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
+              <PlanTravelScreen deepLink={nav.payload?.lists} onNavigate={navigate} />
+            </SectionShell>
+          );
+        case 'wallet':
+          return (
+            <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
+              <PlanWalletScreen />
             </SectionShell>
           );
         default:

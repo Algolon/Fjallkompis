@@ -1,35 +1,65 @@
-import { useState } from 'react';
-import { BookOpen, ChevronRight } from 'lucide-react';
+import { type CSSProperties } from 'react';
+import { BookOpen, BusFront, Signpost, ShoppingBasket } from 'lucide-react';
 import { ScreenHeader } from '../components/ui';
+import { IconHuts } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
 import { TransportView, TransportHelp } from '../components/TransportView';
-import { CreditsSheet } from '../components/CreditsSheet';
-import {
-  ACTIVE_TRAIL_CONTENT,
-  trailDossierView,
-} from '../trail/activeTrailContent';
+import { trailDossierView } from '../trail/activeTrailContent';
 import type { GuideSection, NavTarget } from '../components/TabBar';
 import type { NavPayload } from './TodayScreen';
 import type { ShopCategory, TransportContext } from '../types';
 
 /**
- * Guide — the read-only trail dossier's home: an index into the curated
- * route content (stages, places, highlights, resupply, transport, sources),
- * every fact behind it served by ACTIVE_TRAIL_CONTENT.
+ * Guide — the read-only trail dossier's home: a 2×2 grid of the four
+ * dossier categories, every fact behind them served by ACTIVE_TRAIL_CONTENT.
  *
  * Read-only by design: browsing the dossier never writes personal state.
  * The personal actions that live INSIDE its sections (Add to trip, stop
  * notes, Set as current stage) belong to those screens, exactly as before
- * vNext; the dossier itself only tells you about the trail.
+ * vNext; the dossier itself only tells you about the trail. Sources &
+ * credits live in Settings — the dossier home stays a four-tile index.
  */
 
-/** One index row: a Guide section (or the Sources sheet) and why to open it. */
-interface GuideIndexRow {
-  id: string;
-  section: GuideSection | null; // null → the Sources & credits sheet
+/**
+ * Decorative topographic background — a real contour crop near the trail,
+ * extracted from the app's own contour archive (see
+ * public/images/guide/README.md for provenance) and themed blue in CSS.
+ */
+const GUIDE_BG_SRC = `${import.meta.env.BASE_URL}images/guide/contours.svg`;
+
+interface GuideTile {
+  section: GuideSection;
   title: string;
   sub: string;
+  icon: JSX.Element;
 }
+
+const TILES: GuideTile[] = [
+  {
+    section: 'stages',
+    title: 'Stages & highlights',
+    sub: 'Day guides, terrain, viewpoints and side trips',
+    icon: <Signpost size={22} strokeWidth={1.9} aria-hidden />,
+  },
+  {
+    section: 'stops',
+    title: 'Stops & places',
+    sub: 'Huts, facilities and places near the route',
+    icon: <IconHuts />,
+  },
+  {
+    section: 'shops',
+    title: 'Shops & supplies',
+    sub: 'Food, fuel and resupply along the trail',
+    icon: <ShoppingBasket size={22} strokeWidth={1.9} aria-hidden />,
+  },
+  {
+    section: 'transport',
+    title: 'Transport',
+    sub: 'Buses, boats and trains to and from the trail',
+    icon: <BusFront size={22} strokeWidth={1.9} aria-hidden />,
+  },
+];
 
 export function GuideScreen({
   onOpenSection,
@@ -37,78 +67,36 @@ export function GuideScreen({
   onOpenSection: (section: GuideSection) => void;
 }) {
   const dossier = trailDossierView();
-  const [creditsOpen, setCreditsOpen] = useState(false);
-
-  const stageCount = ACTIVE_TRAIL_CONTENT.route.stages.length;
-  const stopCount = ACTIVE_TRAIL_CONTENT.places.stops.length;
-  const placeCount = ACTIVE_TRAIL_CONTENT.places.offRoute.length;
-
-  const rows: GuideIndexRow[] = [
-    {
-      id: 'stages',
-      section: 'stages',
-      title: 'Stages',
-      sub: `${stageCount} stages with distances, terrain and day guides`,
-    },
-    {
-      id: 'stops',
-      section: 'stops',
-      title: 'Stops & places',
-      sub: `${stopCount} route stops and ${placeCount} ${placeCount === 1 ? 'place' : 'places'} nearby — facilities, shops, transport links`,
-    },
-    {
-      id: 'highlights',
-      section: 'stages',
-      title: 'Highlights & detours',
-      sub: 'Inside each stage: viewpoints, side trips and expeditions',
-    },
-    {
-      id: 'shops',
-      section: 'shops',
-      title: 'Shops & resupply',
-      sub: 'What the cabin shops normally carry, and where to restock',
-    },
-    {
-      id: 'transport',
-      section: 'transport',
-      title: 'Transport',
-      sub: 'Buses, boats and the train to and from the trail',
-    },
-    {
-      id: 'sources',
-      section: null,
-      title: 'Sources & credits',
-      sub: 'Where this dossier’s facts come from',
-    },
-  ];
 
   return (
-    <div className="screen screen--guide">
+    <div className="screen screen--guide guide-screen">
+      <div
+        className="screen-bg screen-bg--guide"
+        aria-hidden
+        style={{ '--screen-bg-image': `url("${GUIDE_BG_SRC}")` } as CSSProperties}
+      />
+
       <ScreenHeader eyebrow="Trail dossier" title="Guide">
-        {dossier.name} — the trail itself, for reading: route, places,
-        supplies and transport. Your own plans live under Plan.
+        Trail information for preparing and hiking the {dossier.name} — stages,
+        places, supplies and transport.
       </ScreenHeader>
 
-      <nav className="stack" aria-label="Guide sections">
-        {rows.map((row) => (
+      <nav className="guide-grid" aria-label="Guide sections">
+        {TILES.map((tile) => (
           <button
-            key={row.id}
+            key={tile.section}
             type="button"
-            className="card index-row"
-            onClick={() =>
-              row.section ? onOpenSection(row.section) : setCreditsOpen(true)
-            }
+            className="card today-glass today-glass--light guide-tile"
+            onClick={() => onOpenSection(tile.section)}
           >
-            <span className="index-row__main">
-              <span className="index-row__title">{row.title}</span>
-              <span className="index-row__sub">{row.sub}</span>
+            <span className="guide-tile__icon" aria-hidden>
+              {tile.icon}
             </span>
-            <ChevronRight className="index-row__chevron" size={20} aria-hidden />
+            <span className="guide-tile__title">{tile.title}</span>
+            <span className="guide-tile__sub">{tile.sub}</span>
           </button>
         ))}
       </nav>
-
-      <CreditsSheet open={creditsOpen} onClose={() => setCreditsOpen(false)} />
 
       {/* An edition marker, not a freshness claim — a whole-dossier review
           date deliberately does not exist (see trailMetadata.mjs HONESTY
@@ -122,7 +110,7 @@ export function GuideScreen({
 }
 
 /**
- * Guide → Shops & resupply: the reference view that lived in Lists, now a
+ * Guide → Shops & supplies: the reference view that lived in Lists, now a
  * dossier section. The copy and the ShopInfoView are unchanged.
  */
 export function GuideShopsScreen({
@@ -132,7 +120,7 @@ export function GuideShopsScreen({
 }) {
   return (
     <div className="screen screen--guide-section">
-      <ScreenHeader eyebrow="Trail dossier" title="Shops & resupply" action={<ShopInfoHelp />}>
+      <ScreenHeader eyebrow="Trail dossier" title="Shops & supplies" action={<ShopInfoHelp />}>
         Compare the shop types relevant to this route and see what STF Large
         and Small cabin shops normally carry. Assortments and prices are
         planning references, not live stock.
@@ -144,8 +132,8 @@ export function GuideShopsScreen({
 
 /**
  * Guide → Transport: the reference view that lived in Lists. Its two
- * personal actions cross into Plan → Trip with the same one-shot launch
- * payloads the Lists screen used to hand over internally.
+ * personal actions cross into Plan → Travel & stays with the same one-shot
+ * launch payloads the Lists screen used to hand over internally.
  */
 export function GuideTransportScreen({
   initialEntryId,
