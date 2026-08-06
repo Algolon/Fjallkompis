@@ -323,9 +323,11 @@ function AppShell() {
 
   // Section colour identity (section-themes.css): Guide is glacier, Plan is
   // cloudberry/copper. ONE class on the shell drives every semantic token —
-  // the tab bar's active state, the SectionShell subnav, the home screen and
-  // all subroutes inherit it; no component checks the pathname. Today, Map
-  // and Settings run unthemed (Today's spruce is the neutral default).
+  // the SectionShell subnav, the home screen and all subroutes inherit it;
+  // no component checks the pathname. The bottom navigation is deliberately
+  // NOT themed: all ordinary tabs share one neutral active treatment, and
+  // Today's spruce centre disc stays the only differentiated item. Today,
+  // Map and Settings run unthemed (spruce is the neutral default).
   const sectionTheme: SectionThemeId | null =
     nav.tab === 'guide' || nav.tab === 'plan' ? nav.tab : null;
 
