@@ -8,10 +8,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
     />
-    <!-- Match installed-PWA system chrome to the opaque counterpart of the
-         compact bottom tab bar. Android may apply this to surrounding UI
-         such as the status/navigation area; the OS remains final authority. -->
-    <meta name="theme-color" content="#d4ded1" />
+    <!-- Keep the installed-PWA status bar in Fjällkompis spruce. The Web App
+         Manifest exposes one theme colour, not an independent Android
+         navigation-bar colour; the bottom system bar therefore remains OS
+         controlled instead of sacrificing the established top brand chrome. -->
+    <meta name="theme-color" content="#2f4a3d" />
     <!-- The app is light-only by design. Declaring that tells browsers to
          render UA-owned surfaces (form controls and, on Android, the native
          date/time picker dialogs) in their light theme so they sit closer to
