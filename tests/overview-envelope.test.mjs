@@ -585,3 +585,20 @@ test('a Satellite overview is solved against SATELLITE coverage', () => {
     assert.equal(sat.routeComplete, true, `${W}x${H}: complete route in Satellite mode`);
   }
 });
+
+test('REGRESSION: the overview path widens maxBounds unconditionally', () => {
+  // Returning from stage mode the camera is zoomed IN, so the STRICT
+  // interaction bounds are active. Widening only "if currently expanded" left
+  // them in place, and MapLibre clamped the overview target against them —
+  // measured at 1512×860: centre snapped to the bounds centre 18.6286 and
+  // zoom to 9.4693 instead of the solved 18.4759 / 8.6286.
+  const start = mapViewSrc.indexOf('const applyOverviewCamera = (jump = false)');
+  const body = mapViewSrc.slice(start, mapViewSrc.indexOf('applyOverviewCameraRef.current =', start));
+  assert.ok(
+    !/if \(boundsExpandedRef\.current[^)]*\)\s*\{?\s*\n?\s*m\.setMaxBounds/.test(body),
+    'the widening must not be conditional on the CURRENT expansion state',
+  );
+  assert.match(body, /const next = constraintsRef\.current\.overviewBounds\s*\n?\s*\?\?\s*constraintsRef\.current\.interactionBounds;/);
+  assert.match(body, /boundsExpandedRef\.current = constraintsRef\.current\.overviewBounds != null;/);
+  assert.match(body, /m\.setMaxBounds\(next as maplibregl\.LngLatBoundsLike\);/);
+});

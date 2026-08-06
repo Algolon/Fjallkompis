@@ -557,11 +557,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         if (!m) return null;
         const solved = computeOverviewCamera();
         constraintsRef.current = computeConstraints();
-        if (boundsExpandedRef.current && constraintsRef.current.overviewBounds) {
-          m.setMaxBounds(
-            constraintsRef.current.overviewBounds as maplibregl.LngLatBoundsLike,
-          );
-        }
+        // ALWAYS widen first — this call IS the move to the overview, so the
+        // overview bounds are the right ones regardless of where the camera
+        // happens to be now. Coming back from stage mode the camera is zoomed
+        // IN, so the strict interaction bounds are active; leaving them in
+        // place made MapLibre clamp the target and land on the wrong camera
+        // (measured: centre snapped to the bounds centre and zoom to 9.47
+        // instead of 8.63 at 1512×860).
+        const next = constraintsRef.current.overviewBounds
+          ?? constraintsRef.current.interactionBounds;
+        boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
+        m.setMaxBounds(next as maplibregl.LngLatBoundsLike);
         const camera = {
           center: [solved.camera.lng, solved.camera.lat] as [number, number],
           zoom: solved.camera.zoom,

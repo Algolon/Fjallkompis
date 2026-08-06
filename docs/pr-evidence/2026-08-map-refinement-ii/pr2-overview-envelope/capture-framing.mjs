@@ -39,6 +39,8 @@ const LABEL = process.env.LABEL ?? 'run';
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const SHOTS = process.env.SHOTS !== '0';
 const DPR = Number(process.env.DPR ?? 2);
+/** 'terrain' | 'satellite' — which imagery the evidence is captured in. */
+const MODE = process.env.MODE ?? 'terrain';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const ROUTE = JSON.parse(readFileSync(join(repoRoot, 'src/generated/kungsleden-route.json'), 'utf8'));
@@ -191,7 +193,18 @@ for (const vp of VIEWPORTS) {
   const later = page.getByRole('button', { name: 'Later' });
   if (await later.count()) await later.first().click().catch(() => {});
   await page.waitForFunction(() => !!window.__fjallkompisMap, null, { timeout: 30_000 });
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(3000);
+
+  if (MODE === 'satellite') {
+    // Switch imagery, then take an EXPLICIT Fit route: the selected mode is
+    // authoritative from the next full-route action, never from the toggle.
+    const sat = page.getByRole('button', { name: /Satellite/i });
+    if (await sat.count()) await sat.first().click().catch(() => {});
+    await page.waitForTimeout(1500);
+    const fit = page.getByRole('button', { name: 'Fit route' });
+    if (await fit.count()) await fit.first().click();
+  }
+  await page.waitForTimeout(4000);
 
   const moves1 = await page.evaluate(() => window.__fjallkompisCameraMoves);
   await page.waitForTimeout(2000);
@@ -231,10 +244,11 @@ for (const vp of VIEWPORTS) {
   };
   // Unshaded pixels: how far the visible viewport overhangs the renderable
   // hillshade envelope, in CSS px. MUST be zero in Terrain mode.
-  const cov = coverageForMode('terrain', ROUTE.mapCutoutBounds);
+  const cov = coverageForMode(MODE, ROUTE.mapCutoutBounds);
   const mPerPx = (mercX(m.visibleExtent[1][0]) - mercX(m.visibleExtent[0][0])) / m.mapW;
-  m.hillshadeEnvelope = [[cov.west, cov.south], [cov.east, cov.north]];
-  m.unshadedPx = {
+  m.imageryMode = MODE;
+  m.rasterEnvelope = [[cov.west, cov.south], [cov.east, cov.north]];
+  m.uncoveredPx = {
     west: Math.max(0, +((mercX(cov.west) - mercX(m.visibleExtent[0][0])) / mPerPx).toFixed(1)),
     east: Math.max(0, +((mercX(m.visibleExtent[1][0]) - mercX(cov.east)) / mPerPx).toFixed(1)),
   };

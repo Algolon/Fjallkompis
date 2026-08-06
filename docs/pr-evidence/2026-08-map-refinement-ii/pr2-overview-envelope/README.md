@@ -135,32 +135,71 @@ compatible with continuous hillshade:
 The model reports `routeComplete: false` and lists `endpointsOutside`, so an
 ultrawide overview is never described as a complete route fit.
 
-## Before → after
+## Before → after — Terrain mode
 
-Fresh mount per viewport, DPR 2, Terrain mode, dev server on the merged
-archives. `unshaded` is how far the visible viewport overhangs the renderable
-hillshade envelope — **it must be zero**.
+Fresh mount per viewport, DPR 2. `uncovered` is how far the visible viewport
+overhangs the active mode's renderable raster envelope — **it must be zero**.
 
-| viewport | container | before T/B | after T/B | camera moved W | route-box dev.x | **unshaded** | blank | zoom / src | endLbl | moves | err |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 320x568 | 320×512 | 83.2 / 29.2 | **83.2 / 29.2** | 0 px | +0 | **0 px** | 0 px | 7.667 / z7 | 16.7 | 1 | 0 |
-| 360x800 | 360×744 | 125.4 / 121.6 | **163.6 / 109.6** | 0 px | +0 | **0 px** | 0 px | 7.9041 / z7 | 16.7 | 1 | 0 |
-| 375x667 | 375×611 | 83.7 / 29.7 | **83.7 / 29.7** | 0 px | +0 | **0 px** | 0 px | 7.9838 / z7 | 16.7 | 1 | 0 |
-| 390x844 | 390×788 | 132.8 / 128.8 | **158.8 / 104.8** | 0 px | +0 | **0 px** | 0 px | 8.0594 / z8 | 16.7 | 1 | 0 |
-| 412x915 | 412×859 | 144.7 / 140.4 | **174.7 / 120.7** | 0 px | +0 | **0 px** | 0 px | 8.1635 / z8 | 16.7 | 1 | 0 |
-| 430x932 | 430×876 | 141.8 / 138.5 | **167.1 / 113.1** | 0 px | +0 | **0 px** | 0 px | 8.2434 / z8 | 16.7 | 1 | 0 |
-| 760x500 | 676×500 | 65.1 / 10.8 | **66 / 12** | 14.7 px | +14.7 | **0 px** | 0 px | 7.746 / z7 | 31.2 | 1 | 0 |
-| 768x1024 | 684×1024 | 66 / 12 | **66 / 12** | 0 px | +0 | **0 px** | 0 px | 8.9106 / z8 | 31.4 | 1 | 0 |
-| 1024x768 | 940×768 | 70 / 12 | **70 / 12** | 0 px | +0 | **0 px** | 0 px | 8.447 / z8 | 35.3 | 1 | 0 |
-| 1280x800 | 1132×800 | 70 / 12 | **70 / 12** | 15.9 px | +15.9 | **0 px** | 0 px | 8.5128 / z8 | 35.3 | 1 | 0 |
-| 1366x768 | 1218×768 | 53.2 / -7.9 | **70 / 12** | 83.5 px | +83.5 | **0 px** | 0 px | 8.447 / z8 | 35.3 | 1 | 0 |
-| 1440x900 | 1292×900 | 70 / 12 | **70 / 12** | 19.3 px | +19.3 | **0 px** | 0 px | 8.7009 / z8 | 35.4 | 1 | 0 |
-| 1512x860 | 1364×860 | 52.9 / -7.9 | **70 / 12** | 86 px | +86 | **0 px** | 0 px | 8.6286 / z8 | 35.4 | 1 | 0 |
-| 1512x872 | 1364×872 | — | **70 / 12** | 76.8 px | +76.8 | **0 px** | 0 px | 8.6506 / z8 | 35.4 | 1 | 0 |
-| 1536x864 | 1388×864 | 50.7 / -10.4 | **70 / 12** | 94.9 px | +94.9 | **0 px** | 0 px | 8.636 / z8 | 35.4 | 1 | 0 |
-| 1920x1080 | 1772×1080 | 44.8 / -16.3 | **70 / 12** | 121.4 px | +121.4 | **0 px** | 0 px | 8.9878 / z8 | 35.5 | 1 | 0 |
-| 2560x1080 | 2412×1080 | -25.4 / -95.2 | **-23.7 / -81.7** | 297.9 px | +297.9 | **0 px** | 0 px | 9.236 / z9 | -58.1 | 1 | 0 |
-| 3440x1440 | 3292×1440 | -64.4 / -134.4 | **-59.9 / -117.9** | 406.6 px | +406.6 | **0 px** | 0 px | 9.6847 / z9 | -94.1 | 1 | 0 |
+| viewport | container | before T/B | after T/B | centre dev | **uncovered** | blank | zoom / src | endLbl | moves | err |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 320x568 | 320×512 | 83.2 / 29.2 | **83.2 / 29.2** | 0 px | **0 px** | 0 px | 7.667 / z7 | 16.7 | 1 | 0 |
+| 360x800 | 360×744 | 125.4 / 121.6 | **163.6 / 109.6** | 0 px | **0 px** | 0 px | 7.9041 / z7 | 16.7 | 1 | 0 |
+| 375x667 | 375×611 | 83.7 / 29.7 | **83.7 / 29.7** | 0 px | **0 px** | 0 px | 7.9838 / z7 | 16.7 | 1 | 0 |
+| 390x844 | 390×788 | 132.8 / 128.8 | **158.8 / 104.8** | 0 px | **0 px** | 0 px | 8.0594 / z8 | 16.7 | 1 | 0 |
+| 412x915 | 412×859 | 144.7 / 140.4 | **174.7 / 120.7** | 0 px | **0 px** | 0 px | 8.1635 / z8 | 16.7 | 1 | 0 |
+| 430x932 | 430×876 | 141.8 / 138.5 | **167.1 / 113.1** | 0 px | **0 px** | 0 px | 8.2434 / z8 | 16.7 | 1 | 0 |
+| 760x500 | 676×500 | 65.1 / 10.8 | **66 / 12** | 14.7 px | **0 px** | 0 px | 7.746 / z7 | 31.2 | 1 | 0 |
+| 768x1024 | 684×1024 | 66 / 12 | **66 / 12** | 0 px | **0 px** | 0 px | 8.9106 / z8 | 31.4 | 1 | 0 |
+| 1024x768 | 940×768 | 70 / 12 | **70 / 12** | 0 px | **0 px** | 0 px | 8.447 / z8 | 35.3 | 1 | 0 |
+| 1280x800 | 1132×800 | 70 / 12 | **70 / 12** | 15.9 px | **0 px** | 0 px | 8.5128 / z8 | 35.3 | 1 | 0 |
+| 1366x768 | 1218×768 | 53.2 / -7.9 | **70 / 12** | 83.5 px | **0 px** | 0 px | 8.447 / z8 | 35.3 | 1 | 0 |
+| 1440x900 | 1292×900 | 70 / 12 | **70 / 12** | 19.3 px | **0 px** | 0 px | 8.7009 / z8 | 35.4 | 1 | 0 |
+| 1512x860 | 1364×860 | 52.9 / -7.9 | **70 / 12** | 86 px | **0 px** | 0 px | 8.6286 / z8 | 35.4 | 1 | 0 |
+| 1512x872 | 1364×872 | — | **70 / 12** | 76.8 px | **0 px** | 0 px | 8.6506 / z8 | 35.4 | 1 | 0 |
+| 1536x864 | 1388×864 | 50.7 / -10.4 | **70 / 12** | 94.9 px | **0 px** | 0 px | 8.636 / z8 | 35.4 | 1 | 0 |
+| 1920x1080 | 1772×1080 | 44.8 / -16.3 | **70 / 12** | 121.4 px | **0 px** | 0 px | 8.9878 / z8 | 35.5 | 1 | 0 |
+| 2560x1080 | 2412×1080 | -25.4 / -95.2 | **-23.7 / -81.7** | 297.9 px | **0 px** | 0 px | 9.236 / z9 | -58.1 | 1 | 0 |
+| 3440x1440 | 3292×1440 | -64.4 / -134.4 | **-59.9 / -117.9** | 406.6 px | **0 px** | 0 px | 9.6847 / z9 | -94.1 | 1 | 0 |
+
+## One shared overview path
+
+Every full-route action goes through `applyOverviewCamera()` — initial camera,
+imperative `Fit route`, and the **stage → full-route return**. `fitBounds` has
+lost its `'overview'` mode entirely, so no bounds-fit can frame the whole route
+by accident; stages and focused content keep it unchanged.
+
+Measured (`stage-transition.json`, `capture-stage-transition.mjs`):
+
+| | 1512×860 | 1920×1080 |
+| --- | --- | --- |
+| mount camera | 18.475894, 68.121213 z8.6286 | 18.460457, 68.116981 z8.9878 |
+| after stage → full route | **identical** | **identical** |
+| after explicit Fit route | **identical** | **identical** |
+| camera moves for the return | **1** | **1** |
+| visible extent inside hillshade | ✅ | ✅ |
+| console errors | 0 | 0 |
+
+The return had to widen `maxBounds` **unconditionally**: coming back from stage
+mode the camera is zoomed in, so the strict interaction bounds are active, and
+widening only "if currently expanded" let MapLibre clamp the target — measured
+at 1512×860 as centre 18.6286 / zoom 9.4693 instead of 18.4759 / 8.6286. Fenced
+by a regression test.
+
+## Mode awareness — measured independently
+
+Coverage comes from the **selected imagery**, not from whichever archive
+resolved first (with both present, Satellite overviews used to solve as
+Terrain).
+
+| mode | viewports | uncovered px | notes |
+| --- | --- | --- | --- |
+| Terrain | all 18 | **0** | hillshade envelope 16.8750–19.6875 |
+| Satellite | 375×667, 1024×768, 1366×768, 1512×860, 1920×1080, 2560×1080 | **0** | identical framing; same footprint today, derived separately |
+| vector-only | unit-tested | n/a | wider envelope, sits closer to the route centre |
+
+Toggling imagery issues **no camera command** — the Satellite runs show 2 moves
+(initial mount + the explicit `Fit route` that follows the toggle), never a
+recentre on the toggle itself.
 
 ### Acceptance
 
