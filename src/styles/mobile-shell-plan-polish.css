@@ -1,0 +1,98 @@
+/* Mobile shell + Plan dashboard polish.
+   Kept separate from global.css so this focused pass is easy to review and
+   can be removed without disturbing the established vNext layout rules. */
+
+:root {
+  /* Opaque counterpart of the tab bar's rgba(212, 222, 209, .95). Native
+     Android system chrome cannot reproduce backdrop blur/transparency, so
+     the nearest exact solid colour is used by index.html + the manifest. */
+  --tabbar-surface-opaque: #d4ded1;
+}
+
+/* Today has its own circular state shape. The generic tab press rule paints
+   the old rounded rectangle around icon + label for one frame; explicitly
+   suppress that container feedback for Today in both inactive and active
+   states. Focus-visible remains on the disc. */
+.tab--center:active .tab-pill,
+.tab--center[aria-current='page']:active .tab-pill {
+  background: none;
+}
+
+/* Packing's warning belongs to the card header, opposite the section label,
+   rather than below the two dashboard columns. CSS grid reorders the existing
+   semantic DOM visually without changing its reading/accessibility order. */
+.plan-card--packing {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'label warning'
+    'content content';
+  column-gap: 10px;
+  row-gap: 10px;
+  align-items: start;
+}
+
+.plan-card--packing > .plan-card__label {
+  grid-area: label;
+}
+
+.plan-card--packing > .plan-packing__cols,
+.plan-card--packing > .plan-card__empty {
+  grid-area: content;
+}
+
+.plan-card--packing > .plan-card__warn {
+  grid-area: warning;
+  justify-self: end;
+  align-self: start;
+  margin: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+/* Weight rows get object cues without changing their truthful copy or
+   packingSummary semantics. Masks keep the icons the same currentColor as the
+   text and remain decorative; the card's aria-label already spells out Pack
+   and Worn weight. */
+.plan-packing__col:nth-child(2) .plan-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-packing__col:nth-child(2) .plan-count::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* Lucide-style backpack silhouette for carried pack weight. */
+.plan-packing__col:nth-child(2) .plan-count:nth-child(1)::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z'/%3E%3Cpath d='M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/%3E%3Cpath d='M8 14h8'/%3E%3Cpath d='M8 18h8'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z'/%3E%3Cpath d='M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/%3E%3Cpath d='M8 14h8'/%3E%3Cpath d='M8 18h8'/%3E%3C/svg%3E");
+}
+
+/* Lucide-style shirt silhouette for worn weight. */
+.plan-packing__col:nth-child(2) .plan-count:nth-child(2)::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20.38 3.46-4.38-1.46a4 4 0 0 1-8 0L3.62 3.46A2 2 0 0 0 2.25 5l-.7 3.5A1 1 0 0 0 2.54 9.7H5V22h14V9.7h2.46a1 1 0 0 0 .98-1.2l-.7-3.5a2 2 0 0 0-1.36-1.54Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20.38 3.46-4.38-1.46a4 4 0 0 1-8 0L3.62 3.46A2 2 0 0 0 2.25 5l-.7 3.5A1 1 0 0 0 2.54 9.7H5V22h14V9.7h2.46a1 1 0 0 0 .98-1.2l-.7-3.5a2 2 0 0 0-1.36-1.54Z'/%3E%3C/svg%3E");
+}
+
+@media (max-width: 340px) {
+  .plan-card--packing {
+    column-gap: 6px;
+  }
+
+  .plan-card--packing > .plan-card__warn {
+    padding-inline: 7px;
+    font-size: 10px;
+  }
+}
