@@ -123,8 +123,13 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
     sourceUrl:
       'https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM',
     licenseName: 'Copernicus DEM licence (free use with notice)',
+    // The old ESA licence host stopped responding entirely (checked
+    // 2026-08-06); this is the licence bundle linked from the official
+    // COP-DEM collection page above — it contains the "Licence for
+    // Copernicus DEM instance COP-DEM-GLO-30-F Global 30m Full, Free &
+    // Open", whose Article 6(b) mandates exactly the modifiedNotice below.
     licenseUrl:
-      'https://spacedata.copernicus.eu/documents/20123/121286/CSCDA_ESA_Mission-specific+Annex_31_Oct_22.pdf',
+      'https://dataspace.copernicus.eu/sites/default/files/media/files/2025-06/copernicus_contributing_mission_data_access_v2_cop_dem_licenses.pdf',
     modifiedNotice:
       'Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved',
   },
@@ -197,12 +202,23 @@ export const TRIP_INFO_SOURCES: TripInfoSource[] = [
       'https://www.iphone.fskab.se/ltn/Fjallinje91o94/260817_260920/Fjallinje91o94_91_260817_260920.pdf',
     kind: 'static',
   },
+  // The two optional boats are run by DIFFERENT operators; each credit
+  // covers only its own operator's service and links that operator's page —
+  // one URL can never vouch for the other operator's timetable.
   {
-    name: 'Boats along the route',
+    name: 'Alesjaure–Abiskojaure boat',
     detail:
-      'Alesjaure–Abiskojaure (summer) and Láddjujávri/Enoks (Kebnekaise–Nikkaluokta) seasonal boat timetables.',
-    provider: 'STF · Enoks',
+      'Seasonal summer boat across Alisjávri that can shorten the Abiskojaure–Alesjaure stage (STF timetable snapshot).',
+    provider: 'Svenska Turistföreningen (STF)',
     sourceUrl: 'https://www.swedishtouristassociation.com/guides/mountains/transport/boats/',
+    kind: 'static',
+  },
+  {
+    name: 'Láddjujávri boat',
+    detail:
+      'Seasonal boat across Láddjujávri on the Kebnekaise–Nikkaluokta stage (Enoks departure timetable snapshot).',
+    provider: 'Enoks (Sarriland AB)',
+    sourceUrl: 'https://www.enoks.se/en/boat-departures/',
     kind: 'static',
   },
   {

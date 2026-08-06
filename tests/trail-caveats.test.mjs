@@ -275,13 +275,19 @@ test('the navigation caveat rests on the trail sources already cited', () => {
   );
 });
 
-test('the connectivity caveat cites the registered STF boat source', () => {
+test('the connectivity caveat cites both registered boat sources', () => {
   const { tripInfoSourceNames } = TRAIL_CAVEATS.connectivity;
-  assert.deepEqual([...tripInfoSourceNames], ['Boats along the route']);
+  // One record per operator (PR-4): the STF boat and the Enoks boat are
+  // separate services with separate pages — a single shared credit could
+  // present one operator's URL as evidence for the other's timetable.
+  assert.deepEqual(
+    [...tripInfoSourceNames],
+    ['Alesjaure–Abiskojaure boat', 'Láddjujávri boat'],
+  );
 
   // TRIP_INFO_SOURCES lives in TypeScript (src/data/attribution.ts), so the
-  // reference is checked structurally: the record still exists, under that
-  // exact name, still pointing at the STF page that carries the warning.
+  // reference is checked structurally: each record still exists, under that
+  // exact name, still pointing at its own operator's page.
   const attribution = source('src/data/attribution.ts');
   for (const name of tripInfoSourceNames) {
     assert.ok(attribution.includes(`name: '${name}'`), `${name} is a registered trip-info source`);
@@ -290,7 +296,11 @@ test('the connectivity caveat cites the registered STF boat source', () => {
     attribution.includes(
       "sourceUrl: 'https://www.swedishtouristassociation.com/guides/mountains/transport/boats/'",
     ),
-    'and it keeps its link',
+    'the STF boat keeps the STF link',
+  );
+  assert.ok(
+    attribution.includes("sourceUrl: 'https://www.enoks.se/en/boat-departures/'"),
+    'the Enoks boat links the Enoks page',
   );
 });
 
