@@ -224,14 +224,14 @@ test('the map popup names the renamed destination', () => {
 
 test('Trip → Place: View place rides the one-shot payload out to Stops & places', () => {
   const app = read('src/App.tsx');
-  const lists = read('src/screens/ListsScreen.tsx');
+  const plan = read('src/screens/PlanScreen.tsx');
   const today = read('src/screens/TodayScreen.tsx');
   // The payload generalises stopId; existing Today/Map stop links unchanged.
   assert.match(today, /placeId\?: string/);
   assert.match(app, /nav\.payload\?\.placeId \?\? nav\.payload\?\.stopId \?\? null/);
   assert.match(app, /onOpenStop=\{\(stopId\) => navigate\('huts', \{ stopId \}\)\}/);
-  // Lists carries the stay editor's View place outward.
-  assert.match(lists, /onNavigate\('huts', \{ placeId \}\)/);
+  // Plan → Trip carries the stay editor's View place outward (vNext home).
+  assert.match(plan, /onNavigate\('huts', \{ placeId \}\)/);
   // The editor closes cleanly BEFORE the screen switch.
   assert.match(tripView, /setEditor\(null\);\s*\n\s*onViewPlace\(placeId\);/);
 });

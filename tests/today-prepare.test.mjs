@@ -294,7 +294,7 @@ test('every document screen uses the shared header (Today includes its eyebrow)'
   // whose surface is the map itself, so it carries a visually-hidden
   // heading instead of header chrome (see
   // tests/map-viewport-workspace.test.mjs).
-  for (const screen of ['TodayScreen', 'StagesScreen', 'StopsScreen', 'ListsScreen', 'SettingsScreen']) {
+  for (const screen of ['TodayScreen', 'StagesScreen', 'StopsScreen', 'GuideScreen', 'PlanScreen', 'SettingsScreen']) {
     const src = readFileSync(join(root, `src/screens/${screen}.tsx`), 'utf8');
     assert.ok(src.includes('<ScreenHeader'), `${screen} renders ScreenHeader`);
   }

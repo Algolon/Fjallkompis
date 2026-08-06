@@ -151,10 +151,17 @@ test('no empty section or dead styling remains after the removal', () => {
 
 // ---- Diagnostics removed (not hidden) --------------------------------------
 
-test('the "Copy safe diagnostics" control is absent', () => {
+test('the retired "Copy safe diagnostics" control stays absent as such', () => {
+  // The BETA-era control (and its prop plumbing) stays gone. The vNext
+  // mobile pilot later added a deliberately minimal "Copy diagnostic
+  // summary" — a different, whitelisted-fields helper guarded by
+  // tests/diagnostic-summary.test.mjs — whose clipboard write is the ONLY
+  // one Settings may make.
   assert.ok(!/Copy safe diagnostics/.test(settings));
   assert.ok(!/onCopyDiagnostics/.test(settings), 'no diagnostics-copy prop remains');
-  assert.ok(!/navigator\.clipboard/.test(settings), 'clipboard handler removed');
+  const clipboardUses = settings.match(/navigator\.clipboard/g) ?? [];
+  assert.equal(clipboardUses.length, 1, 'exactly the pilot summary copy');
+  assert.match(settings, /buildDiagnosticSummary\(/, 'and it uses the whitelisted builder');
 });
 
 test('the "Show safe diagnostics preview" control is absent', () => {

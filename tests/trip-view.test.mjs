@@ -1,12 +1,11 @@
 /**
- * Trip plan UI contracts — source-text fences in the established style
- * (tests/lists-intro-placement.test.mjs). Storage BEHAVIOUR is exercised for
- * real in tests/wallet-store.test.mjs (fake-indexeddb) and the persisted
- * trip items in tests/state-migration.test.mjs; these tests pin the
- * structural facts the Node-only suite cannot render: the renamed fourth
- * Lists tab, the Trip plan groups, the Add chooser, the honest offline and
- * missing-attachment wording, the integrity rules and the no-network
- * guarantee.
+ * Trip plan UI contracts — source-text fences. Storage BEHAVIOUR is
+ * exercised for real in tests/wallet-store.test.mjs (fake-indexeddb) and the
+ * persisted trip items in tests/state-migration.test.mjs; these tests pin
+ * the structural facts the Node-only suite cannot render: the Trip plan's
+ * vNext home (Plan → Trip), the Trip plan groups, the Add chooser, the
+ * honest offline and missing-attachment wording, the integrity rules and
+ * the no-network guarantee.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +16,8 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(join(root, rel), 'utf8');
 
-const lists = read('src/screens/ListsScreen.tsx');
+const plan = read('src/screens/PlanScreen.tsx');
+const guide = read('src/screens/GuideScreen.tsx');
 const tripView = read('src/components/TripView.tsx');
 const itemSheet = read('src/components/TripItemSheet.tsx');
 const editor = read('src/components/WalletEditorSheet.tsx');
@@ -29,48 +29,46 @@ const css = read('src/styles/global.css');
 
 // ---- Information architecture ----------------------------------------------
 
-test('Trip is the fourth and last Lists tab, with the compact "Trip" label', () => {
-  const tabIds = [...lists.matchAll(/\{ id: '([a-z]+)', label: '([^']+)' \}/g)].map((m) => ({
-    id: m[1],
-    label: m[2],
-  }));
-  assert.deepEqual(
-    tabIds.map((t) => t.id),
-    ['packing', 'shops', 'transport', 'trip'],
-    'tab order: Packing, Shops, Transport, Trip — trip appended last',
-  );
-  assert.equal(tabIds[3].label, 'Trip', 'compact tab label');
-});
-
-test('Wallet terminology is fully replaced by Trip terminology in the Lists UI', () => {
-  assert.ok(!/Wallet/.test(lists), 'no Wallet wording left on the Lists screen');
-  assert.ok(!/wallet/.test(lists.match(/type ListsSection = [^;]+;/)[0]), 'section id renamed');
-});
-
-test('no new primary route: the trip plan lives inside the Lists screen only', () => {
+test('the Trip plan lives under Plan (vNext) with its own canonical route', () => {
+  // Plan home indexes it; the section screen renders the unchanged TripView.
+  assert.ok(plan.includes("title: 'Trip & logistics'"), 'Plan home row');
+  assert.match(plan, /export function PlanTripScreen/);
   const routes = read('src/navigation/routes.mjs');
-  assert.ok(!/['"]trip['"]|#\/trip/i.test(routes), 'navigation route table untouched');
-  assert.match(lists, /\{mode === 'trip' \? \(\s*<TripView\s+launch=\{tripLaunch\}/);
+  assert.match(routes, /'day', 'trip', 'packing'/, 'trip is a Plan section route');
 });
 
-test('deep links open Trip: section id, a specific item, or a Track-stay prefill', () => {
-  assert.match(lists, /tripItemId\?: string/);
-  assert.match(lists, /trackStayPlaceId\?: string/);
-  assert.match(lists, /if \(link\.tripItemId \|\| link\.trackStayPlaceId\) return 'trip'/);
-  // One-shot: choosing a tab by hand clears any pending launch payload.
-  assert.match(lists, /setTripLaunch\(null\)/);
+test('the wallet capability keeps Trip terminology and lives with the Trip plan', () => {
+  // The Plan home's wallet row opens the Trip section (documents live there);
+  // the payload vocabulary still has no wallet id.
+  assert.ok(plan.includes("title: 'Wallet & documents'"));
+  const walletRow = plan.slice(plan.indexOf("id: 'wallet'"), plan.indexOf('];'));
+  assert.match(walletRow, /section: 'trip'/, 'wallet row opens Trip');
+  const today = read('src/screens/TodayScreen.tsx');
+  assert.ok(!/wallet/.test(today.match(/type ListsSection = [^;]+;/)[0]), 'no wallet section id');
+});
+
+test('deep links open Trip: a specific item, a Track-stay or a transport prefill', () => {
+  const today = read('src/screens/TodayScreen.tsx');
+  assert.match(today, /tripItemId\?: string/);
+  assert.match(today, /trackStayPlaceId\?: string/);
+  // The launch is derived once at mount from the one-shot payload — a fresh
+  // visit (no payload) opens the plain Trip plan.
+  assert.match(plan, /initialTripLaunchFor\(deepLink\)/);
+  assert.match(plan, /if \(link\?\.tripItemId\) return \{ kind: 'item', itemId: link\.tripItemId \};/);
+  assert.match(plan, /kind: 'add-stay', placeId: link\.trackStayPlaceId/);
 });
 
 // ---- Offline honesty ---------------------------------------------------------
 
 test('the trip intro names the Trip plan, offline storage and the deletion caveat', () => {
-  const intro = lists.match(/trip:\s*\n?\s*'([^']+)'/)?.[1];
-  assert.ok(intro, 'LISTS_HEADER has a trip entry');
-  assert.match(intro, /Trip plan/, 'full section title appears in copy');
-  assert.match(intro, /travel, stays, bookings and important documents/i);
+  const start = plan.indexOf('export function PlanTripScreen');
+  const intro = plan.slice(start, plan.indexOf('<TripView', start));
+  assert.ok(start > -1, 'PlanTripScreen exists');
+  assert.match(intro, /Trip plan/, 'full section title appears');
+  assert.match(intro, /travel, stays, bookings and important\s+documents/i);
   assert.match(intro, /available offline/i);
   assert.match(intro, /stored locally on this device/i);
-  assert.match(intro, /Clearing the browser.s or app.s data also removes/i);
+  assert.match(intro, /clearing the browser.s or app.s data also removes/i);
   assert.ok(!/cloud|sync|backed up/i.test(intro), 'never implies cloud storage');
 });
 
@@ -246,13 +244,15 @@ test('item identity and transport provenance are immutable through ordinary patc
 
 // ---- Transport integration ----------------------------------------------------
 
-test('Transport reference cards gain Add to Trip / View in Trip, wired via Lists', () => {
+test('Transport reference cards gain Add to Trip / View in Trip, wired via Guide', () => {
   assert.match(transportView, /onAddToTrip\?: \(entryId: string\) => void/);
   assert.match(transportView, /Add to Trip/);
   assert.match(transportView, /View in Trip/);
   assert.match(transportView, /Add to Trip again/, 'legitimate repeats stay possible');
-  assert.match(lists, /onAddToTrip=\{addTransportToTrip\}/);
-  assert.match(lists, /onViewInTrip=\{viewTripItem\}/);
+  // vNext: the reference view lives in the Guide dossier; its Trip launches
+  // cross into Plan → Trip as one-shot navigation payloads.
+  assert.match(guide, /onAddToTrip=\{\(entryId\) =>\s*\n?\s*onNavigate\('plan', \{ lists: \{ addTransportEntryId: entryId \} \}\)/);
+  assert.match(guide, /onViewInTrip=\{\(itemId\) =>\s*\n?\s*onNavigate\('plan', \{ lists: \{ tripItemId: itemId \} \}\)/);
 });
 
 test('the prefill flow copies verified facts only — personal fields stay personal', () => {

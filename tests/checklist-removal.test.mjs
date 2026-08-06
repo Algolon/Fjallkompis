@@ -64,29 +64,32 @@ test('Today has no Daily list section or checklist copy', () => {
   assert.ok(!today.includes('listsMode'));
 });
 
-test('Lists has Packing/Shops/Transport as peers — never a Daily view', () => {
-  // Lists gained offline Shop info and Transport sections as peers of Packing
-  // (a deliberate product decision). The Daily checklist must still be absent:
-  // no Daily view, no checklist reference, and the section tabs are exactly
-  // Packing / Shops / Transport — never a Daily tab.
-  const lists = readFileSync(join(src, 'screens', 'ListsScreen.tsx'), 'utf8');
-  assert.ok(!lists.includes('DailyView'), 'no Daily view component');
-  assert.ok(!/checklist/i.test(lists), 'no checklist reference');
-  assert.ok(!/\bdaily\b/i.test(lists), 'no Daily section or copy');
-  const tabIds = [...lists.matchAll(/id: '(packing|shops|transport|daily)'/g)].map((m) => m[1]);
-  assert.deepEqual(tabIds, ['packing', 'shops', 'transport'], 'exactly Packing, Shops, Transport');
+test('the packing and dossier homes never grew a Daily view back', () => {
+  // vNext re-homed Lists' sections (Packing/Trip → Plan, Shops/Transport →
+  // Guide). The Daily checklist must still be absent from every new home:
+  // no Daily view, no checklist reference, no Daily section or copy.
+  for (const rel of [
+    ['components', 'PackingView.tsx'],
+    ['screens', 'PlanScreen.tsx'],
+    ['screens', 'GuideScreen.tsx'],
+  ]) {
+    const text = readFileSync(join(src, ...rel), 'utf8');
+    assert.ok(!text.includes('DailyView'), `${rel[1]}: no Daily view component`);
+    assert.ok(!/checklist/i.test(text), `${rel[1]}: no checklist reference`);
+    assert.ok(!/\bdaily\b/i.test(text), `${rel[1]}: no Daily section or copy`);
+  }
 });
 
 test('no user-facing copy in src/ presents the Daily checklist as active', () => {
   // Remaining matches must be historical/internal only: the legacy
   // 'checklist' tab id in navigation wiring and migration/archive comments.
   const allowed = new Set([
-    'src/App.tsx', // routes the legacy tab id, comment points to the archive
-    'src/components/TabBar.tsx', // legacy internal tab id ('checklist' → Lists)
-    'src/navigation/routes.mjs', // legacy internal tab id mapping
-    'src/screens/StopsScreen.tsx', // navigates to the Lists tab via its 'checklist' id
-    'src/components/TodayPrepare.tsx', // Prepare cards navigate to Lists via its 'checklist' id
-    'src/components/TodayOnRoute.tsx', // Travel days link to Lists → Trip via the same id
+    'src/components/TabBar.tsx', // legacy navigate() target type ('checklist')
+    'src/navigation/routes.mjs', // legacy internal id documented as non-URL
+    'src/navigation/resolveNavTarget.mjs', // maps the legacy id onto Guide/Plan
+    'src/screens/StopsScreen.tsx', // navigates via the legacy 'checklist' id
+    'src/components/TodayPrepare.tsx', // Prepare cards navigate via the same id
+    'src/components/TodayOnRoute.tsx', // Travel days link to Trip via the same id
     'src/types/index.ts', // schema-v3 migration comment
     'src/utils/stateMigration.mjs', // migration doc for the dropped key
   ]);
