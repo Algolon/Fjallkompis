@@ -44,12 +44,17 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * Pinned regions (z11 tiles; x/y in XYZ scheme). z11 deliberately: the
- * archive tags per-feature minzooms so tiles below z12 carry only the 100 m
- * INDEX contours — which lands the visual density right beside the Today
- * asset's 74 lines instead of the 5× denser full 20 m set. Chosen from a
- * --scan for comparable line density, enough negative space for overlaid
- * cards, and mutual distinctness (and distinctness from the Today crop):
+ * Pinned regions — the SAME two areas throughout, read at the archive's
+ * MAXIMUM zoom (z13, one z11 tile = a 4×4 z13 block).
+ *
+ * Zoom choice is a shape decision, not a coverage one. Tippecanoe simplifies
+ * per zoom, so the low-zoom tiles that first supplied these crops carried
+ * heavily decimated polylines — visibly angular once smoothed. z13 is the
+ * archive's least-simplified geometry; filtering it back to the 100 m index
+ * contours (see INDEX_INTERVAL_M) keeps the line COUNT beside Today's while
+ * every line carries far more vertices, so the Catmull-Rom pass has real
+ * curvature to follow instead of interpolating between corners.
+ *
  *  - guide: the Tjäktja pass area — the route's high crossing; even,
  *    flowing valley-wall lines around a calm pass corridor.
  *  - plan: the Kebnekaise massif west flank above Láddjuvággi — denser
@@ -60,27 +65,42 @@ const REGIONS = [
     name: 'guide',
     out: 'public/images/guide/contours.svg',
     stroke: '#5c7b8a', // muted blue — base #d3dce1 lives in CSS (.screen-bg--guide)
-    strokeOpacity: 0.42,
-    z: 11,
-    x0: 1128,
-    y0: 489,
-    span: 1,
+    strokeOpacity: 0.5, // Today's opacity: one contour design system
+    z: 13,
+    x0: 4512,
+    y0: 1956,
+    span: 4,
   },
   {
     name: 'plan',
     out: 'public/images/plan/contours.svg',
     stroke: '#a1744c', // muted copper — base #e8e0d1 lives in CSS (.screen-bg--plan)
-    strokeOpacity: 0.4,
-    z: 11,
-    x0: 1129,
-    y0: 491,
-    span: 1,
+    strokeOpacity: 0.5,
+    z: 13,
+    x0: 4516,
+    y0: 1964,
+    span: 4,
   },
 ];
 
-const VIEWBOX = 1024;
-const MIN_PATH_LENGTH = 26; // viewBox units — drops sliver fragments
-const RDP_EPSILON = 1.2; // viewBox units — grid-step noise, not structure
+/**
+ * The emitted viewBox is Today's, EXACTLY (public/images/today/contours.svg).
+ *
+ * Line weight is a rendering property, not just a `stroke-width` number: the
+ * assets are CSS `background-size: cover` layers, so the browser scales the
+ * whole SVG and the stroke with it. A 1024² viewBox in the same box renders
+ * its 1-unit stroke at 1024/453.5 ≈ 2.3× thinner than Today's — which is
+ * exactly why the first Guide/Plan assets looked spindly. Emitting into
+ * Today's viewBox (same size, same aspect, same slice behaviour) makes the
+ * scale factor identical at every viewport, so `stroke-width: 1` lands on
+ * the same rendered weight on 320 px, 375 px and desktop alike.
+ */
+const VIEWBOX_W = 295.77;
+const VIEWBOX_H = 453.5;
+/** Contour interval kept from the source (metres) — the 100 m index lines. */
+const INDEX_INTERVAL_M = 100;
+const MIN_PATH_LENGTH = 12; // viewBox units — drops sliver fragments
+const RDP_EPSILON = 0.32; // viewBox units — grid-step noise, not structure
 
 // ---------------------------------------------------------------------------
 // Tile reading
@@ -101,7 +121,8 @@ function readTile(archive, z, x, y) {
 }
 
 // ---------------------------------------------------------------------------
-// Minimal Mapbox Vector Tile decoder (spec 2.1) — geometry only
+// Minimal Mapbox Vector Tile decoder (spec 2.1) — geometry + the one property
+// this script filters on (`elev`)
 // ---------------------------------------------------------------------------
 
 function varint(buf, pos) {
@@ -140,18 +161,62 @@ function* fields(buf, start, end) {
 
 const zigzag = (v) => Number((v >> 1n) ^ -(v & 1n));
 
-/** All LineString paths of every layer, in tile-local extent units. */
+/** Decode one Value message far enough to read a number or a string. */
+function decodeValue(buf, from, to) {
+  for (const f of fields(buf, from, to)) {
+    if (f.field === 1 && f.from !== undefined) {
+      return buf.toString('utf8', f.from, f.to); // string_value
+    }
+    if (f.field === 2) return null; // float — read as double below if present
+    if (f.field === 4 && f.value !== undefined) return Number(f.value); // int64
+    if (f.field === 5 && f.value !== undefined) return Number(f.value); // uint64
+    if (f.field === 6 && f.value !== undefined) {
+      const v = f.value;
+      return Number((v >> 1n) ^ -(v & 1n)); // sint64
+    }
+  }
+  return null;
+}
+
+/** Packed varints of a tags field, as a flat number array. */
+function decodePackedVarints(buf, from, to) {
+  const pos = { i: from };
+  const out = [];
+  while (pos.i < to) out.push(Number(varint(buf, pos)));
+  return out;
+}
+
+/**
+ * All LineString paths of every layer, in tile-local extent units, each
+ * carrying its `elev` property when the layer publishes one.
+ */
 function decodeTilePaths(buf) {
   const paths = [];
   for (const layerField of fields(buf, 0, buf.length)) {
     if (layerField.field !== 3 || layerField.from === undefined) continue;
     let extent = 4096;
+    const keys = [];
+    const valueRanges = [];
     const featureRanges = [];
     for (const f of fields(buf, layerField.from, layerField.to)) {
       if (f.field === 5 && f.value !== undefined) extent = Number(f.value);
+      if (f.field === 3 && f.from !== undefined) {
+        keys.push(buf.toString('utf8', f.from, f.to));
+      }
+      if (f.field === 4 && f.from !== undefined) valueRanges.push(f);
       if (f.field === 2 && f.from !== undefined) featureRanges.push(f);
     }
+    const values = valueRanges.map((v) => decodeValue(buf, v.from, v.to));
     for (const range of featureRanges) {
+      // Properties first: contour elevation decides which lines are kept.
+      let elev = null;
+      for (const f of fields(buf, range.from, range.to)) {
+        if (f.field !== 2 || f.from === undefined) continue; // tags
+        const tags = decodePackedVarints(buf, f.from, f.to);
+        for (let i = 0; i + 1 < tags.length; i += 2) {
+          if (keys[tags[i]] === 'elev') elev = Number(values[tags[i + 1]]);
+        }
+      }
       for (const f of fields(buf, range.from, range.to)) {
         if (f.field !== 4 || f.from === undefined) continue; // geometry
         const pos = { i: f.from };
@@ -168,7 +233,7 @@ function decodeTilePaths(buf) {
               cx += zigzag(varint(buf, pos));
               cy += zigzag(varint(buf, pos));
               current = [[cx, cy]];
-              paths.push({ points: current, extent });
+              paths.push({ points: current, extent, elev });
             }
           } else if (op === 2) {
             // LineTo
@@ -265,16 +330,28 @@ function tileBoundsLatLon(z, x, y) {
 
 function regionPaths(archive, region) {
   const { z, x0, y0, span } = region;
-  const scale = VIEWBOX / span; // one tile → scale × scale viewBox units
+  // Source window: the tile block is square, the viewBox is Today's portrait
+  // shape. Take the full height and a centred portrait slice of the width,
+  // then map that window onto the viewBox — one uniform scale factor
+  // (VIEWBOX_H / span), so the emitted units per rendered pixel match
+  // Today's exactly (see EMIT_VIEWBOX).
+  const windowW = span * (VIEWBOX_W / VIEWBOX_H);
+  const windowX0 = (span - windowW) / 2;
+  const scale = VIEWBOX_H / span; // tile-fractions → viewBox units
   const all = [];
   for (let dy = 0; dy < span; dy++) {
     for (let dx = 0; dx < span; dx++) {
       const buf = readTile(archive, z, x0 + dx, y0 + dy);
       if (!buf) continue;
-      for (const { points, extent } of decodeTilePaths(buf)) {
+      for (const { points, extent, elev } of decodeTilePaths(buf)) {
+        // Index contours only (100 m). At z13 the archive carries the full
+        // 20 m set at its least-simplified geometry; keeping only the index
+        // lines holds the visual density beside the Today asset while the
+        // SHAPE comes from the most detailed tiles the archive has.
+        if (!Number.isFinite(elev) || elev % INDEX_INTERVAL_M !== 0) continue;
         const mapped = points.map(([px, py]) => [
-          ((px / extent + dx) * scale),
-          ((py / extent + dy) * scale),
+          (px / extent + dx - windowX0) * scale,
+          (py / extent + dy) * scale,
         ]);
         all.push(mapped);
       }
@@ -282,7 +359,10 @@ function regionPaths(archive, region) {
   }
   return all
     .map((p) => rdp(p, RDP_EPSILON))
-    .filter((p) => pathLength(p) >= MIN_PATH_LENGTH);
+    .filter((p) => pathLength(p) >= MIN_PATH_LENGTH)
+    // Paths entirely outside the portrait window would only bloat the file;
+    // the viewBox clips them when the SVG is rendered.
+    .filter((p) => p.some(([x, y]) => x >= -2 && x <= VIEWBOX_W + 2 && y >= -2 && y <= VIEWBOX_H + 2));
 }
 
 function emitRegion(archive, region) {
@@ -293,7 +373,7 @@ function emitRegion(archive, region) {
   const nw = tileBoundsLatLon(region.z, region.x0, region.y0);
   const se = tileBoundsLatLon(region.z, region.x0 + region.span, region.y0 + region.span);
   const d = paths.map((p) => `<path d="${smoothPathData(p)}"/>`).join('\n');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEWBOX} ${VIEWBOX}" preserveAspectRatio="xMidYMid slice">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEWBOX_W} ${VIEWBOX_H}" preserveAspectRatio="xMidYMid slice">
 <!-- Decorative topographic contours (${region.name} screen background).
      Source: the app's own kungsleden-contours.pmtiles (contour vectors from
      the Copernicus GLO-30 DEM via scripts/build-terrain-map.sh; same
@@ -301,8 +381,11 @@ function emitRegion(archive, region) {
      Extraction: scripts/generate-contour-backgrounds.mjs — z${region.z} tiles
      x${region.x0}-${region.x0 + region.span - 1} y${region.y0}-${region.y0 + region.span - 1}
      (approx ${nw.lat.toFixed(3)}N ${nw.lon.toFixed(3)}E to ${se.lat.toFixed(3)}N ${se.lon.toFixed(3)}E),
-     RDP-simplified and Catmull-Rom smoothed. Geographically real crop,
-     purely decorative: no labels, no scale, never a navigation surface. -->
+     ${INDEX_INTERVAL_M} m index contours only, RDP-simplified (${RDP_EPSILON})
+     and Catmull-Rom smoothed. The viewBox is Today's, so the shared
+     stroke-width renders at the same weight on every screen. Geographically
+     real crop, purely decorative: no labels, no scale, never a navigation
+     surface. -->
 <g fill="none" stroke="${region.stroke}" stroke-opacity="${region.strokeOpacity}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
 ${d}
 </g>

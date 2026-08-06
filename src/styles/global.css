@@ -363,6 +363,18 @@ h3 {
    contour screens never repeat one pattern: Today green, Guide blue-grey,
    Plan warm copper. Line colour/opacity is baked into each asset; the base
    colour lives here. */
+/* Same containing-block rule as Today (see the .today-screen note): the
+   generic .screen fade animates TRANSFORM, and an animating transform makes
+   .screen the containing block for position:fixed descendants — the contour
+   layer would size itself to the screen box for the length of the fade and
+   then snap to the viewport, visibly resizing and flickering on every open.
+   Guide and Plan fade with opacity only, so their backdrop is
+   viewport-anchored from the first painted frame. */
+.guide-screen,
+.plan-screen {
+  animation-name: fade-opacity;
+}
+
 .screen-bg {
   position: fixed;
   top: 0;

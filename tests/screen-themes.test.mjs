@@ -44,8 +44,59 @@ test('Guide and Plan reference distinct app-owned contour assets', () => {
   const guideSvg = read('public/images/guide/contours.svg');
   const planSvg = read('public/images/plan/contours.svg');
   assert.notEqual(guideSvg, planSvg);
-  assert.match(guideSvg, /z11 tiles\s+x1128/);
-  assert.match(planSvg, /z11 tiles\s+x1129/);
+  assert.match(guideSvg, /z13 tiles\s+x4512/);
+  assert.match(planSvg, /z13 tiles\s+x4516/);
+});
+
+test('one contour design system: the three assets share Today’s line weight', () => {
+  // Line weight is a RENDERED property. All three are background-size:cover
+  // layers in the same box, so a shared stroke-width only lands on the same
+  // visual weight when the viewBox (and therefore the cover scale factor) is
+  // identical. A larger viewBox is exactly what made the first Guide/Plan
+  // assets look spindly — pin the invariant, not the pixels.
+  const viewBoxes = ['today', 'guide', 'plan'].map((s) => {
+    const svg = read(`public/images/${s}/contours.svg`);
+    return {
+      screen: s,
+      viewBox: svg.match(/viewBox="([^"]+)"/)?.[1],
+      width: svg.match(/stroke-width="([\d.]+)"/)?.[1],
+      opacity: svg.match(/stroke-opacity="([\d.]+)"/)?.[1],
+    };
+  });
+  const today = viewBoxes[0];
+  for (const asset of viewBoxes.slice(1)) {
+    assert.equal(asset.viewBox, today.viewBox, `${asset.screen} shares Today’s viewBox`);
+    assert.equal(asset.width, today.width, `${asset.screen} shares Today’s stroke-width`);
+    assert.equal(asset.opacity, today.opacity, `${asset.screen} shares Today’s stroke opacity`);
+  }
+  // The generator derives that viewBox from Today's rather than restating it.
+  const script = read('scripts/generate-contour-backgrounds.mjs');
+  assert.match(script, /VIEWBOX_W = 295\.77/);
+  assert.match(script, /VIEWBOX_H = 453\.5/);
+  // Index contours only, from the archive's least-simplified zoom — the
+  // smoothing input, not a post-hoc redraw.
+  assert.match(script, /INDEX_INTERVAL_M = 100/);
+  assert.match(script, /elev % INDEX_INTERVAL_M !== 0/);
+  for (const asset of ['guide', 'plan']) {
+    assert.match(read(`public/images/${asset}/contours.svg`), /100 m index contours only/);
+  }
+});
+
+test('Guide and Plan fade like Today, so the fixed backdrop cannot resize', () => {
+  // ROOT CAUSE of the first-open flicker: the generic .screen fade animates
+  // TRANSFORM, and an animating transform makes .screen the containing block
+  // for its position:fixed children — the contour layer sized itself to the
+  // screen's CONTENT box (measured 375×592 on Guide, 375×640 on Plan) for
+  // the length of the fade and then snapped to the 375×812 viewport. Today
+  // already opted out via an opacity-only fade; Guide and Plan now do too.
+  assert.match(css, /\.guide-screen,\n\.plan-screen \{\n  animation-name: fade-opacity;\n\}/);
+  assert.match(css, /\.today-screen \{[\s\S]*?animation-name: fade-opacity;/);
+  assert.match(css, /@keyframes fade-opacity \{\s*\n\s*from \{\s*\n\s*opacity: 0;/);
+  // Nothing animates the layer's own geometry either: a transition on size,
+  // position or transform would reintroduce a visible settle.
+  const layer = css.slice(css.indexOf('.screen-bg {'), css.indexOf('}', css.indexOf('.screen-bg {')));
+  assert.ok(!/transition|animation/.test(layer), 'the contour layer itself is inert');
+  assert.match(layer, /position: fixed/, 'viewport-anchored, like .today-bg');
 });
 
 test('the themes are restrained: base colours + accents, not recoloured cards', () => {
