@@ -30,6 +30,7 @@ import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { overviewPaddingFor } from '../../../../src/map/mapPadding.mjs';
+import { coverageForMode, mercX } from '../../../../src/map/overviewEnvelope.mjs';
 
 const BASE = process.env.APP_URL;
 const OUT = process.env.OUT_DIR;
@@ -59,6 +60,7 @@ export const VIEWPORTS = [
   { w: 1366, h: 768, cls: 'laptop' },
   { w: 1440, h: 900, cls: 'laptop' },
   { w: 1512, h: 860, cls: 'laptop' },
+  { w: 1512, h: 872, cls: 'laptop' },
   { w: 1536, h: 864, cls: 'laptop' },
   { w: 1920, h: 1080, cls: 'desktop' },
   { w: 2560, h: 1080, cls: 'ultrawide' },
@@ -112,6 +114,7 @@ const measureScript = (routeBounds) => `(() => {
 
   const c = map.getCenter();
   const mb = map.getMaxBounds();
+  const vb = map.getBounds();
   const box = el.getBoundingClientRect();
   const depth = (sel, edge) => {
     const n = document.querySelector(sel);
@@ -135,6 +138,8 @@ const measureScript = (routeBounds) => `(() => {
     sourceZoom: Math.floor(map.getZoom()),
     maxBounds: mb ? [[+mb.getWest().toFixed(6), +mb.getSouth().toFixed(6)],
                      [+mb.getEast().toFixed(6), +mb.getNorth().toFixed(6)]] : null,
+    visibleExtent: [[+vb.getWest().toFixed(6), +vb.getSouth().toFixed(6)],
+                    [+vb.getEast().toFixed(6), +vb.getNorth().toFixed(6)]],
     routeBox,
     routeClearance: { left: +routeBox.x.toFixed(1), right: +(W - routeBox.right).toFixed(1),
                       top: +routeBox.y.toFixed(1), bottom: +(H - routeBox.bottom).toFixed(1) },
@@ -223,6 +228,15 @@ for (const vp of VIEWPORTS) {
   m.paddedCentreDeviation = {
     x: +(((m.routeBox.x + m.routeBox.right) / 2) - (padded.x + padded.w / 2)).toFixed(1),
     y: +(((m.routeBox.y + m.routeBox.bottom) / 2) - (padded.y + padded.h / 2)).toFixed(1),
+  };
+  // Unshaded pixels: how far the visible viewport overhangs the renderable
+  // hillshade envelope, in CSS px. MUST be zero in Terrain mode.
+  const cov = coverageForMode('terrain', ROUTE.mapCutoutBounds);
+  const mPerPx = (mercX(m.visibleExtent[1][0]) - mercX(m.visibleExtent[0][0])) / m.mapW;
+  m.hillshadeEnvelope = [[cov.west, cov.south], [cov.east, cov.north]];
+  m.unshadedPx = {
+    west: Math.max(0, +((mercX(cov.west) - mercX(m.visibleExtent[0][0])) / mPerPx).toFixed(1)),
+    east: Math.max(0, +((mercX(m.visibleExtent[1][0]) - mercX(cov.east)) / mPerPx).toFixed(1)),
   };
   m.viewport = key;
   m.class = vp.cls;

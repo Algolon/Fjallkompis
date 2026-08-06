@@ -22,6 +22,8 @@ import { dirname, join } from 'node:path';
 import { open } from 'node:fs/promises';
 import { PMTiles } from 'pmtiles';
 import {
+  coverageForMode,
+  overviewCameraFor,
   VECTOR_OVERVIEW_BUILD,
   RASTER_ARCHIVE_MIN_ZOOM,
   OVERVIEW_SLACK,
@@ -314,26 +316,134 @@ test('ultrawide falls back to the widest COVERED view rather than blank flanks',
   }
 });
 
-test('the raster flank is reported honestly, and only where the fit demands it', () => {
-  // Phones and tablet portrait stay fully shaded; wide landscape reaches past
-  // terrain's east edge. This is the model's one accepted trade, so it is
-  // asserted rather than left to be discovered.
-  for (const [W, H] of PORTRAIT) {
-    assert.equal(envelopeFor(W, H).exceedsRasterCoverage, false, `${W}x${H}: fully shaded`);
+// ---- Terrain mode: hillshade is a HARD constraint ---------------------------
+
+const cameraFor = (W, H, mode = 'terrain') => {
+  const [w, h] = container(W, H);
+  return overviewCameraFor({
+    routeBounds: route.bounds, userBounds: route.userBounds, cutoutBounds: CUTOUT,
+    viewportWidth: w, viewportHeight: h, padding: padFor(w, h), mode,
+  });
+};
+
+test('TERRAIN: the whole visible viewport stays inside renderable hillshade', () => {
+  // The product contract: an unshaded flank is never an acceptable trade.
+  for (const [W, H] of [...PORTRAIT, [760, 500], [768, 1024], ...DESKTOP, ...ULTRAWIDE, [1512, 872]]) {
+    const c = cameraFor(W, H, 'terrain');
+    const cov = coverageForMode('terrain', CUTOUT);
+    const [[vw, vs], [ve, vn]] = c.visibleExtent;
+    assert.ok(vw >= cov.west - EPS, `${W}x${H}: west edge inside hillshade`);
+    assert.ok(ve <= cov.east + EPS, `${W}x${H}: east edge inside hillshade`);
+    assert.ok(vs >= cov.south - EPS, `${W}x${H}: south edge inside hillshade`);
+    assert.ok(vn <= cov.north + EPS, `${W}x${H}: north edge inside hillshade`);
   }
-  for (const [W, H] of [[1512, 860], [1920, 1080]]) {
-    assert.equal(envelopeFor(W, H).exceedsRasterCoverage, true, `${W}x${H}: flank is expected`);
+});
+
+test('REGRESSION: no supported laptop viewport exposes an unshaded flank', () => {
+  // Before this contract these overhung terrain's east edge by 83-121 px.
+  for (const [W, H] of [[1366, 768], [1512, 860], [1512, 872], [1536, 864], [1920, 1080]]) {
+    const c = cameraFor(W, H, 'terrain');
+    const cov = coverageForMode('terrain', CUTOUT);
+    const overhangPx = (mercX(c.visibleExtent[1][0]) - mercX(cov.east)) / c.scale;
+    assert.ok(overhangPx <= 0 + 1e-6, `${W}x${H}: ${overhangPx.toFixed(1)} px past terrain`);
   }
-  // …and it is only ever the EAST flank: raster reaches further west than any
-  // supported composition needs.
-  const raster = rasterRenderableCoverage(CUTOUT);
+});
+
+test('TERRAIN: supported viewports keep the complete route, by TRANSLATION only', () => {
+  for (const [W, H] of [...PORTRAIT, [760, 500], [768, 1024], ...DESKTOP, [1512, 872]]) {
+    const c = cameraFor(W, H, 'terrain');
+    assert.equal(c.zoomRaised, false, `${W}x${H}: translation alone sufficed`);
+    assert.equal(c.routeComplete, true, `${W}x${H}: complete route`);
+    assert.deepEqual(c.endpointsOutside, [], `${W}x${H}: no endpoint outside`);
+    assert.ok(c.routeClearancePx.top >= 12 - 1e-6, `${W}x${H}: ≥12 px top`);
+    assert.ok(c.routeClearancePx.bottom >= 12 - 1e-6, `${W}x${H}: ≥12 px bottom`);
+    // The marker-label allowance is inside the padding, so an endpoint label
+    // cannot clip: left/right clearance is at least the declared allowance.
+    assert.ok(c.routeClearancePx.left >= 32, `${W}x${H}: ≥ label allowance left`);
+    assert.ok(c.routeClearancePx.right >= 32, `${W}x${H}: ≥ label allowance right`);
+  }
+});
+
+test('the feasible centre is the CLOSEST one to the desired route-centred camera', () => {
+  // The feasible set is the interval [envWest + halfW, envEast - halfW];
+  // clamping into it is by definition the nearest feasible point, so moving
+  // any further from the desired centre must break coverage.
   for (const [W, H] of DESKTOP) {
-    const e = envelopeFor(W, H);
-    assert.ok(
-      mercX(e.overviewBounds[0][0]) >= mercX(raster.west) - 1e-6,
-      `${W}x${H}: west stays inside raster coverage`,
-    );
+    const c = cameraFor(W, H, 'terrain');
+    const cov = coverageForMode('terrain', CUTOUT);
+    const dev = c.centreDeviationPx.x;
+    if (dev === 0) continue; // already feasible at the desired centre
+    assert.ok(dev < 0, `${W}x${H}: terrain is tight on the EAST, so it moves west`);
+    // One pixel back toward the desired centre would overhang.
+    const nudged = mercX(c.visibleExtent[1][0]) + c.scale;
+    assert.ok(nudged > mercX(cov.east) + 1e-9, `${W}x${H}: already hard against the east edge`);
   }
+});
+
+test('zoom is raised ONLY when no translation can fit the viewport', () => {
+  for (const [W, H] of [...PORTRAIT, ...DESKTOP]) {
+    assert.equal(cameraFor(W, H, 'terrain').zoomRaised, false, `${W}x${H}: no zoom change`);
+  }
+  for (const [W, H] of ULTRAWIDE) {
+    const c = cameraFor(W, H, 'terrain');
+    assert.equal(c.zoomRaised, true, `${W}x${H}: viewport is wider than the envelope`);
+    assert.ok(c.zoomDelta > 0, `${W}x${H}: zoomed IN, never out`);
+  }
+});
+
+test('ULTRAWIDE: vertical route overfill, never an unshaded flank', () => {
+  for (const [W, H] of ULTRAWIDE) {
+    const c = cameraFor(W, H, 'terrain');
+    const cov = coverageForMode('terrain', CUTOUT);
+    assert.ok(c.visibleExtent[0][0] >= cov.west - EPS && c.visibleExtent[1][0] <= cov.east + EPS,
+      `${W}x${H}: still fully shaded`);
+    assert.equal(c.routeComplete, false, `${W}x${H}: the route genuinely does not fit`);
+    // …and the model says so explicitly rather than claiming a complete fit.
+    assert.ok(c.endpointsOutside.length > 0, `${W}x${H}: overfill is reported`);
+    for (const e of c.endpointsOutside) {
+      assert.ok(['top', 'bottom'].includes(e.edge), `${W}x${H}: overfill is VERTICAL`);
+      assert.ok(e.px > 0);
+    }
+  }
+});
+
+test('Terrain and Satellite are evaluated independently', () => {
+  const terrain = coverageForMode('terrain', CUTOUT);
+  const satellite = coverageForMode('satellite', CUTOUT);
+  const vector = coverageForMode('vector', CUTOUT);
+  // They happen to share a footprint today (same cutout, same min zoom), but
+  // each is derived on its own so a future rebuild of one cannot silently
+  // widen the other's contract.
+  assert.deepEqual(terrain, satellite, 'same footprint today');
+  assert.ok(vector.east > terrain.east, 'vector-only reaches further east');
+  // A satellite-mode camera obeys the satellite envelope.
+  for (const [W, H] of [[1512, 860], [1920, 1080]]) {
+    const c = cameraFor(W, H, 'satellite');
+    assert.ok(c.visibleExtent[1][0] <= satellite.east + EPS, `${W}x${H}: inside satellite coverage`);
+  }
+});
+
+test('vector-only fallback widens the envelope when raster is unavailable', () => {
+  // With no relief archive there is no hillshade to lose, so the only thing
+  // that can go blank is vector — and the camera may use its wider footprint.
+  const t = cameraFor(1512, 860, 'terrain');
+  const v = cameraFor(1512, 860, 'vector');
+  assert.ok(Math.abs(v.centreDeviationPx.x) < Math.abs(t.centreDeviationPx.x),
+    'vector-only can sit closer to the route centre');
+  assert.equal(v.routeComplete, true);
+});
+
+test('the camera is solved once — no second adjustment is expressible', () => {
+  const src = readFileSync(join(root, 'src/map/overviewEnvelope.mjs'), 'utf8');
+  const fn = src.slice(src.indexOf('export function overviewCameraFor('));
+  assert.ok(!/easeTo|panBy|setCenter|jumpTo/.test(fn), 'the model issues no camera commands');
+  const mv = readFileSync(join(root, 'src/components/MapView.tsx'), 'utf8');
+  const fitStart = mv.indexOf('fitRoute: () => {');
+  // Search for the NEXT fitStage after fitRoute: the handle interface declares
+  // one earlier in the file, and slicing to that would produce nothing.
+  const fit = mv.slice(fitStart, mv.indexOf('fitStage:', fitStart));
+  assert.equal((fit.match(/easeTo|jumpTo|panBy|setCenter/g) ?? []).length, 1,
+    'Fit route applies exactly one camera command');
 });
 
 test('contours never constrain the overview', () => {

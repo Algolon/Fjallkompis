@@ -12,9 +12,11 @@ export interface CameraConstraints {
   envelope: OverviewEnvelope | null;
 }
 
-export type { Extent, OverviewEnvelope } from './overviewEnvelope.mjs';
+export type { Extent, OverviewEnvelope, OverviewCamera, CoverageMode } from './overviewEnvelope.mjs';
 export {
   overviewEnvelopeFor,
+  overviewCameraFor,
+  coverageForMode,
   rasterRenderableCoverage,
   vectorSourceCoverage,
 } from './overviewEnvelope.mjs';

@@ -20,24 +20,24 @@
  *  4. PHYSICAL VECTOR COVERAGE at the effective source zoom — the hard cap.
  *     Vector is the binding contract: a missing vector tile is genuinely
  *     blank map, with no fallback.
- *  5. RENDERABLE RASTER COVERAGE — where hillshade and satellite can draw.
- *     THE ONE DELIBERATE TRADE IN THIS MODULE. Terrain and satellite stop at
- *     the z7 cell's east edge (19.6875), which is only 1.06° east of the
- *     route centre against 1.75° west. A landscape container showing the
- *     whole route needs ~1.2° each side, so a symmetric composition reaches
- *     past raster on the east: measured 83 px at 1366×768, 86 px at
- *     1512×860, 121 px at 1920×1080, 0 px on every phone and tablet
- *     portrait. Those pixels lose HILLSHADE, not map — vector still draws
- *     water, landcover, roads and labels there, and the blank-vector measure
- *     is 0 px everywhere. Capping on raster instead would crop the route by
- *     more than half its height on a 21:9 display, so vector binds and this
- *     flank is accepted and measured rather than hidden.
- *     Modelled honestly and reported, but NOT a cap: raster is 256 px and
- *     requests ~round(zoom)+1, yet MapLibre serves it from an ancestor tile
- *     when the child is missing (measured in the PR #104 evidence), so its
- *     renderable extent is its WIDEST ancestor footprint, not its
- *     requested-zoom footprint. Where a container needs more width than
- *     raster has, the flank loses shading — it does not go blank.
+ *  5. RENDERABLE RASTER COVERAGE — where hillshade and satellite can draw:
+ *     the WIDEST ANCESTOR footprint, because MapLibre serves raster from a
+ *     parent tile when the requested child is missing (measured in the
+ *     PR #104 evidence), so it is far wider than the requested-zoom
+ *     footprint. In Terrain mode this is a HARD camera constraint: the whole
+ *     visible viewport must stay inside it, because an unshaded flank is not
+ *     an acceptable price for a perfectly centred route.
+ *
+ * The route centre is therefore a PREFERENCE, not a guarantee. Raster runs
+ * 1.7536° west of the route centre but only 1.0589° east, so a landscape
+ * viewport wide enough for the whole route cannot be centred on it and stay
+ * shaded. The camera is solved as a constrained fit instead: take the
+ * symmetric route-centred viewport, and if it overhangs a raster edge,
+ * TRANSLATE it back inside at unchanged zoom, landing on the feasible centre
+ * closest to the desired one. Only when the viewport is wider than the
+ * envelope itself — above roughly 2:1 — is the zoom raised, and then the
+ * route over-fills vertically rather than the map going unshaded.
+ *
  *
  * Why the old model failed: it capped the overview to the z7 tile cell around
  * the data bounds, which is 1.75° west of the route centre but only 1.06°
@@ -297,5 +297,123 @@ export function overviewEnvelopeFor({
           [edge(expandedH, east, ue), edgeY(north > mercY(un) + 1e-6, north, un)],
         ]
       : null,
+  };
+}
+
+/**
+ * Which renderable envelope constrains the camera, per basemap mode.
+ *
+ * Evaluated independently even though terrain and satellite currently share a
+ * footprint: they are separate archives on separate release pins, and a future
+ * rebuild of one must not silently widen the other's contract.
+ *
+ * `vector` is the fallback used only when the active mode has no raster at all
+ * (relief genuinely unavailable) — there the vector footprint is the only
+ * thing that can go blank, so it is the only thing that binds.
+ */
+export function coverageForMode(mode, cutoutBounds, build = VECTOR_OVERVIEW_BUILD) {
+  if (mode === 'terrain' || mode === 'satellite') {
+    return rasterRenderableCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+  }
+  // Vector-only: the widest overview footprint the archive actually carries.
+  return vectorSourceCoverage(build.maxZoom, cutoutBounds, build);
+}
+
+/**
+ * THE CAMERA. A constrained fit, solved once — never a fit followed by a
+ * nudge, and never a correction loop.
+ *
+ *   1. the desired viewport: symmetric, route-centred, at the fit's own zoom;
+ *   2. the renderable envelope for the active mode;
+ *   3. if the desired viewport overhangs an envelope edge, TRANSLATE it back
+ *      inside at unchanged zoom — clamping the centre is exactly "the
+ *      feasible centre closest to the desired one", since the feasible set is
+ *      the interval [envWest + halfWidth, envEast − halfWidth];
+ *   4. only if the viewport is WIDER than the envelope (no translation can
+ *      fit it) is the zoom raised, to the coarsest scale that does fit; the
+ *      route then over-fills vertically, which is the stated preference above
+ *      the supported aspect contract.
+ *
+ * Returns the exact camera so the caller can apply it in ONE move, plus the
+ * measurements the framing evidence has to report.
+ */
+export function overviewCameraFor({
+  routeBounds, userBounds, cutoutBounds,
+  viewportWidth, viewportHeight, padding,
+  mode = 'terrain',
+  build = VECTOR_OVERVIEW_BUILD,
+}) {
+  const desired = desiredOverviewExtent({ routeBounds, viewportWidth, viewportHeight, padding });
+  const cov = coverageForMode(mode, cutoutBounds, build);
+  const [cw, ce] = [mercX(cov.west), mercX(cov.east)];
+  const [cs, cn] = [mercY(cov.south), mercY(cov.north)];
+
+  // 4. Raise the zoom only when the viewport cannot fit however it is moved.
+  const fitScale = Math.min(
+    desired.scale,
+    (ce - cw) / viewportWidth,
+    (cn - cs) / viewportHeight,
+  );
+  const zoomRaised = fitScale < desired.scale - 1e-9;
+  const scale = fitScale;
+  const halfW = (viewportWidth * scale) / 2;
+  const halfH = (viewportHeight * scale) / 2;
+
+  // The desired centre, re-expressed at the (possibly raised) zoom: the route
+  // still wants to sit at the padded rect's centre.
+  const pt = padding?.top ?? 0, pb = padding?.bottom ?? 0;
+  const pl = padding?.left ?? 0, pr = padding?.right ?? 0;
+  const wantX = desired.routeCx - ((pl - pr) / 2) * scale;
+  const wantY = desired.routeCy + ((pt - pb) / 2) * scale;
+
+  // 3. Closest feasible centre: clamp into the feasible interval. When the
+  // viewport exactly fills the envelope the interval collapses to a point.
+  const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(Math.max(v, lo), hi));
+  const centreX = clamp(wantX, cw + halfW, ce - halfW);
+  const centreY = clamp(wantY, cs + halfH, cn - halfH);
+
+  const zoom = Math.log2((2 * MERC_MAX) / (512 * scale));
+  const visible = [
+    [invMercX(centreX - halfW), invMercY(centreY - halfH)],
+    [invMercX(centreX + halfW), invMercY(centreY + halfH)],
+  ];
+
+  // What the route does inside that viewport, in CSS pixels.
+  const [[rw, rs], [re, rn]] = routeBounds;
+  const px = (m) => m / scale;
+  const routeClear = {
+    left: px(mercX(rw) - (centreX - halfW)),
+    right: px((centreX + halfW) - mercX(re)),
+    top: px((centreY + halfH) - mercY(rn)),
+    bottom: px(mercY(rs) - (centreY - halfH)),
+  };
+  const endpointsOutside = Object.entries(routeClear)
+    .filter(([, v]) => v < 0)
+    .map(([edge, v]) => ({ edge, px: +(-v).toFixed(1) }));
+
+  return {
+    mode,
+    coverage: cov,
+    /** The camera to apply, in one move. */
+    camera: { lng: invMercX(centreX), lat: invMercY(centreY), zoom },
+    desiredCamera: {
+      lng: invMercX(wantX), lat: invMercY(wantY), zoom: desired.mapZoom,
+    },
+    /** How far the applied centre had to move, in CSS pixels at this zoom. */
+    centreDeviationPx: { x: +px(centreX - wantX).toFixed(1), y: +px(centreY - wantY).toFixed(1) },
+    zoomRaised,
+    zoomDelta: +(zoom - desired.mapZoom).toFixed(4),
+    sourceZoom: Math.floor(zoom),
+    scale,
+    visibleExtent: visible,
+    routeClearancePx: {
+      left: +routeClear.left.toFixed(1), right: +routeClear.right.toFixed(1),
+      top: +routeClear.top.toFixed(1), bottom: +routeClear.bottom.toFixed(1),
+    },
+    /** Non-empty only above the supported aspect contract. */
+    endpointsOutside,
+    routeComplete: endpointsOutside.length === 0,
+    /** maxBounds for the overview: the envelope itself, so panning stays shaded. */
+    overviewBounds: [[cov.west, cov.south], [cov.east, cov.north]],
   };
 }

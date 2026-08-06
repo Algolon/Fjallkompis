@@ -86,3 +86,45 @@ export function overviewEnvelopeFor(args: {
   build?: VectorOverviewBuild;
   rasterMinZoom?: number;
 }): OverviewEnvelope;
+
+export type CoverageMode = 'terrain' | 'satellite' | 'vector';
+
+export interface OverviewCamera {
+  mode: CoverageMode;
+  coverage: Extent;
+  /** The camera to apply, in one move. */
+  camera: { lng: number; lat: number; zoom: number };
+  /** What a purely route-centred composition would have been. */
+  desiredCamera: { lng: number; lat: number; zoom: number };
+  /** How far the applied centre had to move, CSS px at this zoom. */
+  centreDeviationPx: { x: number; y: number };
+  /** True only when translation alone could not fit the viewport. */
+  zoomRaised: boolean;
+  zoomDelta: number;
+  sourceZoom: number;
+  scale: number;
+  visibleExtent: Bounds;
+  routeClearancePx: { left: number; right: number; top: number; bottom: number };
+  /** Route edges pushed outside the viewport (ultrawide overfill only). */
+  endpointsOutside: { edge: string; px: number }[];
+  routeComplete: boolean;
+  /** maxBounds for the overview: the active mode's renderable envelope. */
+  overviewBounds: Bounds;
+}
+
+export declare function coverageForMode(
+  mode: CoverageMode,
+  cutoutBounds: Bounds,
+  build?: VectorOverviewBuild,
+): Extent;
+
+export declare function overviewCameraFor(args: {
+  routeBounds: Bounds;
+  userBounds: Bounds;
+  cutoutBounds: Bounds;
+  viewportWidth: number;
+  viewportHeight: number;
+  padding?: { top?: number; bottom?: number; left?: number; right?: number };
+  mode?: CoverageMode;
+  build?: VectorOverviewBuild;
+}): OverviewCamera;

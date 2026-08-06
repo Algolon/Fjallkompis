@@ -52,8 +52,10 @@ import {
 import {
   cameraConstraintsFor,
   activeBoundsForZoom,
+  overviewCameraFor,
   MIN_ZOOM_BACKSTOP,
   type CameraConstraints,
+  type OverviewCamera,
 } from '../map/cameraBounds.mjs';
 import type { LatLng } from '../types';
 import { BASE_MAP_PADDING } from '../map/mapPadding.mjs';
@@ -273,6 +275,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // operational fits clear the chrome, the route overview composes.
   const paddingRef = useRef<MapPadding>(padding ?? DEFAULT_PADDING);
   paddingRef.current = padding ?? DEFAULT_PADDING;
+  /** Which renderable envelope constrains the camera (set once the style resolves). */
+  const coverageModeRef = useRef<'terrain' | 'satellite' | 'vector'>('vector');
+  /** The solved overview camera, recomputed on demand for the current shape. */
+  const overviewCameraRef = useRef<(() => OverviewCamera) | null>(null);
+
   const overviewPaddingRef = useRef<MapPadding>(
     overviewPadding ?? padding ?? DEFAULT_PADDING,
   );
@@ -370,8 +377,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           : EMPTY_FC,
       );
     },
-    // Same overview contract as the constructor's initial fit.
-    fitRoute: () => fitBounds(routeRef.current.bounds, 'overview'),
+    // Literally the same computation as the constructor's initial fit, so
+    // "Fit route" always lands on the camera the map opened with.
+    fitRoute: () => {
+      const solved = overviewCameraRef.current?.();
+      if (!solved || !mapRef.current) return;
+      mapRef.current.easeTo({
+        center: [solved.camera.lng, solved.camera.lat],
+        zoom: solved.camera.zoom,
+        ...animate(),
+      });
+    },
     fitStage: (stageId) => {
       const stage = routeRef.current.stages.find((s) => s.id === stageId);
       if (stage) fitBounds(stage.bounds, 'content');
@@ -434,8 +450,36 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // The constraints exist so the ROUTE OVERVIEW resolves inside the
       // coverage contract, so they are derived from the overview padding —
       // the same rectangle the fit they have to permit will use.
-      const computeConstraints = (): CameraConstraints =>
-        cameraConstraintsFor({
+      // Which renderable envelope the camera must respect. In Terrain mode
+      // the whole visible viewport has to stay inside the hillshade
+      // footprint — an unshaded flank is not an acceptable trade for a
+      // perfectly centred route — so the mode decides the contract.
+      const coverageMode: 'terrain' | 'satellite' | 'vector' =
+        terrain.sourceUrl != null
+          ? 'terrain'
+          : satellite.sourceUrl != null
+            ? 'satellite'
+            : 'vector';
+      coverageModeRef.current = coverageMode;
+
+      const computeOverviewCamera = () =>
+        overviewCameraFor({
+          routeBounds: mountedRoute.bounds,
+          userBounds: mountedRoute.userBounds,
+          cutoutBounds: mountedRoute.mapCutoutBounds,
+          viewportWidth: containerRef.current?.clientWidth ?? 1,
+          viewportHeight: containerRef.current?.clientHeight ?? 1,
+          padding: overviewPaddingRef.current,
+          mode: coverageModeRef.current,
+        });
+      overviewCameraRef.current = computeOverviewCamera;
+
+      // maxBounds at overview zoom is the ACTIVE MODE'S renderable envelope,
+      // not the vector one: panning must not reach unshaded ground either.
+      // Zooming in past the threshold still snaps to the strict interaction
+      // bounds, which sit well inside every mode's coverage.
+      const computeConstraints = (): CameraConstraints => {
+        const base = cameraConstraintsFor({
           userBounds: mountedRoute.userBounds,
           routeBounds: mountedRoute.bounds,
           dataBounds: mountedRoute.mapCutoutBounds,
@@ -443,14 +487,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           viewportHeight: containerRef.current?.clientHeight ?? 1,
           padding: overviewPaddingRef.current,
         });
+        return { ...base, overviewBounds: computeOverviewCamera().overviewBounds };
+      };
       constraintsRef.current = computeConstraints();
       boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
+      const initialCamera = computeOverviewCamera();
       map = new maplibregl.Map({
         container: containerRef.current,
         style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, reliefRef.current),
-        bounds: mountedRoute.bounds,
-        // The initial view IS the full-route overview: same contract as fitRoute.
-        fitBoundsOptions: { padding: overviewPaddingRef.current },
+        // The initial view IS the full-route overview, and it is applied as a
+        // SOLVED camera rather than a bounds-fit: the composition is a
+        // constrained fit (route-centred, then translated back inside the
+        // renderable envelope), which fitBounds cannot express. Giving
+        // MapLibre the answer directly is what keeps it to one settled move —
+        // no fit, then nudge.
+        center: [initialCamera.camera.lng, initialCamera.camera.lat],
+        zoom: initialCamera.camera.zoom,
         attributionControl: { compact: true },
         // Cap zoom to what the offline tileset actually contains (+overzoom).
         maxZoom: 17,
@@ -461,6 +513,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         maxBounds: (boundsExpandedRef.current
           ? constraintsRef.current.overviewBounds!
           : constraintsRef.current.interactionBounds) as maplibregl.LngLatBoundsLike,
+        // NOTE: overviewBounds is the active mode's renderable envelope, so
+        // panning at overview zoom cannot reach unshaded ground either.
         // North-up product policy: rotation gestures are disabled (the map
         // is a route companion; a rotated frame costs orientation and would
         // let viewport corners peek past the bounds contract), and pitch is

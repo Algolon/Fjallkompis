@@ -76,78 +76,129 @@ coverage.
 - contours cannot constrain the overview: every overview zoom measured is
   below 9.5, their style activation threshold.
 
-### The one accepted trade
+### Hillshade is a HARD constraint (product decision, 2026-08-06)
 
-A symmetric composition on wide landscape reaches past terrain/satellite's
-east edge (19.6875). Those pixels lose **hillshade, not map** — vector still
-draws water, landcover, roads and labels, and blank-vector measures **0 px
-everywhere**:
+An unshaded flank is **not** an acceptable trade for perfect route centring.
+In Terrain mode the whole visible viewport must stay inside the renderable
+hillshade footprint (16.8750–19.6875 lon, 67.6092–68.6566 lat).
 
-| viewport | unshaded east flank |
+Raster runs 1.7536° west of the route centre but only 1.0589° east, so a
+landscape viewport wide enough for the whole route **cannot** be centred on it
+and stay shaded. The camera is therefore solved as a **constrained fit**:
+
+1. the desired symmetric route-centred viewport;
+2. the renderable envelope for the active mode;
+3. when the desired viewport overhangs a raster edge, **translate** it back
+   inside at unchanged zoom — clamping the centre into
+   `[envWest + halfWidth, envEast − halfWidth]`, which IS the feasible centre
+   closest to the desired one;
+4. only when the viewport is wider than the envelope itself is the **zoom
+   raised**, and then the route over-fills vertically.
+
+Route centring became a preference; hillshade coverage is the guarantee.
+
+#### Re-run feasibility, hillshade binding
+
+| viewport | container | view width | envelope | fits by translation? | translation |
+| --- | --- | --- | --- | --- | --- |
+| 1366×768 | 1218×768 | 273.2 km | 313.1 km | ✅ | 83.4 px W |
+| 1512×860 | 1364×860 | 269.8 km | 313.1 km | ✅ | 86.0 px W |
+| 1512×872 *(MacBook)* | 1364×872 | 265.7 km | 313.1 km | ✅ | 76.8 px W |
+| 1536×864 | 1388×864 | 273.1 km | 313.1 km | ✅ | 94.9 px W |
+| 1920×1080 | 1772×1080 | 273.2 km | 313.1 km | ✅ | 121.4 px W |
+| 2560×1080 | 2412×1080 | 371.9 km | 313.1 km | ❌ zoom raised | — |
+| 3440×1440 | 3292×1440 | 373.0 km | 313.1 km | ❌ zoom raised | — |
+
+**No geometric conflict through 1920×1080**: complete route + labels, whole
+viewport inside hillshade, and the existing overview padding all coexist.
+
+#### Smallest achievable centre deviation (supported landscape)
+
+The route box sits this far east of the padded-rect centre — the minimum
+compatible with continuous hillshade:
+
+| viewport | deviation |
 | --- | --- |
-| every phone, tablet portrait | **0 px** |
-| 1280×800 / 1440×900 | 16 / 19 px |
-| 1366×768 / 1512×860 / 1536×864 | 83 / 86 / 95 px |
-| 1920×1080 | 121 px |
-| 2560×1080 / 3440×1440 | 441 / 606 px |
+| 1024×768 · 768×1024 · all portrait | **0 px** |
+| 760×500 / 1280×800 / 1440×900 | 14.7 / 15.9 / 19.3 px |
+| 1512×872 *(MacBook)* | 76.8 px |
+| 1366×768 / 1512×860 / 1536×864 | 83.5 / 86.0 / 94.9 px |
+| 1920×1080 | 121.4 px |
 
-Capping on raster instead would crop the route by more than half its height on
-a 21:9 display, so vector binds. Flagged for review rather than hidden.
+#### Ultrawide — vertical overfill, explicitly incomplete
+
+| viewport | zoom raised | route outside viewport |
+| --- | --- | --- |
+| 2560×1080 | 9.236 (+0.25) | top 23.7 px, bottom 81.7 px |
+| 3440×1440 | 9.685 (+0.25) | top 59.9 px, bottom 117.9 px |
+
+The model reports `routeComplete: false` and lists `endpointsOutside`, so an
+ultrawide overview is never described as a complete route fit.
 
 ## Before → after
 
-Fresh mount per viewport, DPR 2, dev server on the merged archives.
-`clearance T/B` is the route box's distance to the container edge;
-`dev.x` is the route centre's offset from the padded-rect centre;
-`endLbl` is the worst Abisko/Nikkaluokta label clearance.
+Fresh mount per viewport, DPR 2, Terrain mode, dev server on the merged
+archives. `unshaded` is how far the visible viewport overhangs the renderable
+hillshade envelope — **it must be zero**.
 
-| viewport | map container | before T/B | before dev.x | before endLbl | after T/B | after dev.x | after endLbl | zoom / src | blank | moves | errors |
+| viewport | container | before T/B | after T/B | camera moved W | route-box dev.x | **unshaded** | blank | zoom / src | endLbl | moves | err |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 320x568 | 320×512 | 83.2 / 29.2 | 0 | 16.7 | **83.2 / 29.2** | 0 | 16.7 | 7.667 / z7 | 0 | 1 | 0 |
-| 360x800 | 360×744 | 125.4 / 121.6 | 0 | 9.4 | **163.6 / 109.6** | 0 | 16.7 | 7.9041 / z7 | 0 | 1 | 0 |
-| 375x667 | 375×611 | 83.7 / 29.7 | 0 | 16.7 | **83.7 / 29.7** | 0 | 16.7 | 7.9838 / z7 | 0 | 1 | 0 |
-| 390x844 | 390×788 | 132.8 / 128.8 | 0 | 16.2 | **158.8 / 104.8** | 0 | 16.7 | 8.0594 / z8 | 0 | 1 | 0 |
-| 412x915 | 412×859 | 144.7 / 140.4 | 0 | 13.9 | **174.7 / 120.7** | 0 | 16.7 | 8.1635 / z8 | 0 | 1 | 0 |
-| 430x932 | 430×876 | 141.8 / 138.5 | 0 | 16.7 | **167.1 / 113.1** | 0 | 16.7 | 8.2434 / z8 | 0 | 1 | 0 |
-| 760x500 | 676×500 | 65.1 / 10.8 | 18.6 | 30.3 | **66 / 12** | 0 | 31.2 | 7.746 / z7 | 0 | 1 | 0 |
-| 768x1024 | 684×1024 | 66 / 12 | 0 | 31.4 | **66 / 12** | 0 | 31.4 | 8.9106 / z8 | 0 | 1 | 0 |
-| 1024x768 | 940×768 | 70 / 12 | 0 | 35.3 | **70 / 12** | 0 | 35.3 | 8.447 / z8 | 0 | 1 | 0 |
-| 1280x800 | 1132×800 | 70 / 12 | 25.3 | 35.3 | **70 / 12** | 0 | 35.3 | 8.5128 / z8 | 0 | 1 | 0 |
-| 1366x768 | 1218×768 | 53.2 / -7.9 | 64.7 | 18.3 | **70 / 12** | 0 | 35.3 | 8.447 / z8 | 0 | 1 | 0 |
-| 1440x900 | 1292×900 | 70 / 12 | 30 | 35.4 | **70 / 12** | 0 | 35.4 | 8.7009 / z8 | 0 | 1 | 0 |
-| 1512x860 | 1364×860 | 52.9 / -7.9 | 68.2 | 18.2 | **70 / 12** | 0 | 35.4 | 8.6286 / z8 | 0 | 1 | 0 |
-| 1536x864 | 1388×864 | 50.7 / -10.4 | 73.6 | 16.1 | **70 / 12** | 0 | 35.4 | 8.636 / z8 | 0 | 1 | 0 |
-| 1920x1080 | 1772×1080 | 44.8 / -16.3 | 94.2 | 10.3 | **70 / 12** | 0 | 35.5 | 8.9878 / z8 | 0 | 1 | 0 |
-| 2560x1080 | 2412×1080 | -25.4 / -95.2 | 301.7 | -61.6 | **70 / 12** | 0 | 35.5 | 8.9878 / z8 | 0 | 1 | 0 |
-| 3440x1440 | 3292×1440 | -64.4 / -134.4 | 411.8 | -98.6 | **70 / 12** | 0 | 35.6 | 9.4322 / z9 | 0 | 1 | 0 |
-
-fitRoute matches initial camera on every viewport: true
-all after bottom clearances >= 12: true
-all after |dev.x| <= 8: true
-all after endpoint label clearance >= 8: true
-all after blank px == 0: true
-all after moves == 1: true
-
-Every viewport after the change: **route clearance exactly the padding**
-(70/12, or the width-bound equivalent), **dev.x = 0**, **blank 0 px**,
-**one settled camera move**, **zero console errors**, and the explicit
-`Fit route` action lands on the identical camera as the initial fit.
+| 320x568 | 320×512 | 83.2 / 29.2 | **83.2 / 29.2** | 0 px | +0 | **0 px** | 0 px | 7.667 / z7 | 16.7 | 1 | 0 |
+| 360x800 | 360×744 | 125.4 / 121.6 | **163.6 / 109.6** | 0 px | +0 | **0 px** | 0 px | 7.9041 / z7 | 16.7 | 1 | 0 |
+| 375x667 | 375×611 | 83.7 / 29.7 | **83.7 / 29.7** | 0 px | +0 | **0 px** | 0 px | 7.9838 / z7 | 16.7 | 1 | 0 |
+| 390x844 | 390×788 | 132.8 / 128.8 | **158.8 / 104.8** | 0 px | +0 | **0 px** | 0 px | 8.0594 / z8 | 16.7 | 1 | 0 |
+| 412x915 | 412×859 | 144.7 / 140.4 | **174.7 / 120.7** | 0 px | +0 | **0 px** | 0 px | 8.1635 / z8 | 16.7 | 1 | 0 |
+| 430x932 | 430×876 | 141.8 / 138.5 | **167.1 / 113.1** | 0 px | +0 | **0 px** | 0 px | 8.2434 / z8 | 16.7 | 1 | 0 |
+| 760x500 | 676×500 | 65.1 / 10.8 | **66 / 12** | 14.7 px | +14.7 | **0 px** | 0 px | 7.746 / z7 | 31.2 | 1 | 0 |
+| 768x1024 | 684×1024 | 66 / 12 | **66 / 12** | 0 px | +0 | **0 px** | 0 px | 8.9106 / z8 | 31.4 | 1 | 0 |
+| 1024x768 | 940×768 | 70 / 12 | **70 / 12** | 0 px | +0 | **0 px** | 0 px | 8.447 / z8 | 35.3 | 1 | 0 |
+| 1280x800 | 1132×800 | 70 / 12 | **70 / 12** | 15.9 px | +15.9 | **0 px** | 0 px | 8.5128 / z8 | 35.3 | 1 | 0 |
+| 1366x768 | 1218×768 | 53.2 / -7.9 | **70 / 12** | 83.5 px | +83.5 | **0 px** | 0 px | 8.447 / z8 | 35.3 | 1 | 0 |
+| 1440x900 | 1292×900 | 70 / 12 | **70 / 12** | 19.3 px | +19.3 | **0 px** | 0 px | 8.7009 / z8 | 35.4 | 1 | 0 |
+| 1512x860 | 1364×860 | 52.9 / -7.9 | **70 / 12** | 86 px | +86 | **0 px** | 0 px | 8.6286 / z8 | 35.4 | 1 | 0 |
+| 1512x872 | 1364×872 | — | **70 / 12** | 76.8 px | +76.8 | **0 px** | 0 px | 8.6506 / z8 | 35.4 | 1 | 0 |
+| 1536x864 | 1388×864 | 50.7 / -10.4 | **70 / 12** | 94.9 px | +94.9 | **0 px** | 0 px | 8.636 / z8 | 35.4 | 1 | 0 |
+| 1920x1080 | 1772×1080 | 44.8 / -16.3 | **70 / 12** | 121.4 px | +121.4 | **0 px** | 0 px | 8.9878 / z8 | 35.5 | 1 | 0 |
+| 2560x1080 | 2412×1080 | -25.4 / -95.2 | **-23.7 / -81.7** | 297.9 px | +297.9 | **0 px** | 0 px | 9.236 / z9 | -58.1 | 1 | 0 |
+| 3440x1440 | 3292×1440 | -64.4 / -134.4 | **-59.9 / -117.9** | 406.6 px | +406.6 | **0 px** | 0 px | 9.6847 / z9 | -94.1 | 1 | 0 |
 
 ### Acceptance
 
+Supported viewports (through 1920×1080):
+
 | criterion | result |
 | --- | --- |
-| MacBook / 1512×860 / 1536×864: complete route | ✅ |
-| Abisko + Nikkaluokta glyphs and labels fully visible | ✅ (worst label clearance 35.4 px) |
-| ≥ 12 px route clearance top and bottom | ✅ exactly 70 / 12 |
+| zero pixels outside renderable hillshade | ✅ **0 px**, every viewport |
+| no visible loss of relief at any edge | ✅ visible east edge lands exactly on 19.6875 |
+| complete route line visible | ✅ |
+| Abisko + Nikkaluokta glyphs and labels visible | ✅ worst label clearance 35.4 px |
+| ≥ 12 px route clearance top and bottom | ✅ exactly 70 / 12 on every landscape shape |
 | ≥ 8 px endpoint-label clearance | ✅ 35.4 px |
-| route centre within 8 px of the padded centre | ✅ 0.0 px |
-| no blank vector region | ✅ 0 px, every viewport |
-| one stable camera, zero console errors | ✅ 1 move, 0 errors |
-| 1366×768 bottom clipping removed | ✅ −7.9 px → +12 px |
-| 1920×1080 complete, stable at z8 or z9 | ✅ complete; z8 and z9 share the same 195.2 km symmetric budget |
-| portrait: PR #100 results preserved | ✅ strict east/west bounds kept; 320×568 and 375×667 byte-identical framing |
-| ultrawide | ✅ better than best-effort — both frame the complete route |
+| zero blank vector pixels | ✅ 0 px |
+| one camera move | ✅ 1 |
+| zero console errors | ✅ 0 |
+| centre deviation minimised and measured | ✅ 0–121.4 px, see above |
+| portrait preserves PR #100 and PR #111 | ✅ 0 px deviation, unchanged framing |
+
+Ultrawide (> ~2:1):
+
+| criterion | result |
+| --- | --- |
+| continuous hillshade | ✅ 0 unshaded px; viewport exactly fills the envelope |
+| never expose an unshaded flank | ✅ |
+| vertical route overfill acceptable | ✅ recorded per endpoint |
+| endpoints outside recorded | ✅ 2560×1080 top 23.7 / bottom 81.7 px; 3440×1440 top 59.9 / bottom 117.9 px |
+| Fit route stable and predictable | ✅ identical to the initial camera |
+| no camera loop or repeated clamping | ✅ 1 settled move |
+| not described as a complete fit | ✅ `routeComplete: false` |
+
+### Mode awareness
+
+| mode | envelope | verified |
+| --- | --- | --- |
+| Terrain | terrain renderable (z7 ancestor footprint) | ✅ all viewports, 0 unshaded px |
+| Satellite | satellite renderable, derived independently | ✅ camera obeys it (unit) |
+| vector-only fallback | vector overview footprint | ✅ sits closer to the route centre, route complete |
 
 ## Files
 

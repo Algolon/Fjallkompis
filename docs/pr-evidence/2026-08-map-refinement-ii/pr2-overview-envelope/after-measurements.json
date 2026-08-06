@@ -26,6 +26,16 @@
         68.4661
       ]
     ],
+    "visibleExtent": [
+      [
+        18.075067,
+        67.804633
+      ],
+      [
+        19.182134,
+        68.464271
+      ]
+    ],
     "routeBox": {
       "x": 48,
       "y": 83.2,
@@ -395,6 +405,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "320x568",
     "class": "portrait",
     "cameraStableAfterSettle": true,
@@ -419,11 +443,21 @@
     "sourceZoom": 7,
     "maxBounds": [
       [
-        17.9521,
+        16.875,
+        67.609221
+      ],
+      [
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        18.100228,
         67.721198
       ],
       [
-        19.3051,
+        19.156973,
         68.534701
       ]
     ],
@@ -796,6 +830,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "360x800",
     "class": "portrait",
     "cameraStableAfterSettle": true,
@@ -826,6 +874,16 @@
       [
         19.3051,
         68.4661
+      ]
+    ],
+    "visibleExtent": [
+      [
+        18.107803,
+        67.811691
+      ],
+      [
+        19.149398,
+        68.443884
       ]
     ],
     "routeBox": {
@@ -1197,6 +1255,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "375x667",
     "class": "portrait",
     "cameraStableAfterSettle": true,
@@ -1221,11 +1293,21 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.9521,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.3051,
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        18.114605,
+        67.738384
+      ],
+      [
+        19.142596,
         68.512176
       ]
     ],
@@ -1598,6 +1680,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "390x844",
     "class": "portrait",
     "cameraStableAfterSettle": true,
@@ -1622,11 +1718,21 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.9521,
+        16.875,
+        67.609221
+      ],
+      [
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        18.123414,
         67.730916
       ],
       [
-        19.3051,
+        19.133787,
         68.515766
       ]
     ],
@@ -1999,6 +2105,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "412x915",
     "class": "portrait",
     "cameraStableAfterSettle": true,
@@ -2023,11 +2143,21 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.9521,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.3051,
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        18.129757,
+        67.743598
+      ],
+      [
+        19.127444,
         68.500888
       ]
     ],
@@ -2400,6 +2530,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "430x932",
     "class": "portrait",
     "cameraStableAfterSettle": true,
@@ -2415,7 +2559,7 @@
     "topInset": 54,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
+      "lng": 18.580466,
       "lat": 68.134964,
       "zoom": 7.746,
       "bearing": 0,
@@ -2424,25 +2568,35 @@
     "sourceZoom": 7,
     "maxBounds": [
       [
-        17.466215,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.790986,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.473432,
+        67.827991
+      ],
+      [
+        19.6875,
+        68.437893
       ]
     ],
     "routeBox": {
-      "x": 219.7,
+      "x": 234.4,
       "y": 66,
-      "right": 456.3,
+      "right": 471,
       "bottom": 488,
       "w": 236.6,
       "h": 422
     },
     "routeClearance": {
-      "left": 219.7,
-      "right": 219.7,
+      "left": 234.4,
+      "right": 205,
       "top": 66,
       "bottom": 12
     },
@@ -2476,240 +2630,240 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 363.6,
+          "x": 378.3,
           "y": 44.2,
           "w": 44,
           "h": 44,
-          "right": 407.6,
+          "right": 422.3,
           "bottom": 88.2
         },
         "label": {
-          "x": 367.6,
+          "x": 382.3,
           "y": 31.2,
           "w": 36,
           "h": 20,
-          "right": 403.6,
+          "right": 418.3,
           "bottom": 51.2
         },
         "glyphClear": {
-          "left": 363.6,
-          "right": 268.4,
+          "left": 378.3,
+          "right": 253.7,
           "top": 44.2,
           "bottom": 411.8
         },
         "labelClear": {
-          "left": 367.6,
-          "right": 272.4,
+          "left": 382.3,
+          "right": 257.7,
           "top": 31.2,
           "bottom": 448.8
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 304.4,
+          "x": 319.1,
           "y": 103.9,
           "w": 44,
           "h": 44,
-          "right": 348.4,
+          "right": 363.1,
           "bottom": 147.9
         },
         "label": {
-          "x": 295.3,
+          "x": 310,
           "y": 90.9,
           "w": 62.3,
           "h": 20,
-          "right": 357.6,
+          "right": 372.3,
           "bottom": 110.9
         },
         "glyphClear": {
-          "left": 304.4,
-          "right": 327.6,
+          "left": 319.1,
+          "right": 312.9,
           "top": 103.9,
           "bottom": 352.1
         },
         "labelClear": {
-          "left": 295.3,
-          "right": 318.4,
+          "left": 310,
+          "right": 303.7,
           "top": 90.9,
           "bottom": 389.1
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 250.7,
+          "x": 265.4,
           "y": 226.7,
           "w": 44,
           "h": 44,
-          "right": 294.7,
+          "right": 309.4,
           "bottom": 270.7
         },
         "label": {
-          "x": 248.3,
+          "x": 263,
           "y": 213.7,
           "w": 48.9,
           "h": 20,
-          "right": 297.2,
+          "right": 311.9,
           "bottom": 233.7
         },
         "glyphClear": {
-          "left": 250.7,
-          "right": 381.3,
+          "left": 265.4,
+          "right": 366.6,
           "top": 226.7,
           "bottom": 229.3
         },
         "labelClear": {
-          "left": 248.3,
-          "right": 378.8,
+          "left": 263,
+          "right": 364.1,
           "top": 213.7,
           "bottom": 266.3
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 198,
+          "x": 212.7,
           "y": 296.3,
           "w": 44,
           "h": 44,
-          "right": 242,
+          "right": 256.7,
           "bottom": 340.3
         },
         "label": {
-          "x": 202.1,
+          "x": 216.8,
           "y": 283.3,
           "w": 35.7,
           "h": 20,
-          "right": 237.8,
+          "right": 252.5,
           "bottom": 303.3
         },
         "glyphClear": {
-          "left": 198,
-          "right": 434,
+          "left": 212.7,
+          "right": 419.3,
           "top": 296.3,
           "bottom": 159.7
         },
         "labelClear": {
-          "left": 202.1,
-          "right": 438.2,
+          "left": 216.8,
+          "right": 423.5,
           "top": 283.3,
           "bottom": 196.7
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 210.3,
+          "x": 225,
           "y": 382.1,
           "w": 44,
           "h": 44,
-          "right": 254.3,
+          "right": 269,
           "bottom": 426.1
         },
         "label": {
-          "x": 217.8,
+          "x": 232.5,
           "y": 369.1,
           "w": 28.9,
           "h": 20,
-          "right": 246.7,
+          "right": 261.4,
           "bottom": 389.1
         },
         "glyphClear": {
-          "left": 210.3,
-          "right": 421.7,
+          "left": 225,
+          "right": 407,
           "top": 382.1,
           "bottom": 73.9
         },
         "labelClear": {
-          "left": 217.8,
-          "right": 429.3,
+          "left": 232.5,
+          "right": 414.6,
           "top": 369.1,
           "bottom": 110.9
         }
       },
       "Singi": {
         "glyph": {
-          "x": 220.7,
+          "x": 235.4,
           "y": 459.4,
           "w": 44,
           "h": 44,
-          "right": 264.7,
+          "right": 279.4,
           "bottom": 503.4
         },
         "label": {
-          "x": 229.7,
+          "x": 244.4,
           "y": 446.4,
           "w": 26.1,
           "h": 20,
-          "right": 255.7,
+          "right": 270.4,
           "bottom": 466.4
         },
         "glyphClear": {
-          "left": 220.7,
-          "right": 411.3,
+          "left": 235.4,
+          "right": 396.6,
           "top": 459.4,
           "bottom": -3.4
         },
         "labelClear": {
-          "left": 229.7,
-          "right": 420.3,
+          "left": 244.4,
+          "right": 405.6,
           "top": 446.4,
           "bottom": 33.6
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 313.5,
+          "x": 328.2,
           "y": 445.5,
           "w": 44,
           "h": 44,
-          "right": 357.5,
+          "right": 372.2,
           "bottom": 489.5
         },
         "label": {
-          "x": 304.7,
+          "x": 319.4,
           "y": 432.5,
           "w": 61.5,
           "h": 20,
-          "right": 366.2,
+          "right": 380.9,
           "bottom": 452.5
         },
         "glyphClear": {
-          "left": 313.5,
-          "right": 318.5,
+          "left": 328.2,
+          "right": 303.8,
           "top": 445.5,
           "bottom": 10.5
         },
         "labelClear": {
-          "left": 304.7,
-          "right": 309.8,
+          "left": 319.4,
+          "right": 295.1,
           "top": 432.5,
           "bottom": 47.5
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 434.3,
+          "x": 449,
           "y": 459.5,
           "w": 44,
           "h": 44,
-          "right": 478.3,
+          "right": 493,
           "bottom": 503.5
         },
         "label": {
-          "x": 425,
+          "x": 439.7,
           "y": 446.5,
           "w": 62.5,
           "h": 20,
-          "right": 487.6,
+          "right": 502.3,
           "bottom": 466.5
         },
         "glyphClear": {
-          "left": 434.3,
-          "right": 197.7,
+          "left": 449,
+          "right": 183,
           "top": 459.5,
           "bottom": -3.5
         },
         "labelClear": {
-          "left": 425,
-          "right": 188.4,
+          "left": 439.7,
+          "right": 173.7,
           "top": 446.5,
           "bottom": 33.5
         }
@@ -2734,7 +2888,7 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
+        "lng": 18.580466,
         "lat": 68.134964,
         "zoom": 7.746,
         "bearing": 0,
@@ -2742,16 +2896,16 @@
       },
       "sourceZoom": 7,
       "routeBox": {
-        "x": 219.7,
+        "x": 234.4,
         "y": 66,
-        "right": 456.3,
+        "right": 471,
         "bottom": 488,
         "w": 236.6,
         "h": 422
       },
       "routeClearance": {
-        "left": 219.7,
-        "right": 219.7,
+        "left": 234.4,
+        "right": 205,
         "top": 66,
         "bottom": 12
       },
@@ -2798,8 +2952,22 @@
       "h": 422
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 14.7,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "760x500",
     "class": "tablet",
@@ -2831,6 +2999,16 @@
       [
         19.3051,
         68.4661
+      ]
+    ],
+    "visibleExtent": [
+      [
+        18.128921,
+        67.836206
+      ],
+      [
+        19.12828,
+        68.393845
       ]
     ],
     "routeBox": {
@@ -3202,6 +3380,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "768x1024",
     "class": "tablet",
     "cameraStableAfterSettle": true,
@@ -3226,12 +3418,22 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.634295,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.622906,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.681643,
+        67.833699
+      ],
+      [
+        19.575558,
+        68.410265
       ]
     ],
     "routeBox": {
@@ -3603,6 +3805,20 @@
       "x": 0,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "1024x768",
     "class": "laptop",
     "cameraStableAfterSettle": true,
@@ -3618,7 +3834,7 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
+      "lng": 18.597946,
       "lat": 68.122818,
       "zoom": 8.5128,
       "bearing": 0,
@@ -3627,25 +3843,35 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.484569,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.772632,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.508392,
+        67.834105
+      ],
+      [
+        19.6875,
+        68.407952
       ]
     ],
     "routeBox": {
-      "x": 364.7,
+      "x": 380.6,
       "y": 70,
-      "right": 767.3,
+      "right": 783.2,
       "bottom": 788,
       "w": 402.6,
       "h": 718
     },
     "routeClearance": {
-      "left": 364.7,
-      "right": 364.7,
+      "left": 380.6,
+      "right": 348.8,
       "top": 70,
       "bottom": 12
     },
@@ -3679,240 +3905,240 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 625,
+          "x": 641,
           "y": 48.3,
           "w": 44,
           "h": 44,
-          "right": 669,
+          "right": 685,
           "bottom": 92.3
         },
         "label": {
-          "x": 629,
+          "x": 644.9,
           "y": 35.3,
           "w": 36,
           "h": 20,
-          "right": 665,
+          "right": 681,
           "bottom": 55.3
         },
         "glyphClear": {
-          "left": 625,
-          "right": 463,
+          "left": 641,
+          "right": 447,
           "top": 48.3,
           "bottom": 707.7
         },
         "labelClear": {
-          "left": 629,
-          "right": 467,
+          "left": 644.9,
+          "right": 451,
           "top": 35.3,
           "bottom": 744.7
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 524.3,
+          "x": 540.2,
           "y": 149.9,
           "w": 44,
           "h": 44,
-          "right": 568.3,
+          "right": 584.2,
           "bottom": 193.9
         },
         "label": {
-          "x": 515.2,
+          "x": 531.1,
           "y": 136.9,
           "w": 62.3,
           "h": 20,
-          "right": 577.5,
+          "right": 593.4,
           "bottom": 156.9
         },
         "glyphClear": {
-          "left": 524.3,
-          "right": 563.7,
+          "left": 540.2,
+          "right": 547.8,
           "top": 149.9,
           "bottom": 606.1
         },
         "labelClear": {
-          "left": 515.2,
-          "right": 554.5,
+          "left": 531.1,
+          "right": 538.6,
           "top": 136.9,
           "bottom": 643.1
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 433,
+          "x": 448.9,
           "y": 358.8,
           "w": 44,
           "h": 44,
-          "right": 477,
+          "right": 492.9,
           "bottom": 402.8
         },
         "label": {
-          "x": 430.5,
+          "x": 446.5,
           "y": 345.8,
           "w": 48.9,
           "h": 20,
-          "right": 479.4,
+          "right": 495.3,
           "bottom": 365.8
         },
         "glyphClear": {
-          "left": 433,
-          "right": 655,
+          "left": 448.9,
+          "right": 639.1,
           "top": 358.8,
           "bottom": 397.2
         },
         "labelClear": {
-          "left": 430.5,
-          "right": 652.6,
+          "left": 446.5,
+          "right": 636.7,
           "top": 345.8,
           "bottom": 434.2
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 343.2,
+          "x": 359.1,
           "y": 477.3,
           "w": 44,
           "h": 44,
-          "right": 387.2,
+          "right": 403.1,
           "bottom": 521.3
         },
         "label": {
-          "x": 347.3,
+          "x": 363.3,
           "y": 464.3,
           "w": 35.7,
           "h": 20,
-          "right": 383,
+          "right": 398.9,
           "bottom": 484.3
         },
         "glyphClear": {
-          "left": 343.2,
-          "right": 744.8,
+          "left": 359.1,
+          "right": 728.9,
           "top": 477.3,
           "bottom": 278.7
         },
         "labelClear": {
-          "left": 347.3,
-          "right": 749,
+          "left": 363.3,
+          "right": 733.1,
           "top": 464.3,
           "bottom": 315.7
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 364.1,
+          "x": 380,
           "y": 623.2,
           "w": 44,
           "h": 44,
-          "right": 408.1,
+          "right": 424,
           "bottom": 667.2
         },
         "label": {
-          "x": 371.6,
+          "x": 387.6,
           "y": 610.2,
           "w": 28.9,
           "h": 20,
-          "right": 400.6,
+          "right": 416.5,
           "bottom": 630.2
         },
         "glyphClear": {
-          "left": 364.1,
-          "right": 723.9,
+          "left": 380,
+          "right": 708,
           "top": 623.2,
           "bottom": 132.8
         },
         "labelClear": {
-          "left": 371.6,
-          "right": 731.4,
+          "left": 387.6,
+          "right": 715.5,
           "top": 610.2,
           "bottom": 169.8
         }
       },
       "Singi": {
         "glyph": {
-          "x": 381.8,
+          "x": 397.8,
           "y": 754.7,
           "w": 44,
           "h": 44,
-          "right": 425.8,
+          "right": 441.8,
           "bottom": 798.7
         },
         "label": {
-          "x": 390.8,
+          "x": 406.7,
           "y": 741.7,
           "w": 26.1,
           "h": 20,
-          "right": 416.9,
+          "right": 432.8,
           "bottom": 761.7
         },
         "glyphClear": {
-          "left": 381.8,
-          "right": 706.2,
+          "left": 397.8,
+          "right": 690.2,
           "top": 754.7,
           "bottom": 1.3
         },
         "labelClear": {
-          "left": 390.8,
-          "right": 715.1,
+          "left": 406.7,
+          "right": 699.2,
           "top": 741.7,
           "bottom": 38.3
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 539.7,
+          "x": 555.6,
           "y": 731.1,
           "w": 44,
           "h": 44,
-          "right": 583.7,
+          "right": 599.6,
           "bottom": 775.1
         },
         "label": {
-          "x": 530.9,
+          "x": 546.9,
           "y": 718.1,
           "w": 61.5,
           "h": 20,
-          "right": 592.4,
+          "right": 608.4,
           "bottom": 738.1
         },
         "glyphClear": {
-          "left": 539.7,
-          "right": 548.3,
+          "left": 555.6,
+          "right": 532.4,
           "top": 731.1,
           "bottom": 24.9
         },
         "labelClear": {
-          "left": 530.9,
-          "right": 539.6,
+          "left": 546.9,
+          "right": 523.6,
           "top": 718.1,
           "bottom": 61.9
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 745.3,
+          "x": 761.2,
           "y": 754.9,
           "w": 44,
           "h": 44,
-          "right": 789.3,
+          "right": 805.2,
           "bottom": 798.9
         },
         "label": {
-          "x": 736,
+          "x": 751.9,
           "y": 741.9,
           "w": 62.5,
           "h": 20,
-          "right": 798.5,
+          "right": 814.5,
           "bottom": 761.9
         },
         "glyphClear": {
-          "left": 745.3,
-          "right": 342.7,
+          "left": 761.2,
+          "right": 326.8,
           "top": 754.9,
           "bottom": 1.1
         },
         "labelClear": {
-          "left": 736,
-          "right": 333.5,
+          "left": 751.9,
+          "right": 317.5,
           "top": 741.9,
           "bottom": 38.1
         }
@@ -3937,7 +4163,7 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.628601,
+        "lng": 18.597946,
         "lat": 68.122818,
         "zoom": 8.5128,
         "bearing": 0,
@@ -3945,16 +4171,16 @@
       },
       "sourceZoom": 8,
       "routeBox": {
-        "x": 364.7,
+        "x": 380.6,
         "y": 70,
-        "right": 767.3,
+        "right": 783.2,
         "bottom": 788,
         "w": 402.6,
         "h": 718
       },
       "routeClearance": {
-        "left": 364.7,
-        "right": 364.7,
+        "left": 380.6,
+        "right": 348.8,
         "top": 70,
         "bottom": 12
       },
@@ -4001,8 +4227,22 @@
       "h": 718
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 15.9,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "1280x800",
     "class": "laptop",
@@ -4019,7 +4259,7 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
+      "lng": 18.460485,
       "lat": 68.123788,
       "zoom": 8.447,
       "bearing": 0,
@@ -4028,25 +4268,35 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.340235,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.916966,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.23347,
+        67.833699
+      ],
+      [
+        19.6875,
+        68.410265
       ]
     ],
     "routeBox": {
-      "x": 416.7,
+      "x": 500.1,
       "y": 70,
-      "right": 801.3,
+      "right": 884.8,
       "bottom": 756,
       "w": 384.6,
       "h": 686
     },
     "routeClearance": {
-      "left": 416.7,
-      "right": 416.7,
+      "left": 500.1,
+      "right": 333.2,
       "top": 70,
       "bottom": 12
     },
@@ -4080,240 +4330,240 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 664.4,
+          "x": 747.9,
           "y": 48.3,
           "w": 44,
           "h": 44,
-          "right": 708.4,
+          "right": 791.9,
           "bottom": 92.3
         },
         "label": {
-          "x": 668.4,
+          "x": 751.8,
           "y": 35.3,
           "w": 36,
           "h": 20,
-          "right": 704.4,
+          "right": 787.9,
           "bottom": 55.3
         },
         "glyphClear": {
-          "left": 664.4,
-          "right": 509.6,
+          "left": 747.9,
+          "right": 426.1,
           "top": 48.3,
           "bottom": 675.7
         },
         "labelClear": {
-          "left": 668.4,
-          "right": 513.6,
+          "left": 751.8,
+          "right": 430.1,
           "top": 35.3,
           "bottom": 712.7
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 568.2,
+          "x": 651.6,
           "y": 145.3,
           "w": 44,
           "h": 44,
-          "right": 612.2,
+          "right": 695.6,
           "bottom": 189.3
         },
         "label": {
-          "x": 559,
+          "x": 642.5,
           "y": 132.3,
           "w": 62.3,
           "h": 20,
-          "right": 621.4,
+          "right": 704.8,
           "bottom": 152.3
         },
         "glyphClear": {
-          "left": 568.2,
-          "right": 605.8,
+          "left": 651.6,
+          "right": 522.4,
           "top": 145.3,
           "bottom": 578.7
         },
         "labelClear": {
-          "left": 559,
-          "right": 596.6,
+          "left": 642.5,
+          "right": 513.2,
           "top": 132.3,
           "bottom": 615.7
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 480.9,
+          "x": 564.4,
           "y": 345,
           "w": 44,
           "h": 44,
-          "right": 524.9,
+          "right": 608.4,
           "bottom": 389
         },
         "label": {
-          "x": 478.5,
+          "x": 561.9,
           "y": 332,
           "w": 48.9,
           "h": 20,
-          "right": 527.4,
+          "right": 610.8,
           "bottom": 352
         },
         "glyphClear": {
-          "left": 480.9,
-          "right": 693.1,
+          "left": 564.4,
+          "right": 609.6,
           "top": 345,
           "bottom": 379
         },
         "labelClear": {
-          "left": 478.5,
-          "right": 690.6,
+          "left": 561.9,
+          "right": 607.2,
           "top": 332,
           "bottom": 416
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 395.1,
+          "x": 478.6,
           "y": 458.1,
           "w": 44,
           "h": 44,
-          "right": 439.1,
+          "right": 522.6,
           "bottom": 502.1
         },
         "label": {
-          "x": 399.3,
+          "x": 482.7,
           "y": 445.1,
           "w": 35.7,
           "h": 20,
-          "right": 434.9,
+          "right": 518.4,
           "bottom": 465.1
         },
         "glyphClear": {
-          "left": 395.1,
-          "right": 778.9,
+          "left": 478.6,
+          "right": 695.4,
           "top": 458.1,
           "bottom": 265.9
         },
         "labelClear": {
-          "left": 399.3,
-          "right": 783.1,
+          "left": 482.7,
+          "right": 699.6,
           "top": 445.1,
           "bottom": 302.9
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 415.1,
+          "x": 498.6,
           "y": 597.6,
           "w": 44,
           "h": 44,
-          "right": 459.1,
+          "right": 542.6,
           "bottom": 641.6
         },
         "label": {
-          "x": 422.7,
+          "x": 506.1,
           "y": 584.6,
           "w": 28.9,
           "h": 20,
-          "right": 451.6,
+          "right": 535,
           "bottom": 604.6
         },
         "glyphClear": {
-          "left": 415.1,
-          "right": 758.9,
+          "left": 498.6,
+          "right": 675.4,
           "top": 597.6,
           "bottom": 126.4
         },
         "labelClear": {
-          "left": 422.7,
-          "right": 766.4,
+          "left": 506.1,
+          "right": 683,
           "top": 584.6,
           "bottom": 163.4
         }
       },
       "Singi": {
         "glyph": {
-          "x": 432.1,
+          "x": 515.5,
           "y": 723.2,
           "w": 44,
           "h": 44,
-          "right": 476.1,
+          "right": 559.5,
           "bottom": 767.2
         },
         "label": {
-          "x": 441,
+          "x": 524.5,
           "y": 710.2,
           "w": 26.1,
           "h": 20,
-          "right": 467.1,
+          "right": 550.5,
           "bottom": 730.2
         },
         "glyphClear": {
-          "left": 432.1,
-          "right": 741.9,
+          "left": 515.5,
+          "right": 658.5,
           "top": 723.2,
           "bottom": 0.8
         },
         "labelClear": {
-          "left": 441,
-          "right": 750.9,
+          "left": 524.5,
+          "right": 667.5,
           "top": 710.2,
           "bottom": 37.8
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 582.9,
+          "x": 666.3,
           "y": 700.7,
           "w": 44,
           "h": 44,
-          "right": 626.9,
+          "right": 710.3,
           "bottom": 744.7
         },
         "label": {
-          "x": 574.1,
+          "x": 657.6,
           "y": 687.7,
           "w": 61.5,
           "h": 20,
-          "right": 635.6,
+          "right": 719.1,
           "bottom": 707.7
         },
         "glyphClear": {
-          "left": 582.9,
-          "right": 591.1,
+          "left": 666.3,
+          "right": 507.7,
           "top": 700.7,
           "bottom": 23.3
         },
         "labelClear": {
-          "left": 574.1,
-          "right": 582.4,
+          "left": 657.6,
+          "right": 498.9,
           "top": 687.7,
           "bottom": 60.3
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 779.3,
+          "x": 862.7,
           "y": 723.4,
           "w": 44,
           "h": 44,
-          "right": 823.3,
+          "right": 906.7,
           "bottom": 767.4
         },
         "label": {
-          "x": 770,
+          "x": 853.5,
           "y": 710.4,
           "w": 62.5,
           "h": 20,
-          "right": 832.6,
+          "right": 916,
           "bottom": 730.4
         },
         "glyphClear": {
-          "left": 779.3,
-          "right": 394.7,
+          "left": 862.7,
+          "right": 311.3,
           "top": 723.4,
           "bottom": 0.6
         },
         "labelClear": {
-          "left": 770,
-          "right": 385.4,
+          "left": 853.5,
+          "right": 302,
           "top": 710.4,
           "bottom": 37.6
         }
@@ -4338,7 +4588,7 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
+        "lng": 18.460485,
         "lat": 68.123788,
         "zoom": 8.447,
         "bearing": 0,
@@ -4346,16 +4596,16 @@
       },
       "sourceZoom": 8,
       "routeBox": {
-        "x": 416.7,
+        "x": 500.1,
         "y": 70,
-        "right": 801.3,
+        "right": 884.8,
         "bottom": 756,
         "w": 384.6,
         "h": 686
       },
       "routeClearance": {
-        "left": 416.7,
-        "right": 416.7,
+        "left": 500.1,
+        "right": 333.2,
         "top": 70,
         "bottom": 12
       },
@@ -4402,8 +4652,22 @@
       "h": 686
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 83.5,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "1366x768",
     "class": "laptop",
@@ -4420,7 +4684,7 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
+      "lng": 18.595969,
       "lat": 68.120275,
       "zoom": 8.7009,
       "bearing": 0,
@@ -4429,25 +4693,35 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.482493,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.774708,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.504439,
+        67.835171
+      ],
+      [
+        19.6875,
+        68.401889
       ]
     ],
     "routeBox": {
-      "x": 416.7,
+      "x": 436,
       "y": 70,
-      "right": 875.3,
+      "right": 894.6,
       "bottom": 888,
       "w": 458.6,
       "h": 818
     },
     "routeClearance": {
-      "left": 416.7,
-      "right": 416.7,
+      "left": 436,
+      "right": 397.4,
       "top": 70,
       "bottom": 12
     },
@@ -4481,240 +4755,240 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 716.3,
+          "x": 735.6,
           "y": 48.4,
           "w": 44,
           "h": 44,
-          "right": 760.3,
+          "right": 779.6,
           "bottom": 92.4
         },
         "label": {
-          "x": 720.3,
+          "x": 739.6,
           "y": 35.4,
           "w": 36,
           "h": 20,
-          "right": 756.3,
+          "right": 775.6,
           "bottom": 55.4
         },
         "glyphClear": {
-          "left": 716.3,
-          "right": 531.7,
+          "left": 735.6,
+          "right": 512.4,
           "top": 48.4,
           "bottom": 807.6
         },
         "labelClear": {
-          "left": 720.3,
-          "right": 535.7,
+          "left": 739.6,
+          "right": 516.4,
           "top": 35.4,
           "bottom": 844.6
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 601.6,
+          "x": 620.9,
           "y": 164,
           "w": 44,
           "h": 44,
-          "right": 645.6,
+          "right": 664.9,
           "bottom": 208
         },
         "label": {
-          "x": 592.4,
+          "x": 611.7,
           "y": 151,
           "w": 62.3,
           "h": 20,
-          "right": 654.7,
+          "right": 674.1,
           "bottom": 171
         },
         "glyphClear": {
-          "left": 601.6,
-          "right": 646.4,
+          "left": 620.9,
+          "right": 627.1,
           "top": 164,
           "bottom": 692
         },
         "labelClear": {
-          "left": 592.4,
-          "right": 637.3,
+          "left": 611.7,
+          "right": 617.9,
           "top": 151,
           "bottom": 729
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 497.5,
+          "x": 516.8,
           "y": 402.1,
           "w": 44,
           "h": 44,
-          "right": 541.5,
+          "right": 560.8,
           "bottom": 446.1
         },
         "label": {
-          "x": 495.1,
+          "x": 514.4,
           "y": 389.1,
           "w": 48.9,
           "h": 20,
-          "right": 544,
+          "right": 563.3,
           "bottom": 409.1
         },
         "glyphClear": {
-          "left": 497.5,
-          "right": 750.5,
+          "left": 516.8,
+          "right": 731.2,
           "top": 402.1,
           "bottom": 453.9
         },
         "labelClear": {
-          "left": 495.1,
-          "right": 748,
+          "left": 514.4,
+          "right": 728.7,
           "top": 389.1,
           "bottom": 490.9
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 395.2,
+          "x": 414.5,
           "y": 537,
           "w": 44,
           "h": 44,
-          "right": 439.2,
+          "right": 458.5,
           "bottom": 581
         },
         "label": {
-          "x": 399.4,
+          "x": 418.7,
           "y": 524,
           "w": 35.7,
           "h": 20,
-          "right": 435,
+          "right": 454.3,
           "bottom": 544
         },
         "glyphClear": {
-          "left": 395.2,
-          "right": 852.8,
+          "left": 414.5,
+          "right": 833.5,
           "top": 537,
           "bottom": 319
         },
         "labelClear": {
-          "left": 399.4,
-          "right": 857,
+          "left": 418.7,
+          "right": 837.7,
           "top": 524,
           "bottom": 356
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 419.1,
+          "x": 438.4,
           "y": 703.3,
           "w": 44,
           "h": 44,
-          "right": 463.1,
+          "right": 482.4,
           "bottom": 747.3
         },
         "label": {
-          "x": 426.6,
+          "x": 445.9,
           "y": 690.3,
           "w": 28.9,
           "h": 20,
-          "right": 455.5,
+          "right": 474.8,
           "bottom": 710.3
         },
         "glyphClear": {
-          "left": 419.1,
-          "right": 828.9,
+          "left": 438.4,
+          "right": 809.6,
           "top": 703.3,
           "bottom": 152.7
         },
         "labelClear": {
-          "left": 426.6,
-          "right": 836.5,
+          "left": 445.9,
+          "right": 817.2,
           "top": 690.3,
           "bottom": 189.7
         }
       },
       "Singi": {
         "glyph": {
-          "x": 439.3,
+          "x": 458.6,
           "y": 853.1,
           "w": 44,
           "h": 44,
-          "right": 483.3,
+          "right": 502.6,
           "bottom": 897.1
         },
         "label": {
-          "x": 448.2,
+          "x": 467.5,
           "y": 840.1,
           "w": 26.1,
           "h": 20,
-          "right": 474.3,
+          "right": 493.6,
           "bottom": 860.1
         },
         "glyphClear": {
-          "left": 439.3,
-          "right": 808.7,
+          "left": 458.6,
+          "right": 789.4,
           "top": 853.1,
           "bottom": 2.9
         },
         "labelClear": {
-          "left": 448.2,
-          "right": 817.7,
+          "left": 467.5,
+          "right": 798.4,
           "top": 840.1,
           "bottom": 39.9
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 619.1,
+          "x": 638.4,
           "y": 826.3,
           "w": 44,
           "h": 44,
-          "right": 663.1,
+          "right": 682.4,
           "bottom": 870.3
         },
         "label": {
-          "x": 610.3,
+          "x": 629.6,
           "y": 813.3,
           "w": 61.5,
           "h": 20,
-          "right": 671.8,
+          "right": 691.2,
           "bottom": 833.3
         },
         "glyphClear": {
-          "left": 619.1,
-          "right": 628.9,
+          "left": 638.4,
+          "right": 609.6,
           "top": 826.3,
           "bottom": 29.7
         },
         "labelClear": {
-          "left": 610.3,
-          "right": 620.2,
+          "left": 629.6,
+          "right": 600.8,
           "top": 813.3,
           "bottom": 66.7
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 853.3,
+          "x": 872.6,
           "y": 853.3,
           "w": 44,
           "h": 44,
-          "right": 897.3,
+          "right": 916.6,
           "bottom": 897.3
         },
         "label": {
-          "x": 844.1,
+          "x": 863.4,
           "y": 840.3,
           "w": 62.5,
           "h": 20,
-          "right": 906.6,
+          "right": 925.9,
           "bottom": 860.3
         },
         "glyphClear": {
-          "left": 853.3,
-          "right": 394.7,
+          "left": 872.6,
+          "right": 375.4,
           "top": 853.3,
           "bottom": 2.7
         },
         "labelClear": {
-          "left": 844.1,
-          "right": 385.4,
+          "left": 863.4,
+          "right": 366.1,
           "top": 840.3,
           "bottom": 39.7
         }
@@ -4739,7 +5013,7 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
+        "lng": 18.595969,
         "lat": 68.120275,
         "zoom": 8.7009,
         "bearing": 0,
@@ -4747,16 +5021,16 @@
       },
       "sourceZoom": 8,
       "routeBox": {
-        "x": 416.7,
+        "x": 436,
         "y": 70,
-        "right": 875.3,
+        "right": 894.6,
         "bottom": 888,
         "w": 458.6,
         "h": 818
       },
       "routeClearance": {
-        "left": 416.7,
-        "right": 416.7,
+        "left": 436,
+        "right": 397.4,
         "top": 70,
         "bottom": 12
       },
@@ -4803,8 +5077,22 @@
       "h": 818
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 19.3,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "1440x900",
     "class": "laptop",
@@ -4821,7 +5109,7 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
+      "lng": 18.475894,
       "lat": 68.121213,
       "zoom": 8.6286,
       "bearing": 0,
@@ -4830,25 +5118,35 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.356414,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.900787,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.264288,
+        67.834777
+      ],
+      [
+        19.6875,
+        68.404127
       ]
     ],
     "routeBox": {
-      "x": 463.9,
+      "x": 549.9,
       "y": 70,
-      "right": 900.1,
+      "right": 986.1,
       "bottom": 848,
       "w": 436.2,
       "h": 778
     },
     "routeClearance": {
-      "left": 463.9,
-      "right": 463.9,
+      "left": 549.9,
+      "right": 377.9,
       "top": 70,
       "bottom": 12
     },
@@ -4882,240 +5180,240 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 747.8,
+          "x": 833.8,
           "y": 48.4,
           "w": 44,
           "h": 44,
-          "right": 791.8,
+          "right": 877.8,
           "bottom": 92.4
         },
         "label": {
-          "x": 751.8,
+          "x": 837.7,
           "y": 35.4,
           "w": 36,
           "h": 20,
-          "right": 787.8,
+          "right": 873.8,
           "bottom": 55.4
         },
         "glyphClear": {
-          "left": 747.8,
-          "right": 572.2,
+          "left": 833.8,
+          "right": 486.2,
           "top": 48.4,
           "bottom": 767.6
         },
         "labelClear": {
-          "left": 751.8,
-          "right": 576.2,
+          "left": 837.7,
+          "right": 490.2,
           "top": 35.4,
           "bottom": 804.6
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 638.7,
+          "x": 724.6,
           "y": 158.4,
           "w": 44,
           "h": 44,
-          "right": 682.7,
+          "right": 768.6,
           "bottom": 202.4
         },
         "label": {
-          "x": 629.5,
+          "x": 715.5,
           "y": 145.4,
           "w": 62.3,
           "h": 20,
-          "right": 691.8,
+          "right": 777.8,
           "bottom": 165.4
         },
         "glyphClear": {
-          "left": 638.7,
-          "right": 681.3,
+          "left": 724.6,
+          "right": 595.4,
           "top": 158.4,
           "bottom": 657.6
         },
         "labelClear": {
-          "left": 629.5,
-          "right": 672.2,
+          "left": 715.5,
+          "right": 586.2,
           "top": 145.4,
           "bottom": 694.6
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 539.7,
+          "x": 625.7,
           "y": 384.8,
           "w": 44,
           "h": 44,
-          "right": 583.7,
+          "right": 669.7,
           "bottom": 428.8
         },
         "label": {
-          "x": 537.3,
+          "x": 623.2,
           "y": 371.8,
           "w": 48.9,
           "h": 20,
-          "right": 586.1,
+          "right": 672.1,
           "bottom": 391.8
         },
         "glyphClear": {
-          "left": 539.7,
-          "right": 780.3,
+          "left": 625.7,
+          "right": 694.3,
           "top": 384.8,
           "bottom": 431.2
         },
         "labelClear": {
-          "left": 537.3,
-          "right": 777.9,
+          "left": 623.2,
+          "right": 691.9,
           "top": 371.8,
           "bottom": 468.2
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 442.4,
+          "x": 528.3,
           "y": 513.1,
           "w": 44,
           "h": 44,
-          "right": 486.4,
+          "right": 572.3,
           "bottom": 557.1
         },
         "label": {
-          "x": 446.6,
+          "x": 532.5,
           "y": 500.1,
           "w": 35.7,
           "h": 20,
-          "right": 482.2,
+          "right": 568.2,
           "bottom": 520.1
         },
         "glyphClear": {
-          "left": 442.4,
-          "right": 877.6,
+          "left": 528.3,
+          "right": 791.7,
           "top": 513.1,
           "bottom": 302.9
         },
         "labelClear": {
-          "left": 446.6,
-          "right": 881.8,
+          "left": 532.5,
+          "right": 795.8,
           "top": 500.1,
           "bottom": 339.9
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 465.1,
+          "x": 551,
           "y": 671.3,
           "w": 44,
           "h": 44,
-          "right": 509.1,
+          "right": 595,
           "bottom": 715.3
         },
         "label": {
-          "x": 472.6,
+          "x": 558.6,
           "y": 658.3,
           "w": 28.9,
           "h": 20,
-          "right": 501.5,
+          "right": 587.5,
           "bottom": 678.3
         },
         "glyphClear": {
-          "left": 465.1,
-          "right": 854.9,
+          "left": 551,
+          "right": 769,
           "top": 671.3,
           "bottom": 144.7
         },
         "labelClear": {
-          "left": 472.6,
-          "right": 862.5,
+          "left": 558.6,
+          "right": 776.5,
           "top": 658.3,
           "bottom": 181.7
         }
       },
       "Singi": {
         "glyph": {
-          "x": 484.3,
+          "x": 570.2,
           "y": 813.8,
           "w": 44,
           "h": 44,
-          "right": 528.3,
+          "right": 614.2,
           "bottom": 857.8
         },
         "label": {
-          "x": 493.3,
+          "x": 579.2,
           "y": 800.8,
           "w": 26.1,
           "h": 20,
-          "right": 519.3,
+          "right": 605.3,
           "bottom": 820.8
         },
         "glyphClear": {
-          "left": 484.3,
-          "right": 835.7,
+          "left": 570.2,
+          "right": 749.8,
           "top": 813.8,
           "bottom": 2.2
         },
         "labelClear": {
-          "left": 493.3,
-          "right": 844.7,
+          "left": 579.2,
+          "right": 758.7,
           "top": 800.8,
           "bottom": 39.2
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 655.3,
+          "x": 741.3,
           "y": 788.2,
           "w": 44,
           "h": 44,
-          "right": 699.3,
+          "right": 785.3,
           "bottom": 832.2
         },
         "label": {
-          "x": 646.6,
+          "x": 732.5,
           "y": 775.2,
           "w": 61.5,
           "h": 20,
-          "right": 708.1,
+          "right": 794,
           "bottom": 795.2
         },
         "glyphClear": {
-          "left": 655.3,
-          "right": 664.7,
+          "left": 741.3,
+          "right": 578.7,
           "top": 788.2,
           "bottom": 27.8
         },
         "labelClear": {
-          "left": 646.6,
-          "right": 655.9,
+          "left": 732.5,
+          "right": 570,
           "top": 775.2,
           "bottom": 64.8
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 878.1,
+          "x": 964.1,
           "y": 813.9,
           "w": 44,
           "h": 44,
-          "right": 922.1,
+          "right": 1008.1,
           "bottom": 857.9
         },
         "label": {
-          "x": 868.8,
+          "x": 954.8,
           "y": 800.9,
           "w": 62.5,
           "h": 20,
-          "right": 931.4,
+          "right": 1017.3,
           "bottom": 820.9
         },
         "glyphClear": {
-          "left": 878.1,
-          "right": 441.9,
+          "left": 964.1,
+          "right": 355.9,
           "top": 813.9,
           "bottom": 2.1
         },
         "labelClear": {
-          "left": 868.8,
-          "right": 432.6,
+          "left": 954.8,
+          "right": 346.7,
           "top": 800.9,
           "bottom": 39.1
         }
@@ -5140,7 +5438,7 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
+        "lng": 18.475894,
         "lat": 68.121213,
         "zoom": 8.6286,
         "bearing": 0,
@@ -5148,16 +5446,16 @@
       },
       "sourceZoom": 8,
       "routeBox": {
-        "x": 463.9,
+        "x": 549.9,
         "y": 70,
-        "right": 900.1,
+        "right": 986.1,
         "bottom": 848,
         "w": 436.2,
         "h": 778
       },
       "routeClearance": {
-        "left": 463.9,
-        "right": 463.9,
+        "left": 549.9,
+        "right": 377.9,
         "top": 70,
         "bottom": 12
       },
@@ -5204,10 +5502,449 @@
       "h": 778
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 86,
       "y": 0
     },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
     "viewport": "1512x860",
+    "class": "laptop",
+    "cameraStableAfterSettle": true,
+    "consoleErrors": []
+  },
+  {
+    "mapW": 1364,
+    "mapH": 872,
+    "dpr": 1,
+    "docOverflowX": 0,
+    "docOverflowY": 0,
+    "navVisible": true,
+    "topInset": 58,
+    "bottomInset": 0,
+    "camera": {
+      "lng": 18.494298,
+      "lat": 68.120922,
+      "zoom": 8.6506,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "sourceZoom": 8,
+    "maxBounds": [
+      [
+        16.875,
+        67.609221
+      ],
+      [
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.301096,
+        67.8349
+      ],
+      [
+        19.6875,
+        68.403432
+      ]
+    ],
+    "routeBox": {
+      "x": 537.3,
+      "y": 70,
+      "right": 980.2,
+      "bottom": 860,
+      "w": 442.9,
+      "h": 790
+    },
+    "routeClearance": {
+      "left": 537.3,
+      "right": 383.8,
+      "top": 70,
+      "bottom": 12
+    },
+    "blank": {
+      "rows": [
+        218,
+        436,
+        654
+      ],
+      "scans": [
+        {
+          "left": 0,
+          "right": 0
+        },
+        {
+          "left": 0,
+          "right": 0
+        },
+        {
+          "left": 0,
+          "right": 0
+        }
+      ],
+      "midLeftPx": 0,
+      "midRightPx": 0,
+      "worstLeftPx": 0,
+      "worstRightPx": 0,
+      "gridFraction": 0,
+      "gridSamples": 4675
+    },
+    "markers": {
+      "Abisko": {
+        "glyph": {
+          "x": 825.9,
+          "y": 48.4,
+          "w": 44,
+          "h": 44,
+          "right": 869.9,
+          "bottom": 92.4
+        },
+        "label": {
+          "x": 829.9,
+          "y": 35.4,
+          "w": 36,
+          "h": 20,
+          "right": 865.9,
+          "bottom": 55.4
+        },
+        "glyphClear": {
+          "left": 825.9,
+          "right": 494.1,
+          "top": 48.4,
+          "bottom": 779.6
+        },
+        "labelClear": {
+          "left": 829.9,
+          "right": 498.1,
+          "top": 35.4,
+          "bottom": 816.6
+        }
+      },
+      "Abiskojaure": {
+        "glyph": {
+          "x": 715.1,
+          "y": 160.1,
+          "w": 44,
+          "h": 44,
+          "right": 759.1,
+          "bottom": 204.1
+        },
+        "label": {
+          "x": 705.9,
+          "y": 147.1,
+          "w": 62.3,
+          "h": 20,
+          "right": 768.3,
+          "bottom": 167.1
+        },
+        "glyphClear": {
+          "left": 715.1,
+          "right": 604.9,
+          "top": 160.1,
+          "bottom": 667.9
+        },
+        "labelClear": {
+          "left": 705.9,
+          "right": 595.7,
+          "top": 147.1,
+          "bottom": 704.9
+        }
+      },
+      "Alesjaure": {
+        "glyph": {
+          "x": 614.6,
+          "y": 390,
+          "w": 44,
+          "h": 44,
+          "right": 658.6,
+          "bottom": 434
+        },
+        "label": {
+          "x": 612.2,
+          "y": 377,
+          "w": 48.9,
+          "h": 20,
+          "right": 661.1,
+          "bottom": 397
+        },
+        "glyphClear": {
+          "left": 614.6,
+          "right": 705.4,
+          "top": 390,
+          "bottom": 438
+        },
+        "labelClear": {
+          "left": 612.2,
+          "right": 702.9,
+          "top": 377,
+          "bottom": 475
+        }
+      },
+      "Tjäktja": {
+        "glyph": {
+          "x": 515.8,
+          "y": 520.3,
+          "w": 44,
+          "h": 44,
+          "right": 559.8,
+          "bottom": 564.3
+        },
+        "label": {
+          "x": 520,
+          "y": 507.3,
+          "w": 35.7,
+          "h": 20,
+          "right": 555.6,
+          "bottom": 527.3
+        },
+        "glyphClear": {
+          "left": 515.8,
+          "right": 804.2,
+          "top": 520.3,
+          "bottom": 307.7
+        },
+        "labelClear": {
+          "left": 520,
+          "right": 808.4,
+          "top": 507.3,
+          "bottom": 344.7
+        }
+      },
+      "Sälka": {
+        "glyph": {
+          "x": 538.8,
+          "y": 680.9,
+          "w": 44,
+          "h": 44,
+          "right": 582.8,
+          "bottom": 724.9
+        },
+        "label": {
+          "x": 546.4,
+          "y": 667.9,
+          "w": 28.9,
+          "h": 20,
+          "right": 575.3,
+          "bottom": 687.9
+        },
+        "glyphClear": {
+          "left": 538.8,
+          "right": 781.2,
+          "top": 680.9,
+          "bottom": 147.1
+        },
+        "labelClear": {
+          "left": 546.4,
+          "right": 788.7,
+          "top": 667.9,
+          "bottom": 184.1
+        }
+      },
+      "Singi": {
+        "glyph": {
+          "x": 558.3,
+          "y": 825.6,
+          "w": 44,
+          "h": 44,
+          "right": 602.3,
+          "bottom": 869.6
+        },
+        "label": {
+          "x": 567.3,
+          "y": 812.6,
+          "w": 26.1,
+          "h": 20,
+          "right": 593.4,
+          "bottom": 832.6
+        },
+        "glyphClear": {
+          "left": 558.3,
+          "right": 761.7,
+          "top": 825.6,
+          "bottom": 2.4
+        },
+        "labelClear": {
+          "left": 567.3,
+          "right": 770.6,
+          "top": 812.6,
+          "bottom": 39.4
+        }
+      },
+      "Kebnekaise": {
+        "glyph": {
+          "x": 732,
+          "y": 799.6,
+          "w": 44,
+          "h": 44,
+          "right": 776,
+          "bottom": 843.6
+        },
+        "label": {
+          "x": 723.3,
+          "y": 786.6,
+          "w": 61.5,
+          "h": 20,
+          "right": 784.8,
+          "bottom": 806.6
+        },
+        "glyphClear": {
+          "left": 732,
+          "right": 588,
+          "top": 799.6,
+          "bottom": 28.4
+        },
+        "labelClear": {
+          "left": 723.3,
+          "right": 579.2,
+          "top": 786.6,
+          "bottom": 65.4
+        }
+      },
+      "Nikkaluokta": {
+        "glyph": {
+          "x": 958.2,
+          "y": 825.8,
+          "w": 44,
+          "h": 44,
+          "right": 1002.2,
+          "bottom": 869.8
+        },
+        "label": {
+          "x": 949,
+          "y": 812.8,
+          "w": 62.5,
+          "h": 20,
+          "right": 1011.5,
+          "bottom": 832.8
+        },
+        "glyphClear": {
+          "left": 958.2,
+          "right": 361.8,
+          "top": 825.8,
+          "bottom": 2.2
+        },
+        "labelClear": {
+          "left": 949,
+          "right": 352.5,
+          "top": 812.8,
+          "bottom": 39.2
+        }
+      }
+    },
+    "cameraMoves": 1,
+    "leadRect": {
+      "x": 14,
+      "y": 14,
+      "w": 142,
+      "h": 44,
+      "right": 156,
+      "bottom": 58
+    },
+    "controlsRect": {
+      "x": 1306,
+      "y": 14,
+      "w": 44,
+      "h": 200,
+      "right": 1350,
+      "bottom": 214
+    },
+    "fitRoute": {
+      "camera": {
+        "lng": 18.494298,
+        "lat": 68.120922,
+        "zoom": 8.6506,
+        "bearing": 0,
+        "pitch": 0
+      },
+      "sourceZoom": 8,
+      "routeBox": {
+        "x": 537.3,
+        "y": 70,
+        "right": 980.2,
+        "bottom": 860,
+        "w": 442.9,
+        "h": 790
+      },
+      "routeClearance": {
+        "left": 537.3,
+        "right": 383.8,
+        "top": 70,
+        "bottom": 12
+      },
+      "blank": {
+        "rows": [
+          218,
+          436,
+          654
+        ],
+        "scans": [
+          {
+            "left": 0,
+            "right": 0
+          },
+          {
+            "left": 0,
+            "right": 0
+          },
+          {
+            "left": 0,
+            "right": 0
+          }
+        ],
+        "midLeftPx": 0,
+        "midRightPx": 0,
+        "worstLeftPx": 0,
+        "worstRightPx": 0,
+        "gridFraction": 0,
+        "gridSamples": 4675
+      },
+      "movesAfter": 2,
+      "matchesInitial": true
+    },
+    "overviewPadding": {
+      "top": 70,
+      "right": 48,
+      "bottom": 12,
+      "left": 48
+    },
+    "paddedRect": {
+      "x": 48,
+      "y": 70,
+      "w": 1268,
+      "h": 790
+    },
+    "paddedCentreDeviation": {
+      "x": 76.8,
+      "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
+    },
+    "viewport": "1512x872",
     "class": "laptop",
     "cameraStableAfterSettle": true,
     "consoleErrors": []
@@ -5222,7 +5959,7 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
+      "lng": 18.460882,
       "lat": 68.121115,
       "zoom": 8.636,
       "bearing": 0,
@@ -5231,25 +5968,35 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.340651,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.91655,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.234263,
+        67.834818
+      ],
+      [
+        19.6875,
+        68.403893
       ]
     ],
     "routeBox": {
-      "x": 474.8,
+      "x": 569.7,
       "y": 70,
-      "right": 913.2,
+      "right": 1008.1,
       "bottom": 852,
       "w": 438.5,
       "h": 782
     },
     "routeClearance": {
-      "left": 474.8,
-      "right": 474.8,
+      "left": 569.7,
+      "right": 379.9,
       "top": 70,
       "bottom": 12
     },
@@ -5283,240 +6030,240 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 760.3,
+          "x": 855.1,
           "y": 48.4,
           "w": 44,
           "h": 44,
-          "right": 804.3,
+          "right": 899.1,
           "bottom": 92.4
         },
         "label": {
-          "x": 764.2,
+          "x": 859.1,
           "y": 35.4,
           "w": 36,
           "h": 20,
-          "right": 800.3,
+          "right": 895.2,
           "bottom": 55.4
         },
         "glyphClear": {
-          "left": 760.3,
-          "right": 583.7,
+          "left": 855.1,
+          "right": 488.9,
           "top": 48.4,
           "bottom": 771.6
         },
         "labelClear": {
-          "left": 764.2,
-          "right": 587.7,
+          "left": 859.1,
+          "right": 492.8,
           "top": 35.4,
           "bottom": 808.6
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 650.6,
+          "x": 745.5,
           "y": 158.9,
           "w": 44,
           "h": 44,
-          "right": 694.6,
+          "right": 789.5,
           "bottom": 202.9
         },
         "label": {
-          "x": 641.4,
+          "x": 736.3,
           "y": 145.9,
           "w": 62.3,
           "h": 20,
-          "right": 703.7,
+          "right": 798.6,
           "bottom": 165.9
         },
         "glyphClear": {
-          "left": 650.6,
-          "right": 693.4,
+          "left": 745.5,
+          "right": 598.5,
           "top": 158.9,
           "bottom": 661.1
         },
         "labelClear": {
-          "left": 641.4,
-          "right": 684.3,
+          "left": 736.3,
+          "right": 589.4,
           "top": 145.9,
           "bottom": 698.1
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 551.1,
+          "x": 646,
           "y": 386.5,
           "w": 44,
           "h": 44,
-          "right": 595.1,
+          "right": 690,
           "bottom": 430.5
         },
         "label": {
-          "x": 548.6,
+          "x": 643.5,
           "y": 373.5,
           "w": 48.9,
           "h": 20,
-          "right": 597.5,
+          "right": 692.4,
           "bottom": 393.5
         },
         "glyphClear": {
-          "left": 551.1,
-          "right": 792.9,
+          "left": 646,
+          "right": 698,
           "top": 386.5,
           "bottom": 433.5
         },
         "labelClear": {
-          "left": 548.6,
-          "right": 790.5,
+          "left": 643.5,
+          "right": 695.6,
           "top": 373.5,
           "bottom": 470.5
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 453.3,
+          "x": 548.2,
           "y": 515.5,
           "w": 44,
           "h": 44,
-          "right": 497.3,
+          "right": 592.2,
           "bottom": 559.5
         },
         "label": {
-          "x": 457.4,
+          "x": 552.3,
           "y": 502.5,
           "w": 35.7,
           "h": 20,
-          "right": 493.1,
+          "right": 588,
           "bottom": 522.5
         },
         "glyphClear": {
-          "left": 453.3,
-          "right": 890.7,
+          "left": 548.2,
+          "right": 795.8,
           "top": 515.5,
           "bottom": 304.5
         },
         "labelClear": {
-          "left": 457.4,
-          "right": 894.9,
+          "left": 552.3,
+          "right": 800,
           "top": 502.5,
           "bottom": 341.5
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 476.1,
+          "x": 571,
           "y": 674.5,
           "w": 44,
           "h": 44,
-          "right": 520.1,
+          "right": 615,
           "bottom": 718.5
         },
         "label": {
-          "x": 483.6,
+          "x": 578.5,
           "y": 661.5,
           "w": 28.9,
           "h": 20,
-          "right": 512.5,
+          "right": 607.4,
           "bottom": 681.5
         },
         "glyphClear": {
-          "left": 476.1,
-          "right": 867.9,
+          "left": 571,
+          "right": 773,
           "top": 674.5,
           "bottom": 145.5
         },
         "labelClear": {
-          "left": 483.6,
-          "right": 875.5,
+          "left": 578.5,
+          "right": 780.6,
           "top": 661.5,
           "bottom": 182.5
         }
       },
       "Singi": {
         "glyph": {
-          "x": 495.4,
+          "x": 590.3,
           "y": 817.7,
           "w": 44,
           "h": 44,
-          "right": 539.4,
+          "right": 634.3,
           "bottom": 861.7
         },
         "label": {
-          "x": 504.4,
+          "x": 599.3,
           "y": 804.7,
           "w": 26.1,
           "h": 20,
-          "right": 530.4,
+          "right": 625.3,
           "bottom": 824.7
         },
         "glyphClear": {
-          "left": 495.4,
-          "right": 848.6,
+          "left": 590.3,
+          "right": 753.7,
           "top": 817.7,
           "bottom": 2.3
         },
         "labelClear": {
-          "left": 504.4,
-          "right": 857.6,
+          "left": 599.3,
+          "right": 762.7,
           "top": 804.7,
           "bottom": 39.3
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 667.3,
+          "x": 762.2,
           "y": 792,
           "w": 44,
           "h": 44,
-          "right": 711.3,
+          "right": 806.2,
           "bottom": 836
         },
         "label": {
-          "x": 658.5,
+          "x": 753.4,
           "y": 779,
           "w": 61.5,
           "h": 20,
-          "right": 720.1,
+          "right": 814.9,
           "bottom": 799
         },
         "glyphClear": {
-          "left": 667.3,
-          "right": 676.7,
+          "left": 762.2,
+          "right": 581.8,
           "top": 792,
           "bottom": 28
         },
         "labelClear": {
-          "left": 658.5,
-          "right": 667.9,
+          "left": 753.4,
+          "right": 573.1,
           "top": 779,
           "bottom": 65
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 891.2,
+          "x": 986.1,
           "y": 817.9,
           "w": 44,
           "h": 44,
-          "right": 935.2,
+          "right": 1030.1,
           "bottom": 861.9
         },
         "label": {
-          "x": 882,
+          "x": 976.9,
           "y": 804.9,
           "w": 62.5,
           "h": 20,
-          "right": 944.5,
+          "right": 1039.4,
           "bottom": 824.9
         },
         "glyphClear": {
-          "left": 891.2,
-          "right": 452.8,
+          "left": 986.1,
+          "right": 357.9,
           "top": 817.9,
           "bottom": 2.1
         },
         "labelClear": {
-          "left": 882,
-          "right": 443.5,
+          "left": 976.9,
+          "right": 348.6,
           "top": 804.9,
           "bottom": 39.1
         }
@@ -5541,7 +6288,7 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
+        "lng": 18.460882,
         "lat": 68.121115,
         "zoom": 8.636,
         "bearing": 0,
@@ -5549,16 +6296,16 @@
       },
       "sourceZoom": 8,
       "routeBox": {
-        "x": 474.8,
+        "x": 569.7,
         "y": 70,
-        "right": 913.2,
+        "right": 1008.1,
         "bottom": 852,
         "w": 438.5,
         "h": 782
       },
       "routeClearance": {
-        "left": 474.8,
-        "right": 474.8,
+        "left": 569.7,
+        "right": 379.9,
         "top": 70,
         "bottom": 12
       },
@@ -5605,8 +6352,22 @@
       "h": 782
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 94.9,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "1536x864",
     "class": "laptop",
@@ -5623,7 +6384,7 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
+      "lng": 18.460457,
       "lat": 68.116981,
       "zoom": 8.9878,
       "bearing": 0,
@@ -5632,25 +6393,35 @@
     "sourceZoom": 8,
     "maxBounds": [
       [
-        17.340205,
-        67.735
+        16.875,
+        67.609221
       ],
       [
-        19.916996,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        17.233413,
+        67.83655
+      ],
+      [
+        19.6875,
+        68.394035
       ]
     ],
     "routeBox": {
-      "x": 606.2,
+      "x": 727.6,
       "y": 70,
-      "right": 1165.8,
+      "right": 1287.2,
       "bottom": 1068,
       "w": 559.6,
       "h": 998
     },
     "routeClearance": {
-      "left": 606.2,
-      "right": 606.2,
+      "left": 727.6,
+      "right": 484.8,
       "top": 70,
       "bottom": 12
     },
@@ -5684,240 +6455,240 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 976.6,
+          "x": 1098,
           "y": 48.5,
           "w": 44,
           "h": 44,
-          "right": 1020.6,
+          "right": 1142,
           "bottom": 92.5
         },
         "label": {
-          "x": 980.6,
+          "x": 1102,
           "y": 35.5,
           "w": 36,
           "h": 20,
-          "right": 1016.6,
+          "right": 1138.1,
           "bottom": 55.5
         },
         "glyphClear": {
-          "left": 976.6,
-          "right": 751.4,
+          "left": 1098,
+          "right": 630,
           "top": 48.5,
           "bottom": 987.5
         },
         "labelClear": {
-          "left": 980.6,
-          "right": 755.4,
+          "left": 1102,
+          "right": 633.9,
           "top": 35.5,
           "bottom": 1024.5
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 836.6,
+          "x": 958.1,
           "y": 189.6,
           "w": 44,
           "h": 44,
-          "right": 880.6,
+          "right": 1002.1,
           "bottom": 233.6
         },
         "label": {
-          "x": 827.5,
+          "x": 948.9,
           "y": 176.6,
           "w": 62.3,
           "h": 20,
-          "right": 889.8,
+          "right": 1011.2,
           "bottom": 196.6
         },
         "glyphClear": {
-          "left": 836.6,
-          "right": 891.4,
+          "left": 958.1,
+          "right": 769.9,
           "top": 189.6,
           "bottom": 846.4
         },
         "labelClear": {
-          "left": 827.5,
-          "right": 882.2,
+          "left": 948.9,
+          "right": 760.8,
           "top": 176.6,
           "bottom": 883.4
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 709.7,
+          "x": 831.1,
           "y": 480,
           "w": 44,
           "h": 44,
-          "right": 753.7,
+          "right": 875.1,
           "bottom": 524
         },
         "label": {
-          "x": 707.2,
+          "x": 828.6,
           "y": 467,
           "w": 48.9,
           "h": 20,
-          "right": 756.1,
+          "right": 877.5,
           "bottom": 487
         },
         "glyphClear": {
-          "left": 709.7,
-          "right": 1018.3,
+          "left": 831.1,
+          "right": 896.9,
           "top": 480,
           "bottom": 556
         },
         "labelClear": {
-          "left": 707.2,
-          "right": 1015.9,
+          "left": 828.6,
+          "right": 894.5,
           "top": 467,
           "bottom": 593
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 584.8,
+          "x": 706.3,
           "y": 644.7,
           "w": 44,
           "h": 44,
-          "right": 628.8,
+          "right": 750.3,
           "bottom": 688.7
         },
         "label": {
-          "x": 589,
+          "x": 710.4,
           "y": 631.7,
           "w": 35.7,
           "h": 20,
-          "right": 624.7,
+          "right": 746.1,
           "bottom": 651.7
         },
         "glyphClear": {
-          "left": 584.8,
-          "right": 1143.2,
+          "left": 706.3,
+          "right": 1021.7,
           "top": 644.7,
           "bottom": 391.3
         },
         "labelClear": {
-          "left": 589,
-          "right": 1147.3,
+          "left": 710.4,
+          "right": 1025.9,
           "top": 631.7,
           "bottom": 428.3
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 614,
+          "x": 735.4,
           "y": 847.5,
           "w": 44,
           "h": 44,
-          "right": 658,
+          "right": 779.4,
           "bottom": 891.5
         },
         "label": {
-          "x": 621.5,
+          "x": 742.9,
           "y": 834.5,
           "w": 28.9,
           "h": 20,
-          "right": 650.4,
+          "right": 771.8,
           "bottom": 854.5
         },
         "glyphClear": {
-          "left": 614,
-          "right": 1114,
+          "left": 735.4,
+          "right": 992.6,
           "top": 847.5,
           "bottom": 188.5
         },
         "labelClear": {
-          "left": 621.5,
-          "right": 1121.6,
+          "left": 742.9,
+          "right": 1000.2,
           "top": 834.5,
           "bottom": 225.5
         }
       },
       "Singi": {
         "glyph": {
-          "x": 638.6,
+          "x": 760,
           "y": 1030.3,
           "w": 44,
           "h": 44,
-          "right": 682.6,
+          "right": 804,
           "bottom": 1074.3
         },
         "label": {
-          "x": 647.6,
+          "x": 769,
           "y": 1017.3,
           "w": 26.1,
           "h": 20,
-          "right": 673.6,
+          "right": 795,
           "bottom": 1037.3
         },
         "glyphClear": {
-          "left": 638.6,
-          "right": 1089.4,
+          "left": 760,
+          "right": 968,
           "top": 1030.3,
           "bottom": 5.7
         },
         "labelClear": {
-          "left": 647.6,
-          "right": 1098.4,
+          "left": 769,
+          "right": 977,
           "top": 1017.3,
           "bottom": 42.7
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 858,
+          "x": 979.4,
           "y": 997.5,
           "w": 44,
           "h": 44,
-          "right": 902,
+          "right": 1023.4,
           "bottom": 1041.5
         },
         "label": {
-          "x": 849.3,
+          "x": 970.7,
           "y": 984.5,
           "w": 61.5,
           "h": 20,
-          "right": 910.8,
+          "right": 1032.2,
           "bottom": 1004.5
         },
         "glyphClear": {
-          "left": 858,
-          "right": 870,
+          "left": 979.4,
+          "right": 748.6,
           "top": 997.5,
           "bottom": 38.5
         },
         "labelClear": {
-          "left": 849.3,
-          "right": 861.2,
+          "left": 970.7,
+          "right": 739.8,
           "top": 984.5,
           "bottom": 75.5
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 1143.8,
+          "x": 1265.2,
           "y": 1030.5,
           "w": 44,
           "h": 44,
-          "right": 1187.8,
+          "right": 1309.2,
           "bottom": 1074.5
         },
         "label": {
-          "x": 1134.5,
+          "x": 1255.9,
           "y": 1017.5,
           "w": 62.5,
           "h": 20,
-          "right": 1197,
+          "right": 1318.4,
           "bottom": 1037.5
         },
         "glyphClear": {
-          "left": 1143.8,
-          "right": 584.2,
+          "left": 1265.2,
+          "right": 462.8,
           "top": 1030.5,
           "bottom": 5.5
         },
         "labelClear": {
-          "left": 1134.5,
-          "right": 575,
+          "left": 1255.9,
+          "right": 453.6,
           "top": 1017.5,
           "bottom": 42.5
         }
@@ -5942,7 +6713,7 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
+        "lng": 18.460457,
         "lat": 68.116981,
         "zoom": 8.9878,
         "bearing": 0,
@@ -5950,16 +6721,16 @@
       },
       "sourceZoom": 8,
       "routeBox": {
-        "x": 606.2,
+        "x": 727.6,
         "y": 70,
-        "right": 1165.8,
+        "right": 1287.2,
         "bottom": 1068,
         "w": 559.6,
         "h": 998
       },
       "routeClearance": {
-        "left": 606.2,
-        "right": 606.2,
+        "left": 727.6,
+        "right": 484.8,
         "top": 70,
         "bottom": 12
       },
@@ -6006,8 +6777,22 @@
       "h": 998
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 121.4,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "1920x1080",
     "class": "desktop",
@@ -6024,36 +6809,46 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
-      "lat": 68.116981,
-      "zoom": 8.9878,
+      "lng": 18.28125,
+      "lat": 68.114615,
+      "zoom": 9.236,
       "bearing": 0,
       "pitch": 0
     },
-    "sourceZoom": 8,
+    "sourceZoom": 9,
     "maxBounds": [
       [
         16.875,
-        67.735
+        67.609221
       ],
       [
-        20.382201,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        16.875,
+        67.878707
+      ],
+      [
+        19.6875,
+        68.34813
       ]
     ],
     "routeBox": {
-      "x": 926.2,
-      "y": 70,
-      "right": 1485.8,
-      "bottom": 1068,
-      "w": 559.6,
-      "h": 998
+      "x": 1171.6,
+      "y": -23.7,
+      "right": 1836.2,
+      "bottom": 1161.7,
+      "w": 664.6,
+      "h": 1185.3
     },
     "routeClearance": {
-      "left": 926.2,
-      "right": 926.2,
-      "top": 70,
-      "bottom": 12
+      "left": 1171.6,
+      "right": 575.8,
+      "top": -23.7,
+      "bottom": -81.7
     },
     "blank": {
       "rows": [
@@ -6085,242 +6880,242 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 1296.6,
-          "y": 48.5,
+          "x": 1615.7,
+          "y": -45.1,
           "w": 44,
           "h": 44,
-          "right": 1340.6,
-          "bottom": 92.5
+          "right": 1659.7,
+          "bottom": -1.1
         },
         "label": {
-          "x": 1300.6,
-          "y": 35.5,
+          "x": 1619.6,
+          "y": -58.1,
           "w": 36,
           "h": 20,
-          "right": 1336.6,
-          "bottom": 55.5
+          "right": 1655.7,
+          "bottom": -38.1
         },
         "glyphClear": {
-          "left": 1296.6,
-          "right": 1071.4,
-          "top": 48.5,
-          "bottom": 987.5
+          "left": 1615.7,
+          "right": 752.3,
+          "top": -45.1,
+          "bottom": 1081.1
         },
         "labelClear": {
-          "left": 1300.6,
-          "right": 1075.4,
-          "top": 35.5,
-          "bottom": 1024.5
+          "left": 1619.6,
+          "right": 756.3,
+          "top": -58.1,
+          "bottom": 1118.1
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 1156.6,
-          "y": 189.6,
+          "x": 1449.4,
+          "y": 122.5,
           "w": 44,
           "h": 44,
-          "right": 1200.6,
-          "bottom": 233.6
+          "right": 1493.4,
+          "bottom": 166.5
         },
         "label": {
-          "x": 1147.5,
-          "y": 176.6,
+          "x": 1440.2,
+          "y": 109.5,
           "w": 62.3,
           "h": 20,
-          "right": 1209.8,
-          "bottom": 196.6
+          "right": 1502.6,
+          "bottom": 129.5
         },
         "glyphClear": {
-          "left": 1156.6,
-          "right": 1211.4,
-          "top": 189.6,
-          "bottom": 846.4
+          "left": 1449.4,
+          "right": 918.6,
+          "top": 122.5,
+          "bottom": 913.5
         },
         "labelClear": {
-          "left": 1147.5,
-          "right": 1202.2,
-          "top": 176.6,
-          "bottom": 883.4
+          "left": 1440.2,
+          "right": 909.4,
+          "top": 109.5,
+          "bottom": 950.5
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 1029.7,
-          "y": 480,
+          "x": 1298.6,
+          "y": 467.5,
           "w": 44,
           "h": 44,
-          "right": 1073.7,
-          "bottom": 524
+          "right": 1342.6,
+          "bottom": 511.5
         },
         "label": {
-          "x": 1027.2,
-          "y": 467,
+          "x": 1296.2,
+          "y": 454.5,
           "w": 48.9,
           "h": 20,
-          "right": 1076.1,
-          "bottom": 487
+          "right": 1345,
+          "bottom": 474.5
         },
         "glyphClear": {
-          "left": 1029.7,
-          "right": 1338.3,
-          "top": 480,
-          "bottom": 556
+          "left": 1298.6,
+          "right": 1069.4,
+          "top": 467.5,
+          "bottom": 568.5
         },
         "labelClear": {
-          "left": 1027.2,
-          "right": 1335.9,
-          "top": 467,
-          "bottom": 593
+          "left": 1296.2,
+          "right": 1067,
+          "top": 454.5,
+          "bottom": 605.5
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 904.8,
-          "y": 644.7,
+          "x": 1150.3,
+          "y": 663,
           "w": 44,
           "h": 44,
-          "right": 948.8,
-          "bottom": 688.7
+          "right": 1194.3,
+          "bottom": 707
         },
         "label": {
-          "x": 909,
-          "y": 631.7,
+          "x": 1154.5,
+          "y": 650,
           "w": 35.7,
           "h": 20,
-          "right": 944.7,
-          "bottom": 651.7
+          "right": 1190.2,
+          "bottom": 670
         },
         "glyphClear": {
-          "left": 904.8,
-          "right": 1463.2,
-          "top": 644.7,
-          "bottom": 391.3
+          "left": 1150.3,
+          "right": 1217.7,
+          "top": 663,
+          "bottom": 373
         },
         "labelClear": {
-          "left": 909,
-          "right": 1467.3,
-          "top": 631.7,
-          "bottom": 428.3
+          "left": 1154.5,
+          "right": 1221.8,
+          "top": 650,
+          "bottom": 410
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 934,
-          "y": 847.5,
+          "x": 1184.9,
+          "y": 904,
           "w": 44,
           "h": 44,
-          "right": 978,
-          "bottom": 891.5
+          "right": 1228.9,
+          "bottom": 948
         },
         "label": {
-          "x": 941.5,
-          "y": 834.5,
+          "x": 1192.4,
+          "y": 891,
           "w": 28.9,
           "h": 20,
-          "right": 970.4,
-          "bottom": 854.5
+          "right": 1221.4,
+          "bottom": 911
         },
         "glyphClear": {
-          "left": 934,
-          "right": 1434,
-          "top": 847.5,
-          "bottom": 188.5
+          "left": 1184.9,
+          "right": 1183.1,
+          "top": 904,
+          "bottom": 132
         },
         "labelClear": {
-          "left": 941.5,
-          "right": 1441.6,
-          "top": 834.5,
-          "bottom": 225.5
+          "left": 1192.4,
+          "right": 1190.6,
+          "top": 891,
+          "bottom": 169
         }
       },
       "Singi": {
         "glyph": {
-          "x": 958.6,
-          "y": 1030.3,
+          "x": 1214.2,
+          "y": 1121,
           "w": 44,
           "h": 44,
-          "right": 1002.6,
-          "bottom": 1074.3
+          "right": 1258.2,
+          "bottom": 1165
         },
         "label": {
-          "x": 967.6,
-          "y": 1017.3,
+          "x": 1223.2,
+          "y": 1108,
           "w": 26.1,
           "h": 20,
-          "right": 993.6,
-          "bottom": 1037.3
+          "right": 1249.2,
+          "bottom": 1128
         },
         "glyphClear": {
-          "left": 958.6,
-          "right": 1409.4,
-          "top": 1030.3,
-          "bottom": 5.7
+          "left": 1214.2,
+          "right": 1153.8,
+          "top": 1121,
+          "bottom": -85
         },
         "labelClear": {
-          "left": 967.6,
-          "right": 1418.4,
-          "top": 1017.3,
-          "bottom": 42.7
+          "left": 1223.2,
+          "right": 1162.8,
+          "top": 1108,
+          "bottom": -48
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 1178,
-          "y": 997.5,
+          "x": 1474.8,
+          "y": 1082.1,
           "w": 44,
           "h": 44,
-          "right": 1222,
-          "bottom": 1041.5
+          "right": 1518.8,
+          "bottom": 1126.1
         },
         "label": {
-          "x": 1169.3,
-          "y": 984.5,
+          "x": 1466,
+          "y": 1069.1,
           "w": 61.5,
           "h": 20,
-          "right": 1230.8,
-          "bottom": 1004.5
+          "right": 1527.5,
+          "bottom": 1089.1
         },
         "glyphClear": {
-          "left": 1178,
-          "right": 1190,
-          "top": 997.5,
-          "bottom": 38.5
+          "left": 1474.8,
+          "right": 893.2,
+          "top": 1082.1,
+          "bottom": -46.1
         },
         "labelClear": {
-          "left": 1169.3,
-          "right": 1181.2,
-          "top": 984.5,
-          "bottom": 75.5
+          "left": 1466,
+          "right": 884.5,
+          "top": 1069.1,
+          "bottom": -9.1
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 1463.8,
-          "y": 1030.5,
+          "x": 1814.2,
+          "y": 1121.3,
           "w": 44,
           "h": 44,
-          "right": 1507.8,
-          "bottom": 1074.5
+          "right": 1858.2,
+          "bottom": 1165.3
         },
         "label": {
-          "x": 1454.5,
-          "y": 1017.5,
+          "x": 1804.9,
+          "y": 1108.3,
           "w": 62.5,
           "h": 20,
-          "right": 1517,
-          "bottom": 1037.5
+          "right": 1867.4,
+          "bottom": 1128.3
         },
         "glyphClear": {
-          "left": 1463.8,
-          "right": 904.2,
-          "top": 1030.5,
-          "bottom": 5.5
+          "left": 1814.2,
+          "right": 553.8,
+          "top": 1121.3,
+          "bottom": -85.3
         },
         "labelClear": {
-          "left": 1454.5,
-          "right": 895,
-          "top": 1017.5,
-          "bottom": 42.5
+          "left": 1804.9,
+          "right": 544.6,
+          "top": 1108.3,
+          "bottom": -48.3
         }
       }
     },
@@ -6343,26 +7138,26 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
-        "lat": 68.116981,
-        "zoom": 8.9878,
+        "lng": 18.28125,
+        "lat": 68.114615,
+        "zoom": 9.236,
         "bearing": 0,
         "pitch": 0
       },
-      "sourceZoom": 8,
+      "sourceZoom": 9,
       "routeBox": {
-        "x": 926.2,
-        "y": 70,
-        "right": 1485.8,
-        "bottom": 1068,
-        "w": 559.6,
-        "h": 998
+        "x": 1171.6,
+        "y": -23.7,
+        "right": 1836.2,
+        "bottom": 1161.7,
+        "w": 664.6,
+        "h": 1185.3
       },
       "routeClearance": {
-        "left": 926.2,
-        "right": 926.2,
-        "top": 70,
-        "bottom": 12
+        "left": 1171.6,
+        "right": 575.8,
+        "top": -23.7,
+        "bottom": -81.7
       },
       "blank": {
         "rows": [
@@ -6407,8 +7202,22 @@
       "h": 998
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 297.9,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "2560x1080",
     "class": "ultrawide",
@@ -6425,9 +7234,9 @@
     "topInset": 58,
     "bottomInset": 0,
     "camera": {
-      "lng": 18.6286,
-      "lat": 68.113012,
-      "zoom": 9.4322,
+      "lng": 18.28125,
+      "lat": 68.111245,
+      "zoom": 9.6847,
       "bearing": 0,
       "pitch": 0
     },
@@ -6435,26 +7244,36 @@
     "maxBounds": [
       [
         16.875,
-        67.735
+        67.609221
       ],
       [
-        20.382201,
-        68.4661
+        19.6875,
+        68.656555
+      ]
+    ],
+    "visibleExtent": [
+      [
+        16.875,
+        67.880777
+      ],
+      [
+        19.6875,
+        68.339429
       ]
     ],
     "routeBox": {
-      "x": 1265.3,
-      "y": 70,
-      "right": 2026.7,
-      "bottom": 1428,
-      "w": 761.4,
-      "h": 1358
+      "x": 1599,
+      "y": -59.9,
+      "right": 2506.1,
+      "bottom": 1557.9,
+      "w": 907.1,
+      "h": 1617.8
     },
     "routeClearance": {
-      "left": 1265.3,
-      "right": 1265.3,
-      "top": 70,
-      "bottom": 12
+      "left": 1599,
+      "right": 785.9,
+      "top": -59.9,
+      "bottom": -117.9
     },
     "blank": {
       "rows": [
@@ -6486,242 +7305,242 @@
     "markers": {
       "Abisko": {
         "glyph": {
-          "x": 1777.3,
-          "y": 48.6,
+          "x": 2213.1,
+          "y": -81.1,
           "w": 44,
           "h": 44,
-          "right": 1821.3,
-          "bottom": 92.6
+          "right": 2257.1,
+          "bottom": -37.1
         },
         "label": {
-          "x": 1781.2,
-          "y": 35.6,
+          "x": 2217.1,
+          "y": -94.1,
           "w": 36,
           "h": 20,
-          "right": 1817.3,
-          "bottom": 55.6
+          "right": 2253.2,
+          "bottom": -74.1
         },
         "glyphClear": {
-          "left": 1777.3,
-          "right": 1470.7,
-          "top": 48.6,
-          "bottom": 1347.4
+          "left": 2213.1,
+          "right": 1034.9,
+          "top": -81.1,
+          "bottom": 1477.1
         },
         "labelClear": {
-          "left": 1781.2,
-          "right": 1474.7,
-          "top": 35.6,
-          "bottom": 1384.4
+          "left": 2217.1,
+          "right": 1038.8,
+          "top": -94.1,
+          "bottom": 1514.1
         }
       },
       "Abiskojaure": {
         "glyph": {
-          "x": 1586.8,
-          "y": 240.6,
+          "x": 1986.2,
+          "y": 147.6,
           "w": 44,
           "h": 44,
-          "right": 1630.8,
-          "bottom": 284.6
+          "right": 2030.2,
+          "bottom": 191.6
         },
         "label": {
-          "x": 1577.6,
-          "y": 227.6,
+          "x": 1977.1,
+          "y": 134.6,
           "w": 62.3,
           "h": 20,
-          "right": 1639.9,
-          "bottom": 247.6
+          "right": 2039.4,
+          "bottom": 154.6
         },
         "glyphClear": {
-          "left": 1586.8,
-          "right": 1661.2,
-          "top": 240.6,
-          "bottom": 1155.4
+          "left": 1986.2,
+          "right": 1261.8,
+          "top": 147.6,
+          "bottom": 1248.4
         },
         "labelClear": {
-          "left": 1577.6,
-          "right": 1652.1,
-          "top": 227.6,
-          "bottom": 1192.4
+          "left": 1977.1,
+          "right": 1252.6,
+          "top": 134.6,
+          "bottom": 1285.4
         }
       },
       "Alesjaure": {
         "glyph": {
-          "x": 1414,
-          "y": 635.9,
+          "x": 1780.4,
+          "y": 618.5,
           "w": 44,
           "h": 44,
-          "right": 1458,
-          "bottom": 679.9
+          "right": 1824.4,
+          "bottom": 662.5
         },
         "label": {
-          "x": 1411.6,
-          "y": 622.9,
+          "x": 1778,
+          "y": 605.5,
           "w": 48.9,
           "h": 20,
-          "right": 1460.5,
-          "bottom": 642.9
+          "right": 1826.9,
+          "bottom": 625.5
         },
         "glyphClear": {
-          "left": 1414,
-          "right": 1834,
-          "top": 635.9,
-          "bottom": 760.1
+          "left": 1780.4,
+          "right": 1467.6,
+          "top": 618.5,
+          "bottom": 777.5
         },
         "labelClear": {
-          "left": 1411.6,
-          "right": 1831.5,
-          "top": 622.9,
-          "bottom": 797.1
+          "left": 1778,
+          "right": 1465.1,
+          "top": 605.5,
+          "bottom": 814.5
         }
       },
       "Tjäktja": {
         "glyph": {
-          "x": 1244.1,
-          "y": 859.9,
+          "x": 1578,
+          "y": 885.3,
           "w": 44,
           "h": 44,
-          "right": 1288.1,
-          "bottom": 903.9
+          "right": 1622,
+          "bottom": 929.3
         },
         "label": {
-          "x": 1248.3,
-          "y": 846.9,
+          "x": 1582.2,
+          "y": 872.3,
           "w": 35.7,
           "h": 20,
-          "right": 1284,
-          "bottom": 866.9
+          "right": 1617.9,
+          "bottom": 892.3
         },
         "glyphClear": {
-          "left": 1244.1,
-          "right": 2003.9,
-          "top": 859.9,
-          "bottom": 536.1
+          "left": 1578,
+          "right": 1670,
+          "top": 885.3,
+          "bottom": 510.7
         },
         "labelClear": {
-          "left": 1248.3,
-          "right": 2008,
-          "top": 846.9,
-          "bottom": 573.1
+          "left": 1582.2,
+          "right": 1674.1,
+          "top": 872.3,
+          "bottom": 547.7
         }
       },
       "Sälka": {
         "glyph": {
-          "x": 1283.8,
-          "y": 1136,
+          "x": 1625.2,
+          "y": 1214.2,
           "w": 44,
           "h": 44,
-          "right": 1327.8,
-          "bottom": 1180
+          "right": 1669.2,
+          "bottom": 1258.2
         },
         "label": {
-          "x": 1291.3,
-          "y": 1123,
+          "x": 1632.8,
+          "y": 1201.2,
           "w": 28.9,
           "h": 20,
-          "right": 1320.2,
-          "bottom": 1143
+          "right": 1661.7,
+          "bottom": 1221.2
         },
         "glyphClear": {
-          "left": 1283.8,
-          "right": 1964.2,
-          "top": 1136,
-          "bottom": 260
+          "left": 1625.2,
+          "right": 1622.8,
+          "top": 1214.2,
+          "bottom": 181.8
         },
         "labelClear": {
-          "left": 1291.3,
-          "right": 1971.8,
-          "top": 1123,
-          "bottom": 297
+          "left": 1632.8,
+          "right": 1630.3,
+          "top": 1201.2,
+          "bottom": 218.8
         }
       },
       "Singi": {
         "glyph": {
-          "x": 1317.3,
-          "y": 1384.6,
+          "x": 1665.2,
+          "y": 1510.4,
           "w": 44,
           "h": 44,
-          "right": 1361.3,
-          "bottom": 1428.6
+          "right": 1709.2,
+          "bottom": 1554.4
         },
         "label": {
-          "x": 1326.3,
-          "y": 1371.6,
+          "x": 1674.2,
+          "y": 1497.4,
           "w": 26.1,
           "h": 20,
-          "right": 1352.3,
-          "bottom": 1391.6
+          "right": 1700.2,
+          "bottom": 1517.4
         },
         "glyphClear": {
-          "left": 1317.3,
-          "right": 1930.7,
-          "top": 1384.6,
-          "bottom": 11.4
+          "left": 1665.2,
+          "right": 1582.8,
+          "top": 1510.4,
+          "bottom": -114.4
         },
         "labelClear": {
-          "left": 1326.3,
-          "right": 1939.7,
-          "top": 1371.6,
-          "bottom": 48.4
+          "left": 1674.2,
+          "right": 1591.8,
+          "top": 1497.4,
+          "bottom": -77.4
         }
       },
       "Kebnekaise": {
         "glyph": {
-          "x": 1615.8,
-          "y": 1340,
+          "x": 2020.9,
+          "y": 1457.3,
           "w": 44,
           "h": 44,
-          "right": 1659.8,
-          "bottom": 1384
+          "right": 2064.9,
+          "bottom": 1501.3
         },
         "label": {
-          "x": 1607.1,
-          "y": 1327,
+          "x": 2012.1,
+          "y": 1444.3,
           "w": 61.5,
           "h": 20,
-          "right": 1668.6,
-          "bottom": 1347
+          "right": 2073.6,
+          "bottom": 1464.3
         },
         "glyphClear": {
-          "left": 1615.8,
-          "right": 1632.2,
-          "top": 1340,
-          "bottom": 56
+          "left": 2020.9,
+          "right": 1227.1,
+          "top": 1457.3,
+          "bottom": -61.3
         },
         "labelClear": {
-          "left": 1607.1,
-          "right": 1623.4,
-          "top": 1327,
-          "bottom": 93
+          "left": 2012.1,
+          "right": 1218.4,
+          "top": 1444.3,
+          "bottom": -24.3
         }
       },
       "Nikkaluokta": {
         "glyph": {
-          "x": 2004.7,
-          "y": 1384.9,
+          "x": 2484.1,
+          "y": 1510.8,
           "w": 44,
           "h": 44,
-          "right": 2048.7,
-          "bottom": 1428.9
+          "right": 2528.1,
+          "bottom": 1554.8
         },
         "label": {
-          "x": 1995.4,
-          "y": 1371.9,
+          "x": 2474.8,
+          "y": 1497.8,
           "w": 62.5,
           "h": 20,
-          "right": 2057.9,
-          "bottom": 1391.9
+          "right": 2537.3,
+          "bottom": 1517.8
         },
         "glyphClear": {
-          "left": 2004.7,
-          "right": 1243.3,
-          "top": 1384.9,
-          "bottom": 11.1
+          "left": 2484.1,
+          "right": 763.9,
+          "top": 1510.8,
+          "bottom": -114.8
         },
         "labelClear": {
-          "left": 1995.4,
-          "right": 1234.1,
-          "top": 1371.9,
-          "bottom": 48.1
+          "left": 2474.8,
+          "right": 754.7,
+          "top": 1497.8,
+          "bottom": -77.8
         }
       }
     },
@@ -6744,26 +7563,26 @@
     },
     "fitRoute": {
       "camera": {
-        "lng": 18.6286,
-        "lat": 68.113012,
-        "zoom": 9.4322,
+        "lng": 18.28125,
+        "lat": 68.111245,
+        "zoom": 9.6847,
         "bearing": 0,
         "pitch": 0
       },
       "sourceZoom": 9,
       "routeBox": {
-        "x": 1265.3,
-        "y": 70,
-        "right": 2026.7,
-        "bottom": 1428,
-        "w": 761.4,
-        "h": 1358
+        "x": 1599,
+        "y": -59.9,
+        "right": 2506.1,
+        "bottom": 1557.9,
+        "w": 907.1,
+        "h": 1617.8
       },
       "routeClearance": {
-        "left": 1265.3,
-        "right": 1265.3,
-        "top": 70,
-        "bottom": 12
+        "left": 1599,
+        "right": 785.9,
+        "top": -59.9,
+        "bottom": -117.9
       },
       "blank": {
         "rows": [
@@ -6808,8 +7627,22 @@
       "h": 1358
     },
     "paddedCentreDeviation": {
-      "x": 0,
+      "x": 406.6,
       "y": 0
+    },
+    "hillshadeEnvelope": [
+      [
+        16.875,
+        67.60922060496382
+      ],
+      [
+        19.6875,
+        68.65655498475736
+      ]
+    ],
+    "unshadedPx": {
+      "west": 0,
+      "east": 0
     },
     "viewport": "3440x1440",
     "class": "ultrawide",

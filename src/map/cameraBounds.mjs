@@ -63,6 +63,8 @@ import {
   invMercY,
   mercPerPixel,
   overviewEnvelopeFor,
+  overviewCameraFor,
+  coverageForMode,
   rasterRenderableCoverage,
   vectorSourceCoverage,
 } from './overviewEnvelope.mjs';
@@ -71,7 +73,8 @@ import {
 // maths that needs them); re-exported here so existing importers and tests
 // keep one import site.
 export { MERC_MAX, mercX, mercY, invMercX, invMercY, mercPerPixel };
-export { overviewEnvelopeFor, rasterRenderableCoverage, vectorSourceCoverage };
+export { overviewEnvelopeFor, overviewCameraFor, coverageForMode };
+export { rasterRenderableCoverage, vectorSourceCoverage };
 
 /**
  * Camera constraints for a viewport, from the coverage contract:

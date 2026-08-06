@@ -332,13 +332,23 @@ test('MapView frames the route and operational geometry by different contracts',
     mapView,
     /const pad = mode === 'overview' \? overviewPaddingRef\.current : paddingRef\.current/,
   );
-  assert.match(mapView, /fitRoute: \(\) => fitBounds\(routeRef\.current\.bounds, 'overview'\)/);
   assert.match(mapView, /if \(stage\) fitBounds\(stage\.bounds, 'content'\)/);
   assert.match(mapView, /map\.fitBounds\(b, \{ padding: paddingRef\.current/, 'focused routes');
+  // The full-route overview is NOT a bounds-fit: it is a constrained fit
+  // (route-centred, then translated back inside the active mode's renderable
+  // envelope), which fitBounds cannot express. Both the initial camera and
+  // "Fit route" call the SAME solver, which is a stronger guarantee than
+  // sharing a padding rectangle — they cannot disagree at all.
+  assert.match(mapView, /overviewCameraRef\.current = computeOverviewCamera/);
   assert.match(
     mapView,
-    /fitBoundsOptions: \{ padding: overviewPaddingRef\.current \}/,
-    'the initial fit uses the SAME overview contract as fitRoute',
+    /const initialCamera = computeOverviewCamera\(\);[\s\S]{0,600}center: \[initialCamera\.camera\.lng, initialCamera\.camera\.lat\],\s*\n\s*zoom: initialCamera\.camera\.zoom,/,
+    'the initial camera is the solved overview camera',
+  );
+  assert.match(
+    mapView,
+    /fitRoute: \(\) => \{[\s\S]{0,400}overviewCameraRef\.current\?\.\(\)/,
+    'Fit route re-solves the same camera',
   );
   // The constraints exist to permit that overview, so they share its rectangle.
   assert.match(mapView, /padding: overviewPaddingRef\.current,\s*\}\);/);
