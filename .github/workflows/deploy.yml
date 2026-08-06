@@ -11,7 +11,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # Scope cancellation to this workflow/ref. This prevents stale historical
+  # `pages` group state from blocking a fresh main deployment.
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,6 +31,7 @@ jobs:
       - run: npm test
 
       # ---- Terrain relief archives: canonical GitHub Release assets ---------
+      #
       # Hillshade terrain-RGB + contour vectors (built by
       # scripts/build-terrain-map.sh from the Copernicus GLO-30 DEM). Same
       # model as the satellite archive: never committed, downloaded from the
@@ -64,6 +67,7 @@ jobs:
           verify public/maps/kungsleden-contours.pmtiles "3e8fbcfa6ee1ea8df9abaec641d836e11602867c09c83f77173e522826b7d573"
 
       # ---- Satellite archive: canonical GitHub Release asset ----------------
+      #
       # The ~59 MB PMTiles binary is NOT committed. The canonical copy lives on
       # the satellite-data-v3 Release; deployment downloads it into the Pages
       # build so browsers fetch it SAME-ORIGIN (GitHub Release assets send no
