@@ -52,8 +52,11 @@ import {
 import {
   cameraConstraintsFor,
   activeBoundsForZoom,
+  overviewCameraFor,
   MIN_ZOOM_BACKSTOP,
   type CameraConstraints,
+  type CoverageMode,
+  type OverviewCamera,
 } from '../map/cameraBounds.mjs';
 import type { LatLng } from '../types';
 import { BASE_MAP_PADDING } from '../map/mapPadding.mjs';
@@ -273,10 +276,28 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // operational fits clear the chrome, the route overview composes.
   const paddingRef = useRef<MapPadding>(padding ?? DEFAULT_PADDING);
   paddingRef.current = padding ?? DEFAULT_PADDING;
+  /**
+   * Which raster archives actually resolved. Availability alone does NOT pick
+   * the camera's coverage contract — the ACTIVE imagery mode does (see
+   * activeCoverageMode below). Both can be available at once.
+   */
+  const terrainAvailableRef = useRef(false);
+  const satelliteAvailableRef = useRef(false);
+  /**
+   * The imagery mode the user is looking at, read at solve time rather than
+   * captured when the style resolved. Toggling imagery must not move a map the
+   * user is operating, so the new mode becomes authoritative on the NEXT
+   * explicit full-route overview — not the moment the toggle flips.
+   */
+  const imageryRef = useRef<ImageryMode>('terrain');
+  /** Applies the solved full-route overview camera. THE only overview path. */
+  const applyOverviewCameraRef = useRef<((jump?: boolean) => OverviewCamera | null) | null>(null);
+
   const overviewPaddingRef = useRef<MapPadding>(
     overviewPadding ?? padding ?? DEFAULT_PADDING,
   );
   overviewPaddingRef.current = overviewPadding ?? padding ?? DEFAULT_PADDING;
+  imageryRef.current = imagery;
   // Set once the map exists: re-derives the camera constraints for the
   // CURRENT viewport shape and padding (see the padding effect below).
   const applyLayoutConstraintsRef = useRef<(() => void) | null>(null);
@@ -338,18 +359,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   };
 
   /**
-   * The ONE place a bounds-fit is issued, so the two padding contracts can
-   * never drift apart between call sites.
+   * Operational bounds-fit: a stage or focused geometry, framed to clear the
+   * cockpit chrome.
    *
-   *  - 'overview' — the whole route: balanced, label-safe composition;
-   *  - 'content'  — a stage or focused geometry: clears the cockpit chrome.
+   * The full-route overview is deliberately NOT expressible here. It is a
+   * constrained fit (route-centred, then translated inside the active mode's
+   * renderable envelope), which fitBounds cannot produce — so it lives in
+   * applyOverviewCamera and there is no 'overview' mode left to reach for by
+   * accident.
    */
-  const fitBounds = (
-    bounds: [[number, number], [number, number]],
-    mode: 'overview' | 'content',
-  ) => {
-    const pad = mode === 'overview' ? overviewPaddingRef.current : paddingRef.current;
-    mapRef.current?.fitBounds(bounds, { padding: pad, ...animate() });
+  const fitBounds = (bounds: [[number, number], [number, number]]) => {
+    mapRef.current?.fitBounds(bounds, { padding: paddingRef.current, ...animate() });
   };
 
   useImperativeHandle(ref, () => ({
@@ -370,11 +390,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           : EMPTY_FC,
       );
     },
-    // Same overview contract as the constructor's initial fit.
-    fitRoute: () => fitBounds(routeRef.current.bounds, 'overview'),
+    // Literally the same computation as the constructor's initial fit, so
+    // "Fit route" always lands on the camera the map opened with.
+    fitRoute: () => {
+      applyOverviewCameraRef.current?.();
+    },
     fitStage: (stageId) => {
       const stage = routeRef.current.stages.find((s) => s.id === stageId);
-      if (stage) fitBounds(stage.bounds, 'content');
+      if (stage) fitBounds(stage.bounds);
     },
     resetBearing: () => mapRef.current?.resetNorthPitch(animate()),
     focusPoint: (p) => {
@@ -434,8 +457,45 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // The constraints exist so the ROUTE OVERVIEW resolves inside the
       // coverage contract, so they are derived from the overview padding —
       // the same rectangle the fit they have to permit will use.
-      const computeConstraints = (): CameraConstraints =>
-        cameraConstraintsFor({
+      terrainAvailableRef.current = terrain.sourceUrl != null;
+      satelliteAvailableRef.current = satellite.sourceUrl != null;
+
+      /**
+       * Which renderable envelope the camera must respect, for the imagery the
+       * user is CURRENTLY looking at. In Terrain mode the whole visible
+       * viewport has to stay inside the hillshade footprint — an unshaded
+       * flank is not an acceptable trade for a perfectly centred route.
+       *
+       * Deriving this from which archive happened to resolve first would solve
+       * Satellite overviews against Terrain coverage whenever both exist.
+       * Vector is a deliberate fallback for when the SELECTED raster mode is
+       * unavailable: there is no shading to lose, so the wider vector
+       * footprint applies.
+       */
+      const activeCoverageMode = (): CoverageMode => {
+        if (imageryRef.current === 'satellite') {
+          return satelliteAvailableRef.current ? 'satellite' : 'vector';
+        }
+        return terrainAvailableRef.current ? 'terrain' : 'vector';
+      };
+
+      const computeOverviewCamera = () =>
+        overviewCameraFor({
+          routeBounds: mountedRoute.bounds,
+          userBounds: mountedRoute.userBounds,
+          cutoutBounds: mountedRoute.mapCutoutBounds,
+          viewportWidth: containerRef.current?.clientWidth ?? 1,
+          viewportHeight: containerRef.current?.clientHeight ?? 1,
+          padding: overviewPaddingRef.current,
+          mode: activeCoverageMode(),
+        });
+
+      // maxBounds at overview zoom is the ACTIVE MODE'S renderable envelope,
+      // not the vector one: panning must not reach unshaded ground either.
+      // Zooming in past the threshold still snaps to the strict interaction
+      // bounds, which sit well inside every mode's coverage.
+      const computeConstraints = (): CameraConstraints => {
+        const base = cameraConstraintsFor({
           userBounds: mountedRoute.userBounds,
           routeBounds: mountedRoute.bounds,
           dataBounds: mountedRoute.mapCutoutBounds,
@@ -443,14 +503,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           viewportHeight: containerRef.current?.clientHeight ?? 1,
           padding: overviewPaddingRef.current,
         });
+        return { ...base, overviewBounds: computeOverviewCamera().overviewBounds };
+      };
       constraintsRef.current = computeConstraints();
       boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
+      const initialCamera = computeOverviewCamera();
       map = new maplibregl.Map({
         container: containerRef.current,
         style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, reliefRef.current),
-        bounds: mountedRoute.bounds,
-        // The initial view IS the full-route overview: same contract as fitRoute.
-        fitBoundsOptions: { padding: overviewPaddingRef.current },
+        // The initial view IS the full-route overview, and it is applied as a
+        // SOLVED camera rather than a bounds-fit: the composition is a
+        // constrained fit (route-centred, then translated back inside the
+        // renderable envelope), which fitBounds cannot express. Giving
+        // MapLibre the answer directly is what keeps it to one settled move —
+        // no fit, then nudge.
+        center: [initialCamera.camera.lng, initialCamera.camera.lat],
+        zoom: initialCamera.camera.zoom,
         attributionControl: { compact: true },
         // Cap zoom to what the offline tileset actually contains (+overzoom).
         maxZoom: 17,
@@ -461,6 +529,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         maxBounds: (boundsExpandedRef.current
           ? constraintsRef.current.overviewBounds!
           : constraintsRef.current.interactionBounds) as maplibregl.LngLatBoundsLike,
+        // NOTE: overviewBounds is the active mode's renderable envelope, so
+        // panning at overview zoom cannot reach unshaded ground either.
         // North-up product policy: rotation gestures are disabled (the map
         // is a route companion; a rotated frame costs orientation and would
         // let viewport corners peek past the bounds contract), and pitch is
@@ -471,6 +541,43 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         pitchWithRotate: false,
         touchPitch: false,
       });
+      /**
+       * THE full-route overview path. Every explicit whole-route action goes
+       * through here — initial camera, imperative Fit route, and the return
+       * from stage mode — so none of them can drift onto a plain bounds-fit
+       * and reintroduce the framing/hillshade defect.
+       *
+       * maxBounds is updated BEFORE the move: the solved camera is inside the
+       * active mode's envelope by construction, but a stale (narrower) bound
+       * would otherwise clamp the target and produce exactly the corrective
+       * second move this design exists to avoid.
+       */
+      const applyOverviewCamera = (jump = false): OverviewCamera | null => {
+        const m = mapRef.current;
+        if (!m) return null;
+        const solved = computeOverviewCamera();
+        constraintsRef.current = computeConstraints();
+        // ALWAYS widen first — this call IS the move to the overview, so the
+        // overview bounds are the right ones regardless of where the camera
+        // happens to be now. Coming back from stage mode the camera is zoomed
+        // IN, so the strict interaction bounds are active; leaving them in
+        // place made MapLibre clamp the target and land on the wrong camera
+        // (measured: centre snapped to the bounds centre and zoom to 9.47
+        // instead of 8.63 at 1512×860).
+        const next = constraintsRef.current.overviewBounds
+          ?? constraintsRef.current.interactionBounds;
+        boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
+        m.setMaxBounds(next as maplibregl.LngLatBoundsLike);
+        const camera = {
+          center: [solved.camera.lng, solved.camera.lat] as [number, number],
+          zoom: solved.camera.zoom,
+        };
+        if (jump) m.jumpTo(camera);
+        else m.easeTo({ ...camera, ...animate() });
+        return solved;
+      };
+      applyOverviewCameraRef.current = applyOverviewCamera;
+
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
       mapRef.current = map;
@@ -479,7 +586,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         // docs/maps/thunderforest-outdoors-benchmark.md §2): lets reviewers
         // jump the camera to the test locations from the console. Stripped
         // from builds.
-        (window as unknown as Record<string, unknown>).__fjallkompisMap = map;
+        const dev = window as unknown as Record<string, unknown>;
+        dev.__fjallkompisMap = map;
+        // Settled camera moves since mount. The framing evidence harness
+        // asserts ONE settled move for the initial overview — a fit-then-
+        // nudge or a correction loop shows up here as a second.
+        dev.__fjallkompisCameraMoves = 0;
+        map.on('moveend', () => {
+          dev.__fjallkompisCameraMoves = (dev.__fjallkompisCameraMoves as number) + 1;
+        });
       }
 
       // Swap between the strict user bounds and the overview expansion as
@@ -755,10 +870,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // still needs to fit the selected stage once.
       if (!stage) return;
     }
-    fitBounds(
-      stage ? stage.bounds : routeRef.current.bounds,
-      stage ? 'content' : 'overview',
-    );
+    // Stage and focused content keep the OPERATIONAL bounds-fit; returning to
+    // the whole route goes through the one overview path, never fitBounds.
+    if (stage) fitBounds(stage.bounds);
+    else applyOverviewCameraRef.current?.();
   }, [selectedStageId, loaded]);
 
   // ---- Layout padding changed: re-derive the camera constraints -----------

@@ -8,8 +8,21 @@ export interface CameraConstraints {
   /** Overview bounds: wide-viewport overview widening (null: not needed). */
   overviewBounds: Bounds | null;
   zoomThreshold: number;
+  /** The reasoning behind overviewBounds (null when no contract was given). */
+  envelope: OverviewEnvelope | null;
 }
 
+export type { Extent, OverviewEnvelope, OverviewCamera, CoverageMode } from './overviewEnvelope.mjs';
+export {
+  overviewEnvelopeFor,
+  overviewCameraFor,
+  coverageForMode,
+  rasterRenderableCoverage,
+  vectorSourceCoverage,
+} from './overviewEnvelope.mjs';
+import type { OverviewEnvelope } from './overviewEnvelope.mjs';
+
+export const MERC_MAX: number;
 export function mercX(lon: number): number;
 export function mercY(lat: number): number;
 export function invMercX(x: number): number;
@@ -18,7 +31,11 @@ export function mercPerPixel(zoom: number): number;
 
 export const TERRAIN_MIN_ZOOM: number;
 
-/** Physical overview envelope: z7 tile-aligned data footprint, − 2 km. */
+/**
+ * @deprecated The RASTER (terrain/satellite) renderable extent: the z7
+ * tile-aligned data footprint, − 2 km. Superseded as the overview cap by the
+ * per-source-zoom model in overviewEnvelope.mjs.
+ */
 export function overviewEnvelope(dataBounds: Bounds): Bounds;
 
 export function cameraConstraintsFor(args: {
