@@ -11,12 +11,18 @@
    the home screen AND every subroute inherit the same custom properties —
    no per-route colour forks, no pathname checks in components.
 
-   Material rule (Design Review: "preserve the neutral material language"):
-   cards stay neutral liquid glass / paper. Colour lives ONLY in eyebrows,
-   icons and icon badges, links, active navigation, selected/expanded
-   states, subtle borders, focus rings and primary actions. Semantic status
-   colours (--good, --danger, warning pills, journey completion) are never
-   remapped by a section theme.
+   Material rule (Design Review: "preserve the neutral material language",
+   revised twice by the visual-identity reviews): the section must be VISIBLE
+   AT REST — not only under focus, press or selection — and the identity
+   lives in the PAGE, never in the bottom navigation. Colour therefore lives
+   in the contour canvas (the SOURCE families' own soft variants), filled
+   icon badges quoting the source buttons, eyebrows and section labels,
+   links, visible (but soft) card borders and a whisper of section tint on
+   opaque card surfaces — while card CONTENT stays neutral ink, glass cards
+   keep their material, and the tab bar keeps the app's single neutral
+   active treatment (Today's spruce disc stays the only exception).
+   Semantic status colours (--good, --danger, warning pills, journey
+   completion) are never remapped by a section theme.
 
    Every value below is sourced from the established families in global.css
    (audit in the PR description): the glacier family behind "View route" and
@@ -30,19 +36,31 @@
 .theme-guide {
   /* Icon/badge tone — the established Guide-tile glyph family. */
   --section-accent: #43707f;
-  /* Text-safe accent (eyebrows, links, labels): 4.94:1 on #d3dce1. */
+  /* Text-safe accent (eyebrows, links, labels): 4.83:1 on #cfdae0. */
   --section-accent-strong: #35606f;
-  /* Translucent tint for icon badges, active-nav pill and pressed states. */
-  --section-accent-soft: rgba(67, 112, 127, 0.14);
-  /* The contour backdrop's base colour (was hardcoded on .screen-bg--guide). */
-  --section-surface: #d3dce1;
-  /* Subtle cool border for open/selected cards (the --glacier-soft border). */
+  /* Translucent tint for pressed states and quiet emphasis. */
+  --section-accent-soft: rgba(67, 112, 127, 0.18);
+  /* The contour backdrop's base colour — literally the established SOFT
+     variant of the "View route" button family (--glacier-soft), so the page
+     canvas visibly belongs to that button rather than to a generic
+     blue-grey. Contours (#5c7b8a strokes, baked in the asset) are the same
+     family's line tone. */
+  --section-surface: var(--glacier-soft);
+  /* Visible-but-soft cool border for resting opaque cards. */
   --section-border: #c3d6da;
-  /* Whisper-level tint for resting opaque card borders (near --line). */
-  --section-border-subtle: #c3d0d5;
+  /* Stronger border marking an OPEN/selected card. */
+  --section-border-strong: #8fb0bb;
+  /* Filled icon badges — literally the "View route" button family. White
+     glyphs on --glacier are 3.59:1 (≥3:1 for graphics). */
+  --section-badge: var(--glacier);
+  --section-badge-ink: #fff;
+  /* Whisper of cool on opaque card surfaces (paper is #e6ede3), lighter
+     than the canvas so cards still lift off it. Ink-soft stays ≥4.5:1. */
+  --section-card: #e6eef0;
   /* Focus ring — the app-wide glacier ring is already this family. */
   --section-focus: var(--glacier-700);
-  /* Filled selected-state surface (segments, filter chips) + its ink. */
+  /* Filled surfaces: selected segments and filter chips (never the bottom
+     navigation). White on glacier-700 is 6.23:1. */
   --section-fill: var(--glacier-700);
   --section-fill-ink: #f2f6f7;
 }
@@ -52,11 +70,20 @@
   /* Text-safe copper: 5.27:1 on Plan's #e8e0d1 contour base (--cloudberry
      and #8d5c33 both fall short of 4.5:1 there — measured in the PR). */
   --section-accent-strong: var(--cloudberry-700);
-  --section-accent-soft: rgba(157, 106, 62, 0.14);
-  --section-surface: #e8e0d1;
+  --section-accent-soft: rgba(157, 106, 62, 0.18);
+  /* The soft variant of the "Stage guide" button family (--cloudberry-soft):
+     noticeably warmer and more saturated than the previous #e8e0d1 beige,
+     visibly tied to the source button. */
+  --section-surface: var(--cloudberry-soft);
   /* The established pill-current border tone. */
   --section-border: #dfc9a6;
-  --section-border-subtle: #d8ccb8;
+  --section-border-strong: #c9a26b;
+  /* Filled icon badges — the "Stage guide" button family. */
+  --section-badge: var(--cloudberry);
+  --section-badge-ink: #fff;
+  /* Whisper of warmth on opaque card surfaces, lighter than the canvas;
+     ink-soft stays ≥4.5:1. */
+  --section-card: #f4ecdd;
   /* Darker copper so the ring stays visible on warm surfaces. */
   --section-focus: #8d5c33;
   /* Filled controls: white on #8d5c33 is 5.66:1 (white on --cloudberry is
@@ -65,36 +92,13 @@
   --section-fill-ink: #fff;
 }
 
-/* --- Bottom navigation: section-aware active state ------------------------
-   Fill and ink only — geometry, padding and the pill shape are untouched, so
-   switching sections can never shift layout. Today's centre disc keeps its
-   spruce treatment: when Today is active no theme class is present, and
-   under .theme-guide/.theme-plan the centre tab is never aria-current. */
-
-.theme-guide .tab[aria-current='page'],
-.theme-plan .tab[aria-current='page'] {
-  color: var(--section-accent-strong);
-}
-.theme-guide .tab[aria-current='page'] .ic,
-.theme-plan .tab[aria-current='page'] .ic {
-  stroke: var(--section-accent-strong);
-}
-.theme-guide .tab[aria-current='page'] .tab-pill,
-.theme-plan .tab[aria-current='page'] .tab-pill {
-  background: var(--section-accent-soft);
-}
-/* Pressing the already-active tab deepens the section tint (mirrors the
-   spruce rule it replaces). */
-.theme-guide .tab[aria-current='page']:active .tab-pill {
-  background: rgba(67, 112, 127, 0.3);
-}
-.theme-plan .tab[aria-current='page']:active .tab-pill {
-  background: rgba(157, 106, 62, 0.32);
-}
-.theme-guide .tab:focus-visible .tab-pill,
-.theme-plan .tab:focus-visible .tab-pill {
-  outline-color: var(--section-focus);
-}
+/* --- Bottom navigation: deliberately UNTHEMED -----------------------------
+   Guide, Map, Plan and Settings share the app's single neutral active
+   treatment (global.css: spruce ink + --line-strong pill — Map is the visual
+   reference), and Today's raised spruce disc stays the ONLY differentiated
+   navigation item. The section identity lives in the PAGE (canvas, badges,
+   labels, borders), never in the tab bar — so this file intentionally
+   contains no .tab rules at all. */
 
 /* --- Shell propagation: header, back control, links, focus ---------------- */
 
@@ -102,6 +106,15 @@
    (Also darkens Guide's former #43707f eyebrow to the text-safe tone.) */
 .theme-guide .screen-head .eyebrow,
 .theme-plan .screen-head .eyebrow {
+  color: var(--section-accent-strong);
+}
+
+/* Small uppercase section labels ("ALONG THE ROUTE", "GETTING TO THE
+   TRAIL", packing categories…) carry the section ink instead of generic
+   grey — they are exactly the "meaningful labels" that structure each
+   section's screens. */
+.theme-guide .section-label,
+.theme-plan .section-label {
   color: var(--section-accent-strong);
 }
 
@@ -142,16 +155,24 @@
   border-color: var(--section-focus);
 }
 
-/* Resting opaque cards carry a whisper of the section in their border. Glass
-   cards (.today-glass) set border: 0 and draw their edge with pseudo-element
-   material — this rule is a deliberate no-op for them, keeping the liquid
-   glass neutral. */
+/* Resting opaque cards carry the section in a visible-but-soft tinted
+   border AND a whisper of section tint on their surface (ink contrast is
+   preserved — measured in the PR). Glass cards (.today-glass) set border: 0
+   and draw their material with pseudo-elements — both rules are deliberate
+   no-ops or excluded for them, keeping the liquid glass itself neutral. */
 .theme-guide .card,
 .theme-guide .dt-card {
-  border-color: var(--section-border-subtle);
+  border-color: var(--section-border);
 }
 .theme-plan .card {
-  border-color: var(--section-border-subtle);
+  border-color: var(--section-border);
+}
+.theme-guide .card:not(.today-glass),
+.theme-guide .dt-card {
+  background: var(--section-card);
+}
+.theme-plan .card:not(.today-glass) {
+  background: var(--section-card);
 }
 
 /* --- Selected / expanded states ------------------------------------------- */
@@ -171,13 +192,13 @@
   color: var(--section-fill-ink);
 }
 
-/* An OPEN disclosure card shows the section border, so expanded reading
-   state is visible beyond the chevron rotation (never colour alone: the
-   chevron + revealed panel remain the primary indicators). */
+/* An OPEN disclosure card shows the STRONG section border, so expanded
+   reading state is visible beyond the chevron rotation (never colour alone:
+   the chevron + revealed panel remain the primary indicators). */
 .theme-guide .stop-card.is-open,
 .theme-guide .dt-card.is-open,
 .theme-plan .stop-card.is-open {
-  border-color: var(--section-border);
+  border-color: var(--section-border-strong);
 }
 
 /* --- Guide: dossier accents ----------------------------------------------- */
@@ -205,6 +226,13 @@
 }
 
 /* --- Plan: preparation accents -------------------------------------------- */
+
+/* Dashboard card labels ("Packing", "Travel & stays", "Wallet") read in
+   copper with their icons — the Plan home wears its identity at rest, like
+   Guide's filled tile badges. */
+.theme-plan .plan-card__label {
+  color: var(--section-accent-strong);
+}
 
 .theme-plan .plan-card:active {
   background: var(--section-accent-soft);

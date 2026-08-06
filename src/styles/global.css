@@ -433,8 +433,11 @@ h3 {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: var(--section-accent-soft);
-  color: var(--section-accent-strong);
+  /* Filled badge in the section's family — visibly the "View route" glacier
+     on Guide (white glyph on --glacier is 3.59:1; tokens from
+     section-themes.css). */
+  background: var(--section-badge);
+  color: var(--section-badge-ink);
 }
 .guide-tile__icon svg {
   width: 22px;

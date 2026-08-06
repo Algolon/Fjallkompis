@@ -92,9 +92,15 @@ test('accent-strong text tones actually clear 4.5:1 on their section surface', (
   };
   const paper = '#e6ede3';
   const cases = [
-    // [text tone, section contour surface]
-    ['#35606f', '#d3dce1'], // Guide strong on Guide surface
-    ['#7c5029', '#e8e0d1'], // Plan strong (--cloudberry-700) on Plan surface
+    // [text tone, section contour surface] — the canvases are the source
+    // families' own soft variants (--glacier-soft / --cloudberry-soft).
+    ['#35606f', '#d7e5e8'], // Guide strong on --glacier-soft
+    ['#7c5029', '#f0e1cb'], // Plan strong (--cloudberry-700) on --cloudberry-soft
+    ['#55675b', '#d7e5e8'], // ink-soft intro copy on the Guide canvas
+    ['#55675b', '#f0e1cb'], // ink-soft intro copy on the Plan canvas
+    // Card-surface tints must keep secondary text readable.
+    ['#55675b', '#e6eef0'], // ink-soft on the Guide card tint
+    ['#55675b', '#f4ecdd'], // ink-soft on the Plan card tint
   ];
   for (const [ink, surface] of cases) {
     assert.ok(contrast(ink, surface) >= 4.5, `${ink} on ${surface} ≥ 4.5:1`);
@@ -104,6 +110,12 @@ test('accent-strong text tones actually clear 4.5:1 on their section surface', (
   // would fail, white on the fill must pass.
   assert.match(themeBlock('theme-plan'), /--section-fill: #8d5c33;/);
   assert.ok(contrast('#ffffff', '#8d5c33') >= 4.5, 'white on the copper fill ≥ 4.5:1');
+  // Filled selected controls (segments/chips) and the filled icon badges:
+  // control ink is text (≥4.5:1 on glacier-700), badge glyphs are graphics
+  // (≥3:1 on the raw brand fills they quote — --glacier and --cloudberry).
+  assert.ok(contrast('#ffffff', '#4a656d') >= 4.5, 'white on glacier-700 fill ≥ 4.5:1');
+  assert.ok(contrast('#ffffff', '#6a8d95') >= 3, 'white glyph on --glacier badge ≥ 3:1');
+  assert.ok(contrast('#ffffff', '#b78443') >= 3, 'white glyph on --cloudberry badge ≥ 3:1');
 });
 
 test('the app-global chrome decisions stay untouched (PR #114/#115)', () => {
@@ -118,18 +130,22 @@ test('the app-global chrome decisions stay untouched (PR #114/#115)', () => {
 
 // --- Bottom navigation ------------------------------------------------------
 
-test('nav active states are themed per section, with zero geometry changes', () => {
-  assert.match(themes, /\.theme-guide \.tab\[aria-current='page'\]/);
-  assert.match(themes, /\.theme-plan \.tab\[aria-current='page'\]/);
+test('the bottom navigation stays neutral — no section-specific tab styling', () => {
+  // Guide, Map, Plan and Settings share ONE neutral active treatment (the
+  // global spruce ink + --line-strong pill; Map is the reference), and the
+  // theme layer may not touch the tab bar at all: outside its comments the
+  // file contains no .tab selector of any kind.
+  const code = themes.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!code.includes('.tab'), 'no .tab rules in the section theme layer');
+  assert.match(globalCss, /\.tab\[aria-current='page'\] \.tab-pill \{[^}]*background: var\(--line-strong\);/s);
+  assert.match(globalCss, /\.tab\[aria-current='page'\] \{\s*\n\s*color: var\(--spruce\);/);
   // Colour-only layer: the entire file may not declare any box geometry or
-  // type sizing — active-state switches can never shift layout.
+  // type sizing — theming can never shift layout.
   assert.ok(
     !/\b(width|height|padding|margin|font-size|gap|border-radius|top|bottom|left|right)\s*:/.test(themes),
     'section-themes.css declares no geometry',
   );
   // Today's centre disc treatment is never overridden by a section theme.
-  assert.ok(!themes.includes('.tab-center-disc'));
-  assert.ok(!themes.includes('.tab--center'));
   assert.match(globalCss, /\.tab--center\[aria-current='page'\] \.tab-center-disc \{\s*\n\s*background: var\(--spruce\);/);
 });
 

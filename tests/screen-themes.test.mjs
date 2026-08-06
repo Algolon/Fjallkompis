@@ -109,8 +109,10 @@ test('the themes are restrained: base colours + accents, not recoloured cards', 
   // The backdrop base colours now flow from the semantic section tokens
   // (section-themes.css) — one source for home and every subroute.
   assert.match(css, /\.screen-bg--guide,\s*\n\.screen-bg--plan \{\s*\n\s*background-color: var\(--section-surface\);/);
-  assert.match(themes, /\.theme-guide \{[^}]*--section-surface: #d3dce1;/s);
-  assert.match(themes, /\.theme-plan \{[^}]*--section-surface: #e8e0d1;/s);
+  // The canvases are the SOURCE families' own soft variants — the tie back
+  // to Today's "View route" and "Stage guide" buttons is structural.
+  assert.match(themes, /\.theme-guide \{[^}]*--section-surface: var\(--glacier-soft\);/s);
+  assert.match(themes, /\.theme-plan \{[^}]*--section-surface: var\(--cloudberry-soft\);/s);
   // Accents live in eyebrows/icons; the glass card system is shared.
   assert.ok(themes.includes('.theme-guide .screen-head .eyebrow'));
   assert.ok(themes.includes('.theme-plan .screen-head .eyebrow'));
