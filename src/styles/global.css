@@ -6343,3 +6343,82 @@ span.trip-attach-open {
     padding-inline: 8px;
   }
 }
+
+/* ===========================================================================
+   Native Android shell (Capacitor)
+   ===========================================================================
+
+   EVERY rule in this section is scoped under html[data-runtime='native-android'],
+   the marker src/runtime/platform.ts stamps on <html> before the first render.
+   A browser tab and an installed PWA carry data-runtime="web"/"pwa", so none
+   of this can reach them — that scoping is the whole containment strategy for
+   requirement F (the PWA stays first-class), and tests/native-runtime.test.mjs
+   fails the build if an unscoped rule appears here.
+
+   WHERE THE INSET NUMBERS COME FROM. Android's WebView does not reliably
+   populate env(safe-area-inset-*) for the system bars, so Capacitor's
+   SystemBars plugin measures the real window insets natively and writes
+   --safe-area-inset-top/right/bottom/left onto <html> on every change:
+   rotation, keyboard open/close, and switching between gesture and
+   three-button navigation. (It reports 0 for the bottom while the keyboard is
+   up, which is correct — the tab bar must not float a phantom inset above the
+   IME.) The block below re-points the app's OWN --safe-* variables at those
+   values, with env() kept as the fallback for the passthrough case where a
+   modern WebView populates it too. Every existing consumer of --safe-top /
+   --safe-bottom / --safe-left — the screen padding, the sub-nav row, the tab
+   bar, the MapLibre control corners, the navigation rail — therefore becomes
+   inset-correct on Android without a single new rule.
+
+   This is deliberately NOT blanket padding on <html>. Padding the document
+   would shrink the shell away from the screen edges and defeat the entire
+   point: the tab-bar surface has to REACH the physical bottom edge, and the
+   map has to run full-bleed under the status bar. Only the elements that own
+   an edge consume the insets.
+   =========================================================================== */
+
+html[data-runtime='native-android'] {
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+
+/* TOP — the dark spruce brand surface behind the status bar.
+   Same #2f4a3d as the PWA's theme_color and <meta name="theme-color">, taken
+   from the --spruce token so the two can never drift. Without it the light
+   stone page background would sit under light status-bar icons and swallow
+   them (platform.ts sets the status bar to light icons precisely because this
+   band is dark).
+
+   It is a painted band only: pointer-events are off, and no control is ever
+   placed inside the inset — .screen, .subnav and the MapLibre control corners
+   all already offset themselves by --safe-top. Absolute rather than fixed
+   because .app is exactly one viewport tall and never scrolls, so this
+   anchors to the same place with no containing-block surprises. */
+html[data-runtime='native-android'] .app::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background: var(--spruce);
+  pointer-events: none;
+  /* Above the tab bar (20) and all screen content, so a full-bleed Map or a
+     scrolled card never paints into the status-bar inset. */
+  z-index: 30;
+}
+
+/* BOTTOM — nothing to add, and that is the point.
+   .tabbar is already `height: calc(var(--tabbar-h) + var(--safe-bottom))` with
+   `padding-bottom: var(--safe-bottom)`, so once --safe-bottom carries the real
+   Android navigation-bar inset the bar's OWN surface extends to the physical
+   screen edge while its five controls stay above the inset — including the
+   elevated centre Today disc, which sits in the padded content row and is
+   never pushed into the system controls. Painting a second backdrop here
+   would mean re-declaring the bar's colour in a second place and letting the
+   two drift; the canonical surface is the bar itself.
+
+   The system's own three-button contrast scrim WOULD dull that surface, so it
+   is switched off natively — see isNavigationBarContrastEnforced in
+   android/app/src/main/java/com/algolon/fjallkompis/MainActivity.java. */

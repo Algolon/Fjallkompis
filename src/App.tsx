@@ -38,7 +38,10 @@ import {
 } from './screens/PlanScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PwaLifecycle } from './components/PwaLifecycle';
-import { isNativeAndroid } from './runtime/platform';
+import {
+  isNativeAndroid,
+  subscribeAndroidBackButton,
+} from './runtime/platform';
 import { INITIAL_MAP_VIEW_STAGE_ID } from './map/mapDefaults.mjs';
 
 interface Nav {
@@ -224,6 +227,13 @@ function AppShell() {
   // authority and the WebKit bug reference.
   useEffect(() => startViewportHeightSync(), []);
 
+  // Android's Back button drives the SAME hash history the browser's Back
+  // button drives — the adapter delegates to history.back() rather than
+  // introducing a second navigation model, and minimizes the app once there
+  // is nothing of ours left to go back to. A no-op in the browser and the
+  // installed PWA, where the platform already owns Back. See
+  // src/runtime/platform.ts.
+  useEffect(() => subscribeAndroidBackButton(), []);
 
   // Phones are portrait-only (product decision). The classifier is
   // capability- and space-based, never user-agent based; while the guard

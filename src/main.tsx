@@ -1,7 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { markRuntimeOnDocument } from './runtime/platform';
+import {
+  initializeNativeShell,
+  markRuntimeOnDocument,
+} from './runtime/platform';
 import './styles/global.css';
 import './styles/map-popup-polish.css';
 import './styles/today-polish.css';
@@ -13,6 +16,8 @@ import './styles/mobile-shell-plan-polish.css';
 // In a browser or installed PWA this writes 'web'/'pwa' and nothing else
 // changes — no native rule matches those values.
 markRuntimeOnDocument();
+// System-bar icon contrast; resolves immediately to a no-op off-Android.
+void initializeNativeShell();
 
 if (import.meta.env.DEV) {
   // Development-only route-data diagnostics (mirrors the generator output).
