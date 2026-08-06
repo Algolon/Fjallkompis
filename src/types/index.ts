@@ -679,6 +679,12 @@ export interface RouteExperience {
   mapNote?: string;
 
   source: StopSource;
+  /**
+   * Further sources when one page cannot honestly carry every claim — e.g.
+   * climbing context (operator) vs measured elevation change (geographic/
+   * historical record). Never a substitute for `source`.
+   */
+  additionalSources?: StopSource[];
   confidence: 'high' | 'medium' | 'low';
 }
 
