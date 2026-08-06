@@ -8,10 +8,11 @@
   it here too — tests/native-runtime.test.mjs fails if they diverge.
 -->
 <resources>
-    <!-- --stone-bg / the PWA manifest's background_color: the surface the app
-         launches on, in the browser and now on Android alike. -->
+    <!-- The CSS token `stone-bg` and the PWA manifest's background_color: the
+         surface the app launches on, in the browser and now on Android alike. -->
     <color name="fjallkompisLaunch">#dce4d8</color>
-    <!-- --spruce / theme_color / <meta name="theme-color">: the brand chrome
-         behind the status bar, painted by the web layer once it has loaded. -->
+    <!-- The CSS token `spruce`, theme_color, and the theme-color meta tag: the
+         brand chrome behind the status bar, painted by the web layer once it
+         has loaded. -->
     <color name="fjallkompisSpruce">#2f4a3d</color>
 </resources>

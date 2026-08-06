@@ -422,6 +422,33 @@ test('the application id is the documented provisional one', () => {
   assert.match(read('android/app/src/main/res/values/strings.xml'), /<string name="app_name">Fjällkompis<\/string>/);
 });
 
+test('no Android XML comment contains a double dash', () => {
+  // XML forbids "--" inside a comment, and aapt2 enforces it: it fails
+  // `mergeDebugResources` with "The string "--" is not permitted within
+  // comments" and takes the whole APK build down.
+  //
+  // This is a live trap in THIS project specifically, because the natural
+  // thing to write when documenting a native colour is the CSS custom
+  // property it was quoted from — and those all begin with two dashes. It
+  // cost one red CI run; hence a test rather than a note. Refer to the tokens
+  // by bare name (`spruce`, not the CSS spelling) inside XML comments.
+  const xmlDir = join(root, 'android/app/src/main');
+  const files = readdirSync(xmlDir, { recursive: true })
+    .filter((f) => typeof f === 'string' && f.endsWith('.xml'));
+  assert.ok(files.length > 0, 'the Android project has XML resources to check');
+
+  const offenders = [];
+  for (const file of files) {
+    const source = readFileSync(join(xmlDir, file), 'utf8');
+    for (const match of source.matchAll(/<!--([\s\S]*?)-->/g)) {
+      if (!match[1].includes('--')) continue;
+      const line = source.slice(0, match.index).split('\n').length;
+      offenders.push(`${file}:${line}`);
+    }
+  }
+  assert.deepEqual(offenders, [], 'aapt2 rejects "--" inside an XML comment');
+});
+
 // --- K. Build artefacts stay out of git -------------------------------------
 
 test('Android build outputs, keystores and local config are never committed', () => {
