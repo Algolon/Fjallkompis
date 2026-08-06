@@ -2,10 +2,11 @@
  * Focused mobile-shell + Plan dashboard polish.
  *
  * The pass is deliberately presentation-only: no route/state/schema changes.
- * The compact tab bar keeps its light surface while installed-PWA brand
- * chrome stays spruce; the Android system navigation bar is OS-owned rather
- * than represented as a second web-manifest colour. The remaining tests pin
- * the Today press-state, Packing warning placement and Pack/Worn cues.
+ * The browser document canvas and compact tab bar share their light surface,
+ * while installed-PWA brand chrome stays spruce; the standalone Android
+ * system navigation bar remains OS-owned rather than represented as a second
+ * web-manifest colour. The remaining tests pin the Today press-state, Packing
+ * warning placement and Pack/Worn cues.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,8 +27,12 @@ test('the focused stylesheet is loaded after the established polish layers', () 
   assert.ok(today >= 0 && focused > today, 'focused overrides load last');
 });
 
-test('the tab bar stays light while installed-PWA brand chrome stays spruce', () => {
+test('the browser canvas matches the tab bar while installed-PWA chrome stays spruce', () => {
   assert.match(css, /--tabbar-surface-opaque:\s*#d4ded1/);
+  assert.match(
+    css,
+    /html\s*\{\s*background-color:\s*var\(--tabbar-surface-opaque\);?\s*\}/,
+  );
   assert.match(html, /name="theme-color" content="#2f4a3d"/);
   assert.match(vite, /theme_color:\s*'#2f4a3d'/);
   assert.doesNotMatch(html, /name="theme-color" content="#d4ded1"/);

@@ -4,9 +4,20 @@
 
 :root {
   /* Opaque counterpart of the tab bar's rgba(212, 222, 209, .95). Native
-     Android system chrome cannot reproduce backdrop blur/transparency, so
-     the nearest exact solid colour is used by index.html + the manifest. */
+     Android system chrome cannot reproduce backdrop blur/transparency. This
+     solid token therefore owns the in-app fallback and browser document
+     canvas, while installed-PWA theme/status chrome deliberately stays
+     spruce through index.html + the manifest. */
   --tabbar-surface-opaque: #d4ded1;
+}
+
+/* Chrome browser mode can expose the document canvas behind Android's bottom
+   system-navigation area. Paint that root canvas with the exact opaque tab-bar
+   surface so the edge-to-edge band joins the in-app navigation instead of the
+   slightly different stone background. This does not claim control over the
+   separately OS-owned bar of an installed WebAPK. */
+html {
+  background-color: var(--tabbar-surface-opaque);
 }
 
 /* Today has its own circular state shape. The generic tab press rule paints
