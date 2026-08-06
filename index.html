@@ -8,7 +8,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
     />
-    <meta name="theme-color" content="#2f4a3d" />
+    <!-- Match installed-PWA system chrome to the opaque counterpart of the
+         compact bottom tab bar. Android may apply this to surrounding UI
+         such as the status/navigation area; the OS remains final authority. -->
+    <meta name="theme-color" content="#d4ded1" />
     <!-- The app is light-only by design. Declaring that tells browsers to
          render UA-owned surfaces (form controls and, on Android, the native
          date/time picker dialogs) in their light theme so they sit closer to
