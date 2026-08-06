@@ -36,7 +36,10 @@ export default defineConfig({
         description:
           'An offline hiking companion for the Kungsleden, bringing route, stage, hut and packing information together alongside your navigation tools.',
         lang: 'en',
-        theme_color: '#2f4a3d',
+        // Opaque counterpart of the compact tab bar surface. Installed-PWA
+        // system chrome may use this colour; the Android OS remains final
+        // authority over its gesture/navigation area.
+        theme_color: '#d4ded1',
         background_color: '#dce4d8',
         display: 'standalone',
         // 'any' is DELIBERATE, not an oversight: this one static manifest
