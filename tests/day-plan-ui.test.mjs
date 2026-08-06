@@ -30,14 +30,14 @@ const stripComments = (src) =>
 
 // ---- Naming and placement ---------------------------------------------------
 
-test('the Settings section is called "Day plan" and follows Route direction', () => {
-  const directionAt = settings.indexOf('id="direction"');
-  const planAt = settings.indexOf('id="day-plan"');
-  const readinessAt = settings.indexOf('<TrailReadinessCard');
-  assert.ok(directionAt > 0 && planAt > 0);
-  assert.ok(directionAt < planAt && planAt < readinessAt);
-  assert.match(settings, /title="Day plan"/);
-  assert.match(settings, /<DayPlanCard onNavigate=\{onNavigate\} \/>/);
+test('the Day plan lives under Plan (vNext) and left Settings entirely', () => {
+  // vNext moved the personal Day plan out of Settings into Plan → Day plan;
+  // Settings keeps only technical/app-scoped sections.
+  assert.equal(settings.indexOf('id="day-plan"'), -1, 'no Settings accordion');
+  assert.ok(!settings.includes('DayPlanCard'), 'Settings no longer renders the card');
+  const plan = read('src/screens/PlanScreen.tsx');
+  assert.match(plan, /title="Day plan"/);
+  assert.match(plan, /<DayPlanCard onNavigate=\{onNavigate\} \/>/);
 });
 
 test('the Day plan has one accessible persistent Today switch only when a plan exists', () => {
@@ -112,7 +112,11 @@ test('with no plan the card invites one and states nothing exists yet', () => {
   assert.match(card, /if \(!dayPlan\) \{/);
   assert.match(card, /label="First day of your journey"/);
   assert.match(card, /Choosing a date creates a plan with one stage per day/);
-  assert.match(settings, /Not set up — plan your journey day by day/);
+  // The collapsed invitation now lives on the Plan home's Day plan row.
+  assert.match(
+    read('src/screens/PlanScreen.tsx'),
+    /Not set up — plan your journey day by day/,
+  );
 });
 
 test('the date field is the app-owned DateField — no native date input', () => {
@@ -819,11 +823,10 @@ test('a previewed day is never announced as actual progress', () => {
   assert.match(onRoute, /const previewing = todaySource === 'preview';/);
 });
 
-test('Settings gained exactly one navigation duty: Preview → Today', () => {
-  assert.match(settings, /onNavigate\?: \(tab: TabId\) => void;/);
-  const uses = settings.match(/onNavigate/g) ?? [];
-  // Declaration, prop destructure/doc and the single pass-through — no other
-  // Settings control navigates anywhere.
-  assert.ok(uses.length <= 4, `Settings must not grow other navigations (${uses.length})`);
-  assert.match(settings, /<DayPlanCard onNavigate=\{onNavigate\} \/>/);
+test('Settings navigates nowhere; the Preview → Today duty moved to Plan', () => {
+  // vNext: with the Day plan gone, Settings has NO navigation duty at all.
+  assert.ok(!settings.includes('onNavigate'), 'Settings takes no navigator');
+  // Plan → Day plan carries the single pass-through instead.
+  const plan = read('src/screens/PlanScreen.tsx');
+  assert.match(plan, /<DayPlanCard onNavigate=\{onNavigate\} \/>/);
 });

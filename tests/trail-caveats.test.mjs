@@ -490,7 +490,9 @@ test('Settings shows the fuller trust context in an existing section', () => {
     'the caveat sits with the offline map it is about',
   );
   const sections = [...settings.matchAll(/<SettingsAccordion\b/g)].length;
-  assert.equal(sections, 7, 'the same seven Settings sections as before this PR');
+  // Six since vNext moved the Day plan to Plan: direction, readiness,
+  // install, maps, backup, sources.
+  assert.equal(sections, 6, 'no new Settings section for the caveat');
 });
 
 test('the caveat is not left to credits, a source link or an onboarding', () => {

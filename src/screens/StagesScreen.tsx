@@ -255,14 +255,19 @@ export function StagesScreen({
           walks a stage more than once, because selecting an occurrence by
           stage id alone would be a guess (the chooser below). Cards are
           never duplicated for repeated occurrences. */}
+      {/* "Stages & highlights" (vNext): the Guide tile of the same name lands
+          here, and the highlights live INSIDE the stages — each stage card
+          carries its Highlights & detours disclosure. The title says so, so
+          the tile never promises a catalogue this screen doesn't have. */}
       <ScreenHeader
         eyebrow={`${stages.length} stages · ${itinerary.orderedStops.length} stops`}
-        title="Stages"
+        title="Stages & highlights"
       >
         The route from {startName} to {endName} as {stages.length} fixed
-        stages. Distances and climbing come from the GPX; ± times are personal
-        estimates. Open a stage’s guide for what to expect, and use the pill in
-        its corner to set the stage you’re walking.
+        stages — each with its day guide, viewpoints, side trips and
+        expeditions. Distances and climbing come from the GPX; ± times are
+        personal estimates. Use the pill in a stage’s corner to set the stage
+        you’re walking.
       </ScreenHeader>
 
       <div className="card" style={{ marginBottom: 14 }}>

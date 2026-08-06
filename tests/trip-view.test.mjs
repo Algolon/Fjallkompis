@@ -1,12 +1,11 @@
 /**
- * Trip plan UI contracts — source-text fences in the established style
- * (tests/lists-intro-placement.test.mjs). Storage BEHAVIOUR is exercised for
- * real in tests/wallet-store.test.mjs (fake-indexeddb) and the persisted
- * trip items in tests/state-migration.test.mjs; these tests pin the
- * structural facts the Node-only suite cannot render: the renamed fourth
- * Lists tab, the Trip plan groups, the Add chooser, the honest offline and
- * missing-attachment wording, the integrity rules and the no-network
- * guarantee.
+ * Trip plan UI contracts — source-text fences. Storage BEHAVIOUR is
+ * exercised for real in tests/wallet-store.test.mjs (fake-indexeddb) and the
+ * persisted trip items in tests/state-migration.test.mjs; these tests pin
+ * the structural facts the Node-only suite cannot render: the Trip plan's
+ * vNext home (Plan → Trip), the Trip plan groups, the Add chooser, the
+ * honest offline and missing-attachment wording, the integrity rules and
+ * the no-network guarantee.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +16,8 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(join(root, rel), 'utf8');
 
-const lists = read('src/screens/ListsScreen.tsx');
+const plan = read('src/screens/PlanScreen.tsx');
+const guide = read('src/screens/GuideScreen.tsx');
 const tripView = read('src/components/TripView.tsx');
 const itemSheet = read('src/components/TripItemSheet.tsx');
 const editor = read('src/components/WalletEditorSheet.tsx');
@@ -29,54 +29,56 @@ const css = read('src/styles/global.css');
 
 // ---- Information architecture ----------------------------------------------
 
-test('Trip is the fourth and last Lists tab, with the compact "Trip" label', () => {
-  const tabIds = [...lists.matchAll(/\{ id: '([a-z]+)', label: '([^']+)' \}/g)].map((m) => ({
-    id: m[1],
-    label: m[2],
-  }));
-  assert.deepEqual(
-    tabIds.map((t) => t.id),
-    ['packing', 'shops', 'transport', 'trip'],
-    'tab order: Packing, Shops, Transport, Trip — trip appended last',
-  );
-  assert.equal(tabIds[3].label, 'Trip', 'compact tab label');
-});
-
-test('Wallet terminology is fully replaced by Trip terminology in the Lists UI', () => {
-  assert.ok(!/Wallet/.test(lists), 'no Wallet wording left on the Lists screen');
-  assert.ok(!/wallet/.test(lists.match(/type ListsSection = [^;]+;/)[0]), 'section id renamed');
-});
-
-test('no new primary route: the trip plan lives inside the Lists screen only', () => {
+test('Travel & stays and Wallet live under Plan with their own canonical routes', () => {
+  // Plan home indexes both; the section screens render the shared TripView
+  // as two purposeful filtered views (items vs documents).
+  assert.match(plan, /export function PlanTravelScreen/);
+  assert.match(plan, /export function PlanWalletScreen/);
   const routes = read('src/navigation/routes.mjs');
-  assert.ok(!/['"]trip['"]|#\/trip/i.test(routes), 'navigation route table untouched');
-  assert.match(lists, /\{mode === 'trip' \? \(\s*<TripView\s+launch=\{tripLaunch\}/);
+  assert.match(routes, /'day', 'packing', 'travel', 'wallet'/, 'both are Plan section routes');
+  // The pilot's short-lived combined route stays reachable as an alias.
+  assert.match(routes, /'#\/plan\/trip', '#\/plan\/travel'/);
 });
 
-test('deep links open Trip: section id, a specific item, or a Track-stay prefill', () => {
-  assert.match(lists, /tripItemId\?: string/);
-  assert.match(lists, /trackStayPlaceId\?: string/);
-  assert.match(lists, /if \(link\.tripItemId \|\| link\.trackStayPlaceId\) return 'trip'/);
-  // One-shot: choosing a tab by hand clears any pending launch payload.
-  assert.match(lists, /setTripLaunch\(null\)/);
+test('the wallet tile is document-oriented and compact — Wallet, not a list', () => {
+  assert.ok(plan.includes("title: 'Wallet'") || /plan-card__label">[\s\S]{0,80}Wallet/.test(plan));
+  assert.ok(!plan.includes("title: 'Wallet & documents'"), 'compact primary title');
+  // The tile shows a concise count/status, never document rows.
+  assert.match(plan, /walletCount/);
+  assert.ok(!plan.includes('wallet-card__open'), 'no document list on the Plan home');
+  const today = read('src/screens/TodayScreen.tsx');
+  assert.ok(!/wallet/.test(today.match(/type ListsSection = [^;]+;/)[0]), 'no wallet section id');
+});
+
+test('deep links open Travel & stays: an item, a Track-stay or a transport prefill', () => {
+  const today = read('src/screens/TodayScreen.tsx');
+  assert.match(today, /tripItemId\?: string/);
+  assert.match(today, /trackStayPlaceId\?: string/);
+  // The launch is derived once at mount from the one-shot payload — a fresh
+  // visit (no payload) opens the plain view.
+  assert.match(plan, /initialTripLaunchFor\(deepLink\)/);
+  assert.match(plan, /if \(link\?\.tripItemId\) return \{ kind: 'item' as const, itemId: link\.tripItemId \};/);
+  assert.match(plan, /kind: 'add-stay' as const, placeId: link\.trackStayPlaceId/);
 });
 
 // ---- Offline honesty ---------------------------------------------------------
 
-test('the trip intro names the Trip plan, offline storage and the deletion caveat', () => {
-  const intro = lists.match(/trip:\s*\n?\s*'([^']+)'/)?.[1];
-  assert.ok(intro, 'LISTS_HEADER has a trip entry');
-  assert.match(intro, /Trip plan/, 'full section title appears in copy');
-  assert.match(intro, /travel, stays, bookings and important documents/i);
+test('the Wallet intro keeps the offline-storage honesty and deletion caveat', () => {
+  // The documents' storage honesty moved to the Wallet with the documents.
+  const start = plan.indexOf('export function PlanWalletScreen');
+  const intro = plan.slice(start, plan.indexOf('<TripView', start));
+  assert.ok(start > -1, 'PlanWalletScreen exists');
   assert.match(intro, /available offline/i);
   assert.match(intro, /stored locally on this device/i);
-  assert.match(intro, /Clearing the browser.s or app.s data also removes/i);
+  assert.match(intro, /clearing the browser.s or\s+app.s data also removes/i);
   assert.ok(!/cloud|sync|backed up/i.test(intro), 'never implies cloud storage');
 });
 
-test('the empty state explains the purpose and offers Add item', () => {
-  assert.match(tripView, /Add transport, stays and important documents for your trip/);
-  assert.match(tripView, /Add item/, 'primary Add item CTA');
+test('both empty states explain the purpose and offer the right Add action', () => {
+  assert.match(tripView, /Organize your stays and transport here\./);
+  assert.match(tripView, /Add and organize your bookings, tickets and other travel documents\./);
+  assert.match(tripView, /Add item/, 'travel CTA');
+  assert.match(tripView, /Add document/, 'wallet CTA');
   assert.ok(!/passport/i.test(tripView), 'identity documents are not promoted as examples');
 });
 
@@ -123,19 +125,24 @@ test('sorting is delegated to the pure model with an injected today', () => {
   assert.match(tripView, /todayIso\(\)/);
 });
 
-test('documents linked to an item leave the standalone Documents group', () => {
+test('documents attached to an item are annotated in the Wallet, never hidden', () => {
+  // The Wallet answers "which document do I need?" completely: attached
+  // documents stay listed, carrying a quiet annotation instead of vanishing
+  // into their item.
   assert.match(tripView, /linkedDocIds/);
-  assert.match(tripView, /filter\(\(d\) => !linkedDocIds\.has\(d\.id\)\)/);
+  assert.match(tripView, /' \(attached to a trip item\)'/);
+  assert.match(tripView, /' · attached'/);
 });
 
 // ---- Add flow -----------------------------------------------------------------
 
-test('Add item opens a chooser offering Transport, Stay and Document', () => {
-  assert.match(tripView, /What would you like to add to your trip plan\?/);
-  for (const pick of ["onPick\\('transport'\\)", "onPick\\('stay'\\)", "onPick\\('document'\\)"]) {
+test('Travel adds via a Transport/Stay chooser; Wallet adds documents directly', () => {
+  assert.match(tripView, /What would you like to add to your travel plan\?/);
+  for (const pick of ["onPick\\('transport'\\)", "onPick\\('stay'\\)"]) {
     assert.match(tripView, new RegExp(pick));
   }
-  assert.ok(!/Add document<\/button>/.test(tripView), 'the old Add document CTA is gone');
+  assert.ok(!/onPick\('document'\)/.test(tripView), 'no document pick in the travel chooser');
+  assert.match(tripView, /\{ mode: 'doc-add' \}/, 'the Wallet opens the document editor directly');
 });
 
 test('the item form validates inline: empty titles blocked, check-out ordering flagged', () => {
@@ -246,13 +253,15 @@ test('item identity and transport provenance are immutable through ordinary patc
 
 // ---- Transport integration ----------------------------------------------------
 
-test('Transport reference cards gain Add to Trip / View in Trip, wired via Lists', () => {
+test('Transport reference cards gain Add to Trip / View in Trip, wired via Guide', () => {
   assert.match(transportView, /onAddToTrip\?: \(entryId: string\) => void/);
   assert.match(transportView, /Add to Trip/);
   assert.match(transportView, /View in Trip/);
   assert.match(transportView, /Add to Trip again/, 'legitimate repeats stay possible');
-  assert.match(lists, /onAddToTrip=\{addTransportToTrip\}/);
-  assert.match(lists, /onViewInTrip=\{viewTripItem\}/);
+  // vNext: the reference view lives in the Guide dossier; its Trip launches
+  // cross into Plan → Trip as one-shot navigation payloads.
+  assert.match(guide, /onAddToTrip=\{\(entryId\) =>\s*\n?\s*onNavigate\('plan', \{ lists: \{ addTransportEntryId: entryId \} \}\)/);
+  assert.match(guide, /onViewInTrip=\{\(itemId\) =>\s*\n?\s*onNavigate\('plan', \{ lists: \{ tripItemId: itemId \} \}\)/);
 });
 
 test('the prefill flow copies verified facts only — personal fields stay personal', () => {

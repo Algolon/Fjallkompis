@@ -70,9 +70,9 @@ test('the collapsed Route direction summary shows the current direction', () => 
     /summary=\{`Walking \$\{directionLabel\(routeDirection\)\}`\}/,
     'summary renders the active direction label',
   );
-  // The screen destructures the active direction from the store (alongside
-  // whatever else it needs — the Day plan summary reads the plan too).
-  assert.match(settings, /routeDirection, dayPlan, plannedDays \} =\s*\n?\s*useStore\(\)/);
+  // The screen destructures the active direction from the store (the Day
+  // plan summary moved to Plan with the plan itself — vNext).
+  assert.match(settings, /routeDirection \} = useStore\(\)/);
 });
 
 test('accordion open states stay independent and predictable', () => {
@@ -160,7 +160,7 @@ test('Trail readiness stays a foldout: accordion, collapsed by default, score in
   assert.match(settings, /const score = \(\s*<span className="readiness-score">/);
 });
 
-test('the beta feedback entry is retired entirely — no form, GitHub route or diagnostics', () => {
+test('the beta feedback entry is retired entirely — no form or GitHub route', () => {
   assert.ok(!/BETA_FORM_URL/.test(settings), 'form URL constant removed');
   assert.ok(!/docs\.google\.com\/forms/.test(settings), 'no Google Forms URL');
   assert.ok(!/issues\/new\?template=beta-feedback\.yml/.test(settings), 'GitHub feedback link removed');
@@ -168,5 +168,9 @@ test('the beta feedback entry is retired entirely — no form, GitHub route or d
   assert.ok(!/REPOSITORY_URL/.test(settings), 'now-unused REPOSITORY_URL import removed');
   assert.ok(!/Copy safe diagnostics/.test(settings), 'no Copy safe diagnostics control');
   assert.ok(!/Show safe diagnostics preview/.test(settings), 'no diagnostics preview control');
-  assert.ok(!/navigator\.clipboard/.test(settings), 'no clipboard handler');
+  // The vNext pilot's minimal "Copy diagnostic summary" is a separate,
+  // deliberate helper (tests/diagnostic-summary.test.mjs pins its privacy
+  // contract); the beta-era preview/report machinery stays gone.
+  const clipboardUses = settings.match(/navigator\.clipboard/g) ?? [];
+  assert.equal(clipboardUses.length, 1, 'only the pilot summary copies');
 });

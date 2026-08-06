@@ -327,6 +327,322 @@ h3 {
   line-height: 1.45;
 }
 
+/* --- vNext Guide/Plan shell ----------------------------------------------- */
+
+/* Slim sub-navigation row above an embedded Guide/Plan section screen
+   (SectionShell). The row absorbs the top safe-area inset; the wrapped
+   .screen's own top padding is compensated below so the two never stack. */
+.subnav {
+  padding: calc(var(--safe-top) + 10px) 16px 0;
+}
+.subnav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px 6px 4px;
+  margin-left: -4px;
+  min-height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--glacier-700);
+  font-size: 14px;
+  font-weight: 600;
+}
+.subnav-back:active {
+  background: var(--paper-2);
+}
+.section-shell .screen {
+  padding-top: 12px;
+}
+
+/* --- vNext screen themes: contour backdrops + Guide/Plan accents ----------
+
+   Shared construction with .today-bg: a fixed, content-column-constrained
+   decorative layer holding a muted solid base with a real topographic
+   contour SVG over it. Each screen gets a DIFFERENT source-derived crop
+   (see public/images/guide|plan/README.md for provenance) so the three
+   contour screens never repeat one pattern: Today green, Guide blue-grey,
+   Plan warm copper. Line colour/opacity is baked into each asset; the base
+   colour lives here. */
+/* Same containing-block rule as Today (see the .today-screen note): the
+   generic .screen fade animates TRANSFORM, and an animating transform makes
+   .screen the containing block for position:fixed descendants — the contour
+   layer would size itself to the screen box for the length of the fade and
+   then snap to the viewport, visibly resizing and flickering on every open.
+   Guide and Plan fade with opacity only, so their backdrop is
+   viewport-anchored from the first painted frame. */
+.guide-screen,
+.plan-screen {
+  animation-name: fade-opacity;
+}
+
+.screen-bg {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 560px;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--screen-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.screen-bg--guide {
+  background-color: #d3dce1;
+}
+.screen-bg--plan {
+  background-color: #e8e0d1;
+}
+
+/* Restrained semantic accents: colour lives in the eyebrow, the icon badges
+   and the tile glyphs — never across whole cards. */
+.guide-screen .screen-head .eyebrow {
+  color: #43707f;
+}
+.plan-screen .screen-head .eyebrow {
+  color: #9d6a3e;
+}
+
+/* --- Guide home: the 2×2 dossier grid ------------------------------------ */
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+/* The grid gap owns the rhythm — neutralise the sibling-card margin (the
+   selector stays specific enough to win over the base sibling rule). */
+.guide-grid > .card.today-glass {
+  margin-top: 0;
+}
+.guide-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 138px;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.guide-tile__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(67, 112, 127, 0.14);
+  color: #35606f;
+}
+.guide-tile__icon svg {
+  width: 22px;
+  height: 22px;
+}
+.guide-tile__title {
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-strong);
+}
+.guide-tile__sub {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.guide-tile:active {
+  background: var(--paper-bright);
+}
+@media (max-width: 340px) {
+  .guide-grid {
+    gap: 8px;
+  }
+  .guide-tile {
+    min-height: 128px;
+    padding: 12px;
+  }
+}
+
+/* --- Plan home: the preparation dashboard --------------------------------- */
+
+.plan-stack {
+  display: grid;
+  gap: 12px;
+}
+.plan-stack > .card.today-glass {
+  margin-top: 0;
+}
+.plan-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Day plan — the soft hero: the largest Plan surface, warm and glassy, but
+   deliberately lighter than Today's dark operational hero. */
+.plan-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px 16px;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(240, 232, 216, 0.6);
+}
+.plan-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #9d6a3e;
+}
+.plan-hero__title {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink-strong);
+}
+.plan-hero__arrow {
+  color: var(--ink-faint);
+}
+.plan-hero__stats {
+  display: inline-flex;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.plan-hero__status {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #5d5343;
+}
+.plan-hero__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #8d5c33;
+}
+.plan-hero:active {
+  background: rgba(240, 232, 216, 0.85);
+}
+
+/* Dashboard cards (Packing) and compact tiles (Travel & stays, Wallet). */
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.plan-card:active {
+  background: var(--paper-bright);
+}
+.plan-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.plan-card__label svg {
+  flex: 0 0 auto;
+  color: #9d6a3e;
+}
+.plan-card__empty {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.plan-card__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.plan-card__sub {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #5d6558;
+}
+/* An icon and its count wrap as ONE unit — an icon never strands at a line
+   end away from the text that gives it meaning. */
+.plan-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.plan-pair svg {
+  flex: 0 0 auto;
+  color: #9d6a3e;
+}
+
+/* Packing dashboard: two conceptual columns — progress and weight. */
+.plan-packing__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+.plan-packing__col {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+.plan-packing__colhead {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.plan-counts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.plan-count {
+  white-space: nowrap;
+}
+.plan-card__warn {
+  margin-top: 2px;
+}
+@media (max-width: 340px) {
+  .plan-stack,
+  .plan-tiles {
+    gap: 8px;
+  }
+  .plan-card {
+    padding: 12px;
+  }
+  .plan-counts {
+    font-size: 13.5px;
+  }
+}
+
 /* --- Cards --------------------------------------------------------------- */
 
 .card {
@@ -2445,6 +2761,57 @@ button.map-status-pill {
   /* A shade darker green than the tab bar's own tint. */
   background: var(--line-strong);
 }
+
+/* --- Centre destination: Today (vNext) ------------------------------------
+   The bottom bar's middle item is Today — a subtly ELEVATED navigation tab,
+   never an action button: same button semantics, same aria-current, same
+   always-visible label, and identical geometry in both states (states
+   differ through fill and a restrained shadow only). The disc pokes ~9px
+   above the bar edge; the bar itself never clips (no overflow rule), and
+   the toast region below clears the protrusion. Rail/sidebar keep the
+   uniform treatment — the centre belongs to the horizontal bar. */
+.tab--center .tab-pill {
+  overflow: visible;
+  padding-top: 0;
+}
+.tab-center-disc {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-top: -12px; /* 54px disc in a 56px bar → ~9px above the bar edge */
+  border-radius: 50%;
+  background: var(--paper-bright);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 2px 6px rgba(18, 31, 25, 0.18);
+  color: var(--ink-soft);
+}
+.tab--center .ic {
+  width: 24px;
+  height: 24px;
+}
+/* Active: fill + shadow change only — position and size never jump. */
+.tab--center[aria-current='page'] {
+  color: var(--spruce);
+}
+.tab--center[aria-current='page'] .tab-pill {
+  background: none; /* the disc carries the active state, not the chip */
+}
+.tab--center[aria-current='page'] .tab-center-disc {
+  background: var(--spruce);
+  border-color: var(--spruce-700);
+  color: #eef3ec;
+  box-shadow: 0 3px 9px rgba(18, 31, 25, 0.28);
+}
+/* The generic active-icon rule strokes icons spruce — on the spruce disc
+   the glyph must stay near-white instead. */
+.tab--center[aria-current='page'] .tab-center-disc .ic {
+  stroke: #eef3ec;
+}
+.tab--center:focus-visible .tab-center-disc {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
+}
 /* Pressing the already-active tab deepens the green further still. */
 .tab[aria-current='page']:active .tab-pill {
   background: rgba(47, 74, 61, 0.34);
@@ -3198,8 +3565,13 @@ button.stop-fac:focus-visible {
                         a real border renders chunky and uneven. The same
                         layer carries a faint 1px top catch-light and a soft
                         inner shade along the bottom edge for depth.
-   All tuning knobs live in the tokens below. */
-.today-screen {
+   All tuning knobs live in the tokens below. The same material language
+   serves the Guide and Plan homes (vNext) — their contour backdrops need
+   the identical translucency/rim system, so the tokens are scoped to the
+   three contour-backed screens rather than duplicated. */
+.today-screen,
+.guide-screen,
+.plan-screen {
   --glass-blur: 3px; /* small: contour lines must stay visible through the pane */
   --glass-saturate: 1.15; /* colour lift of the blurred backdrop */
   --glass-brightness: 1.04; /* luminosity lift — cuts the muddiness */
@@ -3461,263 +3833,6 @@ button.stop-fac:focus-visible {
   grid-area: chevron;
   justify-self: end;
   color: var(--ink-soft);
-}
-
-/* --- Today: Prepare mode ----------------------------------------------------------
-   The compact Prepare | On route header control plus the preparation
-   dashboard. Built on the same systems as the rest of Today: semantic tabs,
-   the hero surface, .today-action-card whole-card buttons and the glass
-   surfaces. The whole Prepare view is height-budgeted to fit the smallest
-   supported portrait viewport without scrolling
-   (docs/proposals/today-prepare.md). */
-
-/* Mode control: a compact capsule of semantic tabs living in the header's
-   title row (the ScreenHeader accessory slot) — badge-sized, never a
-   separate content row. The capsule is a small-scale liquid-glass pane:
-   the same translucent fill + backdrop lift as the Journey/Tonight cards
-   and the same hairline rim + top catch-light (via its own ::before — the
-   card-scale inner shade is deliberately omitted: at 34px tall it would
-   read as dirt, not depth). Shadows are control-scale, softer and tighter
-   than --glass-shadow, so the capsule sits lightly beside the title
-   instead of floating like a card. Selected = spruce fill + near-white
-   text (the app's shared selected-tab treatment); unselected uses the
-   darkened-on-glass ink (#3f4f45, same step as .today-glass .card-sub)
-   because the translucent pane is brighter than the old opaque fill. */
-.today-mode {
-  position: relative;
-  display: flex;
-  padding: 2px;
-  gap: 2px;
-  border-radius: 999px;
-  background: var(--glass-fill-light);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
-    brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(var(--glass-blur))
-    saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
-  box-shadow:
-    0 1px 2px rgba(12, 24, 20, 0.08),
-    0 5px 14px rgba(12, 24, 20, 0.12);
-}
-.today-mode::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow:
-    inset 0 0 0 var(--glass-rim-w) var(--glass-rim),
-    inset 0 1px 0 var(--glass-highlight);
-}
-@supports not (backdrop-filter: blur(1px)) {
-  /* No blur available: same nearly opaque paper fallback as .today-glass. */
-  .today-mode {
-    background: rgba(246, 248, 243, 0.96);
-  }
-}
-.today-mode__tab {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  color: #3f4f45;
-  transition: transform 0.08s ease;
-}
-/* The capsule is 34px tall visually, but each tab keeps a 44px touch
-   target: an invisible vertical hit-area extension (vertical only — the
-   horizontal boundary between the two tabs must stay exact; 30px tab
-   + 2×7px = 44px). */
-.today-mode__tab::after {
-  content: '';
-  position: absolute;
-  inset: -7px 0;
-}
-.today-mode__tab:active {
-  transform: scale(0.97);
-}
-.today-mode__tab[aria-selected='true'] {
-  background: var(--spruce);
-  color: #f4f8f5;
-  box-shadow: 0 1px 2px rgba(12, 24, 20, 0.22);
-}
-.today-mode__tab:focus-visible {
-  outline: 2px solid var(--glacier-700);
-  outline-offset: -2px; /* inside the capsule so the ring is never clipped */
-}
-@media (max-width: 340px) {
-  .today-mode__tab {
-    padding: 0 10px;
-  }
-}
-
-/* Route hero (Prepare): compact spruce cousin of the On route day hero —
-   identifies the journey and carries the two explicit actions. The section
-   wrapper is NOT interactive; Map and Stages are sibling buttons reusing the
-   day hero's .hero-action system (glacier spatial / cloudberry primary). */
-.prepare-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--r-lg);
-  background: linear-gradient(150deg, var(--spruce) 0%, var(--spruce-700) 78%);
-  color: #f4f8f5;
-  box-shadow: var(--shadow);
-  padding: 12px 16px;
-}
-.prepare-hero__title {
-  color: inherit;
-  margin-top: 4px;
-  font-size: 21px;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-.prepare-hero .hero-stats {
-  margin-top: 2px;
-}
-.prepare-hero .hero-actions {
-  margin-top: 10px;
-}
-@media (max-width: 360px) {
-  .prepare-hero {
-    padding: 10px 12px;
-  }
-  .prepare-hero__title {
-    font-size: 19px;
-  }
-}
-
-/* The Prepare stack owns its vertical rhythm (cards have no self margins). */
-.prepare-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.prepare-stack .today-action-card {
-  margin-top: 0;
-}
-.prepare-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-/* Tiles (the two-up bottom row): same whole-card button anatomy, tighter
-   chrome so labels and wrapped status tokens stay readable at half width. */
-.prepare-card--tile {
-  padding: 12px;
-  gap: 6px;
-}
-/* Compact phones (≤360px): the half-width tiles are where the height budget
-   is decided. Dropping their chevron column (~26px) lets the tile label and
-   the icon count row hold ONE line each; the cards stay whole-card buttons
-   (pressed state + accessible "Opens …" names carry the affordance).
-   Full-width cards keep their chevrons down to 341px. */
-@media (max-width: 360px) {
-  .prepare-card--tile {
-    padding: 9px 10px;
-    gap: 4px;
-  }
-  .prepare-card--tile .today-action-card__chevron {
-    display: none;
-  }
-  /* Inside a tile the two icon pairs stack as clean rows; the separator dot
-     between them is a wide-layout nicety that costs the second line here. */
-  .prepare-card--tile .prepare-card__meta--icons .prepare-count__sep {
-    display: none;
-  }
-}
-@media (max-width: 340px) {
-  /* Narrowest phones: the full-width cards give up their chevrons too, and
-     the hero actions tighten one step (still comfortably above the ~34px
-     touch floor; these are full-width-half buttons). */
-  .prepare-card .today-action-card__chevron {
-    display: none;
-  }
-  .prepare-hero .hero-actions {
-    margin-top: 8px;
-  }
-  .prepare-hero .hero-action {
-    min-height: 38px;
-  }
-  /* Smallest phones: one step tighter rhythm (12 → 8) and slightly smaller
-     count type (15 → 14, an existing scale step; line-height eased) so the
-     status rows stay legible while the stack clears the 568px viewport. */
-  .prepare-stack,
-  .prepare-grid {
-    gap: 8px;
-  }
-  .prepare-counts {
-    font-size: 14px;
-    gap: 2px 5px;
-    line-height: 1.25;
-  }
-  .prepare-card__meta--icons {
-    row-gap: 2px;
-  }
-}
-
-/* Status counts: visible words, never bare codes. Numbers use tnum via the
-   markup class; tokens never break internally, the row wraps instead. */
-.prepare-counts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 6px;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--ink);
-}
-.prepare-count {
-  white-space: nowrap;
-}
-.prepare-count__sep {
-  color: var(--ink-faint);
-  font-weight: 600;
-}
-.prepare-card__meta {
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: #3f4f45; /* secondary ink on glass, same as .today-glass .card-sub */
-}
-/* Count rows that pair an icon with their text (travel/stay counts). */
-.prepare-card__meta--icons {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-.prepare-card__meta--icons svg {
-  flex: 0 0 auto;
-  color: var(--spruce);
-}
-/* An icon and its count wrap as ONE unit — an icon never strands at a line
-   end away from the text that gives it meaning. */
-.prepare-pair {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-/* Card label icons sit inline before the label text (decorative). */
-.prepare-card .today-action-card__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.prepare-card .today-action-card__label svg {
-  flex: 0 0 auto;
-  color: var(--spruce);
-  opacity: 0.85;
 }
 
 /* Manual-override row (On route): one slim line, present ONLY while a manual
@@ -4834,7 +4949,9 @@ span.trip-attach-open {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
+  /* 24px: 12px breathing room PLUS clearance for the centre Today disc,
+     which pokes ~9px above the bar edge — a toast never covers it. */
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 24px);
   z-index: 30;
   display: flex;
   justify-content: center;
@@ -5028,6 +5145,13 @@ span.trip-attach-open {
     margin-inline: auto;
     padding: calc(var(--safe-top) + 20px) 24px 24px;
   }
+  /* The Guide/Plan section subnav aligns with that centred column. */
+  .subnav {
+    width: 100%;
+    max-width: 680px;
+    margin-inline: auto;
+    padding: calc(var(--safe-top) + 16px) 24px 0;
+  }
   /* The Map keeps its full-bleed workspace beside the rail: no centred
      column, no page gutters — the map is the content. */
   .screen--map {
@@ -5037,8 +5161,10 @@ span.trip-attach-open {
   }
 
   /* Today's decorative contour layer covers the content area beside the
-     rail instead of the compact 560px column. */
-  .today-bg {
+     rail instead of the compact 560px column. (The Guide/Plan contour
+     layers share the construction and the adjustment.) */
+  .today-bg,
+  .screen-bg {
     left: var(--nav-w);
     right: 0;
     width: auto;

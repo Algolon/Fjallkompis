@@ -6,20 +6,44 @@ import {
   readPhoneLandscape,
   watchPhoneLandscape,
 } from './utils/orientationGuard.mjs';
-import { DEFAULT_TAB, hashForTab, tabForHash } from './navigation/routes.mjs';
+import {
+  DEFAULT_TAB,
+  destinationForHash,
+  hashForDestination,
+} from './navigation/routes.mjs';
+import { resolveNavTarget } from './navigation/resolveNavTarget.mjs';
 import { RotateGuard } from './components/RotateGuard';
-import { TabBar, type TabId } from './components/TabBar';
+import {
+  TabBar,
+  type NavTarget,
+  type SectionId,
+  type TabId,
+} from './components/TabBar';
+import { SectionShell } from './components/SectionShell';
 import { TodayScreen, type NavPayload } from './screens/TodayScreen';
 import { MapScreen } from './screens/MapScreen';
 import { StagesScreen } from './screens/StagesScreen';
 import { StopsScreen } from './screens/StopsScreen';
-import { ListsScreen } from './screens/ListsScreen';
+import {
+  GuideScreen,
+  GuideShopsScreen,
+  GuideTransportScreen,
+} from './screens/GuideScreen';
+import {
+  PlanScreen,
+  PlanDayScreen,
+  PlanPackingScreen,
+  PlanTravelScreen,
+  PlanWalletScreen,
+} from './screens/PlanScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PwaLifecycle } from './components/PwaLifecycle';
 import { INITIAL_MAP_VIEW_STAGE_ID } from './map/mapDefaults.mjs';
 
 interface Nav {
   tab: TabId;
+  /** Guide/Plan sub-destination; null is the tab's home. Part of the hash. */
+  section: SectionId | null;
   /** One-shot payload consumed by the destination screen on mount. */
   payload?: NavPayload;
 }
@@ -27,11 +51,14 @@ interface Nav {
 function Screens({
   nav,
   navigate,
+  openSection,
   mapViewStageId,
   setMapViewStageId,
 }: {
   nav: Nav;
-  navigate: (t: TabId, payload?: NavPayload) => void;
+  navigate: (t: NavTarget, payload?: NavPayload) => void;
+  /** Guide/Plan internal navigation: home ↔ section (null = back home). */
+  openSection: (tab: 'guide' | 'plan', section: SectionId | null) => void;
   mapViewStageId: string | null;
   setMapViewStageId: (stageId: string | null) => void;
 }) {
@@ -40,8 +67,8 @@ function Screens({
       return <TodayScreen onNavigate={navigate} />;
     case 'map':
       // Focused callback (not the whole router): the map's anchored stop
-      // preview opens the stop's full detail in Stops & places via the
-      // existing destination + one-shot payload pattern.
+      // preview opens the stop's full detail in Guide → Stops & places via
+      // the existing destination + one-shot payload pattern.
       return (
         <MapScreen
           viewStageId={mapViewStageId}
@@ -50,45 +77,91 @@ function Screens({
           focus={nav.payload?.mapFocus ?? null}
         />
       );
-    case 'stages':
-      // Today's "Stage Guide" action deep-links to the current stage's open
-      // day guide (same one-shot payload pattern as Stops' initialPlaceId);
-      // "View on map" deep-links to the Map (one-shot mapFocus).
-      return (
-        <StagesScreen
-          initialGuideStageId={nav.payload?.guideStageId ?? null}
-          initialGuideStageIds={nav.payload?.guideStageIds}
-          initialGuideReversed={nav.payload?.guideReversed === true}
-          initialGuideReversedStageIds={nav.payload?.guideReversedStageIds}
-          onNavigate={navigate}
-        />
-      );
-    case 'huts':
-      // `placeId` (route stop OR curated off-route place — a stay's View
-      // place) generalises the older stop-only `stopId`, which existing
-      // Today/Map deep links still send.
-      return (
-        <StopsScreen
-          initialPlaceId={nav.payload?.placeId ?? nav.payload?.stopId ?? null}
-          onNavigate={navigate}
-        />
-      );
-    case 'checklist':
-      // Historical internal tab id — the user-facing destination is 'Lists'
-      // (#/lists). Packing by default (the Daily checklist was archived —
-      // docs/archived-features/daily-checklist.md); a one-shot payload deep
-      // links into Shops/Transport from a Stop's chips; onNavigate carries
-      // a linked stay's View place back out to Stops & places.
-      return <ListsScreen deepLink={nav.payload?.lists} onNavigate={navigate} />;
+    case 'guide':
+      switch (nav.section) {
+        case 'stages':
+          // Today's "Stage Guide" action deep-links to the current stage's
+          // open day guide (same one-shot payload pattern as Stops'
+          // initialPlaceId); "View on map" deep-links to the Map.
+          return (
+            <SectionShell label="Guide" onBack={() => openSection('guide', null)}>
+              <StagesScreen
+                initialGuideStageId={nav.payload?.guideStageId ?? null}
+                initialGuideStageIds={nav.payload?.guideStageIds}
+                initialGuideReversed={nav.payload?.guideReversed === true}
+                initialGuideReversedStageIds={nav.payload?.guideReversedStageIds}
+                onNavigate={navigate}
+              />
+            </SectionShell>
+          );
+        case 'stops':
+          // `placeId` (route stop OR curated off-route place — a stay's View
+          // place) generalises the older stop-only `stopId`, which existing
+          // Today/Map deep links still send.
+          return (
+            <SectionShell label="Guide" onBack={() => openSection('guide', null)}>
+              <StopsScreen
+                initialPlaceId={nav.payload?.placeId ?? nav.payload?.stopId ?? null}
+                onNavigate={navigate}
+              />
+            </SectionShell>
+          );
+        case 'shops':
+          return (
+            <SectionShell label="Guide" onBack={() => openSection('guide', null)}>
+              <GuideShopsScreen initialShopType={nav.payload?.lists?.shopType} />
+            </SectionShell>
+          );
+        case 'transport':
+          return (
+            <SectionShell label="Guide" onBack={() => openSection('guide', null)}>
+              <GuideTransportScreen
+                initialEntryId={nav.payload?.lists?.transportId}
+                initialContext={nav.payload?.lists?.transportContext}
+                onNavigate={navigate}
+              />
+            </SectionShell>
+          );
+        default:
+          return <GuideScreen onOpenSection={(s) => openSection('guide', s)} />;
+      }
+    case 'plan':
+      switch (nav.section) {
+        case 'day':
+          return (
+            <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
+              <PlanDayScreen onNavigate={navigate} />
+            </SectionShell>
+          );
+        case 'packing':
+          return (
+            <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
+              <PlanPackingScreen />
+            </SectionShell>
+          );
+        case 'travel':
+          return (
+            <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
+              <PlanTravelScreen deepLink={nav.payload?.lists} onNavigate={navigate} />
+            </SectionShell>
+          );
+        case 'wallet':
+          return (
+            <SectionShell label="Plan" onBack={() => openSection('plan', null)}>
+              <PlanWalletScreen />
+            </SectionShell>
+          );
+        default:
+          return <PlanScreen onOpenSection={(s) => openSection('plan', s)} />;
+      }
     case 'settings':
       // Today Prepare's readiness card deep-links to the Trail readiness
-      // section (same one-shot payload pattern as Stops/Stages/Lists).
-      // Settings navigates OUT for exactly one thing: the Day plan's
-      // "Preview" opens the previewed day on Today.
+      // section (same one-shot payload pattern as Guide/Plan sections).
+      // Settings navigates OUT for exactly one thing: nothing anymore —
+      // the Day plan (and its Preview) moved to Plan.
       return (
         <SettingsScreen
           initialSection={nav.payload?.settings?.section ?? null}
-          onNavigate={navigate}
         />
       );
   }
@@ -105,14 +178,16 @@ export default function App() {
 }
 
 function AppShell() {
-  // Hash-routed tab state (#/today … #/settings, see navigation/routes.mjs):
-  // Back/Forward work, refresh keeps the destination, and primary
-  // destinations are bookmarkable — no router dependency, and safe on the
-  // GitHub Pages project subpath. One-shot payloads stay in React memory
+  // Hash-routed destination state (#/today … #/plan/packing, see
+  // navigation/routes.mjs): Back/Forward work, refresh keeps the destination
+  // (a refresh on #/guide/stages reopens Stages, never an empty home), and
+  // every destination is bookmarkable — no router dependency, and safe on
+  // the GitHub Pages project subpath. One-shot payloads stay in React memory
   // only; a restored/bookmarked URL opens the plain destination.
-  const [nav, setNav] = useState<Nav>(() => ({
-    tab: tabForHash(window.location.hash) ?? DEFAULT_TAB,
-  }));
+  const [nav, setNav] = useState<Nav>(() => {
+    const dest = destinationForHash(window.location.hash);
+    return dest ?? { tab: DEFAULT_TAB, section: null };
+  });
   // In-memory only: direct/fresh Map opens show the full route, while a
   // stage chosen via Today or the Map selector survives tab switches until
   // the app is refreshed.
@@ -127,15 +202,16 @@ function AppShell() {
   // active itinerary reactively (no reload). Two pieces of transient IN-MEMORY
   // browse state are not itinerary-derived and must be reset here so nothing
   // stale survives: the Map's browsed stage (reset to the full-route overview)
-  // and any one-shot deep-link payload (dropped). Persisted data — packing,
-  // journal, stop notes, current stage, downloaded maps — is untouched.
+  // and any one-shot deep-link payload (dropped; the destination — tab AND
+  // section — stays). Persisted data — packing, journal, stop notes, current
+  // stage, downloaded maps — is untouched.
   const { routeDirection } = useStore();
   const prevDirectionRef = useRef(routeDirection);
   useEffect(() => {
     if (prevDirectionRef.current === routeDirection) return;
     prevDirectionRef.current = routeDirection;
     setMapViewStageId(INITIAL_MAP_VIEW_STAGE_ID);
-    setNav((n) => (n.payload ? { tab: n.tab } : n));
+    setNav((n) => (n.payload ? { tab: n.tab, section: n.section } : n));
   }, [routeDirection]);
 
   // Keep --app-height in sync with the real canvas so the shell (and the tab
@@ -164,37 +240,68 @@ function AppShell() {
 
   useEffect(() => {
     // Normalise the address bar on load ('' or an unknown hash → the actual
-    // start tab) without adding a history entry.
-    const canonical = hashForTab(navRef.current.tab);
+    // start destination; a legacy alias → its canonical hash) without adding
+    // a history entry.
+    const canonical = hashForDestination(navRef.current);
     if (window.location.hash !== canonical) {
       window.history.replaceState(null, '', canonical);
     }
 
     // Back/Forward (and hand-edited hashes). navigate() below also fires
-    // this after setting state; the tab-equality guard makes that a no-op,
-    // which is what preserves its one-shot payload.
+    // this after setting state; the destination-equality guard makes that a
+    // no-op, which is what preserves its one-shot payload.
     const onHashChange = () => {
-      const tab = tabForHash(window.location.hash);
-      if (tab === null) {
+      const dest = destinationForHash(window.location.hash);
+      if (dest === null) {
         // Unknown hash typed/pasted: fall back safely, replacing the bad
         // entry rather than stacking it in history.
-        window.history.replaceState(null, '', hashForTab(navRef.current.tab));
+        window.history.replaceState(null, '', hashForDestination(navRef.current));
         return;
       }
-      if (tab === navRef.current.tab) return;
+      // A legacy alias (#/stages, #/stops, #/lists) resolved to its new
+      // destination: show the canonical address without stacking history.
+      const canonicalHash = hashForDestination(dest);
+      if (window.location.hash !== canonicalHash) {
+        window.history.replaceState(null, '', canonicalHash);
+      }
+      if (
+        dest.tab === navRef.current.tab &&
+        dest.section === navRef.current.section
+      ) {
+        return;
+      }
       window.scrollTo(0, 0);
-      setNav({ tab });
+      setNav({ tab: dest.tab, section: dest.section });
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const navigate = (tab: TabId, payload?: NavPayload) => {
-    // Screens swap inside one document, so the previous tab's scroll
+  /** Set the destination + one-shot payload, then reflect it in the hash. */
+  const navigateToDestination = (
+    tab: TabId,
+    section: SectionId | null,
+    payload?: NavPayload,
+  ) => {
+    // Screens swap inside one document, so the previous screen's scroll
     // position would otherwise carry over to the next screen. Reset before
     // the swap; destinations that deep-link (Stops expanding a stop)
     // re-scroll themselves on mount afterwards.
     window.scrollTo(0, 0);
+    setNav({ tab, section, payload });
+    // Push the destination onto history AFTER state is queued: the
+    // resulting hashchange sees the same destination and leaves the payload
+    // alone. Re-selecting the current destination must not stack duplicates.
+    const hash = hashForDestination({ tab, section });
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+    }
+  };
+
+  const navigate = (target: NavTarget, payload?: NavPayload) => {
+    // One resolver maps every navigate() target — including the historical
+    // internal ids screen wiring still passes — onto the five-tab shell.
+    const { tab, section } = resolveNavTarget(target, payload);
     if (tab === 'map' && 'mapStageId' in (payload ?? {})) {
       setMapViewStageId(payload?.mapStageId ?? null);
     }
@@ -207,13 +314,7 @@ function AppShell() {
         payload.mapFocus.kind === 'stage' ? payload.mapFocus.stageId : null,
       );
     }
-    setNav({ tab, payload });
-    // Push the destination onto history AFTER state is queued: the
-    // resulting hashchange sees the same tab and leaves the payload alone.
-    // Re-selecting the current tab must not stack duplicate entries.
-    if (window.location.hash !== hashForTab(tab)) {
-      window.location.hash = hashForTab(tab);
-    }
+    navigateToDestination(tab, section, payload);
   };
 
   return (
@@ -225,13 +326,16 @@ function AppShell() {
             focus order matches the visual order (nav left, content right);
             the bar sits after <main>, exactly where production mobile has
             always had it. The hidden instance is display:none — out of
-            layout, tab order and the accessibility tree. */}
+            layout, tab order and the accessibility tree. Tapping the active
+            Guide/Plan tab from a section returns to that tab's home (the
+            resolver yields section null), the standard pop-to-root idiom. */}
         <TabBar active={nav.tab} onChange={navigate} variant="rail" />
-        {/* key forces the fade-in animation per tab change */}
-        <main key={nav.tab}>
+        {/* key forces the fade-in animation per destination change */}
+        <main key={`${nav.tab}${nav.section ? `-${nav.section}` : ''}`}>
           <Screens
             nav={nav}
             navigate={navigate}
+            openSection={(tab, section) => navigateToDestination(tab, section)}
             mapViewStageId={mapViewStageId}
             setMapViewStageId={setMapViewStageId}
           />

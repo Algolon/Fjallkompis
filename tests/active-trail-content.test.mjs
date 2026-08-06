@@ -477,9 +477,10 @@ test('the packing seed stays outside the boundary, and that is documented', () =
     'the exclusion is explained where a reader would look for the category',
   );
   // It mixes generic gear with trail-specific items; separating those is
-  // editorial work, so Lists keeps reading it directly for now.
+  // editorial work, so the packing view (vNext: Plan → Packing) keeps
+  // reading it directly for now.
   assert.ok(
-    importsOf('src/screens/ListsScreen.tsx').some((i) => i.specifier.includes('packingSeed')),
+    importsOf('src/components/PackingView.tsx').some((i) => i.specifier.includes('packingSeed')),
     'and the current consumer is unchanged by this boundary',
   );
 });

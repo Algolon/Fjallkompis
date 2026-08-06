@@ -89,16 +89,27 @@ function initialEditorFor(launch: TripLaunch | undefined, items: TripItem[]): Ed
 }
 
 /**
- * Lists → Trip: the personal Trip plan. Structured Travel and Stay items
- * (PersistentState — they ride the JSON backup) plus standalone documents
- * (metadata + files in the dedicated IndexedDB database, offline on this
- * device only). Trip items are the primary objects; documents attach to them
- * as supporting material or stay standalone.
+ * The personal trip data, presented as one of two purposeful views over the
+ * SAME local-first stores (vNext: Plan → Travel & stays and Plan → Wallet
+ * are separate destinations; nothing is duplicated or migrated):
+ *
+ *  - 'travel': the trip ITEMS — structured Travel and Stay records
+ *    (PersistentState — they ride the JSON backup) with their attached
+ *    documents rendered on the item they support.
+ *  - 'wallet': the DOCUMENTS — every stored document (metadata + files in
+ *    the dedicated IndexedDB database, offline on this device only),
+ *    standalone or attached, in one document-oriented list.
+ *
+ * Trip items are the primary objects; documents attach to them as
+ * supporting material or stay standalone. Deleting an item keeps its
+ * documents; deleting a document clears any item references to it.
  */
 export function TripView({
+  view,
   launch,
   onViewPlace,
 }: {
+  view: 'travel' | 'wallet';
   launch?: TripLaunch | null;
   /** Trip → Place navigation (View place in the Stay editor), when wired. */
   onViewPlace?: (placeId: string) => void;
@@ -138,9 +149,14 @@ export function TripView({
     return ids;
   }, [state.trip]);
 
-  const standaloneDocs = useMemo(
-    () => sortWalletDocuments(wallet.documents.filter((d) => !linkedDocIds.has(d.id)), today),
-    [wallet.documents, linkedDocIds, today],
+  /**
+   * The Wallet lists EVERY stored document — "which ticket do I need and can
+   * I open it?" includes tickets attached to a trip item; those carry a
+   * quiet "attached" annotation instead of being hidden.
+   */
+  const walletDocs = useMemo(
+    () => sortWalletDocuments(wallet.documents, today),
+    [wallet.documents, today],
   );
 
   const documentById = useMemo(() => {
@@ -420,7 +436,9 @@ export function TripView({
       <button
         className="wallet-card__open"
         onClick={() => void openDocument(doc)}
-        aria-label={`Open ${doc.title}${doc.pinned ? ' (pinned)' : ''}`}
+        aria-label={`Open ${doc.title}${doc.pinned ? ' (pinned)' : ''}${
+          linkedDocIds.has(doc.id) ? ' (attached to a trip item)' : ''
+        }`}
       >
         <span className="wallet-card__icon" aria-hidden>
           {doc.mimeType === 'application/pdf' ? (
@@ -439,6 +457,7 @@ export function TripView({
           <span className="wallet-card__sub">
             {doc.pinned ? 'Pinned · ' : ''}
             {walletCategoryTitle(doc.category)}
+            {linkedDocIds.has(doc.id) ? ' · attached' : ''}
             {doc.date ? ` · ${formatTripDate(doc.date)}` : ''}
             {doc.fileMissing ? (
               // The metadata is here; the FILE is not. Say so on the card —
@@ -470,50 +489,43 @@ export function TripView({
   // ---- Render -----------------------------------------------------------------
 
   const hasItems = state.trip.length > 0;
-  const hasDocs = wallet.status === 'ready' && standaloneDocs.length > 0;
-  const everythingEmpty = !hasItems && !hasDocs && wallet.status !== 'loading';
+  const hasDocs = wallet.status === 'ready' && walletDocs.length > 0;
 
   const addChooser = editor?.mode === 'chooser';
 
-  return (
-    <>
-      {notice ? (
-        <div className="banner-warn" role="alert" style={{ marginBottom: 14 }}>
-          <span aria-hidden>⚠️</span>
-          <span>{notice}</span>
-        </div>
-      ) : null}
-
-      {wallet.status === 'unavailable' && !hasItems ? (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
-            <TriangleAlert
-              size={18}
-              strokeWidth={2}
-              aria-hidden
-              style={{ flexShrink: 0, marginTop: 2 }}
-            />
-            <div>
-              <span className="card-title">Document storage isn’t available here</span>
-              <p className="card-sub" style={{ marginTop: 4 }}>
-                This browser — or its private-browsing mode — doesn’t allow the local storage
-                documents need, so files can’t be kept on this device. Travel and stay items
-                still work; try a regular browsing window or install the app for documents.
-              </p>
-            </div>
+  const storageUnavailableCard =
+    wallet.status === 'unavailable' ? (
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
+          <TriangleAlert
+            size={18}
+            strokeWidth={2}
+            aria-hidden
+            style={{ flexShrink: 0, marginTop: 2 }}
+          />
+          <div>
+            <span className="card-title">Document storage isn’t available here</span>
+            <p className="card-sub" style={{ marginTop: 4 }}>
+              This browser — or its private-browsing mode — doesn’t allow the local storage
+              documents need, so files can’t be kept on this device. Travel and stay items
+              still work; try a regular browsing window or install the app for documents.
+            </p>
           </div>
         </div>
-      ) : null}
+      </div>
+    ) : null;
 
-      {everythingEmpty && wallet.status !== 'unavailable' ? (
+  const travelBody =
+    view === 'travel' ? (
+      !hasItems ? (
         <div className="card empty">
           <div className="glyph">
             <Luggage size={30} strokeWidth={1.6} aria-hidden />
           </div>
           <p>
-            Add transport, stays and important documents for your trip. Everything is stored on
-            this device and stays available offline on the trail — tickets and bookings can be
-            attached to the plans they belong to.
+            Organize your stays and transport here. Everything is stored on this
+            device and stays available offline on the trail — tickets and
+            bookings can be attached to the plans they belong to.
           </p>
           <button
             className="btn btn-primary"
@@ -539,20 +551,6 @@ export function TripView({
             </section>
           ) : null}
 
-          {hasDocs ? (
-            <section
-              aria-label="Documents"
-              style={{ marginTop: travel.length > 0 || stays.length > 0 ? 16 : 0 }}
-            >
-              <div className="section-label">Documents</div>
-              <ul className="wallet-list">{standaloneDocs.map(documentCard)}</ul>
-            </section>
-          ) : null}
-
-          {wallet.status === 'loading' ? (
-            <p className="wallet-summary">Loading your documents…</p>
-          ) : null}
-
           <button
             className="btn btn-primary btn-block"
             style={{ marginTop: 14 }}
@@ -560,31 +558,73 @@ export function TripView({
           >
             <Plus size={16} strokeWidth={2} aria-hidden /> Add item
           </button>
-
-          {wallet.status === 'ready' && wallet.documents.length > 0 ? (
-            <p className="wallet-summary">
-              {walletSummaryText(wallet.documents.length, formatBytes(wallet.totalBytes))}
-            </p>
-          ) : null}
         </>
-      )}
+      )
+    ) : null;
+
+  const walletBody =
+    view === 'wallet' ? (
+      wallet.status !== 'ready' ? (
+        wallet.status === 'loading' ? (
+          <p className="wallet-summary">Loading your documents…</p>
+        ) : null
+      ) : !hasDocs ? (
+        <div className="card empty">
+          <div className="glyph">
+            <FileText size={30} strokeWidth={1.6} aria-hidden />
+          </div>
+          <p>
+            Add and organize your bookings, tickets and other travel documents.
+            They are stored on this device and stay available offline on the
+            trail.
+          </p>
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 14 }}
+            onClick={() => setEditor({ mode: 'doc-add' })}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden /> Add document
+          </button>
+        </div>
+      ) : (
+        <>
+          <section aria-label="Documents">
+            <div className="section-label">Documents</div>
+            <ul className="wallet-list">{walletDocs.map(documentCard)}</ul>
+          </section>
+
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 14 }}
+            onClick={() => setEditor({ mode: 'doc-add' })}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden /> Add document
+          </button>
+
+          <p className="wallet-summary">
+            {walletSummaryText(wallet.documents.length, formatBytes(wallet.totalBytes))}
+          </p>
+        </>
+      )
+    ) : null;
+
+  return (
+    <>
+      {notice ? (
+        <div className="banner-warn" role="alert" style={{ marginBottom: 14 }}>
+          <span aria-hidden>⚠️</span>
+          <span>{notice}</span>
+        </div>
+      ) : null}
+
+      {view === 'wallet' || !hasItems ? storageUnavailableCard : null}
+
+      {travelBody}
+      {walletBody}
 
       {addChooser ? (
         <AddItemChooser
-          onPick={(pick) => {
-            if (pick === 'document') {
-              if (wallet.status !== 'ready') {
-                setEditor(null);
-                setNotice(
-                  'Document storage isn’t available in this browser mode, so a document can’t be added here.',
-                );
-                return;
-              }
-              setEditor({ mode: 'doc-add' });
-            } else {
-              setEditor({ mode: 'add', kind: pick });
-            }
-          }}
+          onPick={(pick) => setEditor({ mode: 'add', kind: pick })}
           onClose={() => setEditor(null)}
         />
       ) : null}
@@ -642,14 +682,15 @@ export function TripView({
 }
 
 /**
- * The Add item chooser: a trip item is transport, a stay or a standalone
- * document — never one enormous shared form.
+ * The Add item chooser for Travel & stays: a trip item is transport or a
+ * stay — never one enormous shared form. (Documents are added directly in
+ * the Wallet view, which has only one kind.)
  */
 function AddItemChooser({
   onPick,
   onClose,
 }: {
-  onPick: (pick: 'transport' | 'stay' | 'document') => void;
+  onPick: (pick: 'transport' | 'stay') => void;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -679,7 +720,7 @@ function AddItemChooser({
           </button>
         </div>
         <p className="card-sub" style={{ marginTop: 6 }}>
-          What would you like to add to your trip plan?
+          What would you like to add to your travel plan?
         </p>
         <div className="trip-chooser">
           <button type="button" className="btn btn-block" onClick={() => onPick('transport')}>
@@ -687,9 +728,6 @@ function AddItemChooser({
           </button>
           <button type="button" className="btn btn-block" onClick={() => onPick('stay')}>
             <BedDouble size={16} strokeWidth={1.9} aria-hidden /> Stay
-          </button>
-          <button type="button" className="btn btn-block" onClick={() => onPick('document')}>
-            <FileText size={16} strokeWidth={1.9} aria-hidden /> Document
           </button>
         </div>
       </div>

@@ -252,16 +252,23 @@ test('collapsed accordion header keeps non-interactive facility icons', () => {
 
 // ---- One-shot payload plumbing (no persistence) -----------------------------
 
-test('Lists deep link is a one-shot in-memory payload, default Packing', () => {
-  const lists = read('src/screens/ListsScreen.tsx');
-  assert.match(lists, /deepLink\?: ListsDeepLink/);
-  assert.match(lists, /initialSectionFor/);
-  assert.match(lists, /return 'packing'/, 'defaults to Packing');
-  assert.match(lists, /initialShopType=/);
-  assert.match(lists, /initialEntryId=/);
-  assert.match(lists, /initialContext=/);
+test('Lists deep link is a one-shot in-memory payload, resolved to Guide/Plan', () => {
+  // vNext: the retired Lists screen's initialSectionFor precedence lives on
+  // in the navigation resolver (behaviourally exercised in
+  // tests/vnext-navigation.test.mjs); the payload fields are forwarded by
+  // the shell into the Guide sections.
+  const resolver = read('src/navigation/resolveNavTarget.mjs');
+  assert.match(resolver, /destinationForListsLink/);
+  assert.match(
+    resolver,
+    /return \{ tab: 'plan', section: 'packing' \}/,
+    'defaults to Packing',
+  );
 
   const app = read('src/App.tsx');
+  assert.match(app, /initialShopType=\{nav\.payload\?\.lists\?\.shopType\}/);
+  assert.match(app, /initialEntryId=\{nav\.payload\?\.lists\?\.transportId\}/);
+  assert.match(app, /initialContext=\{nav\.payload\?\.lists\?\.transportContext\}/);
   assert.match(app, /deepLink=\{nav\.payload\?\.lists\}/);
 
   const today = read('src/screens/TodayScreen.tsx');

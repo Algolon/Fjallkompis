@@ -1,12 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Pencil, Plus, RotateCcw, Scale, Shirt, Trash2, TriangleAlert } from 'lucide-react';
 import { useStore } from '../store/AppStore';
-import { ScreenHeader } from '../components/ui';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { IconCheck } from '../components/Icons';
-import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
-import { TransportView, TransportHelp } from '../components/TransportView';
-import { TripView, type TripLaunch } from '../components/TripView';
+import { ConfirmDialog } from './ConfirmDialog';
+import { IconCheck } from './Icons';
 import { PACKING_CATEGORIES } from '../data/packingSeed.mjs';
 import {
   isWornEligibleCategory,
@@ -14,32 +10,13 @@ import {
   packingSummary,
 } from '../utils/packingModel.mjs';
 import { formatGrams } from '../utils/format';
-import type { PackingItem, PackingStatus, ShopCategory, TransportContext } from '../types';
-import type { TabId } from '../components/TabBar';
-import type { NavPayload } from './TodayScreen';
-
-/** Lists sub-sections: the packing list, the offline reference sections
- *  (Shop info, Transport) and the personal Trip plan. */
-export type ListsSection = 'packing' | 'shops' | 'transport' | 'trip';
+import type { PackingItem, PackingStatus } from '../types';
 
 /**
- * One-shot deep-link into a Lists sub-section (from a Stop's Shop / transport
- * chips, or a stop's Track stay action). In-memory only — a fresh visit or
- * refresh opens the default section.
+ * The packing list view — moved verbatim from the retired Lists screen
+ * (vNext: Plan → Packing owns it now; the behaviour, the copy and the
+ * store contract are unchanged).
  */
-export interface ListsDeepLink {
-  section?: ListsSection;
-  /** Shops opens this shop-TYPE category (from a Stop's Shop chip). */
-  shopType?: ShopCategory;
-  transportId?: string;
-  transportContext?: TransportContext;
-  /** Trip opens this item's editor (from a place's View stay action). */
-  tripItemId?: string;
-  /** Trip opens a prefilled Stay form for this Journey Place (Track stay). */
-  trackStayPlaceId?: string;
-}
-
-// --------------------------------------------------------------- Packing view
 
 /** A row's single user-visible state: its backpack status, or worn. */
 type DisplayState = PackingStatus | 'worn';
@@ -366,7 +343,7 @@ function AddItemForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PackingView() {
+export function PackingView() {
   const { state, setPackingStatus, updatePackingItem, resetPackingProgress, restorePackingDefaults } =
     useStore();
   const [filter, setFilter] = useState<Filter>('all');
@@ -660,129 +637,5 @@ function PackingView() {
         />
       ) : null}
     </>
-  );
-}
-
-// ------------------------------------------------------------------- Screen
-
-// Trip is deliberately LAST: Packing dominates pre-trip preparation, Shops
-// and Transport are the high-frequency on-trail references, and Trip plan
-// moments (booking, bus boarding, hut check-in) are discrete and
-// predictable. The compact tab label is "Trip"; "Trip plan" is the full
-// section title used in copy.
-const LISTS_TABS: { id: ListsSection; label: string }[] = [
-  { id: 'packing', label: 'Packing' },
-  { id: 'shops', label: 'Shops' },
-  { id: 'transport', label: 'Transport' },
-  { id: 'trip', label: 'Trip' },
-];
-
-const LISTS_HEADER: Record<ListsSection, string> = {
-  packing:
-    'Your packing list — one big job before you go. Adapt it to your own gear and tick things off as they land in the pack.',
-  shops:
-    'Compare the shop types relevant to this route and see what STF Large and Small cabin shops normally carry. Assortments and prices are planning references, not live stock.',
-  transport:
-    'Buses, boats and the train for this route — static 2026 planning snapshots, always confirmed against the official source.',
-  trip:
-    'Trip plan — keep your travel, stays, bookings and important documents together and available offline. Documents are stored locally on this device; clearing the browser’s or app’s data also removes them.',
-};
-
-/** Which section a one-shot deep link opens (defaults to Packing). */
-function initialSectionFor(link?: ListsDeepLink): ListsSection {
-  if (!link) return 'packing';
-  if (link.shopType) return 'shops';
-  if (link.transportId || link.transportContext) return 'transport';
-  if (link.tripItemId || link.trackStayPlaceId) return 'trip';
-  return link.section ?? 'packing';
-}
-
-/** The one-shot Trip launch a deep link carries, if any. */
-function initialTripLaunchFor(link?: ListsDeepLink): TripLaunch | null {
-  if (link?.tripItemId) return { kind: 'item', itemId: link.tripItemId };
-  if (link?.trackStayPlaceId) return { kind: 'add-stay', placeId: link.trackStayPlaceId };
-  return null;
-}
-
-export function ListsScreen({
-  deepLink,
-  onNavigate,
-}: {
-  deepLink?: ListsDeepLink;
-  /** Outward navigation: a linked stay's View place → Stops & places. */
-  onNavigate?: (tab: TabId, payload?: NavPayload) => void;
-}) {
-  // One-shot: the initial section is decided at mount; switching tabs
-  // afterwards is ordinary local state, and a refresh (no payload) is Packing.
-  const [mode, setMode] = useState<ListsSection>(() => initialSectionFor(deepLink));
-  // One-shot Trip launch (a deep link, or Transport's Add to Trip). Cleared
-  // whenever a tab is chosen by hand so it can never re-fire later.
-  const [tripLaunch, setTripLaunch] = useState<TripLaunch | null>(() =>
-    initialTripLaunchFor(deepLink),
-  );
-
-  const selectTab = (section: ListsSection) => {
-    setTripLaunch(null);
-    setMode(section);
-  };
-
-  // Transport → Trip integration: "Add to Trip" opens the Trip section with a
-  // prefilled personal transport form; "View in Trip" opens the linked item.
-  const addTransportToTrip = (entryId: string) => {
-    setTripLaunch({ kind: 'add-transport', entryId });
-    setMode('trip');
-  };
-  const viewTripItem = (itemId: string) => {
-    setTripLaunch({ kind: 'item', itemId });
-    setMode('trip');
-  };
-
-  const headerAction =
-    mode === 'shops' ? <ShopInfoHelp /> : mode === 'transport' ? <TransportHelp /> : undefined;
-
-  return (
-    <div className="screen screen--lists">
-      <ScreenHeader eyebrow="Stay on top of it" title="Lists" action={headerAction} />
-
-      <div className="seg seg--lists" role="tablist" aria-label="Lists section">
-        {LISTS_TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={mode === t.id}
-            className="seg-btn"
-            onClick={() => selectTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Intro sits directly below the tab control (not the page title) so it
-          reads as a description of the SELECTED list and its per-tab change is
-          obvious. Same typography as a screen-header intro. */}
-      <p className="lists-intro">{LISTS_HEADER[mode]}</p>
-
-      {mode === 'packing' ? <PackingView /> : null}
-      {mode === 'shops' ? (
-        <ShopInfoView initialShopType={mode === 'shops' ? deepLink?.shopType : undefined} />
-      ) : null}
-      {mode === 'transport' ? (
-        <TransportView
-          initialEntryId={deepLink?.transportId}
-          initialContext={deepLink?.transportContext}
-          onAddToTrip={addTransportToTrip}
-          onViewInTrip={viewTripItem}
-        />
-      ) : null}
-      {mode === 'trip' ? (
-        <TripView
-          launch={tripLaunch}
-          onViewPlace={
-            onNavigate ? (placeId) => onNavigate('huts', { placeId }) : undefined
-          }
-        />
-      ) : null}
-    </div>
   );
 }

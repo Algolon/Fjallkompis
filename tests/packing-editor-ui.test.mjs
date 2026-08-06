@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const lists = readFileSync(join(root, 'src/screens/ListsScreen.tsx'), 'utf8');
+const lists = readFileSync(join(root, 'src/components/PackingView.tsx'), 'utf8');
 const store = readFileSync(join(root, 'src/store/AppStore.tsx'), 'utf8');
 const settings = readFileSync(join(root, 'src/screens/SettingsScreen.tsx'), 'utf8');
 const confirmDialog = readFileSync(join(root, 'src/components/ConfirmDialog.tsx'), 'utf8');
