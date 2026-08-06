@@ -34,10 +34,26 @@ neither can ship different trail content. They differ in exactly two ways.
 |                | `npm run build` (web / PWA)  | `npm run build:native` (Android) |
 | -------------- | ---------------------------- | -------------------------------- |
 | Vite mode      | default                      | `native`                         |
-| `base`         | `/Fjallkompis/`              | `./`                             |
+| `base`         | `/Fjallkompis/`              | `/`                              |
 | Service worker | VitePWA, `registerType: prompt` | none — plugin not loaded      |
 | Web manifest   | emitted                      | not emitted                      |
 | Output         | `dist/`                      | `dist/` *(same directory)*       |
+
+### Why the native base is `/` and not `./`
+
+Capacitor always serves the app from the root of `https://localhost` — it has
+no notion of a path prefix — so a root-absolute base is correct there.
+
+A relative `./` base looks like the more portable choice and is not. It was
+tried, and the three contour backdrops 404'd at
+`/assets/images/…/contours.svg`. Today, Guide and Plan pass their backdrop URL
+through a **CSS custom property** (`--screen-bg-image: url("…")`), and a
+relative `url()` inside a custom property is resolved against the stylesheet
+where the `var()` is *substituted* — `global.css`, shipped as
+`/assets/index-*.css` — not against the document. `/` is immune to that whole
+class of surprise, which also covers `new URL(x, import.meta.url)` and any
+future CSS-side asset. A test and `verify-native-build.mjs` both keep it that
+way.
 
 ### `dist/` is shared — mind the order
 
@@ -49,7 +65,7 @@ that builds cleanly and then fails on the device: every asset 404s under
 That mistake cannot happen silently. `npm run build:native` stamps
 `dist/.native-build`, and `npm run cap:sync:android` runs
 `scripts/verify-native-build.mjs` first, which refuses to sync unless it finds
-that marker, a relative `index.html`, `viewport-fit=cover`, no worker
+that marker, a root-absolute `index.html`, `viewport-fit=cover`, no worker
 artefacts, no `serviceWorker.register` in any chunk, and the vector basemap.
 Run `npm run verify:native` any time you want that report on demand.
 
@@ -62,7 +78,7 @@ checkout with `npm run build` and is untouched by the wrapper.
 
 ```bash
 npm run build            # GitHub Pages / PWA build — unchanged
-npm run build:native     # WebView build (relative base, no service worker)
+npm run build:native     # WebView build (root base, no service worker)
 npm run verify:native    # prove the above about the real dist/ output
 npm run cap:sync:android # verify, then copy dist/ into the Android project
 npm run android:open     # open the project in Android Studio
@@ -236,6 +252,47 @@ The committed **vector basemap** (`public/maps/kungsleden.pmtiles`, ~5.6 MB)
 ships inside the APK through the ordinary Vite build and is verified present
 before every sync. Route and stage overlays are drawn from the bundled GeoJSON,
 so the Map tab works offline from first launch with no download step.
+
+### ⚠ Open risk: byte-range reads from the APK's own assets
+
+**This is the single most likely thing to be broken on the device, and it has
+not been tested on one.** Read this before concluding the map works.
+
+PMTiles is a byte-range format: the reader issues `fetch(url, {headers: {Range:
+'bytes=a-b'}})` many times and assembles tiles from the slices. Inside the
+wrapper those requests are answered by Capacitor's `WebViewLocalServer`, and
+its range branch (verified by reading
+`node_modules/@capacitor/android/.../WebViewLocalServer.java`) does this:
+
+```java
+InputStream responseStream = new LollipopLazyInputStream(handler, request);
+int totalRange = responseStream.available();
+tempResponseHeaders.put("Content-Range", "bytes " + fromRange + "-" + range + "/" + totalRange);
+return new WebResourceResponse(mimeType, encoding, 206, ..., responseStream);
+```
+
+It sets a `Content-Range` that promises the body starts at `fromRange` — and
+then returns a stream **positioned at byte 0**. There is no `skip(fromRange)`
+anywhere in that path. So the first read (the header, at offset 0) should
+succeed by coincidence, and every subsequent directory or tile read would
+receive the wrong bytes.
+
+What is actually established today:
+
+- The **web bundle and the archive are correct.** Served from a root origin by
+  a Range-conformant static server, the native `dist/` renders the full route
+  Abisko → Nikkaluokta with all seven stage colours, hut markers and labels,
+  using 89.6 kB of `206 Partial Content` reads out of the 5.6 MB archive.
+- The **failure, if it happens, is Capacitor's server**, not the app.
+
+If the Map tab is blank or garbled on the device, this is the first suspect.
+The recommended fix is *not* to patch the range handling but to bypass HTTP
+entirely: `src/map/pmtilesProtocol.ts` already has a `BlobSource` path — the
+one the user-downloaded offline archive uses — so the native shell can fetch
+`/maps/kungsleden.pmtiles` once *without* a `Range` header (a plain `200`
+streams correctly) and hand the resulting Blob to that existing source. That
+touches offline-map storage and the Settings download state, so it is a
+deliberate phase-two change, not something to smuggle into a wrapper spike.
 
 **Terrain, contour and satellite archives are not in the APK.** They are not
 part of the Vite build at all: `deploy.yml` fetches them from pinned GitHub

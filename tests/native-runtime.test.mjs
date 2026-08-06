@@ -56,15 +56,24 @@ const codeOf = (source) =>
 test('the web build still serves from the GitHub Pages project subpath', () => {
   assert.match(
     vite,
-    /base:\s*mode === 'native' \? '\.\/' : '\/Fjallkompis\/'/,
+    /base:\s*mode === 'native' \? '\/' : '\/Fjallkompis\/'/,
     'the default (Pages) base must remain /Fjallkompis/',
   );
 });
 
-test('the native build uses its own relative base, not the Pages subpath', () => {
-  // './' is what makes every asset resolve against https://localhost/ inside
-  // the WebView. A '/Fjallkompis/' prefix there is a blank screen.
-  assert.match(vite, /mode === 'native' \? '\.\/'/);
+test('the native build uses its own base, and it is root-absolute', () => {
+  // Capacitor always serves the app from the ROOT of https://localhost, so
+  // '/' is correct there and a '/Fjallkompis/' prefix is a blank screen.
+  //
+  // A relative './' base is NOT an equivalent safer choice, and this
+  // assertion exists to stop someone "tidying" it into one. It was tried and
+  // it broke the three contour backdrops: those screens pass their URL
+  // through a CSS custom property, and a relative url() in a custom property
+  // resolves against the stylesheet that substitutes it — /assets/index-*.css
+  // — so './images/today/contours.svg' was requested as
+  // '/assets/images/today/contours.svg' and 404'd.
+  assert.match(vite, /mode === 'native' \? '\/'/);
+  assert.ok(!/mode === 'native' \? '\.\//.test(vite), 'the native base must not be relative');
 });
 
 test('both builds are reachable through explicit, separate npm scripts', () => {

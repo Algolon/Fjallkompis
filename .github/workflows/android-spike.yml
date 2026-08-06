@@ -68,7 +68,7 @@ jobs:
 
       # ---- The native target ------------------------------------------------
       #
-      # This overwrites dist/ with the WebView build (relative base, no service
+      # This overwrites dist/ with the WebView build (root base, no service
       # worker). verify-native-build.mjs then proves that on the real output —
       # it is what stops a stale Pages build being packaged into the APK.
       - name: Native build

@@ -82,12 +82,16 @@ if (!existsSync(indexPath)) {
 } else {
   const index = readFileSync(indexPath, 'utf8');
   const refs = [...index.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
-  const absolute = refs.filter((r) => r.startsWith('/'));
-  if (absolute.length > 0) {
-    fail(`dist/index.html references root-absolute assets ${absolute.join(', ')} — the native base must be relative`);
+  if (!refs.some((r) => r.startsWith('/assets/'))) {
+    fail('dist/index.html has no /assets/ reference — the native base did not take effect');
   }
-  if (!refs.some((r) => r.startsWith('./assets/'))) {
-    fail('dist/index.html has no ./assets/ reference — the relative base did not take effect');
+  // A RELATIVE base is a trap here, not a safer alternative: a url() inside a
+  // CSS custom property resolves against the stylesheet that substitutes it
+  // (/assets/index-*.css), so './images/…' becomes '/assets/images/…' and
+  // 404s. See the base-path note in vite.config.ts.
+  const relativeRefs = refs.filter((r) => r.startsWith('./') || r.startsWith('../'));
+  if (relativeRefs.some((r) => r.includes('assets/'))) {
+    fail(`dist/index.html uses relative asset paths (${relativeRefs.join(', ')}) — the native base must be '/'`);
   }
   // viewport-fit=cover is what makes Capacitor's SystemBars plugin hand the
   // real system-bar insets through to the WebView instead of padding it.
@@ -150,4 +154,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('\n✓ native build verified: relative base, no service worker, basemap present');
+console.log('\n✓ native build verified: WebView-root base, no service worker, basemap present');

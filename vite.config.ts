@@ -20,13 +20,25 @@ import { VECTOR_ARCHIVE_CACHE } from './src/map/archiveRevision.mjs';
  * They differ in exactly two ways, and nothing else:
  *
  *   1. BASE PATH. Pages serves the app from the project subpath
- *      /Fjallkompis/; the Capacitor WebView serves it from the root of
- *      https://localhost. A relative base is correct for the WebView and
- *      would be wrong for Pages, so the two cannot share one value. Note
- *      that src/map/offlineMap.ts resolves same-origin asset URLs as
- *      `new URL(BASE_URL + path, location.origin)`, which yields
- *      https://localhost/maps/… under a './' base — the PMTiles archives,
- *      contour backdrops and the STF roundel all keep working unchanged.
+ *      /Fjallkompis/; the Capacitor WebView serves it from the ROOT of
+ *      https://localhost, always — Capacitor has no notion of a path prefix.
+ *      '/' is therefore the correct native base, and it is also the only
+ *      SAFE one.
+ *
+ *      A relative './' base was tried first and rejected on evidence: the
+ *      three contour backdrops (Today, Guide, Plan) 404'd at
+ *      /assets/images/…/contours.svg. Those screens pass their URL through a
+ *      CSS CUSTOM PROPERTY (`--screen-bg-image: url("…")`), and a relative
+ *      url() inside a custom property is resolved against the stylesheet
+ *      where the var() is substituted — global.css, which ships as
+ *      /assets/index-*.css — not against the document. A root-absolute base
+ *      is immune to that whole class of resolution surprise, which also
+ *      covers `new URL(x, import.meta.url)` and any future CSS-side asset.
+ *
+ *      With '/', src/map/offlineMap.ts's
+ *      `new URL(BASE_URL + path, location.origin)` yields
+ *      https://localhost/maps/… , and the PMTiles archives, contour
+ *      backdrops and STF roundel all resolve with no app-code change.
  *
  *   2. SERVICE WORKER. The native shell must have NONE. A worker inside the
  *      WebView would add a second, invisible cache layer in front of assets
@@ -109,7 +121,7 @@ function nativeBuildMarker(): Plugin {
 // (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
 // custom domain served from the root, change this to '/'.
 export default defineConfig(({ mode }) => ({
-  base: mode === 'native' ? './' : '/Fjallkompis/',
+  base: mode === 'native' ? '/' : '/Fjallkompis/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
