@@ -28,3 +28,17 @@ public/maps/kungsleden-contours.pmtiles
 # Written by every build (and attached to the release); describes local
 # binaries that are themselves not committed.
 public/maps/kungsleden-terrain-provenance.json
+
+# Android wrapper spike (Capacitor). The android/ project IS committed; its own
+# android/.gitignore (Google's template, shipped by Capacitor) already excludes
+# build outputs, .gradle/, local.properties, the copied web assets and the
+# generated Capacitor config. These are the gaps that template leaves
+# commented out or scopes to the project directory only — signing material
+# above all, which must never reach this repository from anywhere in the tree.
+*.apk
+*.aab
+*.keystore
+*.jks
+local.properties
+.idea/
+*.iml

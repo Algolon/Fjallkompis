@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Auto-backup is OFF (the Capacitor template ships it on).
+         Android's auto-backup silently copies app data — here that means the
+         localStorage trip state and the Trail Wallet IndexedDB, passports and
+         insurance documents included — to the user's Google Drive. This spike
+         is explicitly not allowed to introduce cloud storage, and Settings
+         already owns an export/import flow the user drives deliberately, so
+         the implicit cloud copy is declined rather than inherited. It also
+         keeps wrapper test runs reproducible: a reinstall starts clean
+         instead of silently restoring an earlier session. -->
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- FOREGROUND location only, for the existing "Locate me" button and the
+         live tracking pill on the Map — both of which already stop when the
+         app is not in front (src/hooks/useGeolocation.ts,
+         src/hooks/useRouteTracking.ts). Nothing about that design changes in
+         the wrapper.
+
+         Both COARSE and FINE are declared because that is the exact pair
+         Capacitor's WebChromeClient requests when navigator.geolocation first
+         asks (BridgeWebChromeClient.onGeolocationPermissionsShowPrompt);
+         declaring only FINE would make Android 12+'s "Approximate" choice
+         fail rather than degrade.
+
+         DELIBERATELY ABSENT — do not add without a product decision:
+           ACCESS_BACKGROUND_LOCATION  — there is no background tracking, and
+                                         claiming otherwise would be a lie the
+                                         Play Store also polices;
+           FOREGROUND_SERVICE*         — no service, so tracking genuinely
+                                         stops when the app is backgrounded;
+           POST_NOTIFICATIONS, CAMERA, RECORD_AUDIO, READ_CONTACTS,
+           READ/WRITE_EXTERNAL_STORAGE — no feature in this spike needs them.
+                                         Wallet documents are chosen through
+                                         the WebView's own file picker, which
+                                         needs no storage permission. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- GPS hardware is a convenience, never a requirement: the app is a
+         reference companion first and stays fully usable without a fix. -->
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+</manifest>

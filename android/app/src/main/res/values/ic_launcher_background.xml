@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The adaptive icon's background plate. #e9edeb is not a new colour: it is
+      the exact background already baked into public/icons/icon-maskable-512.png,
+      the app's own maskable PWA icon. Reusing it means the Android launcher
+      icon and the installed-PWA icon sit on the same plate, and the legacy
+      (API 24-25) PNG icons — which ARE that maskable file, downscaled — match
+      the adaptive one instead of showing a different tone beside it.
+    -->
+    <color name="ic_launcher_background">#e9edeb</color>
+</resources>

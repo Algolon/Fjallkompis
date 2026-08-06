@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive-icon foreground: the existing Fjällkompis compass mark, unmodified.
+
+  @drawable/fjallkompis_mark is a byte-identical copy of public/icons/icon-512.png
+  — the same artwork the web manifest ships — so the launcher icon, the PWA
+  icon and the splash mark are literally one file. The logo is not redesigned
+  and no new imagery is introduced.
+
+  THE INSET IS NOT DECORATION. An adaptive icon's 108dp foreground is masked
+  down to the central 72dp (66.7%) — whatever shape the launcher prefers, and
+  Samsung's One UI uses a generous squircle. The source artwork is drawn
+  edge-to-edge (the compass points reach ~92% of the square), so used raw its
+  points would be sliced off. 16% on each side scales the content to ~62% of
+  the canvas, comfortably inside the safe zone at every mask shape, with a
+  little room left for the parallax the launcher applies on scroll.
+
+  Kept as a drawable inset rather than five pre-scaled PNGs so there is one
+  source of truth and no regeneration step to forget.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/fjallkompis_mark"
+    android:inset="16%" />
