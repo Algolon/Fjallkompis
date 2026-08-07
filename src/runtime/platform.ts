@@ -20,11 +20,21 @@
  */
 import {
   Capacitor,
+  registerPlugin,
   SystemBars,
   SystemBarsStyle,
   SystemBarType,
 } from '@capacitor/core';
 import { App } from '@capacitor/app';
+
+/**
+ * The app's own one-method native plugin (android/…/BootPlugin.java): the
+ * single channel by which the web layer tells the Android shell that the
+ * first usable frame is painted, so the splash may be released. It carries no
+ * data and has no other methods on purpose. Off Android this proxy is never
+ * called — signalNativeAppReady() returns early.
+ */
+const NativeBoot = registerPlugin<{ appReady(): Promise<void> }>('Boot');
 
 /** Which shell is hosting the React app right now. */
 export type Runtime = 'web' | 'pwa' | 'native-android';
@@ -146,40 +156,43 @@ function settleShellEntranceAnimations(): void {
 }
 
 /**
- * Reveal the app by fading out and removing the native boot veil.
+ * Tell the native shell the app is ready to be revealed.
  *
- * The veil is inline markup the NATIVE build injects into index.html (see
- * nativeBootVeil in vite.config.ts): the same static mark on the same launch
- * colour the Android splash shows, holding the frame while React parses. The
- * web and PWA builds never contain the element, so this function is a
- * guaranteed no-op there — the element's existence is the runtime gate, which
- * also means the veil still dismisses correctly even if runtime detection
- * were ever wrong.
+ * THE ONLY LAUNCH SURFACE IS THE ANDROID SPLASH. It is held on screen by
+ * MainActivity's keep-on-screen condition until this signal arrives, and the
+ * platform then runs its own exit. There is deliberately no HTML loading
+ * screen of any kind: a logo drawn inside the WebView cannot line up with the
+ * one the system draws, because the splash occupies the full window while the
+ * WebView is inset by the navigation bar on devices that pad it — two
+ * coordinate spaces, and a mark that visibly jumped between them. Do not
+ * reintroduce a web-side veil, spinner or fade to "help" this.
  *
- * THE ORDER IS THE FIX, and each step earns its frame:
+ * WHEN "READY" IS, and why each step earns its frame:
  *   1. two rAFs — wait for React's first commit to actually be painted;
- *   2. settle the entrance animations, so the UI beneath is fully OPAQUE
- *      rather than mid-fade;
+ *   2. settle the shell's entrance animations, so the first screen is fully
+ *      OPAQUE rather than mid-fade — otherwise the splash would lift off a
+ *      half-transparent app and the launch background would show through;
  *   3. one more rAF — let that opaque frame reach the screen;
- *   4. only then start the veil's 180 ms fade, over finished UI.
+ *   4. only then signal, so the splash exits over finished UI.
  *
- * So there is never a moment when both the launch surface and the app are
- * substantially transparent. Nothing here waits on a clock: no minimum
- * display time, no artificial delay, no step whose purpose is to keep the
- * logo visible longer. The timeout is a lost-transitionend failsafe (a
- * backgrounded WebView never fires one), not a floor.
+ * `onPageFinished` is deliberately NOT the signal: it fires when the document
+ * has loaded, which on this app is well before React has mounted anything
+ * worth looking at.
+ *
+ * Nothing here waits on a clock. A no-op off Android, where the platform owns
+ * its own launch.
  */
-export function dismissNativeBootVeil(): void {
-  const veil = document.getElementById('native-boot-veil');
-  if (!veil) return;
+export function signalNativeAppReady(): void {
+  if (!isNativeAndroid()) return;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       settleShellEntranceAnimations();
       requestAnimationFrame(() => {
-        veil.classList.add('veil-out');
-        const remove = () => veil.remove();
-        veil.addEventListener('transitionend', remove, { once: true });
-        window.setTimeout(remove, 600);
+        void NativeBoot.appReady().catch((error: unknown) => {
+          // Non-fatal: MainActivity's fail-safe releases the splash anyway,
+          // so a failed signal costs a slower reveal, never a hung app.
+          console.error('[fjällkompis] native app-ready signal failed', error);
+        });
       });
     });
   });

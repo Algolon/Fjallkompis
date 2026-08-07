@@ -119,7 +119,7 @@ runner; no release signing material exists in this repository.
 
 `src/runtime/platform.ts` is the only file that knows which shell the app is
 in. It uses Capacitor's own `isNativePlatform()` / `getPlatform()` — **never**
-user-agent sniffing — and exposes five things:
+user-agent sniffing — and exposes six things:
 
 | Export                       | Purpose                                              |
 | ---------------------------- | ---------------------------------------------------- |
@@ -128,6 +128,7 @@ user-agent sniffing — and exposes five things:
 | `markRuntimeOnDocument()`    | stamps `<html data-runtime="…">` before first paint  |
 | `initializeNativeShell()`    | per-bar system-bar icon contrast                     |
 | `subscribeAndroidBackButton()` | wires Android Back to the app's hash history       |
+| `signalNativeAppReady()`     | releases the held Android splash (see Startup)       |
 
 Only `src/App.tsx` and `src/main.tsx` may import it — `tests/native-runtime.test.mjs`
 fails the build if anything else does. **If you are about to write
@@ -224,64 +225,82 @@ drawable's launch-only status.
 
 ---
 
-## Startup: one static launch surface, revealed
+## Startup: the Android splash is the only launch surface
 
-A cold start is three surfaces designed to look like one, held still and then
-revealed:
+```
+native splash  →  held while the WebView and React initialise  →  fully
+rendered app  →  platform splash exit
+```
 
-1. **System splash** — Android 12+ composes it from `windowSplashScreen*`;
-   Android 7–11 shows the theme's window background. The mark on the launch
-   colour `#dce4d8`.
-2. **Boot veil** — inline, script-free markup the native build injects into
-   `index.html` (`nativeBootVeil` in vite.config.ts). The *same* mark on the
-   *same* colour at the *same* size, painted before any JavaScript runs, so
-   the splash hands off to a visually identical frame instead of a flat empty
-   colour while React parses.
-3. **The completed app**, revealed by a 180 ms fade of the veil once the UI
-   beneath it is fully painted and opaque.
+There is **no HTML loading screen**, and none should be added.
 
-**The logo does not move, and nothing waits on a clock.** No spinner, no
-rotation, no progress text, no minimum display time, no artificial delay.
+### Why a web-side veil cannot work
 
-### Two things this got wrong first — do not reintroduce them
+Two earlier revisions drew a matching logo inside the WebView to cover the gap
+while React parsed. Both failed on the device for the same structural reason:
+**the splash and the WebView do not share a coordinate space.** The system
+splash fills the whole window, including behind the status and navigation
+bars; the WebView is *inset* by the navigation bar on devices where Capacitor
+pads it rather than passing insets through — the Samsung's path. So the two
+logos are centred in different boxes, and the mark visibly jumps at the
+handoff no matter how precisely their size and colour are matched.
 
-**Motion.** An earlier revision rotated the compass ring. On a real device the
-start-up is far too short for it to register; all it communicated was that
-something might still be loading, which made the launch feel hesitant rather
-than smooth. Removed on physical evidence.
+The fix is not a better veil. It is to have only one surface.
 
-**The overlapping fade.** The veil used to start fading as soon as React's
-first frame painted — while the shell's own entrance animation
-(`.screen { animation: fade … }`) was still fading that screen in from
-`opacity: 0`. Both surfaces were part-transparent at the same moment and the
-flat launch background showed through the pair: a visible blink between logo
-and app. The fix is ordering, in `dismissNativeBootVeil()`:
+### How the splash is held
 
-1. two `requestAnimationFrame`s — wait for React's first commit to be painted;
-2. **finish** the shell's finite entrance animations, so the UI is opaque;
-3. one more frame, so that opaque frame reaches the screen;
-4. only then fade the veil.
+1. `SplashScreen.installSplashScreen(this)` — first statement in `onCreate`,
+   and we now keep its return value.
+2. `splashScreen.setKeepOnScreenCondition(() -> !appReady.get())` — the
+   platform re-reads this on every pre-draw pass, so retention is
+   **readiness-driven, never timed**. No minimum duration exists.
+3. `registerPlugin(BootPlugin.class)` **before** `super.onCreate()` — that is
+   where Capacitor builds the bridge and starts loading the WebView, so a
+   later registration would race the page it exists to serve. A Capacitor
+   plugin is used rather than `WebView.addJavascriptInterface` for exactly
+   this reason: an interface added after `loadUrl` is not guaranteed to reach
+   the page already loading.
+4. The web layer calls `signalNativeAppReady()` (`src/runtime/platform.ts`) →
+   `BootPlugin.appReady()` → `MainActivity.markAppReady()`. The condition
+   stops holding, and the platform runs its own exit animation. Nothing in the
+   app fades anything.
 
-Finishing beats suppressing: nothing has to be un-suppressed afterwards, so
-normal navigation keeps its transition with no class to remove and no risk of
-re-triggering a fade on a settled screen. Infinite decorative animations (the
-tracking-pill blink, the status pulse) are skipped — they never drive page
-opacity, and `finish()` throws on an unbounded effect.
+### What "ready" means
 
-### Geometry
+Two frames for React's first commit to paint → **settle** the shell's finite
+entrance animations so the first screen is fully opaque → one more frame so
+that opaque frame reaches the screen → *then* signal. The splash therefore
+lifts off finished UI, not off a screen that is still fading up from
+`opacity: 0`.
 
-The mark is **196 px / 196 dp on all three surfaces**, derived rather than
-chosen: Android composes an API 31+ splash icon on a 288 dp canvas, and
-`ic_launcher_foreground` insets the artwork 16% per side, so the system draws
-it at 68% × 288 dp ≈ 196 dp. A WebView CSS pixel is a dp, so the veil uses
-196 px and `fjallkompis_splash.xml` (the Android 7–11 path) uses 196 dp. The
-logo therefore never changes size across the handoff.
+`onPageFinished` is deliberately **not** the signal: it fires when the
+document has loaded, long before React has mounted anything usable.
 
-The web and PWA builds never contain the veil (they boot from a
-service-worker cache), and the dismissal is gated on the element's existence,
-so it is a guaranteed no-op there.
+### The fail-safe is for failure only
 
----
+`BOOT_FAILSAFE_MS` (8 s) releases the splash if the web layer never reports
+readiness — a bundle that fails to parse, a WebView that never starts — so a
+broken launch degrades to "you can see the problem" instead of a hung app. It
+is far longer than any plausible cold start, is cancelled the moment a real
+signal arrives, and **must never be tuned to make the logo linger**. A test
+asserts it is the only scheduled delay in the class and that it stays ≥ 5 s.
+
+### System bars during launch
+
+Three-button navigation is visible from the first native frame and is never
+hidden or re-shown as part of startup — no sequencing, no geometry change.
+`installNavigationBarProtection()` runs in `onCreate` while the splash is
+still held, so at the instant the app is revealed the band behind the system
+buttons already wears its final `#d4ded1` surface at its measured height; the
+user never sees a post-splash correction. A test pins that ordering.
+
+One honest limitation: the system splash's own background is a single colour
+across the whole window (`windowSplashScreenBackground`, the launch
+`#dce4d8`), so *while the splash is up* the navigation area shows that colour
+rather than the tab-bar green. The platform offers no way to paint a
+different colour behind the navigation bar within its splash. What is
+guaranteed is that nothing moves or re-lays-out at the handoff, and that no
+colour correction happens after it.
 
 ## Typography: the text-zoom parity guard
 

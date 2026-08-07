@@ -97,7 +97,7 @@ test('both builds are reachable through explicit, separate npm scripts', () => {
 
 test('the PWA plugin runs for the web build and never for the native build', () => {
   assert.match(vite, /mode === 'native' \? \[\] : \[VitePWA\(\{/, 'VitePWA is web-only');
-  assert.match(vite, /mode === 'native' \? \[inertPwaRegister\(\), nativeBuildMarker\(\), nativeBootVeil\(\)\] : \[\]/);
+  assert.match(vite, /mode === 'native' \? \[inertPwaRegister\(\), nativeBuildMarker\(\)\] : \[\]/);
   // The web manifest, its theme colours and the precache sweep are untouched.
   assert.match(vite, /theme_color: '#2f4a3d'/);
   assert.match(vite, /background_color: '#dce4d8'/);
@@ -165,7 +165,7 @@ test('the adapter exposes only the spike surface, and detects without sniffing',
     'export function markRuntimeOnDocument',
     'export async function initializeNativeShell',
     'export function subscribeAndroidBackButton',
-    'export function dismissNativeBootVeil',
+    'export function signalNativeAppReady',
   ]) {
     assert.ok(platform.includes(symbol), `platform.ts exports ${symbol}`);
   }
@@ -456,7 +456,10 @@ test('installSplashScreen precedes everything that could create the decor view',
   assert.ok(edge < superCall, 'EdgeToEdge.enable must still run before super.onCreate');
   // The supported handoff, not a timing hack: nothing hides or delays the
   // splash manually.
-  assert.ok(!/setKeepOnScreenCondition|postDelayed|Handler\(/.test(code));
+  // setKeepOnScreenCondition IS now used — deliberately, to hold the splash
+  // until React is ready — so the old "no timing hacks" phrasing is checked
+  // where it still belongs: no manual hide, and no sleep-then-reveal.
+  assert.ok(!/Thread\.sleep|SystemClock\.sleep/.test(code), 'nothing sleeps the launch');
 });
 
 test('the splash drawable is launch-only — the running app may never wear it', () => {
@@ -540,111 +543,110 @@ test('the corrections added no web CSS and left the PWA surface untouched', () =
   );
 });
 
-// --- Native polish pass: boot veil + typography parity -----------------------
+// --- Launch: the Android splash is the only surface ---------------------------
 //
-// Second physical-evidence round (Samsung screenshots, 2026-08-07): launch
-// felt abrupt (flat colour then whole-UI pop-in) and the wrapper's typography
-// read subtly larger/heavier than the tested design. The fences below pin the
-// two mechanisms that answer them.
+// Third physical round (Samsung, 2026-08-07): the HTML boot veil was removed
+// entirely. The native splash is drawn in the FULL window; the WebView is
+// inset by the navigation bar on devices Capacitor pads — so a second logo
+// inside the WebView sat in a different coordinate space and visibly jumped
+// at the handoff. MainActivity now holds the real splash until React reports
+// a painted, opaque frame. These fences keep it that way.
 
-test('the boot veil is injected only into the native build, script-free', () => {
+test('exactly one launch surface exists — no HTML loading screen anywhere', () => {
+  // The Vite injection, its CSS and its markup are gone, not disabled.
+  for (const [name, source] of [
+    ['vite.config.ts', vite],
+    ['src/main.tsx', main],
+    ['src/runtime/platform.ts', platform],
+    ['src/App.tsx', app],
+    ['index.html', read('index.html')],
+  ]) {
+    for (const marker of ['native-boot-veil', 'nativeBootVeil', 'veil-out', 'dismissNativeBootVeil']) {
+      assert.ok(!source.includes(marker), `${name} still references the removed boot veil (${marker})`);
+    }
+  }
+  // No stylesheet grew a replacement launch overlay either.
+  for (const sheet of ['global.css', 'today-polish.css', 'mobile-shell-plan-polish.css', 'section-themes.css']) {
+    assert.ok(
+      !/veil|boot-splash|launch-overlay/.test(read(`src/styles/${sheet}`)),
+      `${sheet} declares a web launch surface`,
+    );
+  }
+  // And the build verifier enforces the same thing on the real output.
+  assert.match(read('scripts/verify-native-build.mjs'), /HTML launch-screen machinery/);
+});
+
+test('the splash is held by a readiness condition, never by a timer', () => {
+  const code = codeOf(activity);
+  assert.match(code, /SplashScreen splashScreen = SplashScreen\.installSplashScreen\(this\)/);
   assert.match(
-    vite,
-    /mode === 'native' \? \[inertPwaRegister\(\), nativeBuildMarker\(\), nativeBootVeil\(\)\] : \[\]/,
-    'the veil plugin runs in native mode and never for web/PWA',
+    code,
+    /splashScreen\.setKeepOnScreenCondition\(\(\) -> !appReady\.get\(\)\)/,
+    'retention is driven by the readiness flag the web layer sets',
   );
-  const veil = vite.match(/function nativeBootVeil\(\): Plugin[\s\S]*?\n\}/)?.[0];
-  assert.ok(veil, 'the veil plugin exists');
-  assert.match(veil, /id="native-boot-veil"/);
-  assert.ok(!/<script/i.test(veil), 'the veil must paint before any JS — no script tags');
-  assert.match(veil, /background: #dce4d8/, 'the veil wears the launch colour the splash already shows');
-  assert.match(veil, /\/icons\/icon-512\.png/, 'the veil reuses the existing mark — no new artwork');
+  // The ONLY delay in the class is the initialisation-failure fail-safe, and
+  // it must be far longer than any plausible launch so it can never act as a
+  // branding duration.
+  const delays = [...code.matchAll(/postDelayed\([^,]+,\s*([A-Z_]+|\d+)\)/g)].map((m) => m[1]);
+  assert.deepEqual(delays, ['BOOT_FAILSAFE_MS'], 'exactly one scheduled delay, and it is the fail-safe');
+  const failsafe = Number(code.match(/BOOT_FAILSAFE_MS = (\d+)L/)[1]);
+  assert.ok(failsafe >= 5000, `the fail-safe is a failure guard, not a splash duration (${failsafe}ms)`);
+  // No sleep-then-reveal, and no minimum-duration machinery.
+  assert.ok(!/Thread\.sleep|SystemClock|MIN_SPLASH|minimumDuration/.test(code));
 });
 
-test('the boot veil is completely static — no motion of any kind', () => {
-  // Physical evidence retired the compass rotation: a real cold start is too
-  // short for motion to register, so it only suggested "still loading" and
-  // made the launch feel hesitant. The veil is now one still image, and must
-  // stay one — no spinner, no rotation, no pulse, no progress text.
-  const veil = vite.match(/function nativeBootVeil\(\): Plugin[\s\S]*?\n\}/)?.[0] ?? '';
-  assert.ok(veil, 'the veil plugin exists');
-  assert.ok(!/@keyframes/.test(veil), 'the veil declares no keyframes');
-  assert.ok(!/animation:|animation-name/.test(veil), 'the veil animates nothing');
-  assert.ok(!/rotate\(|clip-path/.test(veil), 'no rotation, and no clipped second copy to enable one');
-  // Exactly ONE image: the two-copy trick existed only to pin the mountain
-  // while the ring turned.
-  assert.equal((veil.match(/<img/g) ?? []).length, 1, 'one static mark');
-  // The only transition is the reveal itself, and it is short.
-  const transitions = veil.match(/transition: opacity ([\d.]+)s/g) ?? [];
-  assert.equal(transitions.length, 1, 'opacity is the only thing that ever transitions');
-  const seconds = Number(veil.match(/transition: opacity ([\d.]+)s/)[1]);
-  assert.ok(seconds > 0 && seconds <= 0.25, `the reveal stays short (${seconds}s)`);
-});
+test('the readiness signal is a narrow native bridge inside the adapter', () => {
+  // A Capacitor plugin, registered BEFORE super.onCreate() — that is where
+  // the bridge is built and the WebView load starts, so a later registration
+  // would race the very page it serves.
+  const code = codeOf(activity);
+  const registerIndex = code.indexOf('registerPlugin(BootPlugin.class)');
+  const superIndex = code.indexOf('super.onCreate(savedInstanceState)');
+  assert.ok(registerIndex > 0, 'the boot plugin is registered');
+  assert.ok(registerIndex < superIndex, 'registration precedes bridge creation');
 
-test('the launch mark is the same size on every surface', () => {
-  // 288dp splash icon canvas x 68% (ic_launcher_foreground insets 16% per
-  // side) ~= 196dp, and a WebView CSS pixel is a dp. All three launch
-  // surfaces therefore present the logo identically and nothing jumps at the
-  // handoff.
-  const veil = vite.match(/function nativeBootVeil\(\): Plugin[\s\S]*?\n\}/)?.[0] ?? '';
-  assert.match(veil, /width: 196px;\s*height: 196px;/, 'the veil mark is 196px');
-  const splash = read('android/app/src/main/res/drawable/fjallkompis_splash.xml');
-  assert.match(splash, /android:width="196dp"/, 'the pre-API-31 splash mark is 196dp');
-  assert.match(splash, /android:height="196dp"/);
-  assert.match(
-    read('android/app/src/main/res/drawable/ic_launcher_foreground.xml'),
-    /android:inset="16%"/,
-    'the 196 figure is derived from this inset — changing it invalidates both sizes',
-  );
-});
+  const plugin = read('android/app/src/main/java/com/algolon/fjallkompis/BootPlugin.java');
+  assert.match(plugin, /@CapacitorPlugin\(name = "Boot"\)/);
+  assert.equal((plugin.match(/@PluginMethod/g) ?? []).length, 1, 'one method, no surface area');
+  assert.match(plugin, /markAppReady\(\)/);
 
-test('the veil reveals only opaque UI — no frame with both surfaces transparent', () => {
-  // THE bug from the Samsung recording: the veil faded while the shell's own
-  // entrance animation was still fading the first screen in from opacity 0,
-  // so the flat launch background showed through both. The fix is ordering —
-  // settle the entrance animations, let that opaque frame paint, THEN fade.
-  const impl = platform.match(/export function dismissNativeBootVeil[\s\S]*?\n\}\n/)?.[0];
-  assert.ok(impl, 'the adapter owns the dismissal');
-  const settleIndex = impl.indexOf('settleShellEntranceAnimations()');
-  const fadeIndex = impl.indexOf("classList.add('veil-out')");
-  assert.ok(settleIndex > 0, 'the entrance animations are settled');
-  assert.ok(fadeIndex > settleIndex, 'the fade starts only AFTER the UI beneath is opaque');
-  // A frame between settling and fading, so the opaque UI actually reaches
-  // the screen before the reveal begins.
-  const between = impl.slice(settleIndex, fadeIndex);
-  assert.match(between, /requestAnimationFrame/, 'the opaque frame is given a paint');
-
-  const settle = platform.match(/function settleShellEntranceAnimations[\s\S]*?\n\}/)?.[0];
-  assert.ok(settle, 'the settling helper exists');
-  assert.match(settle, /getAnimations\(\{ subtree: true \}\)/);
-  assert.match(settle, /animation\.finish\(\)/, 'finish, do not suppress — nothing to undo afterwards');
-  assert.match(settle, /iterations === Infinity/, 'infinite decorative animations are skipped');
-  // Finishing rather than suppressing is what keeps ordinary navigation
-  // animated: no class is added to the shell that would have to come off.
+  // The web half lives in the adapter and nowhere else.
+  assert.match(platform, /registerPlugin<\{ appReady\(\): Promise<void> \}>\('Boot'\)/);
+  assert.match(platform, /export function signalNativeAppReady/);
+  assert.match(main, /signalNativeAppReady\(\)/);
   assert.ok(
-    !/main-tab-switch|classList\.add\('screen/.test(codeOf(platform)),
-    'the adapter must not disable the shell transition it would then have to restore',
+    !/appReady|NativeBoot/.test(codeOf(app)),
+    'screens and the shell body never touch the boot bridge',
   );
 });
 
-test('the veil dismisses on first paint — no minimum display time', () => {
-  // main.tsx calls the dismissal AFTER render() so the rAF chain resolves
-  // behind React's first committed frame. There must be no delay primitive
-  // gating visibility — the failsafe timeout only backs up a lost
-  // transitionend, it never postpones the fade.
-  const renderIndex = codeOf(main).indexOf('createRoot(');
-  const dismissIndex = codeOf(main).indexOf('dismissNativeBootVeil()');
-  assert.ok(renderIndex > 0 && dismissIndex > renderIndex, 'dismissal is queued after render()');
-  const impl = platform.match(/export function dismissNativeBootVeil[\s\S]*?\n\}\n/)?.[0];
-  assert.match(impl, /getElementById\('native-boot-veil'\)/);
-  assert.match(impl, /requestAnimationFrame/, 'waits for painted frames, not a clock');
-  assert.match(impl, /if \(!veil\) return;/, 'web/PWA (no element) is a guaranteed no-op');
-  assert.ok(!/setInterval/.test(codeOf(platform)), 'no polling');
-  // The ONLY timer permitted is the transitionend failsafe, and it must be
-  // longer than the fade rather than a display floor before it.
-  const timers = [...codeOf(platform).matchAll(/setTimeout\([^,]+,\s*(\d+)\)/g)].map((m) => Number(m[1]));
-  assert.equal(timers.length, 1, 'exactly one timer in the adapter');
-  assert.ok(timers[0] >= 400, `the failsafe backs up the fade rather than gating it (${timers[0]}ms)`);
+test('readiness means painted AND opaque — not page load', () => {
+  const impl = platform.match(/export function signalNativeAppReady[\s\S]*?\n\}/)?.[0];
+  assert.ok(impl, 'the adapter owns the signal');
+  assert.match(impl, /if \(!isNativeAndroid\(\)\) return;/, 'a no-op off Android');
+  // Frames, then settle to opacity, then signal — in that order.
+  const settleIndex = impl.indexOf('settleShellEntranceAnimations()');
+  const signalIndex = impl.indexOf('NativeBoot.appReady()');
+  assert.ok(settleIndex > 0 && signalIndex > settleIndex, 'the app is opaque before the splash is released');
+  assert.match(impl.slice(settleIndex, signalIndex), /requestAnimationFrame/, 'the opaque frame is given a paint');
+  // onPageFinished fires long before React has mounted anything usable.
+  assert.ok(!/onPageFinished/.test(codeOf(activity)), 'page load is not the readiness signal');
+  assert.ok(!/setTimeout/.test(impl), 'no clock in the readiness path');
+});
+
+test('the navigation protection is in place before the splash can be released', () => {
+  // At the moment the app is revealed, the three-button band must already
+  // wear its final colour and measured height — never a post-splash
+  // correction the user could see.
+  const code = codeOf(activity);
+  const protectionIndex = code.indexOf('installNavigationBarProtection()');
+  const failsafeIndex = code.indexOf('postDelayed');
+  const readyIndex = code.indexOf('void markAppReady()');
+  assert.ok(protectionIndex > 0, 'the protection view is installed in onCreate');
+  assert.ok(protectionIndex < failsafeIndex, 'installed before the fail-safe is even scheduled');
+  assert.ok(protectionIndex < readyIndex, 'installed before anything can release the splash');
+  // System navigation is never sequenced against startup.
+  assert.ok(!/hide\(|show\(/.test(code), 'system bars are never hidden or re-shown during launch');
 });
 
 test('WebView text zoom is pinned as an explicit parity guard', () => {

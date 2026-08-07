@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import {
-  dismissNativeBootVeil,
+  signalNativeAppReady,
   initializeNativeShell,
   markRuntimeOnDocument,
 } from './runtime/platform';
@@ -48,8 +48,9 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-// Native shell only (the element exists solely in the native index.html):
-// fade the boot veil out once the first rendered frame is on screen. Must be
-// called AFTER render() so the double-rAF inside lands behind React's first
-// commit, not before it.
-dismissNativeBootVeil();
+// Native shell only: release the Android splash once the first rendered
+// frame is on screen and opaque. The splash is the ONLY launch surface —
+// there is no HTML loading screen — so nothing is visible to the user until
+// this resolves. Must be called AFTER render() so the rAF chain inside lands
+// behind React's first commit, not before it.
+signalNativeAppReady();

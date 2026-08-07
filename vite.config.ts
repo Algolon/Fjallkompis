@@ -117,75 +117,6 @@ function nativeBuildMarker(): Plugin {
   };
 }
 
-/**
- * Native boot veil — the splash-to-app handoff surface (native build only).
- *
- * WHAT IT SMOOTHS. On a cold start the Android splash (the mark on the launch
- * colour) dismisses at the activity's first frame, but the React bundle is
- * still parsing — leaving the user on a flat empty colour until the whole UI
- * pops in at once. The veil holds the SAME mark on the SAME colour across
- * that gap, so the launch reads as one continuous surface that is simply
- * revealed: splash → veil (visually identical) → completed app.
- *
- * DELIBERATELY STATIC. An earlier revision rotated the compass ring gently.
- * Physical evidence killed it: a real cold start is far too short for the
- * motion to register, so all it added was a suggestion that something was
- * still loading — the launch felt hesitant rather than smooth. There is no
- * animation here now, and none should be added: no spinner, no rotation, no
- * progress text, no minimum display time. The logo does not move.
- *
- * WHY IT LIVES IN index.html. It must paint before ANY JavaScript runs —
- * that is the entire point — so it is inline markup + inline CSS with no
- * script. Injected only in mode=native via transformIndexHtml; the web and
- * PWA builds never contain it (the PWA boots from a service-worker cache
- * fast enough that a veil would only add churn).
- *
- * THE 196px MARK is derived, not chosen: Android composes an API 31+ splash
- * icon on a 288dp canvas, and our windowSplashScreenAnimatedIcon
- * (@drawable/ic_launcher_foreground) insets the artwork by 16% per side, so
- * the system draws it at 68% × 288dp ≈ 196dp. A WebView CSS pixel is a dp,
- * so 196px reproduces the splash's own geometry and the mark does not jump
- * size at the handoff. android/…/drawable/fjallkompis_splash.xml uses the
- * same 196dp for the Android 7–11 path.
- *
- * DISMISSAL is in src/runtime/platform.ts (dismissNativeBootVeil), and the
- * ORDER there matters: the veil only starts fading once the UI beneath it is
- * fully opaque. Fading it while the shell's own entrance animation was still
- * fading the first screen in from opacity 0 made both surfaces transparent
- * at once, and the flat launch background showed through — the blink the
- * Samsung recording caught. Nothing waits on a timer.
- */
-function nativeBootVeil(): Plugin {
-  const veil = `    <style>
-      #native-boot-veil {
-        position: fixed;
-        inset: 0;
-        z-index: 2147483647;
-        display: grid;
-        place-items: center;
-        background: #dce4d8; /* the launch colour the splash already shows */
-        transition: opacity 0.18s ease;
-      }
-      #native-boot-veil.veil-out {
-        opacity: 0;
-        pointer-events: none;
-      }
-      #native-boot-veil img {
-        width: 196px;
-        height: 196px;
-      }
-    </style>
-    <div id="native-boot-veil" aria-hidden="true">
-      <img src="/icons/icon-512.png" alt="" />
-    </div>`;
-  return {
-    name: 'fjallkompis:native-boot-veil',
-    transformIndexHtml(html) {
-      return html.replace('</body>', `${veil}\n  </body>`);
-    },
-  };
-}
-
 // NOTE: the web `base` matches the GitHub Pages project subpath
 // (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
 // custom domain served from the root, change this to '/'.
@@ -196,7 +127,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    ...(mode === 'native' ? [inertPwaRegister(), nativeBuildMarker(), nativeBootVeil()] : []),
+    ...(mode === 'native' ? [inertPwaRegister(), nativeBuildMarker()] : []),
     ...(mode === 'native' ? [] : [VitePWA({
       // Prompt-style updates: a new service worker waits until the user taps
       // "Update now" in the in-app toast, so we never reload out from under an

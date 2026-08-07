@@ -103,20 +103,20 @@ if (!existsSync(indexPath)) {
   // The boot veil is what smooths splash → app; without it a cold start
   // flashes a flat colour and then pops the whole UI in at once. It must be
   // inline (pre-JS) and script-free.
-  if (!index.includes('id="native-boot-veil"')) {
-    fail('dist/index.html is missing the native boot veil — the splash-to-app handoff would be abrupt');
-  } else {
-    const veilStart = index.lastIndexOf('<style>', index.indexOf('id="native-boot-veil"'));
-    const veilBlock = index.slice(veilStart);
-    if (/<script/i.test(veilBlock)) {
-      fail('the boot veil region contains a <script> — it must stay pure markup+CSS so it paints before any JS');
-    }
-    // The veil is a STILL image by decision, on physical evidence: motion on
-    // a launch this short only signals "still loading". See the plugin
-    // comment in vite.config.ts before adding anything that moves.
-    if (/@keyframes|animation:|animation-name/.test(veilBlock)) {
-      fail('the boot veil declares an animation — the launch mark must stay completely static');
-    }
+  // THE ANDROID SPLASH IS THE ONLY LAUNCH SURFACE. A logo drawn inside the
+  // WebView cannot line up with the one the system draws — the splash fills
+  // the whole window while the WebView is inset by the navigation bar on
+  // devices that pad it, so the mark visibly jumped between the two
+  // coordinate spaces. MainActivity now holds the real splash until React
+  // reports a painted, opaque frame. Any HTML loading surface reintroduces
+  // exactly the defect that was removed, so the bundle must contain none.
+  const veilMarkers = ['native-boot-veil', 'veil-out', 'veil-mark', 'boot-veil'];
+  const stray = veilMarkers.filter((marker) => index.includes(marker));
+  if (stray.length > 0) {
+    fail(
+      `dist/index.html still contains HTML launch-screen machinery (${stray.join(', ')}) — ` +
+        'the Android splash is the only launch surface',
+    );
   }
 }
 
