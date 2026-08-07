@@ -140,6 +140,67 @@ jobs:
           # correlated before the artifact exists.
           echo "Keystore reconstructed ($(stat -c%s "$RUNNER_TEMP/upload-keystore.jks") bytes)."
 
+      - name: Check the keystore and credentials before building
+        # Gradle's signing failure is a single confusing line — "keystore
+        # password was incorrect" — that fires identically for a corrupt
+        # keystore, a wrong store password, a missing alias and a wrong key
+        # password. This step separates those four cases BEFORE spending a
+        # full build on them, and says which secret to fix.
+        #
+        # Nothing secret is printed. keytool never echoes a password, its
+        # output is captured rather than streamed, and only a classified
+        # verdict is emitted — the alias would be masked by Actions anyway.
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -uo pipefail
+          ks="$RUNNER_TEMP/upload-keystore.jks"
+
+          # 0. Is the decoded file even a keystore? A base64 that lost bytes
+          #    fails here rather than masquerading as a password problem.
+          size=$(stat -c%s "$ks")
+          magic=$(head -c 4 "$ks" | od -An -tx1 | tr -d ' \n')
+          case "$magic" in
+            feedfeed) kind="JKS" ;;
+            3082*|3081*) kind="PKCS12" ;;
+            *) kind="UNRECOGNISED" ;;
+          esac
+          echo "Decoded keystore: ${size} bytes, container looks like ${kind}."
+          if [ "$kind" = "UNRECOGNISED" ]; then
+            echo "::error::ANDROID_UPLOAD_KEYSTORE_BASE64 did not decode to a keystore. Re-run: base64 -i fjallkompis-upload.jks | pbcopy, and paste the WHOLE value."
+            exit 1
+          fi
+
+          # 1. Store password.
+          if ! out=$(keytool -list -keystore "$ks" -storepass "$KEYSTORE_PASSWORD" 2>&1); then
+            if echo "$out" | grep -qi "password was incorrect\|Keystore was tampered"; then
+              echo "::error::ANDROID_UPLOAD_KEYSTORE_PASSWORD does not open this keystore. Check for a trailing newline or space in the secret value."
+            else
+              echo "::error::the keystore could not be read (not a password problem):"
+              echo "$out" | tail -5
+            fi
+            exit 1
+          fi
+          echo "Store password OK."
+
+          # 2. Alias present.
+          if ! keytool -list -keystore "$ks" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "::error::ANDROID_UPLOAD_KEY_ALIAS is not an alias in this keystore. It must match the -alias used with keytool -genkeypair (docs/ANDROID.md suggests fjallkompis-upload)."
+            exit 1
+          fi
+          echo "Alias found."
+
+          # 3. Key password — proven by an operation that needs the private
+          #    key. The CSR is discarded; only success or failure matters.
+          if ! keytool -certreq -keystore "$ks" -storepass "$KEYSTORE_PASSWORD" \
+                 -alias "$KEY_ALIAS" -keypass "$KEY_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::ANDROID_UPLOAD_KEY_PASSWORD does not unlock the key. If keytool only asked once, the key password equals the STORE password — set both secrets to the same value."
+            exit 1
+          fi
+          echo "Key password OK. All four signing secrets are consistent."
+
       - name: Record the release identity
         id: identity
         working-directory: android
