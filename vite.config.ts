@@ -117,6 +117,94 @@ function nativeBuildMarker(): Plugin {
   };
 }
 
+/**
+ * Native boot veil — the splash-to-app handoff surface (native build only).
+ *
+ * WHAT IT SMOOTHS. On a cold start the Android splash (mark on the launch
+ * colour) dismisses at the activity's first frame, but the React bundle is
+ * still parsing for a few hundred milliseconds — the user briefly sees a
+ * flat empty colour, then the whole UI pops in at once. The veil fills that
+ * gap with the same mark on the same colour, so the sequence reads as one
+ * continuous surface: splash → veil (identical visual) → app fades in.
+ *
+ * WHY IT LIVES IN index.html. It must paint before ANY JavaScript runs —
+ * that is the entire point — so it is inline markup + inline CSS with no
+ * script. Injected only in mode=native via transformIndexHtml; the web and
+ * PWA builds never contain it (the PWA boots from a service-worker cache
+ * fast enough that a veil would only add churn).
+ *
+ * THE ANIMATION. The compass ring sways gently (±7°, one calm 3.2 s cycle,
+ * starting at 0° so it continues seamlessly from the static splash) around
+ * a stationary mountain — a compass settling, not a spinner. Two copies of
+ * the same logo make that possible without new artwork: the bottom copy
+ * rotates whole, and the top copy is clipped to `circle(30.3%)` — measured
+ * mid-point of the logo's continuous white inner ring (blue disc ends at
+ * 29.5% of the image side, dark ring starts at 31.3%) — so it pins the
+ * mountain still while the seam under it is always rotationally-symmetric
+ * white, making the boundary invisible. prefers-reduced-motion disables the
+ * sway and keeps the static mark.
+ *
+ * DISMISSAL. React removes it (src/runtime/platform.ts,
+ * dismissNativeBootVeil) as soon as the first frame has painted — there is
+ * no minimum display time, no timer gating, nothing that can make launch
+ * slower than it already was. A 220 ms opacity fade is the only easing out.
+ */
+function nativeBootVeil(): Plugin {
+  const veil = `    <style>
+      #native-boot-veil {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        background: #dce4d8; /* the launch colour the splash already shows */
+        transition: opacity 0.22s ease;
+      }
+      #native-boot-veil.veil-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #native-boot-veil .veil-mark {
+        position: relative;
+        width: 176px;
+        height: 176px;
+      }
+      #native-boot-veil .veil-mark img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #native-boot-veil .veil-ring {
+        animation: veil-settle 3.2s ease-in-out infinite;
+      }
+      #native-boot-veil .veil-core {
+        clip-path: circle(30.3% at 50% 50%);
+      }
+      @keyframes veil-settle {
+        0% { transform: rotate(0deg); }
+        25% { transform: rotate(-7deg); }
+        75% { transform: rotate(7deg); }
+        100% { transform: rotate(0deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #native-boot-veil .veil-ring { animation: none; }
+      }
+    </style>
+    <div id="native-boot-veil" aria-hidden="true">
+      <div class="veil-mark">
+        <img class="veil-ring" src="./icons/icon-512.png" alt="" />
+        <img class="veil-core" src="./icons/icon-512.png" alt="" />
+      </div>
+    </div>`;
+  return {
+    name: 'fjallkompis:native-boot-veil',
+    transformIndexHtml(html) {
+      return html.replace('</body>', `${veil}\n  </body>`);
+    },
+  };
+}
+
 // NOTE: the web `base` matches the GitHub Pages project subpath
 // (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
 // custom domain served from the root, change this to '/'.
@@ -127,7 +215,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    ...(mode === 'native' ? [inertPwaRegister(), nativeBuildMarker()] : []),
+    ...(mode === 'native' ? [inertPwaRegister(), nativeBuildMarker(), nativeBootVeil()] : []),
     ...(mode === 'native' ? [] : [VitePWA({
       // Prompt-style updates: a new service worker waits until the user taps
       // "Update now" in the in-app toast, so we never reload out from under an

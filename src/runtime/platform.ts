@@ -113,6 +113,38 @@ export async function initializeNativeShell(): Promise<void> {
 }
 
 /**
+ * Fade out and remove the native boot veil, if this document has one.
+ *
+ * The veil is inline markup the NATIVE build injects into index.html (see
+ * nativeBootVeil in vite.config.ts): it bridges the visual gap between the
+ * Android splash dismissing and React's first paint, showing the same mark on
+ * the same launch colour with the compass ring settling gently. The web and
+ * PWA builds never contain the element, so this function is a guaranteed
+ * no-op there — the element's existence is the runtime gate, which also means
+ * the veil still dismisses correctly even if runtime detection were ever
+ * wrong.
+ *
+ * TIMING: called from main.tsx immediately after render() is queued. The
+ * double requestAnimationFrame waits for the first committed frame to be
+ * painted — the veil starts fading only once real UI exists underneath it,
+ * which is what prevents the pop-in, and never later than that, which is what
+ * keeps launch exactly as fast as it was. The timeout is a lost-transitionend
+ * failsafe (backgrounded tab), not a display-time floor.
+ */
+export function dismissNativeBootVeil(): void {
+  const veil = document.getElementById('native-boot-veil');
+  if (!veil) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      veil.classList.add('veil-out');
+      const remove = () => veil.remove();
+      veil.addEventListener('transitionend', remove, { once: true });
+      window.setTimeout(remove, 600);
+    });
+  });
+}
+
+/**
  * True when the app has a previous entry of its OWN to go back to.
  *
  * The Navigation API's `canGoBack` answers exactly the question Android Back

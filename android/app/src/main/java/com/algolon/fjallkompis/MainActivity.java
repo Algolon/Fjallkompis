@@ -69,6 +69,22 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
+        // TYPOGRAPHY PARITY WITH THE BROWSER/PWA. Android's WebView defaults
+        // its text zoom to the SYSTEM font scale (fontScale × 100), while
+        // Chrome renders CSS pixels unscaled and handles text sizing through
+        // its own accessibility setting. So on any device with a non-default
+        // font size — most Samsungs — the wrapper rendered every heading,
+        // body line and chip label 10–30% larger than the browser, while all
+        // px-based spacing, card geometry and line boxes stayed fixed: text
+        // felt heavy, subtitles wrapped against card edges, and the whole app
+        // read as subtly "off" against the tested design (the Samsung
+        // screenshot evidence for this pass). Pinning 100 restores the exact
+        // typography every layout contract was validated against. This is a
+        // parity decision, not an accessibility removal: the installed PWA —
+        // the app's primary form — has never followed the system font scale
+        // either, so the wrapper now matches the app's real baseline.
+        this.getBridge().getWebView().getSettings().setTextZoom(100);
+
         // With a transparent navigation bar, Android draws its own
         // translucent contrast scrim behind the THREE-BUTTON navigation area.
         // That scrim would grey down the tab-bar green underneath, so it is

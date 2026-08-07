@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import {
+  dismissNativeBootVeil,
   initializeNativeShell,
   markRuntimeOnDocument,
 } from './runtime/platform';
@@ -46,3 +47,9 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+// Native shell only (the element exists solely in the native index.html):
+// fade the boot veil out once the first rendered frame is on screen. Must be
+// called AFTER render() so the double-rAF inside lands behind React's first
+// commit, not before it.
+dismissNativeBootVeil();

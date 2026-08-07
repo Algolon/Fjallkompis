@@ -100,6 +100,17 @@ if (!existsSync(indexPath)) {
   if (!/viewport-fit=cover/.test(index)) {
     fail('dist/index.html lost viewport-fit=cover — edge-to-edge insets will not reach the web layer');
   }
+  // The boot veil is what smooths splash → app; without it a cold start
+  // flashes a flat colour and then pops the whole UI in at once. It must be
+  // inline (pre-JS) and script-free.
+  if (!index.includes('id="native-boot-veil"')) {
+    fail('dist/index.html is missing the native boot veil — the splash-to-app handoff would be abrupt');
+  } else {
+    const veilBlock = index.slice(index.indexOf('id="native-boot-veil"'));
+    if (/<script/i.test(veilBlock)) {
+      fail('the boot veil region contains a <script> — it must stay pure markup+CSS so it paints before any JS');
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

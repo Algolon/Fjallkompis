@@ -97,7 +97,7 @@ test('both builds are reachable through explicit, separate npm scripts', () => {
 
 test('the PWA plugin runs for the web build and never for the native build', () => {
   assert.match(vite, /mode === 'native' \? \[\] : \[VitePWA\(\{/, 'VitePWA is web-only');
-  assert.match(vite, /mode === 'native' \? \[inertPwaRegister\(\), nativeBuildMarker\(\)\] : \[\]/);
+  assert.match(vite, /mode === 'native' \? \[inertPwaRegister\(\), nativeBuildMarker\(\), nativeBootVeil\(\)\] : \[\]/);
   // The web manifest, its theme colours and the precache sweep are untouched.
   assert.match(vite, /theme_color: '#2f4a3d'/);
   assert.match(vite, /background_color: '#dce4d8'/);
@@ -165,6 +165,7 @@ test('the adapter exposes only the spike surface, and detects without sniffing',
     'export function markRuntimeOnDocument',
     'export async function initializeNativeShell',
     'export function subscribeAndroidBackButton',
+    'export function dismissNativeBootVeil',
   ]) {
     assert.ok(platform.includes(symbol), `platform.ts exports ${symbol}`);
   }
@@ -537,6 +538,71 @@ test('the corrections added no web CSS and left the PWA surface untouched', () =
     /--tabbar-surface-opaque: #d4ded1;/,
     'the canonical web token is unchanged',
   );
+});
+
+// --- Native polish pass: boot veil + typography parity -----------------------
+//
+// Second physical-evidence round (Samsung screenshots, 2026-08-07): launch
+// felt abrupt (flat colour then whole-UI pop-in) and the wrapper's typography
+// read subtly larger/heavier than the tested design. The fences below pin the
+// two mechanisms that answer them.
+
+test('the boot veil is injected only into the native build, script-free', () => {
+  assert.match(
+    vite,
+    /mode === 'native' \? \[inertPwaRegister\(\), nativeBuildMarker\(\), nativeBootVeil\(\)\] : \[\]/,
+    'the veil plugin runs in native mode and never for web/PWA',
+  );
+  const veil = vite.match(/function nativeBootVeil\(\): Plugin[\s\S]*?\n\}/)?.[0];
+  assert.ok(veil, 'the veil plugin exists');
+  assert.match(veil, /id="native-boot-veil"/);
+  assert.ok(!/<script/i.test(veil), 'the veil must paint before any JS — no script tags');
+  assert.match(veil, /background: #dce4d8/, 'the veil wears the launch colour the splash already shows');
+  assert.match(veil, /\.\/icons\/icon-512\.png/, 'the veil reuses the existing mark — no new artwork');
+});
+
+test('the veil animation is the measured compass-settle, calm and motion-safe', () => {
+  const veil = vite.match(/function nativeBootVeil\(\): Plugin[\s\S]*?\n\}/)?.[0] ?? '';
+  // Two copies of one logo: the bottom sways whole, the top pins the mountain
+  // still. circle(30.3%) is the MEASURED midpoint of the logo's continuous
+  // white inner ring (blue disc to 29.5%, dark ring from 31.3% of the image
+  // side), so the seam under the static core is always rotationally-symmetric
+  // white — regenerating the icon means re-measuring this number.
+  assert.match(veil, /veil-ring/);
+  assert.match(veil, /veil-core/);
+  assert.match(veil, /clip-path: circle\(30\.3% at 50% 50%\)/);
+  // Gentle sway, starting AND ending at 0° so it continues seamlessly from
+  // the static splash mark; never a full-rotation spinner.
+  assert.match(veil, /0% \{ transform: rotate\(0deg\); \}/);
+  assert.match(veil, /100% \{ transform: rotate\(0deg\); \}/);
+  assert.ok(!/360deg/.test(veil), 'the compass settles; it does not spin');
+  assert.match(veil, /prefers-reduced-motion: reduce/, 'reduced motion gets the static mark');
+});
+
+test('the veil dismisses on first paint — no minimum display time', () => {
+  // main.tsx calls the dismissal AFTER render() so the double-rAF resolves
+  // behind React's first committed frame. There must be no delay primitive
+  // gating visibility — the failsafe timeout only backs up a lost
+  // transitionend, it never postpones the fade.
+  const renderIndex = codeOf(main).indexOf('createRoot(');
+  const dismissIndex = codeOf(main).indexOf('dismissNativeBootVeil()');
+  assert.ok(renderIndex > 0 && dismissIndex > renderIndex, 'dismissal is queued after render()');
+  const impl = platform.match(/export function dismissNativeBootVeil[\s\S]*?\n\}/)?.[0];
+  assert.ok(impl, 'the adapter owns the dismissal');
+  assert.match(impl, /getElementById\('native-boot-veil'\)/);
+  assert.match(impl, /requestAnimationFrame/, 'waits for a painted frame, not a timer');
+  assert.match(impl, /if \(!veil\) return;/, 'web/PWA (no element) is a guaranteed no-op');
+  assert.ok(!/setInterval/.test(codeOf(platform)), 'no polling');
+});
+
+test('WebView text zoom is pinned to 100 for browser/PWA typography parity', () => {
+  // Android WebView defaults textZoom to the SYSTEM font scale × 100; Chrome
+  // renders CSS px unscaled. Without this pin the wrapper renders all text
+  // enlarged on any device with a non-default font size while px-based
+  // geometry stays fixed — the Samsung "everything feels slightly off"
+  // evidence. Capacitor itself never touches textZoom (verified against
+  // @capacitor/android 8.5.0 sources), so the shell must.
+  assert.match(codeOf(activity), /getSettings\(\)\.setTextZoom\(100\)/);
 });
 
 test('no Android XML comment contains a double dash', () => {
