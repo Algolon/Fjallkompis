@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Native colours, all of them already-owned Fjällkompis tokens. Nothing here
+  is invented for Android; each value is quoted from the web layer so the
+  native launch cannot drift from the installed PWA.
+
+  If one of these changes in src/styles/global.css or vite.config.ts, change
+  it here too — tests/native-runtime.test.mjs fails if they diverge.
+-->
+<resources>
+    <!-- The CSS token `stone-bg` and the PWA manifest's background_color: the
+         surface the app launches on, in the browser and now on Android alike. -->
+    <color name="fjallkompisLaunch">#dce4d8</color>
+    <!-- The CSS token `spruce`, theme_color, and the theme-color meta tag: the
+         brand chrome behind the status bar, painted by the web layer once it
+         has loaded. -->
+    <color name="fjallkompisSpruce">#2f4a3d</color>
+    <!-- The CSS token `tabbar-surface-opaque` (mobile-shell-plan-polish.css):
+         the OPAQUE colour of the bottom tab bar. Painted natively behind the
+         three-button navigation buttons by MainActivity's protection view, so
+         the system-navigation area and the in-app tab bar read as one
+         continuous surface. The Samsung physical test showed why this must be
+         its own token and not fjallkompisLaunch: the launch colour is a
+         subtly DIFFERENT green, and behind the system buttons it produced a
+         visible seam against the tab bar. tests/native-runtime.test.mjs
+         fails if this value and the CSS token ever differ. -->
+    <color name="fjallkompisTabbar">#d4ded1</color>
+</resources>

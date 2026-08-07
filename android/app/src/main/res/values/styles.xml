@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <!-- The theme the activity wears for its whole life after the splash
+         hands off (postSplashScreenTheme below, applied by
+         SplashScreen.installSplashScreen in MainActivity).
+
+         windowBackground is a PLAIN COLOUR, and must stay one: it is visible
+         only for the instant between the splash handing off and the WebView's
+         first paint, and through any inset band the WebView does not cover on
+         devices where Capacitor pads instead of passing insets through. The
+         Samsung physical test proved what a drawable here becomes — the
+         launch splash's logo strip lingering above every screen as if it were
+         app chrome. The logo belongs to the launch window only; a test now
+         fails this file if any drawable reference returns. -->
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/fjallkompisLaunch</item>
+    </style>
+
+    <!-- Launch theme: what the app looks like BEFORE the process can draw.
+         Two eras, one look:
+           Android 12+ (API 31+) composes the system splash from the
+           windowSplashScreen* attributes — the platform owns the timing,
+           the icon reveal and the dismiss animation.
+           Android 7-11 shows this theme's windowBackground as the starting
+           window: the same launch colour and mark, via
+           @drawable/fjallkompis_splash.
+
+         postSplashScreenTheme is the OTHER half of the contract, and it is
+         load-bearing: MainActivity calls SplashScreen.installSplashScreen()
+         as its very first statement, which swaps the activity onto
+         AppTheme.NoActionBar before anything can touch the window. Without
+         that swap, whatever creates the decor view first (EdgeToEdge.enable
+         did, on the Samsung) freezes THIS theme's splash drawable into the
+         decor background, and the logo survives into the running app as a
+         phantom header. The splash drawable may be referenced from this
+         style only — never from AppTheme.NoActionBar. -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/fjallkompisLaunch</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:windowBackground">@drawable/fjallkompis_splash</item>
+    </style>
+</resources>

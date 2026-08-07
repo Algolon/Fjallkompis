@@ -42,6 +42,10 @@ import {
 } from './screens/PlanScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PwaLifecycle } from './components/PwaLifecycle';
+import {
+  isNativeAndroid,
+  subscribeAndroidBackButton,
+} from './runtime/platform';
 import { INITIAL_MAP_VIEW_STAGE_ID } from './map/mapDefaults.mjs';
 
 interface Nav {
@@ -244,6 +248,14 @@ function AppShell() {
   // authority and the WebKit bug reference.
   useEffect(() => startViewportHeightSync(), []);
 
+  // Android's Back button drives the SAME hash history the browser's Back
+  // button drives — the adapter delegates to history.back() rather than
+  // introducing a second navigation model, and minimizes the app once there
+  // is nothing of ours left to go back to. A no-op in the browser and the
+  // installed PWA, where the platform already owns Back. See
+  // src/runtime/platform.ts.
+  useEffect(() => subscribeAndroidBackButton(), []);
+
   // Phones are portrait-only (product decision). The classifier is
   // capability- and space-based, never user-agent based; while the guard
   // is up the app tree stays mounted (nav, screen state, GPS/tracking and
@@ -400,7 +412,13 @@ function AppShell() {
           />
         </main>
         <TabBar active={nav.tab} onChange={navigate} variant="bar" />
-        <PwaLifecycle />
+        {/* Install / offline-ready / service-worker-update prompts belong to
+            the browser and installed-PWA runtimes only. Inside the Android
+            shell there is nothing to install (the app IS installed) and
+            nothing to update from a worker (the APK is the unit of update),
+            so the whole lifecycle UI is not mounted. The native build also
+            has no VitePWA plugin at all — see vite.config.ts. */}
+        {isNativeAndroid() ? null : <PwaLifecycle />}
       </div>
       {/* Outside .app so the shell's inert state never affects the guard. */}
       <RotateGuard active={phoneLandscape} shellRef={shellRef} />

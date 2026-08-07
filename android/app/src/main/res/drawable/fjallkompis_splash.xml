@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Launch surface for Android 7-11 (API 24-30), which have no platform splash
+  screen API. Android 12+ builds its splash from the windowSplashScreen*
+  attributes in styles.xml instead; this drawable is the fallback path.
+
+  It is the same two ingredients either way, and both are existing owned
+  assets: the app's launch colour and the app's own compass mark. No
+  wordmark, no new artwork, no third-party imagery.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/fjallkompisLaunch" />
+    <!-- 196dp matches what API 31+ draws for the same mark (a 288dp splash
+         icon canvas, inset 16% per side by ic_launcher_foreground = 68% x
+         288dp), and matches the web boot veil's 196px. All three launch
+         surfaces therefore present the logo at one size, so nothing jumps at
+         the handoff. -->
+    <item
+        android:drawable="@drawable/fjallkompis_mark"
+        android:gravity="center"
+        android:width="196dp"
+        android:height="196dp" />
+</layer-list>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31+) splits what `android:allowBackup` used to cover into
+  two independent channels. allowBackup="false" in the manifest stops the
+  CLOUD one; this file is what stops the other.
+
+    cloud-backup    — Google Drive / Auto Backup. Excluded: the app must not
+                      copy trip state or Trail Wallet documents (passports,
+                      insurance, STF membership) off the device. Settings owns
+                      an explicit export the user drives themselves.
+    device-transfer — the direct old-phone → new-phone copy. Also excluded in
+                      this spike, deliberately and conservatively: the wrapper
+                      has never been tested across a restore, and a silent
+                      half-restored state would be worse than a clean start.
+                      Revisit as a product decision before any public release —
+                      device transfer is a genuinely useful, non-cloud path.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="file" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="file" />
+    </device-transfer>
+</data-extraction-rules>

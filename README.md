@@ -106,6 +106,11 @@ offline architecture, map builds, testing, versioning and deployment — lives
 in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Priorities:
 [ROADMAP.md](ROADMAP.md) · changes: [CHANGELOG.md](CHANGELOG.md).
 
+An **experimental** Capacitor wrapper packages this same build as an Android
+APK — a technical spike, not a release, and not on Google Play. It adds a
+second build mode and leaves the PWA untouched; see
+[docs/ANDROID.md](docs/ANDROID.md).
+
 Map data © OpenStreetMap contributors · Protomaps. Satellite imagery:
 Sentinel-2 cloudless by EOX. Full credits in Fjällkompis under Settings →
 *Data sources*.
