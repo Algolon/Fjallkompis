@@ -42,3 +42,16 @@ public/maps/kungsleden-terrain-provenance.json
 local.properties
 .idea/
 *.iml
+
+# Play release signing material. The upload keystore lives ONLY in Omar's
+# offline backup and in GitHub Actions secrets — never in the repository, and
+# never in a build artifact. These patterns are deliberately broad: a keystore
+# committed once is compromised forever, because git history keeps it.
+*.jks
+*.p12
+*.pepk
+upload-keystore*
+keystore.properties
+signing.properties
+*.keystore.base64
+*.b64

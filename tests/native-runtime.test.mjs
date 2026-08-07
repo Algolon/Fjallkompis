@@ -416,9 +416,12 @@ test('the launcher icon and splash reuse the existing app artwork', () => {
   );
 });
 
-test('the application id is the documented provisional one', () => {
+test('the application id is the documented permanent one', () => {
+  // Was "provisional" through the spike; now fixed for Play distribution.
+  // tests/android-release-config.test.mjs owns the full cross-file identity
+  // check — this keeps the caveat itself from being quietly deleted.
   assert.match(capConfig, /appId: 'com\.algolon\.fjallkompis'/);
-  assert.match(capConfig, /PROVISIONAL/, 'the identity caveat stays next to the id');
+  assert.match(capConfig, /PERMANENT Play identity/, 'the identity caveat stays next to the id');
   assert.match(read('android/app/build.gradle'), /applicationId "com\.algolon\.fjallkompis"/);
   assert.match(read('android/app/src/main/res/values/strings.xml'), /<string name="app_name">Fjällkompis<\/string>/);
 });

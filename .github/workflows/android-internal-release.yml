@@ -1,0 +1,256 @@
+name: Android internal release AAB
+
+# Builds a RELEASE-SIGNED Android App Bundle for manual upload to Google Play
+# Internal Testing.
+#
+# IT BUILDS ONLY. There is no Google Play Developer API call anywhere in this
+# workflow: the .aab is uploaded to Play by a human, deliberately, for this
+# first iteration. Automating that comes later, once one complete manual
+# release has been proven end to end.
+#
+# It also cannot touch production: no `pages` permission, no `id-token`, no
+# deployment step. The one credential involved is the UPLOAD key, reconstructed
+# from repository secrets into the runner's temp directory (outside the
+# workspace, so it can never be swept into an artifact) and destroyed
+# afterwards. Google Play App Signing holds the final app-signing key; this
+# repository never sees it.
+#
+# Manual dispatch only. A release build is a deliberate act with a versionCode
+# that can never be reused, so it must not fire on a push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'What this build is for (recorded in the job summary)'
+        required: false
+        default: 'Internal Testing candidate'
+
+permissions:
+  contents: read
+
+concurrency:
+  # Its own group: never queue behind or cancel the Pages deploy or the debug
+  # APK job.
+  group: android-internal-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  aab:
+    name: Build signed release AAB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Same Node major as pr-ci.yml, deploy.yml and android-spike.yml.
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Fail early if signing secrets are missing
+        # Checked BEFORE the long build so a misconfigured repository costs
+        # seconds, not minutes. Only emptiness is ever tested — no secret value
+        # is printed, compared in the open, or written to a file here.
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -z "${KEYSTORE_B64:-}" ]     && missing="$missing ANDROID_UPLOAD_KEYSTORE_BASE64"
+          [ -z "${KEYSTORE_PASSWORD:-}" ] && missing="$missing ANDROID_UPLOAD_KEYSTORE_PASSWORD"
+          [ -z "${KEY_ALIAS:-}" ]         && missing="$missing ANDROID_UPLOAD_KEY_ALIAS"
+          [ -z "${KEY_PASSWORD:-}" ]      && missing="$missing ANDROID_UPLOAD_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — see docs/ANDROID.md, 'Release signing'."
+            exit 1
+          fi
+          echo "All four upload-signing secrets are present."
+
+      - run: npm ci
+
+      # ---- Regression gates: the shared application must still be sound -----
+      #
+      # Identical to the debug APK workflow and to pr-ci.yml, and run BEFORE
+      # anything Android-specific. A release build is the last place to
+      # discover the web app is broken.
+      - name: Test suite
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Web build (GitHub Pages target — regression gate only, never deployed)
+        run: npm run build
+
+      # ---- The native target ------------------------------------------------
+      - name: Native build
+        run: npm run build:native
+
+      - name: Verify the native web bundle
+        run: npm run verify:native
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Ensure the compile SDK and build tools are installed
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      # ---- Signing material, briefly ----------------------------------------
+      - name: Reconstruct the upload keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          # RUNNER_TEMP is outside the workspace, so the keystore cannot be
+          # picked up by actions/upload-artifact or by a stray `git add`.
+          # umask 077 keeps it readable only by the build user.
+          umask 077
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
+          # Size only — never the contents, never a fingerprint that could be
+          # correlated before the artifact exists.
+          echo "Keystore reconstructed ($(stat -c%s "$RUNNER_TEMP/upload-keystore.jks") bytes)."
+
+      - name: Record the release identity
+        id: identity
+        working-directory: android
+        env:
+          ANDROID_UPLOAD_KEYSTORE_FILE: ${{ runner.temp }}/upload-keystore.jks
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon -q :app:printReleaseIdentity | tee identity.txt
+          while IFS='=' read -r key value; do
+            case "$key" in
+              applicationId|versionName|versionCode) echo "$key=$value" >> "$GITHUB_OUTPUT" ;;
+            esac
+          done < identity.txt
+          rm -f identity.txt
+
+      - name: Gradle bundleRelease
+        working-directory: android
+        env:
+          ANDROID_UPLOAD_KEYSTORE_FILE: ${{ runner.temp }}/upload-keystore.jks
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon bundleRelease
+
+      # ---- "Gradle succeeded" is not "ready for Play" ------------------------
+      - name: Verify the bundle is release-signed with the upload key
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          EXPECTED_APPLICATION_ID: ${{ steps.identity.outputs.applicationId }}
+        run: |
+          set -euo pipefail
+          aab=android/app/build/outputs/bundle/release/app-release.aab
+          [ -f "$aab" ] || { echo "::error::no release bundle at $aab"; exit 1; }
+
+          # 1. The bundle carries a valid signature at all.
+          verify="$(jarsigner -verify "$aab")"
+          echo "$verify"
+          echo "$verify" | grep -q "jar verified" || { echo "::error::bundle is not signed"; exit 1; }
+
+          # 2. It is signed by OUR upload key, not something else. Compare the
+          #    signer certificate's SHA-256 against the keystore's own — the
+          #    fingerprint is public information (Play displays it), so this is
+          #    safe to compute; only the passwords stay hidden.
+          signer_sha="$(jarsigner -verify -verbose -certs "$aab" \
+            | grep -A 20 'Signer certificate' | grep -m1 'SHA-256' | tr -d ' ' | cut -d: -f2-)"
+          key_sha="$(keytool -list -v \
+              -keystore "$RUNNER_TEMP/upload-keystore.jks" \
+              -alias "$KEY_ALIAS" \
+              -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
+            | grep -m1 'SHA256:' | tr -d ' ' | cut -d: -f2-)"
+          if [ -z "$signer_sha" ] || [ "$signer_sha" != "$key_sha" ]; then
+            echo "::error::bundle signer does not match the configured upload key"
+            exit 1
+          fi
+          echo "Signer certificate matches the upload key."
+
+          # 3. It is emphatically NOT the Android debug key.
+          if jarsigner -verify -verbose -certs "$aab" | grep -q "CN=Android Debug"; then
+            echo "::error::bundle is DEBUG-signed — Play would reject it"
+            exit 1
+          fi
+
+          # 4. The manifest inside the bundle carries the permanent id.
+          unzip -p "$aab" base/manifest/AndroidManifest.xml | strings \
+            | grep -qx "$EXPECTED_APPLICATION_ID" \
+            || { echo "::error::application id not found in the bundled manifest"; exit 1; }
+          echo "Bundled manifest declares $EXPECTED_APPLICATION_ID."
+
+          # 5. No signing material rode along inside the bundle. The signature
+          #    itself lives in META-INF and is expected; a keystore is not.
+          if unzip -l "$aab" | grep -Eq '\.(jks|keystore|p12)$'; then
+            echo "::error::a keystore is present INSIDE the bundle"
+            exit 1
+          fi
+          echo "No keystore material inside the bundle."
+
+      - name: Name the bundle and summarise
+        id: bundle
+        env:
+          APPLICATION_ID: ${{ steps.identity.outputs.applicationId }}
+          VERSION_NAME: ${{ steps.identity.outputs.versionName }}
+          VERSION_CODE: ${{ steps.identity.outputs.versionCode }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          out="fjallkompis-${VERSION_NAME}-${VERSION_CODE}-internal-release.aab"
+          mkdir -p artifact
+          cp android/app/build/outputs/bundle/release/app-release.aab "artifact/${out}"
+          size="$(du -h "artifact/${out}" | cut -f1)"
+          bytes="$(stat -c%s "artifact/${out}")"
+          echo "name=${out}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Fjällkompis — Internal Testing bundle"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| File | \`${out}\` |"
+            echo "| Size | ${size} (${bytes} bytes) |"
+            echo "| Application id | \`${APPLICATION_ID}\` |"
+            echo "| versionName | \`${VERSION_NAME}\` |"
+            echo "| versionCode | \`${VERSION_CODE}\` |"
+            echo "| Signing | upload key (verified), Play App Signing to be enabled on first upload |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo "| Reason | ${REASON} |"
+            echo
+            echo "Upload manually in Play Console. Nothing was published by this workflow."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: fjallkompis-android-internal-release
+          # Only the bundle. No mapping files, no intermediates, no keystore.
+          path: artifact/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Destroy the temporary signing material
+        # always(): the keystore must not survive a failed build either.
+        if: always()
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/upload-keystore.jks"
+          if [ -f "$target" ]; then
+            shred -u "$target" 2>/dev/null || rm -f "$target"
+          fi
+          # Belt and braces: nothing keystore-shaped anywhere in the workspace.
+          find "$GITHUB_WORKSPACE" -type f \
+            \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' \) -delete 2>/dev/null || true
+          echo "Signing material removed."
