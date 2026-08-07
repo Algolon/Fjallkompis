@@ -106,7 +106,7 @@ test('both navigation instances still bracket <main> in the shell', () => {
   assert.match(app, /<TabBar active=\{nav\.tab\} onChange=\{navigate\} variant="rail" \/>/);
   assert.match(app, /<TabBar active=\{nav\.tab\} onChange=\{navigate\} variant="bar" \/>/);
   const railIdx = app.indexOf('variant="rail"');
-  const mainIdx = app.indexOf('<main key=');
+  const mainIdx = app.search(/<main\s+key=/);
   const barIdx = app.indexOf('variant="bar"');
   assert.ok(mainIdx !== -1, 'the shell has its single <main> scroll region');
   assert.ok(railIdx < mainIdx && mainIdx < barIdx, 'rail → main → bar order preserved');

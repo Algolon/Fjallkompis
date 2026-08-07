@@ -166,7 +166,7 @@ test('the contour backdrop is rendered once, at shell level, outside <main>', ()
   // keyed <main> is what keeps it mounted across home ↔ subroute swaps.
   const rail = app.indexOf('variant="rail"');
   const backdrop = app.indexOf('<SectionBackdrop');
-  const main = app.indexOf('<main key=');
+  const main = app.search(/<main\s+key=/);
   assert.ok(rail >= 0 && backdrop > rail && main > backdrop);
   // The screens themselves no longer own a backdrop layer.
   assert.ok(!read('src/screens/GuideScreen.tsx').includes('screen-bg'));

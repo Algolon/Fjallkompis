@@ -195,10 +195,11 @@ test('App forwards the one-shot payloads into the destination screens', () => {
 test('payloads stay one-shot and in-memory — nothing navigational persists', () => {
   const app = read('src/App.tsx');
   assert.ok(!/localStorage/.test(app), 'the shell never touches storage');
-  // The direction-change reset drops the payload but keeps the destination.
+  // The direction-change reset drops the payload but keeps the destination
+  // (and the freshTab transition flag — see tests/section-transition.test.mjs).
   assert.match(
     app,
-    /setNav\(\(n\) => \(n\.payload \? \{ tab: n\.tab, section: n\.section \} : n\)\)/,
+    /setNav\(\(n\) =>\s*\n?\s*n\.payload \? \{ tab: n\.tab, section: n\.section, freshTab: n\.freshTab \} : n,?\s*\n?\s*\)/,
   );
   // Storage/migration/export know nothing about payload fields.
   const mig = read('src/utils/stateMigration.mjs');
