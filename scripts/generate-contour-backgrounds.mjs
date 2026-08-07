@@ -46,7 +46,7 @@ import { execFileSync } from 'node:child_process';
 import { gunzipSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -277,7 +277,7 @@ function decodeTilePaths(buf) {
  * double-drawn. Returns the fragments that lie inside, with exact crossing
  * points on the cell boundary (Liang–Barsky per segment).
  */
-function clipToCell(points, extent) {
+export function clipToCell(points, extent) {
   const inside = ([x, y]) => x >= 0 && x <= extent && y >= 0 && y <= extent;
   const fragments = [];
   let current = null;
@@ -345,7 +345,7 @@ function clipToCell(points, extent) {
  * never cross, so within-tolerance neighbours on a seam are the same line).
  * The junction pair is healed to its midpoint.
  */
-function stitchFragments(fragments, tolerance) {
+export function stitchFragments(fragments, tolerance) {
   const merged = fragments.map((f) => ({ points: f.points.slice(), elev: f.elev }));
   const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= tolerance;
   let joined = true;
@@ -356,14 +356,28 @@ function stitchFragments(fragments, tolerance) {
         if (merged[i].elev !== merged[j].elev) continue;
         const A = merged[i].points;
         const B = merged[j].points;
+        // Each orientation records WHERE its junction landed: the index k
+        // such that the touching pair is next[k-1] (from the first-placed
+        // fragment) and next[k] (from the second). For the B-first
+        // orientation that is B.length — inferring A.length afterwards
+        // would heal a pair in the middle of B instead of the seam.
         let next = null;
-        if (near(A[A.length - 1], B[0])) next = [...A, ...B];
-        else if (near(A[A.length - 1], B[B.length - 1])) next = [...A, ...B.slice().reverse()];
-        else if (near(A[0], B[0])) next = [...A.slice().reverse(), ...B];
-        else if (near(A[0], B[B.length - 1])) next = [...B, ...A];
+        let k = -1;
+        if (near(A[A.length - 1], B[0])) {
+          next = [...A, ...B];
+          k = A.length;
+        } else if (near(A[A.length - 1], B[B.length - 1])) {
+          next = [...A, ...B.slice().reverse()];
+          k = A.length;
+        } else if (near(A[0], B[0])) {
+          next = [...A.slice().reverse(), ...B];
+          k = A.length;
+        } else if (near(A[0], B[B.length - 1])) {
+          next = [...B, ...A];
+          k = B.length;
+        }
         if (next) {
           // Heal the junction: replace the touching pair with its midpoint.
-          const k = A.length; // junction sits between next[k-1] and next[k]
           const mid = [
             (next[k - 1][0] + next[k][0]) / 2,
             (next[k - 1][1] + next[k][1]) / 2,
@@ -578,18 +592,25 @@ function scan(archive, z) {
 
 // ---------------------------------------------------------------------------
 
-const [archive, flag, arg] = process.argv.slice(2);
-if (!archive || !flag) {
-  console.error(
-    'usage: node scripts/generate-contour-backgrounds.mjs <archive.pmtiles> (--scan <z> | --emit)',
-  );
-  process.exit(1);
-}
-if (flag === '--scan') {
-  scan(archive, Number(arg ?? 12));
-} else if (flag === '--emit') {
-  for (const region of REGIONS) emitRegion(archive, region);
-} else {
-  console.error(`unknown flag ${flag}`);
-  process.exit(1);
+// CLI entry only when executed directly — the geometry helpers above are
+// importable (tests/contour-generator-geometry.test.mjs) without side
+// effects, keeping the generator itself deterministic and test-covered.
+const invokedDirectly =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
+  const [archive, flag, arg] = process.argv.slice(2);
+  if (!archive || !flag) {
+    console.error(
+      'usage: node scripts/generate-contour-backgrounds.mjs <archive.pmtiles> (--scan <z> | --emit)',
+    );
+    process.exit(1);
+  }
+  if (flag === '--scan') {
+    scan(archive, Number(arg ?? 12));
+  } else if (flag === '--emit') {
+    for (const region of REGIONS) emitRegion(archive, region);
+  } else {
+    console.error(`unknown flag ${flag}`);
+    process.exit(1);
+  }
 }
