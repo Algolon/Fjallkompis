@@ -54,6 +54,19 @@ interface Nav {
   section: SectionId | null;
   /** One-shot payload consumed by the destination screen on mount. */
   payload?: NavPayload;
+  /**
+   * True when this destination was reached from a DIFFERENT tab. The shell
+   * then suppresses the destination screen's content fade (see the <main>
+   * className + section-themes.css): the persistent SectionBackdrop swaps
+   * instantly on tab changes, so a content fade from 0 would expose a
+   * full-strength standalone backdrop for ~200 ms — the physical-device
+   * "contours over the cards" flash. Within-tab navigation keeps the fade
+   * (the backdrop is the SAME surface throughout, so the fade reads as one
+   * composed page). Stable for the lifetime of a destination: re-selecting
+   * the current destination preserves it, so a settled screen's animation
+   * state never flips without a remount.
+   */
+  freshTab?: boolean;
 }
 
 function Screens({
@@ -219,7 +232,11 @@ function AppShell() {
     if (prevDirectionRef.current === routeDirection) return;
     prevDirectionRef.current = routeDirection;
     setMapViewStageId(INITIAL_MAP_VIEW_STAGE_ID);
-    setNav((n) => (n.payload ? { tab: n.tab, section: n.section } : n));
+    // freshTab survives: the destination did not change, so its screen's
+    // animation state must not flip (see the Nav.freshTab contract).
+    setNav((n) =>
+      n.payload ? { tab: n.tab, section: n.section, freshTab: n.freshTab } : n,
+    );
   }, [routeDirection]);
 
   // Keep --app-height in sync with the real canvas so the shell (and the tab
@@ -287,7 +304,11 @@ function AppShell() {
         return;
       }
       window.scrollTo(0, 0);
-      setNav({ tab: dest.tab, section: dest.section });
+      setNav({
+        tab: dest.tab,
+        section: dest.section,
+        freshTab: dest.tab !== navRef.current.tab,
+      });
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -304,7 +325,18 @@ function AppShell() {
     // the swap; destinations that deep-link (Stops expanding a stop)
     // re-scroll themselves on mount afterwards.
     window.scrollTo(0, 0);
-    setNav({ tab, section, payload });
+    setNav((prev) => ({
+      tab,
+      section,
+      payload,
+      // Cross-tab arrivals suppress the content fade; re-selecting the SAME
+      // destination (identical key → no remount) preserves the flag so the
+      // settled screen's animation property never changes in place — which
+      // would restart the fade on an already-visible screen.
+      freshTab:
+        tab !== prev.tab ||
+        (section === prev.section && prev.freshTab === true),
+    }));
     // Push the destination onto history AFTER state is queued: the
     // resulting hashchange sees the same destination and leaves the payload
     // alone. Re-selecting the current destination must not stack duplicates.
@@ -363,8 +395,14 @@ function AppShell() {
             remount so it persists across home ↔ subroute navigation — no
             flicker, no re-request, no first-frame resize. */}
         {sectionTheme ? <SectionBackdrop section={sectionTheme} /> : null}
-        {/* key forces the fade-in animation per destination change */}
-        <main key={`${nav.tab}${nav.section ? `-${nav.section}` : ''}`}>
+        {/* key forces the fade-in animation per destination change; a
+            cross-tab arrival mounts COMPOSED instead (no content fade), so
+            the instantly-swapped backdrop is never exposed behind
+            near-transparent UI — see Nav.freshTab. */}
+        <main
+          key={`${nav.tab}${nav.section ? `-${nav.section}` : ''}`}
+          className={nav.freshTab ? 'main-tab-switch' : undefined}
+        >
           <Screens
             nav={nav}
             navigate={navigate}
