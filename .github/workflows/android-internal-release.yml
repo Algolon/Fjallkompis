@@ -167,7 +167,20 @@ jobs:
             3082*|3081*) kind="PKCS12" ;;
             *) kind="UNRECOGNISED" ;;
           esac
+          # WHICH keystore is this? A file digest identifies the container
+          # without revealing anything inside it — it is a hash of encrypted
+          # bytes, not a credential. This exists because "the password does
+          # not open it" has two very different causes, and they are
+          # indistinguishable from the error alone: a wrong password, or a
+          # keystore that is simply not the file whose password you know
+          # (typically because the keystore was regenerated after the base64
+          # secret was set). Comparing this digest against the local file
+          # settles it in one step.
+          digest=$(sha256sum "$ks" | cut -d' ' -f1)
           echo "Decoded keystore: ${size} bytes, container looks like ${kind}."
+          echo "Keystore SHA-256: ${digest}"
+          echo "Compare locally with:  shasum -a 256 fjallkompis-upload.jks"
+          echo "If those differ, ANDROID_UPLOAD_KEYSTORE_BASE64 holds a DIFFERENT keystore than the one you have — re-encode and update that secret."
           if [ "$kind" = "UNRECOGNISED" ]; then
             echo "::error::ANDROID_UPLOAD_KEYSTORE_BASE64 did not decode to a keystore. Re-run: base64 -i fjallkompis-upload.jks | pbcopy, and paste the WHOLE value."
             exit 1
