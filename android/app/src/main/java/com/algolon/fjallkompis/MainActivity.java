@@ -69,20 +69,29 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
-        // TYPOGRAPHY PARITY WITH THE BROWSER/PWA. Android's WebView defaults
-        // its text zoom to the SYSTEM font scale (fontScale × 100), while
-        // Chrome renders CSS pixels unscaled and handles text sizing through
-        // its own accessibility setting. So on any device with a non-default
-        // font size — most Samsungs — the wrapper rendered every heading,
-        // body line and chip label 10–30% larger than the browser, while all
-        // px-based spacing, card geometry and line boxes stayed fixed: text
-        // felt heavy, subtitles wrapped against card edges, and the whole app
-        // read as subtly "off" against the tested design (the Samsung
-        // screenshot evidence for this pass). Pinning 100 restores the exact
-        // typography every layout contract was validated against. This is a
-        // parity decision, not an accessibility removal: the installed PWA —
-        // the app's primary form — has never followed the system font scale
-        // either, so the wrapper now matches the app's real baseline.
+        // TYPOGRAPHY PARITY GUARD.
+        //
+        // Android documents 100 as the DEFAULT for WebSettings.setTextZoom, so
+        // this is a guard rather than a correction of a documented default:
+        // it pins text scaling to the exact value every layout contract in
+        // this app was validated against, independent of any device-, OEM- or
+        // configuration-level text-scaling behaviour that might otherwise
+        // reach the WebView. Capacitor never sets it (verified against
+        // @capacitor/android 8.5.0 sources), so without this line the value
+        // is simply whatever the platform hands us.
+        //
+        // Physical evidence: with the pin in place, the wrapper's typography
+        // and sizing were confirmed on the Samsung to match the intended
+        // PWA appearance, and approved for this spike. Deliberately NOT
+        // claimed here: a specific root cause for the earlier mismatch. The
+        // fix was verified by its result, not by a mechanism this codebase
+        // can prove.
+        //
+        // OPEN PRODUCT/ACCESSIBILITY DECISION, out of scope for this spike:
+        // whether the wrapper should instead honour the reader's system
+        // font-size preference. Pinning matches the installed PWA's existing
+        // behaviour, so it is the consistent default for now — but it is a
+        // decision, and a real one, not a permanent answer.
         this.getBridge().getWebView().getSettings().setTextZoom(100);
 
         // With a transparent navigation bar, Android draws its own

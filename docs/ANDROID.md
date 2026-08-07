@@ -224,55 +224,89 @@ drawable's launch-only status.
 
 ---
 
-## Startup: splash → veil → app
+## Startup: one static launch surface, revealed
 
-A cold start is three surfaces designed to read as one:
+A cold start is three surfaces designed to look like one, held still and then
+revealed:
 
-1. **System splash** (Android 12+ composes it; 7–11 use the theme's window
-   background): the mark on the launch colour `#dce4d8`.
+1. **System splash** — Android 12+ composes it from `windowSplashScreen*`;
+   Android 7–11 shows the theme's window background. The mark on the launch
+   colour `#dce4d8`.
 2. **Boot veil** — inline, script-free markup the native build injects into
-   `index.html` (`nativeBootVeil` in vite.config.ts). Same mark, same colour,
-   painted before any JavaScript runs, so the splash hands off to an
-   identical frame instead of a flat empty colour. While React parses and
-   mounts, the compass ring sways gently (±7°, one calm 3.2 s cycle, starting
-   at 0° for a seamless handoff) around a stationary mountain — a compass
-   settling, not a spinner. Two copies of the same PNG make this possible
-   with no new artwork: the bottom copy rotates whole; the top copy is
-   clipped to `circle(30.3%)`, the measured midpoint of the logo's continuous
-   white inner ring, so the seam is always rotationally-symmetric white.
-   `prefers-reduced-motion` disables the sway.
-3. **The app**, fading in over the veil (220 ms) as soon as the first React
-   frame has painted — `dismissNativeBootVeil()` in the platform adapter,
-   double-`requestAnimationFrame` after `render()`. There is no minimum
-   display time and no timer gating visibility: the veil can only ever make
-   launch *feel* smoother, never *be* slower.
+   `index.html` (`nativeBootVeil` in vite.config.ts). The *same* mark on the
+   *same* colour at the *same* size, painted before any JavaScript runs, so
+   the splash hands off to a visually identical frame instead of a flat empty
+   colour while React parses.
+3. **The completed app**, revealed by a 180 ms fade of the veil once the UI
+   beneath it is fully painted and opaque.
+
+**The logo does not move, and nothing waits on a clock.** No spinner, no
+rotation, no progress text, no minimum display time, no artificial delay.
+
+### Two things this got wrong first — do not reintroduce them
+
+**Motion.** An earlier revision rotated the compass ring. On a real device the
+start-up is far too short for it to register; all it communicated was that
+something might still be loading, which made the launch feel hesitant rather
+than smooth. Removed on physical evidence.
+
+**The overlapping fade.** The veil used to start fading as soon as React's
+first frame painted — while the shell's own entrance animation
+(`.screen { animation: fade … }`) was still fading that screen in from
+`opacity: 0`. Both surfaces were part-transparent at the same moment and the
+flat launch background showed through the pair: a visible blink between logo
+and app. The fix is ordering, in `dismissNativeBootVeil()`:
+
+1. two `requestAnimationFrame`s — wait for React's first commit to be painted;
+2. **finish** the shell's finite entrance animations, so the UI is opaque;
+3. one more frame, so that opaque frame reaches the screen;
+4. only then fade the veil.
+
+Finishing beats suppressing: nothing has to be un-suppressed afterwards, so
+normal navigation keeps its transition with no class to remove and no risk of
+re-triggering a fade on a settled screen. Infinite decorative animations (the
+tracking-pill blink, the status pulse) are skipped — they never drive page
+opacity, and `finish()` throws on an unbounded effect.
+
+### Geometry
+
+The mark is **196 px / 196 dp on all three surfaces**, derived rather than
+chosen: Android composes an API 31+ splash icon on a 288 dp canvas, and
+`ic_launcher_foreground` insets the artwork 16% per side, so the system draws
+it at 68% × 288 dp ≈ 196 dp. A WebView CSS pixel is a dp, so the veil uses
+196 px and `fjallkompis_splash.xml` (the Android 7–11 path) uses 196 dp. The
+logo therefore never changes size across the handoff.
 
 The web and PWA builds never contain the veil (they boot from a
 service-worker cache), and the dismissal is gated on the element's existence,
-so it is a guaranteed no-op there. If the icon artwork is ever regenerated,
-re-measure the clip radius (blue disc to 29.5%, dark ring from 31.3% of the
-image side — see the veil plugin comment).
+so it is a guaranteed no-op there.
 
 ---
 
-## Typography parity: WebView text zoom
+## Typography: the text-zoom parity guard
 
 `MainActivity` pins `WebSettings.setTextZoom(100)`.
 
-Android's WebView defaults its text zoom to the **system font scale** × 100,
-while Chrome renders CSS pixels unscaled (its text sizing lives in a separate
-browser setting). On any device with a non-default font size — most Samsungs —
-the unpinned wrapper rendered every heading, body line and chip label 10–30%
-larger than the browser while all px-based spacing, card geometry and line
-boxes stayed fixed. Nothing was individually wrong, and everything was
-slightly off: heavy headings, subtitles wrapping against card edges, cramped
-chips — the exact "off feeling" the Samsung screenshots showed.
+Android documents 100 as the **default** for `setTextZoom`, so treat this as a
+*guard*, not a correction of a documented default: it pins text scaling to the
+exact value every layout contract in this app was validated against (Today's
+611 px budget included), independent of any device-, OEM- or
+configuration-level text-scaling behaviour that might otherwise reach the
+WebView. Capacitor never sets it (verified against `@capacitor/android` 8.5.0
+sources), so without the line the value is simply whatever the platform hands
+us.
 
-Pinning 100 restores the precise typography every layout contract (Today's
-611px budget included) was validated against. This is **browser parity, not
-an accessibility removal**: the installed PWA — this app's primary form — has
-never followed the Android system font scale either, so the wrapper now
-matches the app's real baseline rather than diverging from it.
+**Physical evidence:** with the pin in place, the wrapper's typography and
+sizing were confirmed on the Samsung to match the intended PWA appearance and
+approved for this spike. No specific root cause is claimed for the earlier
+mismatch — the result was verified, the mechanism was not, and an unsupported
+root-cause claim in a doc is worse than none.
+
+**Open product/accessibility decision, out of scope here:** whether the
+wrapper should instead honour the reader's system font-size preference.
+Pinning matches the installed PWA's existing behaviour, so it is the
+consistent default for now — but it is a real decision, not a permanent
+answer, and it belongs to a later accessibility pass.
 
 ---
 

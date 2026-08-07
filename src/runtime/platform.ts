@@ -113,33 +113,74 @@ export async function initializeNativeShell(): Promise<void> {
 }
 
 /**
- * Fade out and remove the native boot veil, if this document has one.
+ * Jump every finite entrance animation inside the shell straight to its end.
+ *
+ * The app shell fades each destination in (`.screen { animation: fade … }`,
+ * opacity 0 → 1). That is right for navigation and wrong for the very first
+ * frame under the boot veil: the veil's own fade-out and the screen's fade-in
+ * would overlap, both surfaces would be part-transparent at the same moment,
+ * and the flat launch background would show through the pair. Finishing the
+ * animation is preferable to suppressing it — nothing has to be un-suppressed
+ * afterwards, so the next navigation animates completely normally, with no
+ * class to remove and no risk of re-triggering a fade on a settled screen.
+ *
+ * Infinite animations (the tracking-pill blink, the status pulse) are skipped
+ * rather than finished: they are decorative, they never drive page opacity,
+ * and `finish()` throws on an unbounded effect.
+ */
+function settleShellEntranceAnimations(): void {
+  const shell = document.querySelector('.app');
+  if (!shell || typeof shell.getAnimations !== 'function') return;
+  for (const animation of shell.getAnimations({ subtree: true })) {
+    const timing = animation.effect?.getComputedTiming();
+    if (!timing || timing.iterations === Infinity || timing.duration === Infinity) {
+      continue;
+    }
+    try {
+      animation.finish();
+    } catch {
+      // A refusing animation simply keeps running; it is never the surface
+      // the veil is handing over to.
+    }
+  }
+}
+
+/**
+ * Reveal the app by fading out and removing the native boot veil.
  *
  * The veil is inline markup the NATIVE build injects into index.html (see
- * nativeBootVeil in vite.config.ts): it bridges the visual gap between the
- * Android splash dismissing and React's first paint, showing the same mark on
- * the same launch colour with the compass ring settling gently. The web and
- * PWA builds never contain the element, so this function is a guaranteed
- * no-op there — the element's existence is the runtime gate, which also means
- * the veil still dismisses correctly even if runtime detection were ever
- * wrong.
+ * nativeBootVeil in vite.config.ts): the same static mark on the same launch
+ * colour the Android splash shows, holding the frame while React parses. The
+ * web and PWA builds never contain the element, so this function is a
+ * guaranteed no-op there — the element's existence is the runtime gate, which
+ * also means the veil still dismisses correctly even if runtime detection
+ * were ever wrong.
  *
- * TIMING: called from main.tsx immediately after render() is queued. The
- * double requestAnimationFrame waits for the first committed frame to be
- * painted — the veil starts fading only once real UI exists underneath it,
- * which is what prevents the pop-in, and never later than that, which is what
- * keeps launch exactly as fast as it was. The timeout is a lost-transitionend
- * failsafe (backgrounded tab), not a display-time floor.
+ * THE ORDER IS THE FIX, and each step earns its frame:
+ *   1. two rAFs — wait for React's first commit to actually be painted;
+ *   2. settle the entrance animations, so the UI beneath is fully OPAQUE
+ *      rather than mid-fade;
+ *   3. one more rAF — let that opaque frame reach the screen;
+ *   4. only then start the veil's 180 ms fade, over finished UI.
+ *
+ * So there is never a moment when both the launch surface and the app are
+ * substantially transparent. Nothing here waits on a clock: no minimum
+ * display time, no artificial delay, no step whose purpose is to keep the
+ * logo visible longer. The timeout is a lost-transitionend failsafe (a
+ * backgrounded WebView never fires one), not a floor.
  */
 export function dismissNativeBootVeil(): void {
   const veil = document.getElementById('native-boot-veil');
   if (!veil) return;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      veil.classList.add('veil-out');
-      const remove = () => veil.remove();
-      veil.addEventListener('transitionend', remove, { once: true });
-      window.setTimeout(remove, 600);
+      settleShellEntranceAnimations();
+      requestAnimationFrame(() => {
+        veil.classList.add('veil-out');
+        const remove = () => veil.remove();
+        veil.addEventListener('transitionend', remove, { once: true });
+        window.setTimeout(remove, 600);
+      });
     });
   });
 }

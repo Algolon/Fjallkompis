@@ -10,9 +10,14 @@
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/fjallkompisLaunch" />
+    <!-- 196dp matches what API 31+ draws for the same mark (a 288dp splash
+         icon canvas, inset 16% per side by ic_launcher_foreground = 68% x
+         288dp), and matches the web boot veil's 196px. All three launch
+         surfaces therefore present the logo at one size, so nothing jumps at
+         the handoff. -->
     <item
         android:drawable="@drawable/fjallkompis_mark"
         android:gravity="center"
-        android:width="144dp"
-        android:height="144dp" />
+        android:width="196dp"
+        android:height="196dp" />
 </layer-list>

@@ -106,9 +106,16 @@ if (!existsSync(indexPath)) {
   if (!index.includes('id="native-boot-veil"')) {
     fail('dist/index.html is missing the native boot veil — the splash-to-app handoff would be abrupt');
   } else {
-    const veilBlock = index.slice(index.indexOf('id="native-boot-veil"'));
+    const veilStart = index.lastIndexOf('<style>', index.indexOf('id="native-boot-veil"'));
+    const veilBlock = index.slice(veilStart);
     if (/<script/i.test(veilBlock)) {
       fail('the boot veil region contains a <script> — it must stay pure markup+CSS so it paints before any JS');
+    }
+    // The veil is a STILL image by decision, on physical evidence: motion on
+    // a launch this short only signals "still loading". See the plugin
+    // comment in vite.config.ts before adding anything that moves.
+    if (/@keyframes|animation:|animation-name/.test(veilBlock)) {
+      fail('the boot veil declares an animation — the launch mark must stay completely static');
     }
   }
 }

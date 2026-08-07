@@ -558,50 +558,103 @@ test('the boot veil is injected only into the native build, script-free', () => 
   assert.match(veil, /id="native-boot-veil"/);
   assert.ok(!/<script/i.test(veil), 'the veil must paint before any JS — no script tags');
   assert.match(veil, /background: #dce4d8/, 'the veil wears the launch colour the splash already shows');
-  assert.match(veil, /\.\/icons\/icon-512\.png/, 'the veil reuses the existing mark — no new artwork');
+  assert.match(veil, /\/icons\/icon-512\.png/, 'the veil reuses the existing mark — no new artwork');
 });
 
-test('the veil animation is the measured compass-settle, calm and motion-safe', () => {
+test('the boot veil is completely static — no motion of any kind', () => {
+  // Physical evidence retired the compass rotation: a real cold start is too
+  // short for motion to register, so it only suggested "still loading" and
+  // made the launch feel hesitant. The veil is now one still image, and must
+  // stay one — no spinner, no rotation, no pulse, no progress text.
   const veil = vite.match(/function nativeBootVeil\(\): Plugin[\s\S]*?\n\}/)?.[0] ?? '';
-  // Two copies of one logo: the bottom sways whole, the top pins the mountain
-  // still. circle(30.3%) is the MEASURED midpoint of the logo's continuous
-  // white inner ring (blue disc to 29.5%, dark ring from 31.3% of the image
-  // side), so the seam under the static core is always rotationally-symmetric
-  // white — regenerating the icon means re-measuring this number.
-  assert.match(veil, /veil-ring/);
-  assert.match(veil, /veil-core/);
-  assert.match(veil, /clip-path: circle\(30\.3% at 50% 50%\)/);
-  // Gentle sway, starting AND ending at 0° so it continues seamlessly from
-  // the static splash mark; never a full-rotation spinner.
-  assert.match(veil, /0% \{ transform: rotate\(0deg\); \}/);
-  assert.match(veil, /100% \{ transform: rotate\(0deg\); \}/);
-  assert.ok(!/360deg/.test(veil), 'the compass settles; it does not spin');
-  assert.match(veil, /prefers-reduced-motion: reduce/, 'reduced motion gets the static mark');
+  assert.ok(veil, 'the veil plugin exists');
+  assert.ok(!/@keyframes/.test(veil), 'the veil declares no keyframes');
+  assert.ok(!/animation:|animation-name/.test(veil), 'the veil animates nothing');
+  assert.ok(!/rotate\(|clip-path/.test(veil), 'no rotation, and no clipped second copy to enable one');
+  // Exactly ONE image: the two-copy trick existed only to pin the mountain
+  // while the ring turned.
+  assert.equal((veil.match(/<img/g) ?? []).length, 1, 'one static mark');
+  // The only transition is the reveal itself, and it is short.
+  const transitions = veil.match(/transition: opacity ([\d.]+)s/g) ?? [];
+  assert.equal(transitions.length, 1, 'opacity is the only thing that ever transitions');
+  const seconds = Number(veil.match(/transition: opacity ([\d.]+)s/)[1]);
+  assert.ok(seconds > 0 && seconds <= 0.25, `the reveal stays short (${seconds}s)`);
+});
+
+test('the launch mark is the same size on every surface', () => {
+  // 288dp splash icon canvas x 68% (ic_launcher_foreground insets 16% per
+  // side) ~= 196dp, and a WebView CSS pixel is a dp. All three launch
+  // surfaces therefore present the logo identically and nothing jumps at the
+  // handoff.
+  const veil = vite.match(/function nativeBootVeil\(\): Plugin[\s\S]*?\n\}/)?.[0] ?? '';
+  assert.match(veil, /width: 196px;\s*height: 196px;/, 'the veil mark is 196px');
+  const splash = read('android/app/src/main/res/drawable/fjallkompis_splash.xml');
+  assert.match(splash, /android:width="196dp"/, 'the pre-API-31 splash mark is 196dp');
+  assert.match(splash, /android:height="196dp"/);
+  assert.match(
+    read('android/app/src/main/res/drawable/ic_launcher_foreground.xml'),
+    /android:inset="16%"/,
+    'the 196 figure is derived from this inset — changing it invalidates both sizes',
+  );
+});
+
+test('the veil reveals only opaque UI — no frame with both surfaces transparent', () => {
+  // THE bug from the Samsung recording: the veil faded while the shell's own
+  // entrance animation was still fading the first screen in from opacity 0,
+  // so the flat launch background showed through both. The fix is ordering —
+  // settle the entrance animations, let that opaque frame paint, THEN fade.
+  const impl = platform.match(/export function dismissNativeBootVeil[\s\S]*?\n\}\n/)?.[0];
+  assert.ok(impl, 'the adapter owns the dismissal');
+  const settleIndex = impl.indexOf('settleShellEntranceAnimations()');
+  const fadeIndex = impl.indexOf("classList.add('veil-out')");
+  assert.ok(settleIndex > 0, 'the entrance animations are settled');
+  assert.ok(fadeIndex > settleIndex, 'the fade starts only AFTER the UI beneath is opaque');
+  // A frame between settling and fading, so the opaque UI actually reaches
+  // the screen before the reveal begins.
+  const between = impl.slice(settleIndex, fadeIndex);
+  assert.match(between, /requestAnimationFrame/, 'the opaque frame is given a paint');
+
+  const settle = platform.match(/function settleShellEntranceAnimations[\s\S]*?\n\}/)?.[0];
+  assert.ok(settle, 'the settling helper exists');
+  assert.match(settle, /getAnimations\(\{ subtree: true \}\)/);
+  assert.match(settle, /animation\.finish\(\)/, 'finish, do not suppress — nothing to undo afterwards');
+  assert.match(settle, /iterations === Infinity/, 'infinite decorative animations are skipped');
+  // Finishing rather than suppressing is what keeps ordinary navigation
+  // animated: no class is added to the shell that would have to come off.
+  assert.ok(
+    !/main-tab-switch|classList\.add\('screen/.test(codeOf(platform)),
+    'the adapter must not disable the shell transition it would then have to restore',
+  );
 });
 
 test('the veil dismisses on first paint — no minimum display time', () => {
-  // main.tsx calls the dismissal AFTER render() so the double-rAF resolves
+  // main.tsx calls the dismissal AFTER render() so the rAF chain resolves
   // behind React's first committed frame. There must be no delay primitive
   // gating visibility — the failsafe timeout only backs up a lost
   // transitionend, it never postpones the fade.
   const renderIndex = codeOf(main).indexOf('createRoot(');
   const dismissIndex = codeOf(main).indexOf('dismissNativeBootVeil()');
   assert.ok(renderIndex > 0 && dismissIndex > renderIndex, 'dismissal is queued after render()');
-  const impl = platform.match(/export function dismissNativeBootVeil[\s\S]*?\n\}/)?.[0];
-  assert.ok(impl, 'the adapter owns the dismissal');
+  const impl = platform.match(/export function dismissNativeBootVeil[\s\S]*?\n\}\n/)?.[0];
   assert.match(impl, /getElementById\('native-boot-veil'\)/);
-  assert.match(impl, /requestAnimationFrame/, 'waits for a painted frame, not a timer');
+  assert.match(impl, /requestAnimationFrame/, 'waits for painted frames, not a clock');
   assert.match(impl, /if \(!veil\) return;/, 'web/PWA (no element) is a guaranteed no-op');
   assert.ok(!/setInterval/.test(codeOf(platform)), 'no polling');
+  // The ONLY timer permitted is the transitionend failsafe, and it must be
+  // longer than the fade rather than a display floor before it.
+  const timers = [...codeOf(platform).matchAll(/setTimeout\([^,]+,\s*(\d+)\)/g)].map((m) => Number(m[1]));
+  assert.equal(timers.length, 1, 'exactly one timer in the adapter');
+  assert.ok(timers[0] >= 400, `the failsafe backs up the fade rather than gating it (${timers[0]}ms)`);
 });
 
-test('WebView text zoom is pinned to 100 for browser/PWA typography parity', () => {
-  // Android WebView defaults textZoom to the SYSTEM font scale × 100; Chrome
-  // renders CSS px unscaled. Without this pin the wrapper renders all text
-  // enlarged on any device with a non-default font size while px-based
-  // geometry stays fixed — the Samsung "everything feels slightly off"
-  // evidence. Capacitor itself never touches textZoom (verified against
-  // @capacitor/android 8.5.0 sources), so the shell must.
+test('WebView text zoom is pinned as an explicit parity guard', () => {
+  // Android documents 100 as setTextZoom's default, so this is a GUARD, not
+  // a fix for a documented default: it pins text scaling to the value every
+  // layout contract was validated against, whatever the platform would
+  // otherwise hand the WebView. Capacitor never sets it (verified against
+  // @capacitor/android 8.5.0 sources). Physical Samsung evidence approved
+  // the resulting typography; no root cause is claimed for the earlier
+  // mismatch, and none should be asserted here.
   assert.match(codeOf(activity), /getSettings\(\)\.setTextZoom\(100\)/);
 });
 

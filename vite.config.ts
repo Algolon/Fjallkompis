@@ -120,12 +120,19 @@ function nativeBuildMarker(): Plugin {
 /**
  * Native boot veil — the splash-to-app handoff surface (native build only).
  *
- * WHAT IT SMOOTHS. On a cold start the Android splash (mark on the launch
+ * WHAT IT SMOOTHS. On a cold start the Android splash (the mark on the launch
  * colour) dismisses at the activity's first frame, but the React bundle is
- * still parsing for a few hundred milliseconds — the user briefly sees a
- * flat empty colour, then the whole UI pops in at once. The veil fills that
- * gap with the same mark on the same colour, so the sequence reads as one
- * continuous surface: splash → veil (identical visual) → app fades in.
+ * still parsing — leaving the user on a flat empty colour until the whole UI
+ * pops in at once. The veil holds the SAME mark on the SAME colour across
+ * that gap, so the launch reads as one continuous surface that is simply
+ * revealed: splash → veil (visually identical) → completed app.
+ *
+ * DELIBERATELY STATIC. An earlier revision rotated the compass ring gently.
+ * Physical evidence killed it: a real cold start is far too short for the
+ * motion to register, so all it added was a suggestion that something was
+ * still loading — the launch felt hesitant rather than smooth. There is no
+ * animation here now, and none should be added: no spinner, no rotation, no
+ * progress text, no minimum display time. The logo does not move.
  *
  * WHY IT LIVES IN index.html. It must paint before ANY JavaScript runs —
  * that is the entire point — so it is inline markup + inline CSS with no
@@ -133,21 +140,20 @@ function nativeBuildMarker(): Plugin {
  * PWA builds never contain it (the PWA boots from a service-worker cache
  * fast enough that a veil would only add churn).
  *
- * THE ANIMATION. The compass ring sways gently (±7°, one calm 3.2 s cycle,
- * starting at 0° so it continues seamlessly from the static splash) around
- * a stationary mountain — a compass settling, not a spinner. Two copies of
- * the same logo make that possible without new artwork: the bottom copy
- * rotates whole, and the top copy is clipped to `circle(30.3%)` — measured
- * mid-point of the logo's continuous white inner ring (blue disc ends at
- * 29.5% of the image side, dark ring starts at 31.3%) — so it pins the
- * mountain still while the seam under it is always rotationally-symmetric
- * white, making the boundary invisible. prefers-reduced-motion disables the
- * sway and keeps the static mark.
+ * THE 196px MARK is derived, not chosen: Android composes an API 31+ splash
+ * icon on a 288dp canvas, and our windowSplashScreenAnimatedIcon
+ * (@drawable/ic_launcher_foreground) insets the artwork by 16% per side, so
+ * the system draws it at 68% × 288dp ≈ 196dp. A WebView CSS pixel is a dp,
+ * so 196px reproduces the splash's own geometry and the mark does not jump
+ * size at the handoff. android/…/drawable/fjallkompis_splash.xml uses the
+ * same 196dp for the Android 7–11 path.
  *
- * DISMISSAL. React removes it (src/runtime/platform.ts,
- * dismissNativeBootVeil) as soon as the first frame has painted — there is
- * no minimum display time, no timer gating, nothing that can make launch
- * slower than it already was. A 220 ms opacity fade is the only easing out.
+ * DISMISSAL is in src/runtime/platform.ts (dismissNativeBootVeil), and the
+ * ORDER there matters: the veil only starts fading once the UI beneath it is
+ * fully opaque. Fading it while the shell's own entrance animation was still
+ * fading the first screen in from opacity 0 made both surfaces transparent
+ * at once, and the flat launch background showed through — the blink the
+ * Samsung recording caught. Nothing waits on a timer.
  */
 function nativeBootVeil(): Plugin {
   const veil = `    <style>
@@ -158,44 +164,19 @@ function nativeBootVeil(): Plugin {
         display: grid;
         place-items: center;
         background: #dce4d8; /* the launch colour the splash already shows */
-        transition: opacity 0.22s ease;
+        transition: opacity 0.18s ease;
       }
       #native-boot-veil.veil-out {
         opacity: 0;
         pointer-events: none;
       }
-      #native-boot-veil .veil-mark {
-        position: relative;
-        width: 176px;
-        height: 176px;
-      }
-      #native-boot-veil .veil-mark img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-      }
-      #native-boot-veil .veil-ring {
-        animation: veil-settle 3.2s ease-in-out infinite;
-      }
-      #native-boot-veil .veil-core {
-        clip-path: circle(30.3% at 50% 50%);
-      }
-      @keyframes veil-settle {
-        0% { transform: rotate(0deg); }
-        25% { transform: rotate(-7deg); }
-        75% { transform: rotate(7deg); }
-        100% { transform: rotate(0deg); }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        #native-boot-veil .veil-ring { animation: none; }
+      #native-boot-veil img {
+        width: 196px;
+        height: 196px;
       }
     </style>
     <div id="native-boot-veil" aria-hidden="true">
-      <div class="veil-mark">
-        <img class="veil-ring" src="./icons/icon-512.png" alt="" />
-        <img class="veil-core" src="./icons/icon-512.png" alt="" />
-      </div>
+      <img src="/icons/icon-512.png" alt="" />
     </div>`;
   return {
     name: 'fjallkompis:native-boot-veil',
