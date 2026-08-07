@@ -280,3 +280,17 @@
 .section-shell .screen {
   animation-name: fade-opacity;
 }
+
+/* Cross-tab arrivals mount COMPOSED — no content fade at all. The shell's
+   persistent backdrop swaps instantly when the tab (and with it the theme
+   class) changes, so fading the destination content from 0 would expose a
+   full-strength standalone contour backdrop for the fade's duration — the
+   physical-device "contours drawn over the cards" flash. Backdrop and
+   content therefore arrive in the same frame, exactly like Today (whose
+   backdrop lives inside its fading screen and never de-syncs). Within-tab
+   navigation keeps the restrained fade above: there the backdrop is the
+   same familiar surface throughout, so the fade reads as one page.
+   App.tsx sets .main-tab-switch from Nav.freshTab. */
+.app > main.main-tab-switch .screen {
+  animation: none;
+}
