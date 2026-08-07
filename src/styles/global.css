@@ -34,6 +34,12 @@
   --spruce-700: #243c31;
   --cloudberry: #b78443;
   --cloudberry-soft: #f0e1cb;
+  /* Text-safe dark cloudberry — the same role -700 plays for spruce and
+     glacier. --cloudberry itself is a fill/icon tone (≈3.5:1 on the pale
+     surfaces); running copper TEXT (Plan eyebrows, links, labels) needs
+     ≥4.5:1 on every app surface including Plan's #e8e0d1 contour base,
+     which this value clears (5.27:1). */
+  --cloudberry-700: #7c5029;
   --glacier: #6a8d95;
   --glacier-700: #4a656d;
   --glacier-soft: #d7e5e8;
@@ -390,20 +396,13 @@ h3 {
   background-position: center;
   background-repeat: no-repeat;
 }
-.screen-bg--guide {
-  background-color: #d3dce1;
-}
+/* Base colours come from the section-theme tokens (section-themes.css):
+   the backdrop only ever renders inside a .theme-guide / .theme-plan shell.
+   Restrained semantic accents (eyebrows, icon badges, tile glyphs — never
+   whole cards) also live there now, covering home AND subroutes at once. */
+.screen-bg--guide,
 .screen-bg--plan {
-  background-color: #e8e0d1;
-}
-
-/* Restrained semantic accents: colour lives in the eyebrow, the icon badges
-   and the tile glyphs — never across whole cards. */
-.guide-screen .screen-head .eyebrow {
-  color: #43707f;
-}
-.plan-screen .screen-head .eyebrow {
-  color: #9d6a3e;
+  background-color: var(--section-surface);
 }
 
 /* --- Guide home: the 2×2 dossier grid ------------------------------------ */
@@ -434,8 +433,11 @@ h3 {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: rgba(67, 112, 127, 0.14);
-  color: #35606f;
+  /* Filled badge in the section's family — visibly the "View route" glacier
+     on Guide (white glyph on --glacier is 3.59:1; tokens from
+     section-themes.css). */
+  background: var(--section-badge);
+  color: var(--section-badge-ink);
 }
 .guide-tile__icon svg {
   width: 22px;
@@ -501,7 +503,7 @@ h3 {
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #9d6a3e;
+  color: var(--section-accent-strong);
 }
 .plan-hero__title {
   font-size: 22px;
@@ -532,7 +534,7 @@ h3 {
   margin-top: 4px;
   font-size: 14px;
   font-weight: 700;
-  color: #8d5c33;
+  color: var(--section-accent-strong);
 }
 .plan-hero:active {
   background: rgba(240, 232, 216, 0.85);
@@ -561,7 +563,7 @@ h3 {
 }
 .plan-card__label svg {
   flex: 0 0 auto;
-  color: #9d6a3e;
+  color: var(--section-accent);
 }
 .plan-card__empty {
   font-size: 13px;
@@ -593,7 +595,7 @@ h3 {
 }
 .plan-pair svg {
   flex: 0 0 auto;
-  color: #9d6a3e;
+  color: var(--section-accent);
 }
 
 /* Packing dashboard: two conceptual columns — progress and weight. */

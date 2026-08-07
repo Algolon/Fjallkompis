@@ -9,6 +9,7 @@ import './styles/global.css';
 import './styles/map-popup-polish.css';
 import './styles/today-polish.css';
 import './styles/mobile-shell-plan-polish.css';
+import './styles/section-themes.css';
 
 // Stamp <html data-runtime="…"> BEFORE the first render. Every native-only
 // style rule is scoped under that attribute, so setting it after mount would

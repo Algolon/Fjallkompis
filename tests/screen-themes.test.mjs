@@ -16,9 +16,12 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
 const css = read('src/styles/global.css');
+const themes = read('src/styles/section-themes.css');
 const today = read('src/screens/TodayScreen.tsx');
 const guide = read('src/screens/GuideScreen.tsx');
 const plan = read('src/screens/PlanScreen.tsx');
+const backdrop = read('src/components/SectionBackdrop.tsx');
+const app = read('src/App.tsx');
 
 test('Today keeps its existing green contour treatment untouched', () => {
   assert.match(today, /images\/today\/contours\.svg/);
@@ -27,8 +30,11 @@ test('Today keeps its existing green contour treatment untouched', () => {
 });
 
 test('Guide and Plan reference distinct app-owned contour assets', () => {
-  assert.match(guide, /images\/guide\/contours\.svg/);
-  assert.match(plan, /images\/plan\/contours\.svg/);
+  // The shell-level backdrop (SectionBackdrop, mounted by App.tsx outside
+  // the per-destination <main> remount) is the single owner of both refs.
+  assert.match(backdrop, /images\/guide\/contours\.svg/);
+  assert.match(backdrop, /images\/plan\/contours\.svg/);
+  assert.match(app, /SectionBackdrop/);
   // Three DIFFERENT assets — never one pattern repeated across screens.
   const refs = ['today', 'guide', 'plan'].map((s) => `images/${s}/contours.svg`);
   assert.equal(new Set(refs).size, 3);
@@ -100,20 +106,25 @@ test('Guide and Plan fade like Today, so the fixed backdrop cannot resize', () =
 });
 
 test('the themes are restrained: base colours + accents, not recoloured cards', () => {
-  assert.match(css, /\.screen-bg--guide \{\s*\n\s*background-color: #d3dce1;/);
-  assert.match(css, /\.screen-bg--plan \{\s*\n\s*background-color: #e8e0d1;/);
+  // The backdrop base colours now flow from the semantic section tokens
+  // (section-themes.css) — one source for home and every subroute.
+  assert.match(css, /\.screen-bg--guide,\s*\n\.screen-bg--plan \{\s*\n\s*background-color: var\(--section-surface\);/);
+  // The canvases are the SOURCE families' own soft variants — the tie back
+  // to Today's "View route" and "Stage guide" buttons is structural.
+  assert.match(themes, /\.theme-guide \{[^}]*--section-surface: var\(--glacier-soft\);/s);
+  assert.match(themes, /\.theme-plan \{[^}]*--section-surface: var\(--cloudberry-soft\);/s);
   // Accents live in eyebrows/icons; the glass card system is shared.
-  assert.ok(css.includes('.guide-screen .screen-head .eyebrow'));
-  assert.ok(css.includes('.plan-screen .screen-head .eyebrow'));
+  assert.ok(themes.includes('.theme-guide .screen-head .eyebrow'));
+  assert.ok(themes.includes('.theme-plan .screen-head .eyebrow'));
   assert.match(css, /\.today-screen,\s*\n\.guide-screen,\s*\n\.plan-screen \{/);
 });
 
 test('backgrounds are decorative assets — no live map, no runtime requests', () => {
-  for (const [name, src] of [['Guide', guide], ['Plan', plan]]) {
+  for (const [name, src] of [['Guide', guide], ['Plan', plan], ['SectionBackdrop', backdrop]]) {
     assert.ok(!/maplibre|MapView|new Map\(/.test(src), `${name} mounts no map`);
     assert.ok(!/https?:\/\//.test(src), `${name} requests nothing external`);
-    assert.match(src, /import\.meta\.env\.BASE_URL/, `${name} loads from the app origin`);
   }
+  assert.match(backdrop, /import\.meta\.env\.BASE_URL/, 'backdrop loads from the app origin');
 });
 
 test('provenance documentation exists for both generated assets', () => {

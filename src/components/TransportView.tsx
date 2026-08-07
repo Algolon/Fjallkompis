@@ -440,7 +440,7 @@ function TransportCard({
               </button>
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn btn-ghost btn-plan-accent"
                 style={{ flex: 1 }}
                 onClick={() => onAddToTrip(entry.id)}
               >
@@ -450,7 +450,7 @@ function TransportCard({
           ) : (
             <button
               type="button"
-              className="btn btn-block"
+              className="btn btn-block btn-plan-accent"
               onClick={() => onAddToTrip(entry.id)}
             >
               <Luggage size={15} strokeWidth={1.9} aria-hidden /> Add to Trip

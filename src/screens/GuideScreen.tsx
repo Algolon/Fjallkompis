@@ -1,4 +1,3 @@
-import { type CSSProperties } from 'react';
 import { BookOpen, BusFront, Signpost, ShoppingBasket } from 'lucide-react';
 import { ScreenHeader } from '../components/ui';
 import { IconHuts } from '../components/Icons';
@@ -19,13 +18,6 @@ import type { ShopCategory, TransportContext } from '../types';
  * vNext; the dossier itself only tells you about the trail. Sources &
  * credits live in Settings — the dossier home stays a four-tile index.
  */
-
-/**
- * Decorative topographic background — a real contour crop near the trail,
- * extracted from the app's own contour archive (see
- * public/images/guide/README.md for provenance) and themed blue in CSS.
- */
-const GUIDE_BG_SRC = `${import.meta.env.BASE_URL}images/guide/contours.svg`;
 
 interface GuideTile {
   section: GuideSection;
@@ -70,12 +62,8 @@ export function GuideScreen({
 
   return (
     <div className="screen screen--guide guide-screen">
-      <div
-        className="screen-bg screen-bg--guide"
-        aria-hidden
-        style={{ '--screen-bg-image': `url("${GUIDE_BG_SRC}")` } as CSSProperties}
-      />
-
+      {/* The glacier contour backdrop is rendered by the app shell
+          (SectionBackdrop) so it persists across Guide's subroutes. */}
       <ScreenHeader eyebrow="Trail dossier" title="Guide">
         Trail information for preparing and hiking the {dossier.name} — stages,
         places, supplies and transport.
