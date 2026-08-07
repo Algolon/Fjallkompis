@@ -19,6 +19,23 @@ name: Android internal release AAB
 # that can never be reused, so it must not fire on a push.
 
 on:
+  # TEMPORARY — REMOVE BEFORE MERGE.
+  #
+  # GitHub will only dispatch a workflow_dispatch workflow that already exists
+  # on the DEFAULT branch: `gh workflow run --ref agent/android-play-internal`
+  # answers `HTTP 404: not found on the default branch`. So this workflow
+  # cannot be exercised from its own pull request, and merging it unproven is
+  # exactly what we are trying not to do.
+  #
+  # This branch-scoped trigger breaks that deadlock: it lets the release build
+  # run, and the signed bundle be verified, while the PR is still a draft. It
+  # is restricted to this one branch and is deleted once the AAB is proven —
+  # after which workflow_dispatch is the only way in, as designed.
+  #
+  # Safe in the meantime: BUILDING a versionCode costs nothing. Only UPLOADING
+  # one to Play consumes it, and nothing here talks to Play.
+  push:
+    branches: [agent/android-play-internal]
   workflow_dispatch:
     inputs:
       reason:

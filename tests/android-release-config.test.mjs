@@ -195,8 +195,25 @@ test('the release workflow builds only — it never publishes', () => {
   const permissions = yaml.split('permissions:')[1]?.split(/\n\s*\n/)[0] ?? '';
   assert.ok(!/pages/.test(permissions), 'no pages permission');
   assert.ok(!/id-token/.test(permissions), 'no id-token permission');
-  assert.match(workflow, /^on:\s*\n\s*workflow_dispatch:/m, 'manual dispatch only');
-  assert.ok(!/^\s{2}push:/m.test(workflow), 'a versionCode is spent per release — never on push');
+  assert.match(workflow, /^\s{2}workflow_dispatch:/m, 'manual dispatch is always available');
+
+  // A push trigger on a release workflow is normally wrong — an unattended
+  // release build is not something you want firing on every commit. Exactly
+  // one exception is permitted, and only while it is scaffolding: a
+  // BRANCH-SCOPED trigger on the release-setup branch, which exists solely
+  // because GitHub refuses to dispatch a workflow that is not yet on the
+  // default branch. If it is present it must be narrow and labelled
+  // temporary; a broad or unlabelled push trigger fails here.
+  const pushTrigger = workflow.match(/^\s{2}push:\n((?:\s{4}.*\n)+)/m);
+  if (pushTrigger) {
+    const branches = pushTrigger[1].match(/branches:\s*\[([^\]]+)\]/);
+    assert.ok(branches, 'a push trigger must name its branches — never repo-wide');
+    const named = branches[1].split(',').map((b) => b.trim());
+    assert.deepEqual(named, ['agent/android-play-internal'],
+      'the only permitted push trigger is the temporary release-setup branch');
+    assert.match(workflow, /TEMPORARY — REMOVE BEFORE MERGE/,
+      'the temporary trigger must say so, or it becomes permanent by neglect');
+  }
 });
 
 test('the release workflow runs the same regression gates before signing', () => {
