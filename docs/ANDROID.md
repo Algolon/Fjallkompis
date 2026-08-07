@@ -167,25 +167,60 @@ changing any of it.
 5. **Top:** `.app::before` paints a `--spruce` band exactly `--safe-top` tall,
    `pointer-events: none`. No control is ever inside the inset. The status bar
    is set to light icons to suit it.
-6. **Bottom:** *nothing was added.* `.tabbar` already sizes itself as
-   `--tabbar-h + --safe-bottom` with `padding-bottom: --safe-bottom`, so its
-   own surface reaches the physical edge while its five controls — including
-   the elevated centre Today disc — stay above the inset. The navigation bar
-   is set to dark icons to suit that light surface. Painting a second backdrop
-   would mean restating the bar's colour somewhere it could drift.
+6. **Bottom, web side:** `.tabbar` already sizes itself as
+   `--tabbar-h + --safe-bottom` with `padding-bottom: --safe-bottom`, so where
+   the WebView receives real insets its own surface reaches the physical edge
+   while its five controls — including the elevated centre Today disc — stay
+   above the inset. The navigation bar is set to dark icons to suit that light
+   surface. This remains the preferred, primary mechanism.
+7. **Bottom, native side:** MainActivity adds one **protection view** — an
+   opaque band in `@color/fjallkompisTabbar` (`#d4ded1`, the tab bar's own
+   opaque token) pinned to the window bottom, behind the three-button
+   navigation buttons. The Samsung test showed why: on the padded inset path
+   the web layer physically ends above the system buttons, and the window
+   showed the *launch* green (`#dce4d8`) behind them — a visible seam between
+   two greens. The band's height is **measured** from
+   `WindowInsetsCompat` on every inset change — `navigationBars().bottom`
+   when `tappableElement().bottom > 0` (the three-button signature), zero
+   otherwise — never a fixed dp value, so gesture navigation is untouched and
+   the pill area stays app-drawn. The view is non-interactive and invisible
+   to accessibility; when the web tab bar does reach the edge the two
+   surfaces are the same colour, so the band changes nothing.
+   `tests/native-runtime.test.mjs` fails if the native token and the CSS
+   `--tabbar-surface-opaque` ever differ.
 
 **Do not** add blanket safe-area padding to `<html>`. It would pull the tab bar
 away from the screen edge and defeat the whole design; a test enforces this.
 
-### The one thing that can degrade
+### The degraded inset path is real — the Samsung walks it
 
 Capacitor passes the real insets through to the WebView only when the WebView
 is **version 140 or newer** *and* the page declares `viewport-fit=cover` (it
-does). On an older WebView, Capacitor pads the WebView's parent instead and
-reports zero insets — the app still works and still looks correct, but it sits
-*between* the system bars rather than behind them, so the bottom surface stops
-at the navigation bar. If the green does not reach the bottom edge on a device,
-check the WebView version first.
+does). Otherwise Capacitor pads the WebView's parent and reports zero insets —
+the app sits *between* the system bars rather than behind them. The physical
+Samsung test ran on this padded path, which is exactly what exposed the two
+defects fixed after it: the stale decor background above the app (splash
+handoff, below) and the launch-green band below it (protection view, above).
+Both fixes are inert on the pass-through path.
+
+### The splash handoff (why the logo can never linger again)
+
+A window resolves its background from whatever theme the activity wears at the
+moment its decor view is FIRST created — and keeps it. `EdgeToEdge.enable()`
+touches the decor view; in the first APK it ran while the activity still wore
+the launch theme, so the decor froze the splash drawable (launch colour +
+centred mark) as its permanent background, and on the padded path the
+status-bar band exposed it above every screen as a ~120 px phantom header.
+
+The fix is the supported AndroidX handoff, not timing: the launch theme
+declares `postSplashScreenTheme = AppTheme.NoActionBar`, and
+`SplashScreen.installSplashScreen(this)` is the **first statement** of
+`onCreate`, swapping the theme before anything can create the decor. After the
+handoff the activity's `windowBackground` is a plain colour
+(`@color/fjallkompisLaunch`), visible only for the instant before the
+WebView's first paint. The splash drawable may be referenced from the launch
+theme only; tests enforce the call order, the post-theme's plainness, and the
+drawable's launch-only status.
 
 ---
 
@@ -253,46 +288,26 @@ ships inside the APK through the ordinary Vite build and is verified present
 before every sync. Route and stage overlays are drawn from the bundled GeoJSON,
 so the Map tab works offline from first launch with no download step.
 
-### ⚠ Open risk: byte-range reads from the APK's own assets
+### ✓ Closed risk: byte-range reads from the APK's own assets
 
-**This is the single most likely thing to be broken on the device, and it has
-not been tested on one.** Read this before concluding the map works.
+**Physically verified working (Samsung, 2026-08-07).** The bundled vector map
+rendered correctly inside the real Capacitor WebView on the device: full route
+Abisko → Nikkaluokta, all seven stage colours, hut markers and labels.
 
-PMTiles is a byte-range format: the reader issues `fetch(url, {headers: {Range:
-'bytes=a-b'}})` many times and assembles tiles from the slices. Inside the
-wrapper those requests are answered by Capacitor's `WebViewLocalServer`, and
-its range branch (verified by reading
-`node_modules/@capacitor/android/.../WebViewLocalServer.java`) does this:
+This deserved its "open risk" label while it had one: PMTiles is a byte-range
+format, and a source-level read of Capacitor's `WebViewLocalServer` range
+branch showed it building a `Content-Range: bytes a-b/total` header around a
+stream it never seeks (`no skip(fromRange)` in the path) — which predicted
+wrong bytes for every non-zero-offset read. That failure **did not reproduce
+on the device**, so the delivery path in real use is fine and no `BlobSource`
+workaround is needed or planned. The desktop cross-check (the same `dist/`
+served by a Range-conformant static server, 89.6 kB of `206` reads out of the
+5.6 MB archive) still stands as evidence that the bundle and archive are
+correct in themselves.
 
-```java
-InputStream responseStream = new LollipopLazyInputStream(handler, request);
-int totalRange = responseStream.available();
-tempResponseHeaders.put("Content-Range", "bytes " + fromRange + "-" + range + "/" + totalRange);
-return new WebResourceResponse(mimeType, encoding, 206, ..., responseStream);
-```
-
-It sets a `Content-Range` that promises the body starts at `fromRange` — and
-then returns a stream **positioned at byte 0**. There is no `skip(fromRange)`
-anywhere in that path. So the first read (the header, at offset 0) should
-succeed by coincidence, and every subsequent directory or tile read would
-receive the wrong bytes.
-
-What is actually established today:
-
-- The **web bundle and the archive are correct.** Served from a root origin by
-  a Range-conformant static server, the native `dist/` renders the full route
-  Abisko → Nikkaluokta with all seven stage colours, hut markers and labels,
-  using 89.6 kB of `206 Partial Content` reads out of the 5.6 MB archive.
-- The **failure, if it happens, is Capacitor's server**, not the app.
-
-If the Map tab is blank or garbled on the device, this is the first suspect.
-The recommended fix is *not* to patch the range handling but to bypass HTTP
-entirely: `src/map/pmtilesProtocol.ts` already has a `BlobSource` path — the
-one the user-downloaded offline archive uses — so the native shell can fetch
-`/maps/kungsleden.pmtiles` once *without* a `Range` header (a plain `200`
-streams correctly) and hand the resulting Blob to that existing source. That
-touches offline-map storage and the Settings download state, so it is a
-deliberate phase-two change, not something to smuggle into a wrapper spike.
+Keep the history in mind only if a future Capacitor major changes the local
+server: the first symptom would be a blank or garbled Map tab in the wrapper
+while the same build renders in a browser.
 
 **Terrain, contour and satellite archives are not in the APK.** They are not
 part of the Vite build at all: `deploy.yml` fetches them from pinned GitHub
@@ -314,10 +329,43 @@ them — the app degrades honestly rather than crashing.
 **Recommendation: A**, with the vector basemap and terrain/contours bundled and
 satellite left as an optional download. The users are hikers who lose signal for
 a week; an app that is complete at install time is worth 80 MB, and A adds no
-new plugin, no new storage code and no new failure mode. Revisit B only if APK
-size becomes a real distribution constraint.
+new plugin, no new storage code and no new failure mode. Revisit B only if
+bundle size becomes a real distribution constraint.
 
 Neither is implemented. This is a recommendation, not a plan of record.
+
+---
+
+## Distribution — physical-test finding and the path after the spike
+
+Installing the debug APK on the Samsung required bypassing normal device
+security: allowing installs from an unauthorised source for the browser/file
+app, and getting past **Samsung Auto Blocker**. That is acceptable exactly
+once, for this technical spike — it is **not** an acceptable installation or
+update experience for Fjällkompis.
+
+What follows from that, recorded here as the standing plan:
+
+- **GitHub-hosted debug APKs stay development artifacts.** They prove the
+  build; they are never the way anyone, including Omar, routinely gets the
+  app.
+- **A manually signed release APK is not the answer either.** Sideloading a
+  release-signed APK still requires unknown-source permissions and still
+  collides with Auto Blocker; signing it ourselves changes nothing about the
+  experience.
+- **The next iteration after physical approval is Google Play Internal
+  Testing**, as its own separately-scoped piece of work: produce a signed
+  **Android App Bundle**, enrol in **Play App Signing**, and distribute
+  privately through the Play Store — initially to Omar's Google account only.
+  Installs and updates then arrive the normal, unbypassed way.
+- **Nothing is uploaded to Play yet.** Creating the app in Play Console
+  effectively **freezes the application id** — `com.algolon.fjallkompis` is
+  still provisional, and confirming it permanent is an explicit decision that
+  must happen *before* the first upload, not after.
+- Production tracks, open testing and public discoverability stay out of
+  scope.
+- The upload keystore and its credentials are never committed — same rule as
+  every other signing secret in this repository.
 
 ---
 
@@ -369,3 +417,8 @@ third-party imagery was added.
 - The splash is the launch colour `#dce4d8` (the PWA manifest's
   `background_color`) plus the same mark — via `windowSplashScreen*` on
   Android 12+, and a layer-list window background below that.
+- **The mark appears on the launch splash only.** After
+  `SplashScreen.installSplashScreen()` hands off (see "The splash handoff"
+  above), no theme, window or view in the running app references the splash
+  drawable — the Samsung test showed what happens otherwise, and tests now
+  enforce it.

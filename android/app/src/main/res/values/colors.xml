@@ -15,4 +15,14 @@
          brand chrome behind the status bar, painted by the web layer once it
          has loaded. -->
     <color name="fjallkompisSpruce">#2f4a3d</color>
+    <!-- The CSS token `tabbar-surface-opaque` (mobile-shell-plan-polish.css):
+         the OPAQUE colour of the bottom tab bar. Painted natively behind the
+         three-button navigation buttons by MainActivity's protection view, so
+         the system-navigation area and the in-app tab bar read as one
+         continuous surface. The Samsung physical test showed why this must be
+         its own token and not fjallkompisLaunch: the launch colour is a
+         subtly DIFFERENT green, and behind the system buttons it produced a
+         visible seam against the tab bar. tests/native-runtime.test.mjs
+         fails if this value and the CSS token ever differ. -->
+    <color name="fjallkompisTabbar">#d4ded1</color>
 </resources>

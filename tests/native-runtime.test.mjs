@@ -422,6 +422,123 @@ test('the application id is the documented provisional one', () => {
   assert.match(read('android/app/src/main/res/values/strings.xml'), /<string name="app_name">Fjällkompis<\/string>/);
 });
 
+// --- Samsung physical-test corrections ---------------------------------------
+//
+// Two defects only a real device could show (PR #120 evidence, 2026-08-07):
+// the splash drawable surviving into the running app as a phantom logo strip,
+// and the three-button navigation band wearing the launch green instead of
+// the tab-bar green. Each fence below pins the mechanism of one fix.
+
+test('the splash hands off through postSplashScreenTheme to the plain app theme', () => {
+  const styles = read('android/app/src/main/res/values/styles.xml');
+  const launch = styles.match(/<style name="AppTheme\.NoActionBarLaunch"[\s\S]*?<\/style>/)?.[0];
+  assert.ok(launch, 'the launch theme exists');
+  assert.match(launch, /parent="Theme\.SplashScreen"/);
+  assert.match(
+    launch,
+    /<item name="postSplashScreenTheme">@style\/AppTheme\.NoActionBar<\/item>/,
+    'the launch theme must name its successor — installSplashScreen() reads this',
+  );
+});
+
+test('installSplashScreen precedes everything that could create the decor view', () => {
+  // The decor view freezes its windowBackground from the theme worn at the
+  // moment it is FIRST created. EdgeToEdge.enable() touches the decor, so the
+  // theme swap must come before it — this exact ordering bug is what put a
+  // ~120px splash-logo strip above every screen on the Samsung.
+  const code = codeOf(activity);
+  const splash = code.indexOf('SplashScreen.installSplashScreen(this)');
+  const edge = code.indexOf('EdgeToEdge.enable(this)');
+  const superCall = code.indexOf('super.onCreate(savedInstanceState)');
+  assert.ok(splash > 0, 'MainActivity calls SplashScreen.installSplashScreen');
+  assert.ok(splash < edge, 'installSplashScreen must run before EdgeToEdge.enable');
+  assert.ok(edge < superCall, 'EdgeToEdge.enable must still run before super.onCreate');
+  // The supported handoff, not a timing hack: nothing hides or delays the
+  // splash manually.
+  assert.ok(!/setKeepOnScreenCondition|postDelayed|Handler\(/.test(code));
+});
+
+test('the splash drawable is launch-only — the running app may never wear it', () => {
+  const styles = read('android/app/src/main/res/values/styles.xml');
+  const post = styles.match(/<style name="AppTheme\.NoActionBar"[\s\S]*?<\/style>/)?.[0];
+  assert.ok(post, 'the post-splash theme exists');
+  assert.ok(
+    !post.includes('fjallkompis_splash'),
+    'the post-splash theme must not reference the splash drawable',
+  );
+  assert.match(
+    post,
+    /<item name="android:windowBackground">@color\/fjallkompisLaunch<\/item>/,
+    'the pre-first-paint background is a plain colour, never artwork',
+  );
+  // Repo-wide: the drawable may be referenced from the launch theme and its
+  // own file, nowhere else (in particular never from the manifest or layouts).
+  const resDir = join(root, 'android/app/src/main');
+  const referers = readdirSync(resDir, { recursive: true })
+    .filter((f) => typeof f === 'string' && /\.(xml|java)$/.test(f))
+    .filter((f) => !f.endsWith('drawable/fjallkompis_splash.xml'))
+    .filter((f) => codeOf(read(join('android/app/src/main', f))).includes('@drawable/fjallkompis_splash'));
+  assert.deepEqual(referers, ['res/values/styles.xml'], 'only styles.xml may cite the splash drawable');
+  const styleUses = codeOf(styles).split('fjallkompis_splash').length - 1;
+  const launchUses = (codeOf(styles).match(/<style name="AppTheme\.NoActionBarLaunch"[\s\S]*?<\/style>/)?.[0] ?? '')
+    .split('fjallkompis_splash').length - 1;
+  assert.ok(launchUses >= 1, 'the launch theme still shows the splash on Android 7-11');
+  assert.equal(styleUses, launchUses, 'every styles.xml reference sits inside the launch theme');
+});
+
+test('the native three-button band colour IS the canonical tab-bar token', () => {
+  // One colour, two renderers: the web tab bar paints #d4ded1 (as its opaque
+  // token) and MainActivity's protection view paints the same value behind
+  // the system buttons. The Samsung seam existed precisely because the band
+  // showed a DIFFERENT owned green (the launch colour), so "some Fjällkompis
+  // green" is not good enough — the two literals must be equal.
+  const cssToken = read('src/styles/mobile-shell-plan-polish.css')
+    .match(/--tabbar-surface-opaque:\s*(#[0-9a-fA-F]{6})/)?.[1];
+  assert.ok(cssToken, 'the web opaque tab-bar token exists');
+  const nativeToken = read('android/app/src/main/res/values/colors.xml')
+    .match(/<color name="fjallkompisTabbar">(#[0-9a-fA-F]{6})<\/color>/)?.[1];
+  assert.ok(nativeToken, 'the native tab-bar colour resource exists');
+  assert.equal(
+    nativeToken.toLowerCase(),
+    cssToken.toLowerCase(),
+    'colors.xml fjallkompisTabbar must equal --tabbar-surface-opaque',
+  );
+  assert.match(codeOf(activity), /R\.color\.fjallkompisTabbar/, 'the protection view uses the token, not a literal');
+  assert.ok(!/setBackgroundColor\(0x|Color\.parseColor/.test(codeOf(activity)), 'no hard-coded colour in MainActivity');
+});
+
+test('the navigation protection is measured from window insets, never fixed dp', () => {
+  const code = codeOf(activity);
+  assert.match(code, /WindowInsetsCompat\.Type\.tappableElement\(\)/, 'three-button is recognised by its tappable inset');
+  assert.match(code, /WindowInsetsCompat\.Type\.navigationBars\(\)/, 'the height comes from the reported inset');
+  assert.match(code, /tappableBottom > 0 \? navigationBottom : 0/, 'gesture navigation gets a zero-height band');
+  assert.match(code, /setOnApplyWindowInsetsListener/, 'the height follows every inset change');
+  // No device-tuned constants: the only height literal permitted is the
+  // initial 0 in the layout params.
+  assert.ok(!/applyDimension|getDisplayMetrics|density/.test(code), 'no dp/px conversion in the activity');
+  assert.match(code, /setImportantForAccessibility\(View\.IMPORTANT_FOR_ACCESSIBILITY_NO\)/);
+  assert.match(code, /setClickable\(false\)/);
+});
+
+test('the corrections added no web CSS and left the PWA surface untouched', () => {
+  // Both fixes are native-only by design. The native CSS section still
+  // contains exactly the rules it had before the corrections — the inset
+  // repointing block and the status-band painter — and no rule mentioning
+  // the tab-bar band was added to any stylesheet.
+  const start = css.indexOf('Native Android shell (Capacitor)');
+  const section = css.slice(start).replace(/\/\*[\s\S]*?\*\//g, '');
+  const selectors = section
+    .split('}')
+    .map((block) => block.split('{')[0].trim())
+    .filter(Boolean);
+  assert.equal(selectors.length, 2, 'still exactly two native rules: the inset block and the status band');
+  assert.match(
+    read('src/styles/mobile-shell-plan-polish.css'),
+    /--tabbar-surface-opaque: #d4ded1;/,
+    'the canonical web token is unchanged',
+  );
+});
+
 test('no Android XML comment contains a double dash', () => {
   // XML forbids "--" inside a comment, and aapt2 enforces it: it fails
   // `mergeDebugResources` with "The string "--" is not permitted within
