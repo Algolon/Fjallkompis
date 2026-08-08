@@ -62,6 +62,14 @@ export declare function classifyArchiveProbe(probe?: {
   supersededBytes?: readonly number[];
 }): ArchiveClassification;
 
+export declare function classifyStoredArchive(
+  stored: { present: boolean; bytes: number; revisionId: string | null },
+  asset: {
+    revision: { id: string; bytes: number };
+    supersededBytes: readonly number[];
+  },
+): ArchiveClassification;
+
 export declare function probeArchiveCaches(
   cacheStorage: ArchiveCacheStorage,
   spec: {

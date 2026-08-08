@@ -18,7 +18,7 @@
  */
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { Source, RangeResponse } from 'pmtiles';
-import { classifyArchiveProbe } from './archiveRevision.mjs';
+import { classifyStoredArchive } from './archiveRevision.mjs';
 import type { MapAsset } from './mapCatalog.mjs';
 import { mapAssetReleaseUrl } from './mapCatalog.mjs';
 
@@ -88,28 +88,11 @@ export class NativeArchiveSource implements Source {
 
 /**
  * What this device holds for one optional archive, in the shared vocabulary.
- *
- * The classifier is fed the stored byte length, but the REVISION ID from the
- * sidecar has the final say on "current": two revisions can coincide in size,
- * and an old archive quietly presenting as the current one is precisely the
- * failure this contract exists to prevent.
+ * The decision itself is pure and lives with the revision contract, next to
+ * the Cache Storage one, so both platforms are demonstrably the same table.
  */
 export async function nativeArchiveStatus(asset: MapAsset) {
-  const stored = await MapArchive.status({ id: asset.id });
-  const currentBytes = stored.present ? stored.bytes : null;
-  const identityMatches =
-    stored.present &&
-    stored.revisionId === asset.revision.id &&
-    stored.bytes === asset.revision.bytes;
-
-  return classifyArchiveProbe({
-    // Withholding the exact byte match when the recorded revision disagrees is
-    // what makes the sidecar authoritative: same size, different revision
-    // resolves to legacy or invalid, never to current.
-    currentBytes: identityMatches ? asset.revision.bytes : currentBytes,
-    expectedBytes: asset.revision.bytes,
-    supersededBytes: identityMatches ? [] : asset.supersededBytes,
-  });
+  return classifyStoredArchive(await MapArchive.status({ id: asset.id }), asset);
 }
 
 /** Bytes this app is using for downloaded archives, across all of them. */

@@ -96,6 +96,22 @@ public class MapArchivePlugin extends Plugin {
     /** Cancellation flags by asset id, set by cancel() and polled by the loop. */
     private final Map<String, AtomicBoolean> cancellations = new ConcurrentHashMap<>();
 
+    /**
+     * Read a numeric argument, whatever JSON type it arrived as.
+     *
+     * NOT `call.getLong()`. That method returns its default unless the parsed
+     * value is exactly a `java.lang.Long`, and JSON numbers that fit in an int
+     * — which every one of ours does: 61 704 169 bytes, a PMTiles offset in a
+     * sub-2 GB file — parse as `Integer`. Using it would have made
+     * `expectedBytes` zero on every download (rejecting them all) and, far
+     * worse, every `readRange` offset zero: silently the wrong bytes, on the
+     * device only. Same trap in `getInt()` for the reverse case.
+     */
+    private static long numberArg(PluginCall call, String name, long fallback) {
+        Object value = call.getData().opt(name);
+        return value instanceof Number ? ((Number) value).longValue() : fallback;
+    }
+
     // ---- storage layout -----------------------------------------------------
 
     private File archiveDir() {
@@ -199,7 +215,7 @@ public class MapArchivePlugin extends Plugin {
             return;
         }
         final String url = call.getString("url");
-        final long expectedBytes = call.getLong("expectedBytes", 0L);
+        final long expectedBytes = numberArg(call, "expectedBytes", 0L);
         final String expectedSha = call.getString("expectedSha256");
         final String revisionId = call.getString("revisionId");
         if (url == null || expectedBytes <= 0 || expectedSha == null || revisionId == null) {
@@ -356,8 +372,8 @@ public class MapArchivePlugin extends Plugin {
     public void readRange(PluginCall call) {
         try {
             String id = safeId(call.getString("id"));
-            long offset = call.getLong("offset", 0L);
-            int length = call.getInt("length", 0);
+            long offset = numberArg(call, "offset", -1L);
+            long length = numberArg(call, "length", 0L);
             if (offset < 0 || length <= 0 || length > MAX_READ_BYTES) {
                 call.reject("invalid range");
                 return;

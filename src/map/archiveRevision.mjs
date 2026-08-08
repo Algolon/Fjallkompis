@@ -154,6 +154,51 @@ export function classifyArchiveProbe({
 }
 
 /**
+ * Classify what a NATIVE store holds, in the same vocabulary as the Cache
+ * Storage probe above. This is the other half of "one product model, two
+ * mechanics": the phone and the browser reach `current` / `legacy` /
+ * `invalid` / `absent` through the same decision table, so no state can come
+ * to mean different things on the two platforms.
+ *
+ * The one thing this adds is that the RECORDED REVISION has the final say on
+ * `current`. The native store writes a sidecar naming the revision it
+ * verified, and two revisions can coincide in byte length — so deciding
+ * freshness from the size alone is exactly how an old archive ends up
+ * presenting as the current one. When the identity disagrees, the size is
+ * still used to tell a shipped older revision (usable, "update available")
+ * from bytes nothing vouches for.
+ *
+ * @param {{ present: boolean, bytes: number, revisionId: string | null }} stored
+ * @param {{ revision: { id: string, bytes: number },
+ *           supersededBytes: readonly number[] }} asset
+ * @returns {ArchiveClassification}
+ */
+export function classifyStoredArchive(stored, asset) {
+  const expectedBytes = asset.revision.bytes;
+  if (!stored?.present) {
+    return classifyArchiveProbe({ currentBytes: null, expectedBytes });
+  }
+
+  if (stored.revisionId === asset.revision.id && stored.bytes === expectedBytes) {
+    return classifyArchiveProbe({ currentBytes: expectedBytes, expectedBytes });
+  }
+
+  // The identity disagrees, so this is NOT current — including when the byte
+  // count happens to match, which is the whole reason a sidecar exists. What
+  // remains is whether the bytes are still something we shipped: a length we
+  // have published (this revision's or a superseded one) came out of our own
+  // verified download, so it parses and stays usable offline until the
+  // replacement arrives. Anything else is data nothing vouches for.
+  const shipped =
+    stored.bytes === expectedBytes || asset.supersededBytes.includes(stored.bytes);
+  return classifyArchiveProbe({
+    currentBytes: shipped ? null : stored.bytes,
+    legacyBytes: shipped ? stored.bytes : null,
+    expectedBytes,
+  });
+}
+
+/**
  * Byte length of a cached archive response, or null when it is absent. Reads
  * the BODY rather than trusting a Content-Length header: the header is
  * whatever wrote the entry (our download, or the service worker copying the
