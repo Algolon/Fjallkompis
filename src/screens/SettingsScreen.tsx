@@ -42,9 +42,10 @@ import { useTrailReadiness } from '../hooks/useTrailReadiness';
 import { TRAIL_CAVEATS, trailDossierView } from '../trail/activeTrailContent';
 import { SCHEMA_VERSION } from '../utils/stateMigration.mjs';
 import { buildDiagnosticSummary } from '../utils/diagnosticSummary.mjs';
+import { PRIVACY_POLICY_URL } from '../privacy/privacyPolicy.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
-type SettingsSection = 'install' | 'maps' | 'backup' | 'sources';
+type SettingsSection = 'install' | 'maps' | 'backup' | 'sources' | 'privacy';
 /** One-shot deep-link targets (NavPayload.settings) — readiness only for now. */
 export type SettingsDeepLinkSection = 'readiness';
 
@@ -797,6 +798,41 @@ export function SettingsScreen({
           >
             View sources and licences
           </button>
+        </SettingsAccordion>
+
+        {/* PRIVACY. One entry, the same accordion as every section above — no
+            new Settings idiom for it. It links OUT rather than restating the
+            policy in-app on purpose: Google Play is given one public URL, and
+            an in-app copy would be a second wording to keep in step with it.
+            The canonical URL is the shared constant, so the web app and the
+            Android WebView open the identical page (src/privacy/privacyPolicy.mjs).
+
+            A plain <a target="_blank"> is the app's established external-link
+            convention (Credits, transport operators, stop links). In the
+            Android WebView Capacitor hands a target="_blank" navigation to the
+            system browser, so this needs no native branch. */}
+        <SettingsAccordion
+          id="privacy"
+          title="Privacy"
+          summary="How Fjallkompis handles your data"
+          open={openSection === 'privacy'}
+          onToggle={() => toggleSection('privacy')}
+        >
+          <span className="card-title">Privacy policy</span>
+          <p className="card-sub" style={{ marginTop: 4 }}>
+            Your trip data and Wallet documents stay on this device. Fjallkompis has
+            no accounts, no analytics and no tracking, and nothing you enter is sent
+            anywhere. The full policy opens in your browser.
+          </p>
+          <a
+            className="btn btn-block"
+            style={{ marginTop: 12 }}
+            href={PRIVACY_POLICY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Read the privacy policy
+          </a>
         </SettingsAccordion>
       </div>
 

@@ -34,3 +34,11 @@ jobs:
       # every source-level test and still installs with a blank icon.
       - name: Verify the built PWA branding
         run: node scripts/verify-brand-build.mjs
+      # Same reason, different claim: Google Play is given ONE public
+      # privacy-policy URL, and Vite + vite-plugin-pwa sit between the source
+      # tree and what a reader actually receives there. A build that drops the
+      # page, or a service worker that answers that URL with the app shell,
+      # passes every source-level test and still shows a Play reviewer the
+      # wrong page.
+      - name: Verify the built privacy policy
+        run: node scripts/verify-privacy-build.mjs

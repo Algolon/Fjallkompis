@@ -103,6 +103,12 @@ jobs:
       # key rotated/removed in its dashboard.
       - run: npm run build
 
+      # Google Play is given ONE public privacy-policy URL, served from this
+      # deployment. If the page ever stopped shipping, the Play listing would
+      # point at a 404 and nothing in the app would break to tell us.
+      - name: Verify the public privacy policy made it into the build
+        run: node scripts/verify-privacy-build.mjs
+
       - name: Verify terrain relief archives made it into the build
         run: |
           set -euo pipefail
