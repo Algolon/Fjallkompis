@@ -8,13 +8,15 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * rules are shared verbatim, and every platform difference lives behind
  * src/runtime/platform.ts. iOS is deliberately absent from this spike.
  *
- * APPLICATION ID. `com.algolon.fjallkompis` is PROVISIONAL. On Android the
- * application id is the app's permanent identity: once a build carrying this
- * id is distributed publicly (Play Store or otherwise), changing it creates a
- * DIFFERENT app — users would not be offered an update, they would be offered
- * a second install alongside the first, with its own storage sandbox and no
- * migration path. Nothing here has been published, so the id is still free to
- * change; that window closes at first public release. See docs/ANDROID.md.
+ * APPLICATION ID. `com.algolon.fjallkompis` is the PERMANENT Play identity.
+ * On Android the application id is the app's identity for good: once the app
+ * exists in Play Console under this id, changing it creates a DIFFERENT app —
+ * users are not offered an update, they are offered a second install
+ * alongside the first, with its own storage sandbox and no migration path.
+ * Nothing has been uploaded yet, so strictly the window is still open, but
+ * the id is now treated as fixed and tests/android-release-config.test.mjs
+ * asserts every occurrence agrees. Changing it is a new app, not an edit.
+ * See docs/ANDROID.md.
  *
  * webDir is `dist` — the SHARED Vite output directory. Which build produced
  * it matters: only `npm run build:native` emits assets the WebView can load

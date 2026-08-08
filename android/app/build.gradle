@@ -1,5 +1,90 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+// ---------------------------------------------------------------------------
+// VERSIONING — derived, never hand-written here.
+//
+// versionName is the Fjällkompis app version from package.json, so the Android
+// build can never claim a version the web app does not have. versionCode is
+// computed from that same version plus android/version.properties'
+// androidBuild counter, which exists because Play requires a strictly higher
+// versionCode for EVERY upload — including a re-upload of the same app version
+// that fixes only wrapper plumbing.
+//
+//   versionCode = major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild
+//
+//   0.27.0 build 1 -> 2_700_001      0.27.0 build 2 -> 2_700_002
+//   0.27.1 build 1 -> 2_701_001      0.28.0 build 1 -> 2_800_001
+//
+// Monotonic by construction: a higher semver always outranks any build number
+// of a lower one, so the counter resetting to 1 on an app-version bump can
+// never decrease the code. The field widths are the guard rails — they are
+// validated below rather than trusted, because silently wrapping into the next
+// version's range would produce a colliding code that Play rejects at upload
+// time, long after the mistake.
+// ---------------------------------------------------------------------------
+def appVersion = new JsonSlurper().parseText(file('../../package.json').text).version
+def semver = (appVersion =~ /^(\d+)\.(\d+)\.(\d+)/)
+if (!semver.find()) {
+    throw new GradleException("package.json version '${appVersion}' is not a plain MAJOR.MINOR.PATCH semver; the Android versionCode formula cannot be derived from it")
+}
+def versionMajor = semver.group(1) as int
+def versionMinor = semver.group(2) as int
+def versionPatch = semver.group(3) as int
+
+def androidVersionProps = new Properties()
+file('../version.properties').withInputStream { androidVersionProps.load(it) }
+def androidBuild = (androidVersionProps.getProperty('androidBuild') ?: '0') as int
+
+// Each field must stay strictly below its PARENT's weight divided by its own,
+// or it overflows into the parent's range and yields a colliding versionCode:
+//   minor < 10_000_000/100_000 = 100
+//   patch <    100_000/  1_000 = 100
+//   build <      1_000/      1 = 1000
+if (versionMinor >= 100) throw new GradleException("minor version ${versionMinor} >= 100 overflows into the major range of the versionCode formula; widen the fields in android/app/build.gradle, tests/android-release-config.test.mjs and docs/ANDROID.md together")
+if (versionPatch >= 100) throw new GradleException("patch version ${versionPatch} >= 100 overflows into the minor range of the versionCode formula; widen the fields in android/app/build.gradle, tests/android-release-config.test.mjs and docs/ANDROID.md together")
+if (androidBuild < 1) throw new GradleException("androidBuild must be >= 1 (android/version.properties); Play versionCodes are positive integers")
+if (androidBuild >= 1000) throw new GradleException("androidBuild ${androidBuild} >= 1000 would collide with the next patch version's range; bump the app version instead")
+
+def computedVersionCode = (versionMajor * 10000000) + (versionMinor * 100000) + (versionPatch * 1000) + androidBuild
+if (computedVersionCode < 1 || computedVersionCode > 2100000000) {
+    throw new GradleException("computed versionCode ${computedVersionCode} is outside Play's accepted range (1..2100000000)")
+}
+
+// ---------------------------------------------------------------------------
+// RELEASE SIGNING — upload key, supplied by the environment, never committed.
+//
+// Google Play App Signing owns the final app-signing key; this project only
+// ever holds the UPLOAD key, and only as CI environment variables
+// reconstructed from GitHub Actions secrets (see
+// .github/workflows/android-internal-release.yml). No keystore, password or
+// alias is stored in the repository — see "Release signing" in docs/ANDROID.md
+// for the one-time keytool setup.
+//
+// The signing config is declared only when the environment supplies it, so
+// day-to-day debug work needs no secrets at all. A release build WITHOUT them
+// must fail loudly rather than quietly emit an unsigned bundle that looks
+// finished and is rejected by Play — that check is on the task graph below, so
+// it fires only when a release artifact is actually requested.
+// ---------------------------------------------------------------------------
+def uploadKeystorePath = System.getenv('ANDROID_UPLOAD_KEYSTORE_FILE')
+def hasUploadKeystore = uploadKeystorePath != null && !uploadKeystorePath.trim().isEmpty()
+
+gradle.taskGraph.whenReady { graph ->
+    def wantsRelease = graph.allTasks.any { it.project == project && it.name ==~ /(bundle|assemble)Release/ }
+    if (wantsRelease && !hasUploadKeystore) {
+        throw new GradleException(
+            "Release build requested without upload signing configuration.\n" +
+            "  Set ANDROID_UPLOAD_KEYSTORE_FILE, ANDROID_UPLOAD_KEYSTORE_PASSWORD,\n" +
+            "  ANDROID_UPLOAD_KEY_ALIAS and ANDROID_UPLOAD_KEY_PASSWORD.\n" +
+            "  In CI these come from repository secrets; see docs/ANDROID.md -> Release signing.\n" +
+            "  Refusing to emit an unsigned bundle: Play would reject it, and an unsigned\n" +
+            "  artifact that looks finished is worse than no artifact."
+        )
+    }
+}
+
 android {
     namespace = "com.algolon.fjallkompis"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +92,8 @@ android {
         applicationId "com.algolon.fjallkompis"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode computedVersionCode
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,11 +101,59 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasUploadKeystore) {
+            release {
+                storeFile file(uploadKeystorePath)
+                storePassword System.getenv('ANDROID_UPLOAD_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_UPLOAD_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_UPLOAD_KEY_PASSWORD')
+                // Both schemes: v1 is what `jarsigner -verify` reads on an AAB
+                // (the CI signing check), v2 is what modern Android verifies.
+                enableV1Signing true
+                enableV2Signing true
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasUploadKeystore) {
+                signingConfig signingConfigs.release
+            }
+            // minifyEnabled stays FALSE — Capacitor's own template default,
+            // deliberately not "improved" here. Capacitor resolves plugins by
+            // reflection from names in capacitor.plugins.json (including this
+            // app's BootPlugin), and R8 cannot see those references, so
+            // enabling shrinking without a matching keep-rule set silently
+            // breaks the bridge at runtime — the kind of failure that only
+            // shows up on a device, after upload. Turning it on is a separate
+            // change that needs its own evidence; the ProGuard defaults below
+            // are left exactly as shipped.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // debuggable is deliberately NOT set: the release default is
+            // false, and Capacitor derives webContentsDebuggingEnabled and
+            // loggingEnabled from FLAG_DEBUGGABLE (CapConfig), so both switch
+            // themselves off in release. Setting it true here would silently
+            // re-enable remote WebView inspection on a Play build.
         }
+    }
+}
+
+/**
+ * Prints the exact identity of the artifact that will be built, for the CI job
+ * summary and for the release checklist. Authoritative because it reads the
+ * same computed values the build itself uses — not a re-derivation that could
+ * drift from them.
+ */
+tasks.register('printReleaseIdentity') {
+    doLast {
+        println "applicationId=${android.defaultConfig.applicationId}"
+        println "versionName=${android.defaultConfig.versionName}"
+        println "versionCode=${android.defaultConfig.versionCode}"
+        println "appVersionSource=package.json:${appVersion}"
+        println "androidBuild=${androidBuild}"
+        println "uploadSigningConfigured=${hasUploadKeystore}"
     }
 }
 

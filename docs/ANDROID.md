@@ -1,6 +1,11 @@
-# Android wrapper (Capacitor) — technical spike
+# Android wrapper (Capacitor)
 
-**Status: spike. Not a release, not on Google Play, not merged.**
+**Status: in production on Google Play Internal Testing.** The wrapper is
+merged and physically validated; versionName **0.27.0** / versionCode
+**2700001** was uploaded to Play Internal Testing, published, and installed
+from Google Play on the Samsung test device (2026-08-08). Installs and
+updates now arrive the normal Play way — no sideloading, no security
+bypasses.
 
 Fjällkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
@@ -441,36 +446,162 @@ Neither is implemented. This is a recommendation, not a plan of record.
 
 ---
 
-## Distribution — physical-test finding and the path after the spike
+## Distribution: three channels, one of them normal
 
-Installing the debug APK on the Samsung required bypassing normal device
-security: allowing installs from an unauthorised source for the browser/file
-app, and getting past **Samsung Auto Blocker**. That is acceptable exactly
-once, for this technical spike — it is **not** an acceptable installation or
-update experience for Fjällkompis.
+| Channel | Artifact | Who | Status |
+| --- | --- | --- | --- |
+| **Development** | debug APK, `assembleDebug` | developers | in use |
+| **Private distribution** | signed release **AAB** → Play Internal Testing | invited testers | **live — proven end to end 2026-08-08** |
+| **Future** | automated Internal Testing upload | CI | not built |
 
-What follows from that, recorded here as the standing plan:
+### Sideloaded debug APKs are development artifacts
 
-- **GitHub-hosted debug APKs stay development artifacts.** They prove the
-  build; they are never the way anyone, including Omar, routinely gets the
-  app.
-- **A manually signed release APK is not the answer either.** Sideloading a
-  release-signed APK still requires unknown-source permissions and still
-  collides with Auto Blocker; signing it ourselves changes nothing about the
-  experience.
-- **The next iteration after physical approval is Google Play Internal
-  Testing**, as its own separately-scoped piece of work: produce a signed
-  **Android App Bundle**, enrol in **Play App Signing**, and distribute
-  privately through the Play Store — initially to Omar's Google account only.
-  Installs and updates then arrive the normal, unbypassed way.
-- **Nothing is uploaded to Play yet.** Creating the app in Play Console
-  effectively **freezes the application id** — `com.algolon.fjallkompis` is
-  still provisional, and confirming it permanent is an explicit decision that
-  must happen *before* the first upload, not after.
-- Production tracks, open testing and public discoverability stay out of
-  scope.
-- The upload keystore and its credentials are never committed — same rule as
-  every other signing secret in this repository.
+Installing the debug APK on a Samsung required bypassing normal device
+security: allowing installs from an unauthorised source, and getting past
+**Samsung Auto Blocker**. That was acceptable for a technical spike. It is
+**not** the installation or update path for Fjällkompis, and it should never
+be described as one — not even to a single tester.
+
+A manually signed *release APK* is no better: sideloading still needs
+unknown-source permission and still collides with Auto Blocker. Signing it
+ourselves changes the signature, not the experience.
+
+**Play Internal Testing is the normal path.** Installs and updates arrive the
+ordinary way, with no security bypass, to invited Google accounts only.
+Production, open testing and public discoverability remain out of scope.
+
+---
+
+## Release build (AAB)
+
+`npm run android:assemble` still produces the debug APK and needs no secrets.
+The release bundle is a separate, deliberate act:
+
+```bash
+cd android && ./gradlew bundleRelease      # requires the upload signing env
+```
+
+Without the four signing environment variables this **fails loudly** rather
+than emitting an unsigned bundle — a bundle that looks finished and is then
+rejected by Play is worse than no bundle. The check is on the Gradle task
+graph, so it fires only for release tasks; debug work is unaffected.
+
+`minifyEnabled` stays **false**, Capacitor's shipped default. Capacitor
+resolves plugins reflectively from names in `capacitor.plugins.json` (this
+app's `BootPlugin` included), which R8 cannot see; enabling shrinking without
+a matching keep-rule set breaks the bridge only at runtime, after upload.
+Turning it on is a separate change that needs its own evidence.
+
+---
+
+## Versioning
+
+| | |
+| --- | --- |
+| `versionName` | the app version from `package.json` — currently **0.27.0** |
+| `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
+| **Consumed** | **2700001** (0.27.0, build 1) — uploaded and published to Internal Testing 2026-08-08; Play will never accept it again |
+| Next upload | **2700002** (0.27.0, build 2 — `androidBuild=2`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+
+Neither is written by hand in `build.gradle`; a test fails if either becomes a
+literal. The only number a developer edits is `androidBuild` in
+`android/version.properties`:
+
+- **Same app version, new Play upload** → increase `androidBuild` by 1.
+- **`package.json` version went up** → reset `androidBuild` to 1.
+
+**Never decrease either number, and never reuse a versionCode Play has
+accepted** — Play rejects the upload, and a code that has been live cannot be
+reclaimed. When in doubt, increment; a skipped code costs nothing.
+
+The scheme is monotonic by construction: a higher semver always outranks any
+build number of a lower one, so resetting the counter cannot decrease the
+code. Field widths (minor < 100, patch < 100, build < 1000) are enforced by
+Gradle at build time, because overflowing one field into the next version's
+range would produce a colliding code — and you would only find out at upload.
+
+---
+
+## Release signing
+
+**Google Play App Signing holds the final app-signing key** — enrolled at the
+first upload, which registered this project's upload key with Play. The whole
+chain is proven: CI built and signed the bundle, Play accepted it, and the
+app installed from the store. This repository only ever holds the **upload
+key**, and only as CI environment variables reconstructed from GitHub Actions
+secrets. No keystore, password or alias is
+committed; `.gitignore` and a test both enforce that, because a keystore
+committed once is compromised forever — git history keeps it.
+
+### One-time setup (Omar, on his own machine)
+
+Run this **once**. The private key must never be given to an agent, pasted
+into a chat, or committed.
+
+```bash
+keytool -genkeypair -v   -keystore fjallkompis-upload.jks   -alias fjallkompis-upload   -keyalg RSA -keysize 4096   -validity 10000   -dname "CN=Fjallkompis, O=Algolon, C=SE"
+```
+
+- **RSA 4096** — Play requires RSA for upload keys; 4096 is the stronger of
+  the two accepted sizes.
+- **10000 days (~27 years)** — Play requires a validity comfortably beyond
+  2033. An expired upload key means you can no longer upload.
+- **Alias `fjallkompis-upload`** — this exact string becomes the
+  `ANDROID_UPLOAD_KEY_ALIAS` secret.
+
+`keytool` prompts for the keystore password and then the key password. Use a
+password manager to generate both; you will paste them into GitHub secrets and
+should not need to type them again.
+
+**Back it up offline before doing anything else.** Copy
+`fjallkompis-upload.jks` and both passwords into your password manager or an
+encrypted offline backup. If the upload key is lost you cannot upload new
+versions under this app until Google resets it — a support round-trip, not a
+self-service fix.
+
+Then base64-encode it for GitHub Actions:
+
+```bash
+base64 -i fjallkompis-upload.jks -o fjallkompis-upload.jks.base64
+```
+
+Create four secrets at **GitHub → repository *Algolon/Fjallkompis* → Settings
+→ Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_UPLOAD_KEYSTORE_BASE64` | the entire contents of `fjallkompis-upload.jks.base64` |
+| `ANDROID_UPLOAD_KEYSTORE_PASSWORD` | the keystore password |
+| `ANDROID_UPLOAD_KEY_ALIAS` | `fjallkompis-upload` |
+| `ANDROID_UPLOAD_KEY_PASSWORD` | the key password |
+
+Finally, remove the plaintext working copies — the `.jks` in your working
+directory and the base64 file — keeping **only** your offline backup:
+
+```bash
+rm -P fjallkompis-upload.jks.base64        # -P overwrites before unlinking
+rm -P fjallkompis-upload.jks               # ONLY after the backup is verified
+```
+
+(On Linux use `shred -u` instead of `rm -P`.)
+
+### How CI uses it
+
+`.github/workflows/android-internal-release.yml` (manual dispatch only)
+decodes the keystore into the runner's temp directory — outside the workspace,
+so it cannot be swept into an artifact — builds `bundleRelease`, verifies the
+signature, and destroys the keystore in an `if: always()` step. No secret is
+ever echoed; the workflow only ever tests whether one is empty.
+
+### Verification, because "Gradle succeeded" is not "ready for Play"
+
+The workflow fails unless all of these hold:
+
+- `jarsigner -verify` reports the bundle verified;
+- the signer certificate's SHA-256 **matches the configured upload key**;
+- the signer is **not** `CN=Android Debug`;
+- the bundled manifest declares `com.algolon.fjallkompis`;
+- no `.jks`/`.keystore`/`.p12` is inside the bundle.
 
 ---
 
@@ -494,15 +625,18 @@ describe this app as supporting background tracking.
 
 ## Application id
 
-`com.algolon.fjallkompis` is **provisional**.
+`com.algolon.fjallkompis` is the **permanent** Play identity.
 
-On Android the application id is the app's permanent identity. Once a build
-carrying it is distributed publicly, changing it creates a *different* app:
+On Android the application id is the app's identity for good. Once the app
+exists in Play Console under this id, changing it creates a *different* app:
 existing users are not offered an update, they are offered a second install
 alongside the first, with its own storage sandbox and no migration path.
 
-Nothing has been published, so the id is still free to change. That window
-closes at first public release — decide before then, not after.
+Nothing has been uploaded yet, so strictly the window is still open — but the
+id is now treated as fixed, and a test asserts every occurrence across
+`build.gradle`, `capacitor.config.ts`, `strings.xml` and the Java package
+agrees. **If you are about to change it, stop:** that is a new app, not an
+edit.
 
 ---
 
