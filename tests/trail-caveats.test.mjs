@@ -490,9 +490,13 @@ test('Settings shows the fuller trust context in an existing section', () => {
     'the caveat sits with the offline map it is about',
   );
   const sections = [...settings.matchAll(/<SettingsAccordion\b/g)].length;
-  // Six since vNext moved the Day plan to Plan: direction, readiness,
-  // install, maps, backup, sources.
-  assert.equal(sections, 6, 'no new Settings section for the caveat');
+  // Seven: direction, readiness, install, maps, backup, sources, privacy.
+  // (Six until the Privacy + Play readiness milestone added the privacy
+  // policy entry — an unrelated section, added deliberately and with its own
+  // fences in tests/privacy-policy.test.mjs. The claim this assertion exists
+  // to defend is unchanged and still holds: the navigation caveat did NOT get
+  // a section of its own, it lives inside the Offline maps accordion above.)
+  assert.equal(sections, 7, 'no new Settings section for the caveat');
 });
 
 test('the caveat is not left to credits, a source link or an onboarding', () => {

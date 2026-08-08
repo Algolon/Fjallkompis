@@ -180,6 +180,16 @@ export default defineConfig(({ mode }) => ({
         // already baked into the bundle as JSON.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webp}'],
         navigateFallback: 'index.html',
+        // The public privacy policy (public/privacy/index.html) is a STATIC
+        // page that must not be shadowed by the React app shell. Without this,
+        // every navigation is a candidate for the SPA fallback, and a reader
+        // — or a Play reviewer — following the canonical privacy URL on a
+        // device with the worker installed could be handed the app instead of
+        // the policy. The route is denied by path only (no '/Fjallkompis/'
+        // prefix) so it holds under any base the app is ever served from.
+        // The page is still PRECACHED by globPatterns above, so it stays
+        // readable offline.
+        navigateFallbackDenylist: [/\/privacy\//],
         cleanupOutdatedCaches: true,
         // maplibre-gl makes the main chunk larger than Workbox's 2 MiB
         // default precache limit.
