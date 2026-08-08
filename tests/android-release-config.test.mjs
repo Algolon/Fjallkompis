@@ -257,7 +257,19 @@ test('the bundle is verified as release-signed, not merely built', () => {
   assert.match(verify, /jar verified/);
   assert.match(verify, /signer does not match the configured upload key/, 'the signer identity is checked');
   assert.match(verify, /CN=Android Debug/, 'a debug-signed bundle is rejected');
-  assert.match(verify, /application id not found in the bundled manifest/);
+  // The packaged manifest is PROTOBUF: it must be read with bundletool, never
+  // a printable-string heuristic — `strings | grep` failed in CI with the id
+  // present. The tool itself is pinned and checksum-verified before use.
+  assert.match(verify, /bundletool\.jar"? dump manifest/, 'the manifest check is protobuf-aware');
+  assert.ok(!/strings\s*\|/.test(verify), 'no strings-based manifest heuristic');
+  assert.match(verify, /--xpath=\/manifest\/@package/, 'the package is resolved, not pattern-matched');
+  assert.match(verify, /EXPECTED_VERSION_NAME/, 'the packaged versionName is cross-checked');
+  assert.match(verify, /EXPECTED_VERSION_CODE/, 'the packaged versionCode is cross-checked');
+  const fetchStep = workflow.match(/- name: Fetch bundletool[\s\S]*?- name:/)?.[0] ?? '';
+  assert.match(fetchStep, /bundletool-all-1\.18\.3\.jar/, 'bundletool is version-pinned');
+  assert.match(fetchStep, /a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29/,
+    'and checksum-verified before it is executed');
+  assert.match(fetchStep, /sha256sum -c/, 'the checksum is actually enforced');
   assert.match(verify, /a keystore is present INSIDE the bundle/, 'the artifact is checked for stray key material');
 });
 

@@ -239,11 +239,32 @@ jobs:
         run: ./gradlew --no-daemon bundleRelease
 
       # ---- "Gradle succeeded" is not "ready for Play" ------------------------
+      - name: Fetch bundletool (pinned, checksum-verified)
+        # The AAB's AndroidManifest.xml is PROTOBUF, not text: scraping it
+        # with `strings` is a heuristic that failed in run 31229129455 even
+        # though the id was present. bundletool is Google's own App Bundle
+        # tool and decodes the manifest properly. It is not preinstalled on
+        # the ubuntu-24.04 runner image (checked against the published image
+        # manifest), so it is fetched from google/bundletool's official
+        # release — version-pinned, and verified against a SHA-256 computed
+        # independently from the same release before this step was written.
+        run: |
+          set -euo pipefail
+          jar="$RUNNER_TEMP/bundletool.jar"
+          curl -sSfL --retry 3 \
+            -o "$jar" \
+            https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $jar" | sha256sum -c - \
+            || { echo "::error::bundletool download failed its checksum — refusing to run an unverified tool"; exit 1; }
+          java -jar "$jar" version
+
       - name: Verify the bundle is release-signed with the upload key
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           EXPECTED_APPLICATION_ID: ${{ steps.identity.outputs.applicationId }}
+          EXPECTED_VERSION_NAME: ${{ steps.identity.outputs.versionName }}
+          EXPECTED_VERSION_CODE: ${{ steps.identity.outputs.versionCode }}
         run: |
           set -euo pipefail
           aab=android/app/build/outputs/bundle/release/app-release.aab
@@ -311,11 +332,41 @@ jobs:
           fi
           echo "Signer is not the Android debug key."
 
-          # 4. The manifest inside the bundle carries the permanent id.
-          unzip -p "$aab" base/manifest/AndroidManifest.xml | strings \
-            | grep -qx "$EXPECTED_APPLICATION_ID" \
-            || { echo "::error::application id not found in the bundled manifest"; exit 1; }
-          echo "Bundled manifest declares $EXPECTED_APPLICATION_ID."
+          # 4. The PACKAGED manifest resolves to the permanent identity —
+          #    read protobuf-aware with bundletool, never with a printable-
+          #    string heuristic (a previous `strings | grep -x` failed here
+          #    with the id present, because a proto manifest is not lines).
+          #    Checked against the packaged bundle, not the build config, so
+          #    what Play would ingest is what is being verified.
+          dump() {
+            java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$aab" "$@"
+          }
+          if ! pkg="$(dump --xpath=/manifest/@package)"; then
+            echo "::error::bundletool could not read the bundled manifest — the AAB may be malformed. Full dump attempt:"
+            dump | head -20 || true
+            exit 1
+          fi
+          pkg="$(echo "$pkg" | tr -d '[:space:]')"
+          if [ "$pkg" != "$EXPECTED_APPLICATION_ID" ]; then
+            echo "::error::bundled manifest package is '$pkg', expected '$EXPECTED_APPLICATION_ID'"
+            exit 1
+          fi
+          echo "Bundled manifest package: $pkg"
+
+          #    And the packaged version identity matches what Gradle computed,
+          #    so the artifact cannot silently disagree with the job summary.
+          vname="$(dump --xpath=/manifest/@android:versionName | tr -d '[:space:]')"
+          vcode="$(dump --xpath=/manifest/@android:versionCode | tr -d '[:space:]')"
+          if [ -z "$vname" ] || [ -z "$vcode" ]; then
+            echo "::error::could not read versionName/versionCode from the packaged manifest"
+            dump | head -5 || true
+            exit 1
+          fi
+          if [ "$vname" != "$EXPECTED_VERSION_NAME" ] || [ "$vcode" != "$EXPECTED_VERSION_CODE" ]; then
+            echo "::error::packaged version identity (name=$vname code=$vcode) does not match the computed identity (name=$EXPECTED_VERSION_NAME code=$EXPECTED_VERSION_CODE)"
+            exit 1
+          fi
+          echo "Packaged version identity: versionName=$vname versionCode=$vcode"
 
           # 5. No signing material rode along inside the bundle. The signature
           #    itself lives in META-INF and is expected; a keystore is not.
