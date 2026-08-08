@@ -463,8 +463,13 @@ test('the recovery notice is calm, offers export, and removal needs confirming',
   assert.match(card, /Your saved Day plan could not be migrated to this version\./);
   assert.match(card, /The original was set aside untouched and nothing else was affected\./);
   assert.match(card, /Download original plan/);
-  assert.match(card, /downloadJson\('fjallkompis-day-plan-recovery\.json'/);
+  // Same filename and payload as ever, now handed to the platform save
+  // boundary — in the Android wrapper a blob-URL anchor is silently ignored,
+  // and this button exists so the user can KEEP data the button beside it
+  // deletes. A failed save therefore has to be visible.
+  assert.match(card, /saveGeneratedFile\(\s*\n?\s*'fjallkompis-day-plan-recovery\.json'/);
   assert.match(card, /dayPlan: dayPlanRecovery\.dayPlan,/, 'the export carries the verbatim value');
+  assert.match(card, /setSaveFailed\(true\)/, 'a failed save is shown, never silent');
   // Removal is explicit: a confirmation dialog naming permanence, then the
   // one store action. Nothing here renders or interprets the payload.
   assert.match(card, /Remove recovery copy/);

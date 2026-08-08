@@ -323,13 +323,14 @@ test('Reset local data names the trip plan and stored documents explicitly', () 
   );
 });
 
-test('Backup & restore states trip items ARE included and document files are NOT', () => {
-  assert.match(settings, /backup includes your Trip plan.s\s+travel and stay items/);
-  assert.match(
-    settings,
-    /document FILES are stored\s+separately on this device and are not included/,
-  );
-  assert.match(settings, /items list any missing documents honestly/);
+test('Backup & restore keeps the two exports honest about document files', () => {
+  // The lightweight JSON export says plainly that Wallet files are NOT in it…
+  assert.match(settings, /Wallet document files\s+are NOT inside it/);
+  assert.match(settings, /items list any\s+missing documents honestly/);
+  // …and the complete backup says plainly that they ARE, and that the file
+  // is therefore sensitive.
+  assert.match(settings, /trip data AND the document PDFs and images stored in your Wallet/i);
+  assert.match(settings, /contains your personal documents, so store it somewhere private/);
 });
 
 // ---- Offline-first by construction --------------------------------------------

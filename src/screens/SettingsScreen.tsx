@@ -13,8 +13,22 @@ import type { RouteDirection } from '../types';
 import { ScreenHeader } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { APP_VERSION } from '../constants';
-import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
-import { clearWalletData } from '../wallet/walletStore.mjs';
+import { buildExport, parseImport } from '../utils/exportImport';
+import { readState } from '../utils/storage';
+import { clearWalletData, dumpWalletData, replaceWalletData } from '../wallet/walletStore.mjs';
+import {
+  backupFileName,
+  backupSummaryText,
+  preflightBackupFile,
+  restoreRejectionText,
+} from '../backup/completeBackup.mjs';
+import {
+  buildCompleteBackup,
+  stageCompleteBackup,
+  type StagedBackup,
+} from '../backup/completeBackupArchive.mjs';
+import { applyCompleteRestore } from '../backup/completeBackupRestore.mjs';
+import { saveGeneratedFile } from '../runtime/fileSave';
 import { todayIso } from '../utils/format';
 import {
   OfflineMapCard,
@@ -328,9 +342,165 @@ export function SettingsScreen({
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const doExport = () => {
-    downloadJson(`fjallkompis-backup-${todayIso()}.json`, buildExport(state));
-    setNotice({ kind: 'ok', text: 'Backup downloaded.' });
+  // The SAME bytes downloadJson always produced (2-space JSON of the same
+  // envelope), but delivered through the platform save boundary: browsers
+  // keep the normal download, and the Android wrapper gets the system save
+  // picker instead of the silent blob-URL no-op the WebView made of it.
+  const doExport = async () => {
+    try {
+      const json = JSON.stringify(buildExport(state), null, 2);
+      const outcome = await saveGeneratedFile(
+        `fjallkompis-backup-${todayIso()}.json`,
+        new Blob([json], { type: 'application/json' }),
+        'application/json',
+      );
+      if (outcome === 'saved') setNotice({ kind: 'ok', text: 'Backup downloaded.' });
+    } catch (err) {
+      console.warn('Fjällkompis: JSON export failed.', err);
+      setNotice({ kind: 'err', text: 'Could not save the export file.' });
+    }
+  };
+
+  // ---- Complete backup (state + the actual Wallet PDF/image files) --------
+  //
+  // All reads go through the wallet storage adapter (dumpWalletData — one
+  // consistent transaction), the package is built by the platform-agnostic
+  // backup layer, and only the final "hand the file to the user" step is
+  // platform-specific (saveBackupFile). A backup that cannot include every
+  // document file REFUSES with the documents named — never a silent partial.
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [restoreCandidate, setRestoreCandidate] = useState<
+    (StagedBackup & { formattedSize: string }) | null
+  >(null);
+  const backupFileRef = useRef<HTMLInputElement>(null);
+
+  const doCompleteExport = async () => {
+    setBackupBusy(true);
+    try {
+      const { documents, files } = await dumpWalletData();
+      const fileBytesById = new Map<string, Uint8Array | null>();
+      for (const [id, blob] of files) {
+        fileBytesById.set(id, blob ? new Uint8Array(await blob.arrayBuffer()) : null);
+      }
+      const result = await buildCompleteBackup({
+        exportEnvelope: buildExport(state),
+        documents,
+        fileBytesById,
+        appVersion: APP_VERSION,
+        exportedAt: new Date().toISOString(),
+      });
+      if (!result.ok) {
+        const affected = result.documents ?? [];
+        const names = affected.map((d) => `“${d.title}”`).join(', ');
+        setNotice({
+          kind: 'err',
+          text:
+            affected.length === 1
+              ? `A complete backup must include every document file. ${names} has no stored file on this device — replace its file or remove the document, then export again.`
+              : `A complete backup must include every document file. These documents have no stored file on this device: ${names}. Replace their files or remove them, then export again.`,
+        });
+        return;
+      }
+      const blob = new Blob([result.bytes as BlobPart], { type: 'application/zip' });
+      const outcome = await saveGeneratedFile(
+        backupFileName(todayIso()),
+        blob,
+        'application/zip',
+      );
+      if (outcome === 'saved') {
+        setNotice({
+          kind: 'ok',
+          text: `Complete backup saved — ${backupSummaryText(
+            result.manifest.counts.walletDocuments,
+            formatBytes(blob.size),
+          )}. It contains your personal document files; store it somewhere private.`,
+        });
+      }
+    } catch (err) {
+      console.warn('Fjällkompis: complete backup failed.', err);
+      setNotice({ kind: 'err', text: 'Could not create the complete backup. Nothing was saved.' });
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const onBackupFile = async (file: File | undefined) => {
+    if (!file) return;
+    // Container preflight BEFORE any bytes are read: a huge selection must
+    // be refused from its size alone, not after arrayBuffer() has already
+    // allocated it (MAX_BACKUP_FILE_BYTES in the backup contract).
+    const preflight = preflightBackupFile(file.size);
+    if (!preflight.ok) {
+      setNotice({ kind: 'err', text: restoreRejectionText(preflight) });
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const staged = await stageCompleteBackup(bytes, readState);
+      if (!staged.ok) {
+        setNotice({ kind: 'err', text: restoreRejectionText(staged) });
+        return;
+      }
+      // Everything is validated and held in memory; nothing stored has
+      // changed. The confirmation dialog below is what may apply it.
+      const totalBytes = [...staged.walletFiles.values()].reduce(
+        (sum, f) => sum + f.bytes.byteLength,
+        0,
+      );
+      setRestoreCandidate({ ...staged, formattedSize: formatBytes(totalBytes) });
+    } catch (err) {
+      console.warn('Fjällkompis: could not read the backup file.', err);
+      setNotice({ kind: 'err', text: restoreRejectionText('unreadable-archive') });
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const doCompleteRestore = async () => {
+    const staged = restoreCandidate;
+    setRestoreCandidate(null);
+    if (!staged) return;
+    setBackupBusy(true);
+    try {
+      const result = await applyCompleteRestore(staged, {
+        snapshotWallet: dumpWalletData,
+        replaceWallet: replaceWalletData,
+        applyState: replaceState,
+        toStoredFiles: (candidateFiles) =>
+          new Map(
+            [...candidateFiles].map(([id, f]) => [
+              id,
+              new Blob([f.bytes as BlobPart], { type: f.mimeType }),
+            ]),
+          ),
+      });
+      if (result.ok) {
+        setNotice({
+          kind: 'ok',
+          text: `Backup restored — trip data and ${result.restoredDocuments} document${
+            result.restoredDocuments === 1 ? '' : 's'
+          } replaced what was on this device.`,
+        });
+      } else if (result.reason === 'wallet-write-failed') {
+        setNotice({
+          kind: 'err',
+          text: 'The documents could not be written (possibly out of storage space). Nothing was changed.',
+        });
+      } else {
+        setNotice({
+          kind: 'err',
+          text: result.rolledBack
+            ? 'Applying the backup failed, so your previous data was put back unchanged.'
+            : 'Applying the backup failed, and restoring your previous documents also failed. Your trip data is unchanged; check the documents in Plan → Wallet.',
+        });
+      }
+    } catch (err) {
+      console.warn('Fjällkompis: restore failed.', err);
+      setNotice({ kind: 'err', text: 'The restore failed unexpectedly.' });
+    } finally {
+      setBackupBusy(false);
+    }
   };
 
   const onFile = async (file: File | undefined) => {
@@ -351,7 +521,7 @@ export function SettingsScreen({
   const doReset = async () => {
     if (
       !confirm(
-        'Reset all local data? This clears your packing list, trip plan, stop notes, journal and current stage, and permanently removes the documents stored on this device. Export a backup first if unsure — stored document files are not part of the JSON backup.',
+        'Reset all local data? This clears your packing list, trip plan, stop notes, journal and current stage, and permanently removes the documents stored on this device. Export a complete backup first if unsure — it is the only backup that includes the stored document files.',
       )
     ) {
       return;
@@ -514,18 +684,61 @@ export function SettingsScreen({
           open={openSection === 'backup'}
           onToggle={() => toggleSection('backup')}
         >
-          <span className="card-title">Backup & restore</span>
+          <span className="card-title">Complete backup</span>
           <p className="card-sub" style={{ marginTop: 4 }}>
-            Export before trips and OS updates. Import merges nothing — it replaces
-            current data with the file’s contents. The backup includes your Trip plan’s
-            travel and stay items; the document FILES are stored
-            separately on this device and are not included in this backup file. After a
-            restore on another device, items list any missing documents honestly so you
-            can re-attach them there.
+            Everything needed to restore this Fjällkompis setup on another install or
+            device — trip data AND the document PDFs and images stored in your Wallet.
+            The file contains your personal documents, so store it somewhere private.
+            Restoring replaces what is currently on this device.
           </p>
 
-          <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={doExport}>
-            Export all data (JSON)
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 12 }}
+            onClick={() => void doCompleteExport()}
+            disabled={backupBusy}
+          >
+            Export complete backup
+          </button>
+          <button
+            className="btn btn-block"
+            style={{ marginTop: 10 }}
+            onClick={() => backupFileRef.current?.click()}
+            disabled={backupBusy}
+          >
+            Restore complete backup
+          </button>
+          {/* Android's save picker may append ".zip" to the .fjallkompis name
+              (SAF normalises unknown extensions to the declared MIME type),
+              so the restore picker accepts both shapes; validation reads the
+              manifest, never the filename. */}
+          <input
+            ref={backupFileRef}
+            type="file"
+            accept=".fjallkompis,.zip,application/zip,application/octet-stream"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              void onBackupFile(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+
+          <span className="card-title" style={{ display: 'block', marginTop: 18 }}>
+            Data export
+          </span>
+          <p className="card-sub" style={{ marginTop: 4 }}>
+            Lightweight JSON with trip data and settings only — Wallet document files
+            are NOT inside it. Import merges nothing — it replaces current trip data
+            with the file’s contents; after importing on another device, items list any
+            missing documents honestly so you can re-attach them there.
+          </p>
+
+          <button
+            className="btn btn-block"
+            style={{ marginTop: 10 }}
+            onClick={() => void doExport()}
+          >
+            Export data (.json)
           </button>
 
           <button
@@ -550,6 +763,20 @@ export function SettingsScreen({
             Reset local data
           </button>
         </SettingsAccordion>
+
+        {restoreCandidate ? (
+          <ConfirmDialog
+            title="Replace this device’s data?"
+            body={`This backup contains ${backupSummaryText(
+              restoreCandidate.walletDocuments.length,
+              restoreCandidate.formattedSize,
+            )} (exported ${restoreCandidate.manifest.exportedAt.slice(0, 10)}). Restoring replaces your current trip data and every stored Wallet document on this device.`}
+            primaryLabel="Replace and restore"
+            destructive
+            onConfirm={() => void doCompleteRestore()}
+            onCancel={() => setRestoreCandidate(null)}
+          />
+        ) : null}
 
         <SettingsAccordion
           id="sources"

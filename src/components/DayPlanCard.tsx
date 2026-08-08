@@ -3,7 +3,7 @@ import { BedDouble, BusFront, Coffee, Eye, Footprints, Pencil, Plus } from 'luci
 import { useStore } from '../store/AppStore';
 import { DateField } from './DateField';
 import { ConfirmDialog } from './ConfirmDialog';
-import { downloadJson } from '../utils/exportImport';
+import { saveGeneratedFile } from '../runtime/fileSave';
 import { DayPlanDaySheet } from './DayPlanDaySheet';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import { STAGE_TOPOLOGY, STOPS_BY_ID, stopShortName } from '../trail/activeTrailContent';
@@ -267,16 +267,36 @@ const shortName = (stopId: string) => {
 function RecoveryNotice() {
   const { dayPlanRecovery, removeDayPlanRecovery } = useStore();
   const [confirming, setConfirming] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   if (!dayPlanRecovery) return null;
 
-  const download = () =>
-    downloadJson('fjallkompis-day-plan-recovery.json', {
+  // Same filename and same payload the browser download always produced,
+  // routed through the platform save boundary so the Android wrapper opens
+  // the system picker instead of the blob-URL anchor its WebView ignores.
+  // A failure MUST be visible here: this button exists so the user can keep
+  // data they are about to delete with the button beside it, and a silent
+  // no-op would invite exactly that loss. Cancelling the picker is not a
+  // failure and says nothing.
+  const download = async () => {
+    setSaveFailed(false);
+    const payload = {
       app: 'fjallkompis',
       kind: 'day-plan-recovery',
       reason: dayPlanRecovery.reason,
       exportedAt: new Date().toISOString(),
       dayPlan: dayPlanRecovery.dayPlan,
-    });
+    };
+    try {
+      await saveGeneratedFile(
+        'fjallkompis-day-plan-recovery.json',
+        new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+        'application/json',
+      );
+    } catch (err) {
+      console.warn('Fjällkompis: could not save the Day plan recovery copy.', err);
+      setSaveFailed(true);
+    }
+  };
 
   return (
     <div className="dayplan-recovery" role="status">
@@ -285,8 +305,14 @@ function RecoveryNotice() {
         The original was set aside untouched and nothing else was affected.
         Download it to keep a copy, or remove it if you no longer need it.
       </p>
+      {saveFailed ? (
+        <p className="card-sub" role="alert" style={{ marginTop: 0 }}>
+          The copy could not be saved, so nothing was written. Try again before
+          removing it.
+        </p>
+      ) : null}
       <div className="dayplan-recovery__actions">
-        <button type="button" className="btn" onClick={download}>
+        <button type="button" className="btn" onClick={() => void download()}>
           Download original plan
         </button>
         <button type="button" className="btn btn-ghost" onClick={() => setConfirming(true)}>

@@ -12,6 +12,19 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Added
 
+- **Complete backup & restore.** Settings now offers one portable backup file
+  (`fjallkompis-backup-YYYY-MM-DD.fjallkompis`) containing everything needed
+  to restore a Fjällkompis setup on another install or device: trip data AND
+  the actual PDF and image files stored in the Trail Wallet — the files the
+  JSON export has never carried. The backup is refused (with the documents
+  named) if any stored document is missing its file, so a "complete" backup
+  can never quietly be incomplete. Restoring validates the whole file first
+  and asks before replacing anything; if a restore fails midway, the previous
+  data is put back. Document links on Travel and Stay items survive the round
+  trip. The lightweight JSON export stays available and unchanged, and the
+  two are now clearly told apart in Settings. On Android the backup saves
+  through the system file picker.
+
 - **The Map became a trail cockpit.** A scope pill in the top-left always
   says what you are looking at — *Full route*, *Day 3 · Alesjaure →
   Tjäktja*, or the place you opened with “View on map” — and opens a sheet

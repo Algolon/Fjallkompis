@@ -16,4 +16,12 @@ export declare function updateWalletDocument(
 export declare function enforceMembershipQuickAccess(keepId: string): Promise<void>;
 export declare function deleteWalletDocument(id: string): Promise<void>;
 export declare function clearWalletData(): Promise<void>;
+export declare function dumpWalletData(): Promise<{
+  documents: WalletDocument[];
+  files: Map<string, Blob | null>;
+}>;
+export declare function replaceWalletData(
+  documents: WalletDocument[],
+  files: Map<string, Blob | null>,
+): Promise<void>;
 export declare function requestPersistentStorage(): Promise<boolean | null>;
