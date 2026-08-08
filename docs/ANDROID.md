@@ -373,13 +373,29 @@ by design.
 
 To move a trip across:
 
-1. In the **PWA**, Settings → export the JSON backup.
-2. In the **wrapper**, Settings → import that file.
+1. In the source install, Settings → **Export complete backup** — one
+   `.fjallkompis` file (a plain ZIP inside) with trip data AND every Trail
+   Wallet PDF/image, integrity-hashed (see `src/backup/`).
+2. In the target install, Settings → **Restore complete backup** — validated
+   in full before anything is touched, then applied with an explicit
+   confirmation.
 
-**The JSON backup does not include Trail Wallet document images.** Those blobs
-live in the `fjallkompis-wallet` IndexedDB database and are not part of the
-export envelope. After importing, re-add wallet documents by hand, or simply
-use a fresh test profile in the wrapper.
+The lightweight **JSON export still exists and still carries no Wallet
+files** — it remains the small, state-only file it always was, and old JSON
+backups import exactly as before.
+
+**Saving the backup file is the wrapper's one download path.** The WebView
+does not turn blob-URL `<a download>` anchors into downloads (emulator-
+verified: the JSON export button writes nothing in the wrapper), so the
+complete backup crosses a narrow bridge (`SaveFilePlugin.java`, chunked
+base64) into the system's ACTION_CREATE_DOCUMENT picker — the user chooses
+the location, and no storage permission exists or is requested. The system
+may append `.zip` to the `.fjallkompis` name (SAF normalises unknown
+extensions to the declared `application/zip`); the restore picker accepts
+both shapes and identity always comes from the manifest, never the filename.
+Restore needs no native code: `<input type="file">` works in the WebView the
+same way the Wallet's attach-file flow already does — both flows were driven
+end-to-end in the emulator (export → picker → byte-identical restore).
 
 Nothing about storage changed for the wrapper: `SCHEMA_VERSION`, the
 `fjallkompis:state` key, the `fjallkompis-wallet` database and the export

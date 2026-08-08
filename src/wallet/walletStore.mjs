@@ -267,6 +267,68 @@ export async function clearWalletData() {
 }
 
 /**
+ * One CONSISTENT read of the whole wallet for the complete backup: documents
+ * (normalised, with the fileMissing annotation derived exactly as
+ * listWalletDocuments derives it) plus every stored blob, all inside ONE
+ * readonly transaction spanning both stores — a document added or deleted
+ * concurrently can never produce a list/blob mismatch in the export.
+ */
+export async function dumpWalletData() {
+  if (!walletStorageSupported()) return { documents: [], files: new Map() };
+  const db = await openDb();
+  const tx = db.transaction([DOCUMENTS, FILES], 'readonly');
+  const [records, fileRows] = await Promise.all([
+    requestToPromise(tx.objectStore(DOCUMENTS).getAll()),
+    requestToPromise(tx.objectStore(FILES).getAll()),
+  ]);
+  const files = new Map(fileRows.map((row) => [row.id, row.blob ?? null]));
+  const documents = [];
+  for (const record of records) {
+    if (record?.id === WALLET_META_ID) continue;
+    const doc = normalizeWalletDocument(record);
+    if (!doc) continue;
+    if (!files.has(doc.id) || files.get(doc.id) === null) {
+      doc.fileMissing = true;
+      // An explicit null entry, so this dump can round-trip through
+      // replaceWalletData as a rollback snapshot (metadata-only document).
+      files.set(doc.id, null);
+    }
+    documents.push(doc);
+  }
+  return { documents, files };
+}
+
+/**
+ * Replace the ENTIRE wallet in one atomic transaction spanning both stores —
+ * the restore path of the complete backup, and its rollback. Clear + refill
+ * happens INSIDE the transaction, so an abort at any point (quota, a blob
+ * that cannot be cloned) leaves the previous contents exactly as they were:
+ * this is never "clear first, hope the import succeeds".
+ *
+ * `files` maps document id -> blob. A document with NO map entry at all is a
+ * programming error and aborts the transaction (a staged restore candidate
+ * always carries every blob). An explicit `null` stores metadata WITHOUT a
+ * blob row — that exists solely so the ROLLBACK can reproduce a wallet that
+ * already had a fileMissing document (storage eviction) exactly as it was,
+ * instead of failing the rollback over a blob nobody has.
+ */
+export async function replaceWalletData(documents, files) {
+  await inBothStores((tx) => {
+    const docStore = tx.objectStore(DOCUMENTS);
+    const fileStore = tx.objectStore(FILES);
+    docStore.clear();
+    fileStore.clear();
+    docStore.put({ id: WALLET_META_ID, schemaVersion: WALLET_SCHEMA_VERSION });
+    for (const doc of documents) {
+      if (!files.has(doc.id)) throw new Error(`No file provided for document ${doc.id}`);
+      const blob = files.get(doc.id);
+      docStore.put(toStoredRecord(doc));
+      if (blob !== null) fileStore.put({ id: doc.id, blob });
+    }
+  });
+}
+
+/**
  * Best-effort request for persistent (eviction-resistant) storage. Browsers
  * decide for themselves — installed PWAs usually qualify — and several
  * ignore it; the result must never be presented as a guarantee. Returns

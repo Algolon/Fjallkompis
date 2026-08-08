@@ -99,6 +99,10 @@ public class MainActivity extends BridgeActivity {
         // in bridgeBuilder are present for that first load. Registering the
         // boot bridge afterwards would race the page it exists to serve.
         registerPlugin(BootPlugin.class);
+        // Same window for the same reason: the complete-backup save bridge
+        // (Storage Access Framework, src/runtime/backupFile.ts) must exist
+        // for the first page load too.
+        registerPlugin(SaveFilePlugin.class);
 
         super.onCreate(savedInstanceState);
 
