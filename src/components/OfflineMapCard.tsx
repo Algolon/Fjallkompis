@@ -53,8 +53,6 @@ interface CombinedStatus {
   needsRepair: boolean;
   /** Every archive in this group ships with the app — nothing to manage. */
   bundled: boolean;
-  removable: boolean;
-  downloadable: boolean;
   /** The store can interrupt an in-flight download (native only). */
   cancellable: boolean;
 }
@@ -103,8 +101,6 @@ function combineStatuses(statuses: StoredArchiveStatus[]): CombinedStatus {
     updateAvailable: state === 'legacy',
     needsRepair: state === 'invalid',
     bundled,
-    removable: statuses.some((s) => s.removable),
-    downloadable: statuses.every((s) => s.downloadable),
     cancellable: statuses.every((s) => s.cancellable),
   };
 }
@@ -139,8 +135,6 @@ export function useCombinedArchiveStatus(specs: ArchiveSpec[]): ArchiveCombinedS
     updateAvailable: false,
     needsRepair: false,
     bundled: false,
-    removable: false,
-    downloadable: false,
     cancellable: false,
   });
 

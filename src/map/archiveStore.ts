@@ -61,17 +61,15 @@ export interface StoredArchiveStatus {
   /** Stored data that cannot be used and must be downloaded again. */
   needsRepair: boolean;
   /**
-   * The user can delete this from the device. False for a bundled archive:
-   * there is nothing to reclaim and nothing that could be re-downloaded.
-   */
-  removable: boolean;
-  /** The user can start (or retry) a download for this archive. */
-  downloadable: boolean;
-  /**
    * An in-flight download can be stopped. True only for the native store: a
    * browser `fetch` here is not abortable mid-stream by design (the PWA's
    * download assembles one Blob and either completes or throws), so offering
    * a Cancel button there would be a control that does nothing.
+   *
+   * There is deliberately no `removable` or `downloadable` alongside this: the
+   * `bundled` state already says an archive has nothing to fetch and nothing
+   * to reclaim, and a second way to express the same fact is a second thing to
+   * keep in agreement.
    */
   cancellable: boolean;
 }
@@ -84,8 +82,6 @@ const BUNDLED_STATUS = (expectedBytes: number): StoredArchiveStatus => ({
   expectedBytes,
   updateAvailable: false,
   needsRepair: false,
-  removable: false,
-  downloadable: false,
   cancellable: false,
 });
 
@@ -115,19 +111,11 @@ export async function archiveStatus(spec: ArchiveSpec): Promise<StoredArchiveSta
       expectedBytes: probe.expectedBytes,
       updateAvailable: probe.updateAvailable,
       needsRepair: probe.needsRepair,
-      removable: probe.sizeBytes != null,
-      downloadable: true,
       cancellable: true,
     };
   }
 
-  const status = await getArchiveStatus(spec);
-  return {
-    ...status,
-    removable: status.supported && status.sizeBytes != null,
-    downloadable: status.supported,
-    cancellable: false,
-  };
+  return { ...(await getArchiveStatus(spec)), cancellable: false };
 }
 
 /**

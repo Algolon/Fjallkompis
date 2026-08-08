@@ -43,6 +43,15 @@ import { classifyStoredArchive } from '../src/map/archiveRevision.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(join(root, rel), 'utf8');
 
+/**
+ * Source with comments stripped. Several assertions below are of the form
+ * "this identifier appears nowhere" — and these modules explain at length WHY
+ * they avoid the thing, so matching the prose would make the test pass (or
+ * fail) for entirely the wrong reason.
+ */
+const codeOnly = (source) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+
 const catalog = read('src/map/mapCatalog.mjs');
 const offlineMap = read('src/map/offlineMap.ts');
 const archiveStore = read('src/map/archiveStore.ts');
@@ -354,10 +363,8 @@ test('numeric bridge arguments are coerced, never read with getLong/getInt', () 
       `${arg} is read through the coercing helper`,
     );
   }
-  // Code only — the helper's own comment names the methods it exists to avoid.
-  const pluginCode = plugin.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  assert.ok(!/call\.getLong\(/.test(pluginCode), 'getLong is never used');
-  assert.ok(!/call\.getInt\(/.test(pluginCode), 'getInt is never used');
+  assert.ok(!/call\.getLong\(/.test(codeOnly(plugin)), 'getLong is never used');
+  assert.ok(!/call\.getInt\(/.test(codeOnly(plugin)), 'getInt is never used');
 });
 
 test('a stored archive survives restart: status is read from disk, not from memory', () => {
@@ -429,16 +436,9 @@ test('the native read path never touches Capacitor’s local server', () => {
   // convertFileSrc goes through WebViewLocalServer.handleLocalRequest, whose
   // range branch returns the rest of the file for every read — the versionCode
   // 2700001 blank-basemap defect. Reintroducing it here would be silent.
-  //
-  // Code only — these modules explain in prose WHY they avoid it, and matching
-  // that explanation would be a test that passes for the wrong reason.
-  const code = (source) =>
-    source
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/(^|[^:])\/\/.*$/gm, '$1');
   for (const source of [nativeStore, archiveStore, read('src/map/pmtilesProtocol.ts')]) {
-    assert.ok(!code(source).includes('convertFileSrc'), 'no file: URL is handed to the WebView');
-    assert.ok(!code(source).includes('_capacitor_file_'), 'no local-server path is constructed');
+    assert.ok(!codeOnly(source).includes('convertFileSrc'), 'no file: URL reaches the WebView');
+    assert.ok(!codeOnly(source).includes('_capacitor_file_'), 'no local-server path is built');
   }
 });
 
@@ -511,14 +511,18 @@ test('map availability follows what is stored, never which platform this is', ()
 
 test('the shared states are one enumeration, and bundled is one of them', () => {
   assert.match(archiveStore, /export type StoredArchiveState = ArchiveState \| 'bundled'/);
-  for (const flag of ['downloaded', 'updateAvailable', 'needsRepair', 'removable', 'downloadable']) {
+  for (const flag of ['downloaded', 'updateAvailable', 'needsRepair', 'cancellable']) {
     assert.ok(archiveStore.includes(`${flag}:`), `the store reports ${flag}`);
   }
-  // A bundled archive offers no download and no removal — there is nothing to
-  // fetch and nothing to reclaim — and the card renders neither.
-  assert.match(archiveStore, /state: 'bundled',[\s\S]{0,200}removable: false,\s*\n\s*downloadable: false/);
+  // A bundled archive offers no download and no removal. That is expressed by
+  // the STATE, not by extra booleans saying the same thing — the card renders
+  // neither control, and there is no second flag to keep in agreement with it.
   assert.match(card, /\{bundled \? null : needsRepair \?/);
   assert.match(card, /'✓ Included in the app'/);
+  assert.ok(!/removable/.test(codeOnly(archiveStore)), 'no redundant removable flag');
+  assert.ok(!/downloadable/.test(codeOnly(archiveStore)), 'no redundant downloadable flag');
+  // Cancel is offered only where the store can actually stop the transfer.
+  assert.match(card, /phase\.kind === 'downloading' && cancellable \?/);
 });
 
 test('the PWA’s own storage path is unchanged', () => {
@@ -530,7 +534,7 @@ test('the PWA’s own storage path is unchanged', () => {
     /await cache\.put\(spec\.url, toResponse\(blob\)\)/,
     'still one full response per archive',
   );
-  assert.match(archiveStore, /const status = await getArchiveStatus\(spec\)/);
+  assert.match(archiveStore, /await getArchiveStatus\(spec\)/);
   assert.match(archiveStore, /: downloadArchive\(spec, onProgress\)/);
   assert.match(archiveStore, /await removeArchive\(spec\)/);
   // And the caches it reads are the ones it has always read.
