@@ -24,12 +24,36 @@ that are casually collapsed into "data":
 |---|---|---|
 | 1 | **Stored locally on the device** | trip state, Trail Wallet documents, offline map archives |
 | 2 | **Accessed temporarily for a feature** | device location, while the map screen is open |
-| 3 | **Transmitted over the network** | nothing about the user; only requests for the app's own files |
+| 3 | **Transmitted over the network** | nothing about the user — the app's own files, and the map archives the user downloads |
 | 4 | **Ordinary server/network metadata** | what GitHub Pages (and Google Play, for installs) inherently sees |
 
 Categories 3 and 4 are the ones most often conflated. Fjallkompis transmits
-nothing in category 3; category 4 exists because loading a web page is a network
-request, not because the app reports anything.
+nothing about the user in category 3; category 4 exists because loading a web
+page is a network request, not because the app reports anything.
+
+### Three kinds of network activity, kept apart
+
+"The app makes N requests" is not a single claim, and collapsing these three
+would make the audit either wrong or unfalsifiable. Throughout this document:
+
+- **(N1) Platform resource loading.** The browser or WebView fetching the app's
+  own documents, scripts, styles, icons and images — the app shell. Issued by
+  the platform because a page is being loaded, not by application code, and
+  enumerated by the build (the precache manifest, §7), not by a call site. On
+  the PWA the service worker serves most of it from cache after the first load;
+  in the APK these assets are packaged and never leave the device.
+- **(N2) Explicit runtime requests written in application code.** Requests the
+  app itself issues while running, from a call site a person wrote. These are
+  what §3 enumerates and what the regression fence pins, because these are the
+  ones that could carry something.
+- **(N3) User-initiated navigation to external websites.** The reader tapping a
+  link and leaving the app (§4). Not a request the app makes; a page the user
+  chose to visit.
+
+Only **N2** is countable from the source tree, and only N2 is what "the app
+sends X" could ever mean. (These labels are orthogonal to the four data
+categories above — N1–N3 are kinds of network activity, 1–4 are kinds of
+data.)
 
 ---
 
@@ -117,9 +141,14 @@ records that production mode enables neither.
 
 ---
 
-## 3. Network requests
+## 3. Explicit runtime network requests (N2)
 
-**Every `fetch()` in `src/` — three call sites, two files:**
+This section covers **N2 only** — requests issued by application code. Platform
+resource loading (N1) is covered by §7, and user-initiated navigation to
+external sites (N3) by §4.
+
+**Three explicit application-authored runtime network request call-sites were
+found in the audited source** — all `fetch`, in two files:
 
 | File | Call | Target |
 |---|---|---|
@@ -128,9 +157,19 @@ records that production mode enables neither.
 | `src/map/offlineMap.ts:249` | the user-initiated archive download | a `.pmtiles` archive |
 
 No `XMLHttpRequest`, `WebSocket`, `EventSource` or `navigator.sendBeacon`
-anywhere in `src/` (fenced by test). **No request carries a body, a
-user-supplied parameter, an identifier, or location** — all three are plain
-GETs for a static file.
+anywhere in `src/` (fenced by test). **No one of the three carries a body, a
+user-supplied parameter, an identifier, or location** — all three are plain GETs
+for a static file.
+
+**How that count was obtained, and what it does and does not prove.** It is a
+static enumeration of call sites in `src/` at the audited SHA, held in place by
+an allow-list fence that fails CI if the set changes
+(`tests/privacy-policy.test.mjs` → "the app makes network requests from map code
+only"). It proves that application code contains no other request site, and —
+together with the dependency fence and the map-style check below — that no
+bundled library is configured to call out on the app's behalf. It is **not** a
+runtime packet capture, and it makes no claim about what the browser, the
+WebView, the OS or Play Services do underneath (see §10).
 
 **Where archive URLs resolve.** `archiveUrl()` in `src/map/offlineMap.ts` uses
 `sameOriginUrl(spec.path)` — the app's own origin — for the vector basemap,
@@ -163,7 +202,7 @@ default in an Android release build (§1).
 
 ---
 
-## 4. External links
+## 4. External links (N3)
 
 Screens link out to third-party sites (STF, Nikkaluokta Expressen, SJ,
 Länstrafiken Norrbotten, OpenStreetMap, Protomaps, Copernicus, Naturkartan,
@@ -219,7 +258,7 @@ personal documents.
 
 ---
 
-## 7. Service worker (PWA only)
+## 7. Service worker and app-shell loading (N1, PWA only)
 
 `vite.config.ts` → `VitePWA`, `registerType: 'prompt'`, registration handled
 explicitly in `src/components/PwaLifecycle.tsx`.
@@ -269,8 +308,9 @@ Not collection by Fjallkompis, but honest to state:
 Stated rather than assumed:
 
 1. **Runtime behaviour of the WebView and Play Services on a physical device.**
-   This audit is static. It proves the app declares no analytics and issues no
-   network call other than the three above; it cannot prove what Android's
+   This audit is static. It proves that the audited source declares no
+   analytics and contains no explicit runtime request call-site other than the
+   three in §3; it is not a packet capture, and it cannot prove what Android's
    WebView, Play Services or the OEM layer do underneath. That is outside the
    app's control and outside the app's declaration.
 2. **The `.env.local` of any individual build machine.** `VITE_SATELLITE_URL` is

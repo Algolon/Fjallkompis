@@ -37,24 +37,29 @@
 export const PRIVACY_POLICY_URL = 'https://algolon.github.io/Fjallkompis/privacy/';
 
 /**
- * The privacy contact route.
+ * THE CANONICAL PRIVACY CONTACT.
  *
- * The public issue tracker of the app's own repository — a real, working,
- * already-public channel that belongs to the project rather than to a person.
- * No personal address is invented here, and none is committed to this
- * repository.
+ * A project mailbox, chosen by the owner. It is deliberately an EMAIL address
+ * rather than a link to the issue tracker: Google Play's Data safety flow asks
+ * for a privacy contact and reviewers expect a mailbox, and a privacy question
+ * is not a public bug report — a reader should not have to open a GitHub
+ * account, or publish their question, to ask one.
  *
- * OPEN QUESTION FOR THE OWNER, recorded rather than guessed: Google Play's
- * Data safety form asks separately for a privacy contact and, in practice,
- * reviewers expect an EMAIL address for it. If Play requires one, that
- * address is a human decision (which mailbox, published where) — it is not
- * something this codebase may choose. See
- * docs/operations/play-data-safety-evidence.md → "Needs human confirmation".
+ * The repository's public issue tracker still exists and is still linked from
+ * the app's credits as the general project route; it is simply no longer the
+ * privacy contact. One canonical channel, named in one place.
  */
-export const PRIVACY_CONTACT_URL = 'https://github.com/Algolon/Fjallkompis/issues';
+export const PRIVACY_CONTACT_URL = 'mailto:fjallkompis@gmail.com';
 
-/** Human label for the contact route, shared by the page and Settings. */
-export const PRIVACY_CONTACT_LABEL = 'the Fjallkompis issue tracker on GitHub';
+/**
+ * Human label for the contact route, shared by the page and Settings.
+ *
+ * The address itself, not prose: a privacy contact a reader has to decode from
+ * a link target is not a contact. Kept as its own constant so the visible text
+ * and the href cannot drift — tests/privacy-policy.test.mjs asserts the page
+ * carries both, and that the label is the mailto's own address.
+ */
+export const PRIVACY_CONTACT_LABEL = 'fjallkompis@gmail.com';
 
 /**
  * The date the policy text last changed, ISO-8601.

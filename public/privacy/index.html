@@ -244,10 +244,25 @@
 
       <h2>Network connections</h2>
       <p>
-        Fjallkompis is built to work offline. The only network requests the app
-        itself makes are for its own files, from its own address: the app
-        itself, and the offline map archives you choose to download in
-        Settings.
+        Fjallkompis is built to work offline. There are only two reasons it
+        touches the network at all, and both are requests for its own files from
+        its own address:
+      </p>
+      <ul>
+        <li>
+          <strong>loading the app itself</strong> — the same page, script and
+          image files any website loads, after which the app keeps working
+          without a connection;
+        </li>
+        <li>
+          <strong>downloading offline map data</strong>, when you choose to in
+          Settings.
+        </li>
+      </ul>
+      <p>
+        Separately from both, tapping a link to another organisation&rsquo;s
+        website takes you there in your browser — see &ldquo;Links to other
+        websites&rdquo; below.
       </p>
       <p>
         Those files are served by <strong>GitHub Pages</strong>, which hosts the
@@ -348,12 +363,18 @@
 
       <h2>Contact</h2>
       <p>
-        Questions about privacy in Fjallkompis can be raised on
+        Questions about privacy in Fjallkompis can be sent to
+        <a href="mailto:fjallkompis@gmail.com">fjallkompis@gmail.com</a>.
+      </p>
+      <p class="note">
+        For bug reports and feature requests — anything that is not a privacy
+        question — the project&rsquo;s
         <a
           href="https://github.com/Algolon/Fjallkompis/issues"
           rel="noopener noreferrer"
-          >the Fjallkompis issue tracker on GitHub</a
-        >.
+          >issue tracker on GitHub</a
+        >
+        is the better place.
       </p>
 
       <footer>

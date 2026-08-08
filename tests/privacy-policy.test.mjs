@@ -147,6 +147,34 @@ test('the policy page declares the canonical URL and the contact route', () => {
   assert.ok(page.includes(PRIVACY_CONTACT_LABEL), 'the contact label drifted from the shared constant');
 });
 
+test('the canonical privacy contact is a reachable mailbox', () => {
+  // PINNED MECHANISM, not just a string. Play's Data safety flow asks for a
+  // privacy contact and reviewers expect a mailbox; a privacy question should
+  // also not require a GitHub account or become a public issue. So the contact
+  // must stay a mailto:, and the visible label must be the address itself
+  // rather than prose a reader has to decode.
+  assert.match(PRIVACY_CONTACT_URL, /^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/, 'the privacy contact is not a mailto: address');
+  assert.equal(
+    PRIVACY_CONTACT_LABEL,
+    PRIVACY_CONTACT_URL.slice('mailto:'.length),
+    'the visible contact label is not the mailto address itself',
+  );
+  // And it is what the Contact section actually offers.
+  const contact = page.slice(page.indexOf('<h2>Contact</h2>'));
+  assert.ok(
+    contact.includes(`href="${PRIVACY_CONTACT_URL}"`),
+    'the Contact section does not offer the canonical mailbox',
+  );
+  // The issue tracker may still appear as a general project route, but never
+  // as the privacy contact — it must not be the first link under Contact.
+  const firstHref = contact.match(/href="([^"]+)"/)?.[1];
+  assert.equal(
+    firstHref,
+    PRIVACY_CONTACT_URL,
+    'something other than the canonical mailbox leads the Contact section',
+  );
+});
+
 test('the policy page prints the shared last-updated date', () => {
   // Same date in both places or the reader is told one thing and the tree
   // records another. Written out because a policy page reads as prose.

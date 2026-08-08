@@ -57,8 +57,8 @@ Each row is proven in the audit and held in place by a named fence.
 
 | # | Fact | Evidence | Fence |
 |---|---|---|---|
-| F1 | The app makes network requests from exactly two modules, all plain GETs for static `.pmtiles` map files | audit §3 | `privacy-policy.test.mjs` → "network requests from map code only" |
-| F2 | No request carries a body, an identifier, user content or a position | audit §3 | same + "no transport other than fetch" |
+| F1 | Three explicit application-authored runtime network request call-sites were found in the audited source, in two map modules — all plain GETs for static `.pmtiles` files. This is a static enumeration of call sites, not a packet capture (audit §0 separates it from platform resource loading and from user-initiated navigation to external sites). | audit §3 | `privacy-policy.test.mjs` → "network requests from map code only" |
+| F2 | None of those three carries a body, an identifier, user content or a position | audit §3 | same + "no transport other than fetch" |
 | F3 | Map archives resolve to the app's **own origin** | `archiveUrl()` / `sameOriginUrl()`, audit §3 | — (build-time `VITE_SATELLITE_URL` unset; see A3) |
 | F4 | The map style declares no `glyphs` and no `sprite` URL — no third-party tile/font server | `src/map/mapStyle.ts` | "no glyphs, sprites or tiles from a third party" |
 | F5 | No analytics, telemetry, crash-reporting or ad SDK anywhere; no `google-services.json` | audit §1, §3 | "no analytics… SDK is present" |
@@ -145,7 +145,7 @@ These are **not** code questions. They are Omar's to answer before submission.
 
 | # | Question | Why it matters |
 |---|---|---|
-| **Q0** | **Privacy contact.** The published policy routes privacy questions to the public issue tracker (`github.com/Algolon/Fjallkompis/issues`) — a real, working, project-owned channel, chosen because no contact address is safely defined in this repository and none was invented. Play Console separately requires developer contact details, and reviewers commonly expect an **email address** in the policy itself. **Decide whether an email address should be published, and which one.** If yes, update `PRIVACY_CONTACT_URL` / `PRIVACY_CONTACT_LABEL` in `src/privacy/privacyPolicy.mjs` and the Contact section of `public/privacy/index.html` together (a test asserts they agree). | Blocks submission if Play requires an email. |
+| ~~**Q0**~~ | ~~**Privacy contact.**~~ **RESOLVED 2026-08-08 by the owner:** the canonical privacy contact is **`fjallkompis@gmail.com`**, published in the Contact section of the policy and held in `PRIVACY_CONTACT_URL` / `PRIVACY_CONTACT_LABEL`. It is a `mailto:`, and `tests/privacy-policy.test.mjs` + `scripts/verify-privacy-build.mjs` pin the **mechanism** (a mailbox, and the visible label being the address itself), not merely the string — so a future edit cannot quietly demote the privacy contact back to a link-only route. The GitHub issue tracker remains on the page as the general bug/feature route, explicitly *not* as the privacy contact. | **No longer blocking.** Confirm the same address is entered as the Play Console developer contact. |
 | **Q1** | **Is "accessed but never transmitted" location genuinely exempt for this app?** The quoted rule says on-device-only processing need not be disclosed, and the ephemeral-processing note reinforces it. Our reading is that location is not merely ephemeral but never leaves the device at all — a stronger position than the exception requires. Confirm against the form's own wording at submission time; some developers choose to disclose foreground location anyway, for transparency. | Changes one row of the form. |
 | **Q2** | **Does trail progress count as "Health & fitness"?** The app computes distance along a route from live position. Nothing is stored or sent, so it fails the collection test regardless — but if Google's category text is read as covering *access*, the answer would differ. | Low risk; recorded so it is not rediscovered later. |
 | **Q3** | **Do user-driven exports need mention?** A complete backup contains passport and insurance scans and is written wherever the user points the system picker. Under the quoted "user-initiated transfer" exception this needs no disclosure, and it is not a transfer to a third party at all — the file stays on the device. The policy describes it plainly anyway. Confirm nothing more is expected. | Interpretive only. |
@@ -199,7 +199,8 @@ placed so that the declaration cannot silently go stale.
 ## 8. Submission checklist (for later — not part of this milestone)
 
 - [ ] Re-read the Data safety help page; confirm the §1 quotes still hold.
-- [ ] Resolve **Q0** (privacy contact) and update the page + constants together.
+- [x] **Q0 (privacy contact) resolved** — `fjallkompis@gmail.com`, published and fenced.
+- [ ] Enter that same address as the Play Console developer/privacy contact, so the listing and the policy agree.
 - [ ] Confirm `https://algolon.github.io/Fjallkompis/privacy/` resolves publicly.
 - [ ] Complete the Data safety form using §3.
 - [ ] Confirm the store listing does not contradict §3.

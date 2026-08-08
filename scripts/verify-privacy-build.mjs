@@ -69,6 +69,12 @@ if (page) {
   if (!page.includes(PRIVACY_CONTACT_URL)) {
     fail('dist/privacy/index.html carries no privacy contact route');
   }
+  // The MECHANISM, not just the string: Play expects a mailbox for the privacy
+  // contact, so a build whose Contact section had decayed into a link-only
+  // route would satisfy the check above and still fail review.
+  if (!/^mailto:/.test(PRIVACY_CONTACT_URL)) {
+    fail(`the privacy contact is not a mailbox: ${PRIVACY_CONTACT_URL}`);
+  }
   // A page that needs the bundle is a page that can fail to render exactly
   // when the app is broken — the one moment the policy still has to be legible.
   if (/<script/i.test(page)) {
