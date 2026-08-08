@@ -1,8 +1,8 @@
-# Fjällkompis design review framework
+# Fjallkompis design review framework
 
 ## Purpose
 
-This framework defines how Fjällkompis is reviewed before meaningful releases,
+This framework defines how Fjallkompis is reviewed before meaningful releases,
 field use and major product changes. It standardises the review process without
 automating judgement or conclusions.
 
@@ -10,7 +10,7 @@ Every initiated review must produce a concrete, readable report in
 [`docs/design-reviews/`](design-reviews/). Reviews are deliberate events, not
 background checks, scheduled bots or automatically generated scorecards.
 
-The framework protects Fjällkompis from three failure modes:
+The framework protects Fjallkompis from three failure modes:
 
 1. accumulating unstructured opinions instead of evidence;
 2. expanding into a generic outdoor platform without an explicit decision;
@@ -19,7 +19,7 @@ The framework protects Fjällkompis from three failure modes:
 
 ## Product authority
 
-Fjällkompis is an **offline hiking companion for the Kungsleden between Abisko
+Fjallkompis is an **offline hiking companion for the Kungsleden between Abisko
 and Nikkaluokta**. It complements suitable maps, navigation tools and outdoor
 judgement by bringing route-specific information into one bounded,
 offline-first experience.
@@ -83,7 +83,7 @@ must explain why.
 
 ### A. First-time user
 
-**Question:** Can someone understand what Fjällkompis is, where they are and
+**Question:** Can someone understand what Fjallkompis is, where they are and
 what they should do next without prior instruction?
 
 Examines terminology, onboarding, navigation, discoverability, state clarity,
@@ -325,7 +325,7 @@ rating must be accompanied by written reasoning.
 
 ## Relationship to other documents
 
-- [`README.md`](../README.md) — what Fjällkompis is and how to use it.
+- [`README.md`](../README.md) — what Fjallkompis is and how to use it.
 - [`ROADMAP.md`](../ROADMAP.md) — what is prioritised next.
 - [`CHANGELOG.md`](../CHANGELOG.md) — what has been delivered.
 - [`docs/DEVELOPMENT.md`](DEVELOPMENT.md) — how the system is built and

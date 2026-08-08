@@ -138,8 +138,8 @@ export default defineConfig(({ mode }) => ({
       injectRegister: null,
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.png'],
       manifest: {
-        name: 'Fjällkompis — Kungsleden hiking companion',
-        short_name: 'Fjällkompis',
+        name: 'Fjallkompis — Kungsleden hiking companion',
+        short_name: 'Fjallkompis',
         description:
           'An offline hiking companion for the Kungsleden, bringing route, stage, hut and packing information together alongside your navigation tools.',
         lang: 'en',

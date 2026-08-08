@@ -25,7 +25,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'com.algolon.fjallkompis',
-  appName: 'Fjällkompis',
+  appName: 'Fjallkompis',
   webDir: 'dist',
   android: {
     // The window colour behind the WebView, seen only in the moment before

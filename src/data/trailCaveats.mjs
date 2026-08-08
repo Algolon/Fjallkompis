@@ -87,7 +87,7 @@ export const TRAIL_CAVEATS = Object.freeze({
   navigation: Object.freeze({
     short: 'Planning and orientation aid — carry a map and compass.',
     full:
-      'Fjällkompis is a planning and orientation aid. The offline map, your GPS ' +
+      'Fjallkompis is a planning and orientation aid. The offline map, your GPS ' +
       'position and the on/off-route feedback help you orient and plan, but they ' +
       'depend on a device, a battery and a satellite fix. Carry a physical map and ' +
       'compass, know how to use them, and treat them as your primary navigation.',

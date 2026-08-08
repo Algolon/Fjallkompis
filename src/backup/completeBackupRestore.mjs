@@ -66,7 +66,7 @@ export async function applyCompleteRestore(candidate, effects) {
       // Both the apply and the rollback failed. Nothing can be done silently
       // here — report both, loudly, and leave the caller to tell the user
       // exactly what state the device is in.
-      console.error('Fjällkompis: restore rollback failed.', rollbackError);
+      console.error('Fjallkompis: restore rollback failed.', rollbackError);
       rolledBack = false;
     }
     return { ok: false, reason: 'state-write-failed', rolledBack, error };

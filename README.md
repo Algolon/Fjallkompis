@@ -1,10 +1,10 @@
-# Fjällkompis 🏔️
+# Fjallkompis 🏔️
 
 **Your offline hiking companion for the Kungsleden (Abisko → Nikkaluokta).**
 
-**▶ Open Fjällkompis: https://algolon.github.io/Fjallkompis/**
+**▶ Open Fjallkompis: https://algolon.github.io/Fjallkompis/**
 
-Fjällkompis ("mountain buddy") is a free offline hiking companion for the
+Fjallkompis ("mountain buddy") is a free offline hiking companion for the
 classic hut-to-hut week on Sweden's Kungsleden. It complements your maps and
 navigation tools by bringing the trail information hikers use most into one
 place: the route on an offline map, day stages with elevation profiles and a
@@ -14,13 +14,13 @@ of the time.
 
 The same link works in the browser on your **phone, tablet and computer**:
 plan at a desk with a big map and roomy lists, then carry the same companion on
-your phone while hiking. On phones Fjällkompis is portrait-only (it will ask
+your phone while hiking. On phones Fjallkompis is portrait-only (it will ask
 you to rotate back); tablets work in portrait and landscape. Installing it as
 a PWA is optional on every device. Your personal data (lists, notes and
 progress) lives locally in each browser — opening the link on a second device
 starts empty; use Settings → Export/Import to move your data across (see below).
 
-> ⚠️ **Beta hiking companion.** Fjällkompis is designed to complement — not
+> ⚠️ **Beta hiking companion.** Fjallkompis is designed to complement — not
 > replace — appropriate maps, a compass and sound outdoor judgement. Always
 > carry suitable navigation tools and know how to use them. GPS positions and
 > route matching are approximate.
@@ -60,7 +60,7 @@ starts empty; use Settings → Export/Import to move your data across (see below
   downloads, backup/restore of your data, sources and credits.
 
 Everything you enter stays on your phone. No account, no server, no tracking —
-Fjällkompis does not have a backend.
+Fjallkompis does not have a backend.
 
 ## Getting started (5 minutes, at home on Wi-Fi)
 
@@ -68,13 +68,13 @@ Fjällkompis does not have a backend.
    Safari (iPhone/iPad), or any modern browser on a tablet or computer.
 2. **Optionally install it**: use the *Install* section in Settings, or your
    browser's *Add to Home Screen* / *Install*. It then opens full-screen like a
-   native app. Fjällkompis also works in a regular browser tab.
+   native app. Fjallkompis also works in a regular browser tab.
 3. **Download the offline map**: Settings → *Offline maps* → Download
    (~5.3 MB). Optionally add Terrain relief (~25 MB) for hillshade and
    contours, and Satellite imagery (~59 MB) for a second map layer.
 4. **Set your stage**: on the Stages tab, mark the day you're walking with
    *Set as current*.
-5. **Check it works offline**: enable airplane mode and reopen Fjällkompis —
+5. **Check it works offline**: enable airplane mode and reopen Fjallkompis —
    the map, route and all your lists should still be there.
 
 ## Best practices on the trail
@@ -86,12 +86,12 @@ Fjällkompis does not have a backend.
   and expect it to pause when the screen locks (that's by design — no
   background tracking).
 - **Treat positions as approximate.** GPS in valleys and bad weather can be
-  off by tens of metres; Fjällkompis says so rather than pretending otherwise
+  off by tens of metres; Fjallkompis says so rather than pretending otherwise
   — an "uncertain" or "off route" message is a prompt to check your map,
   navigation tools and surroundings, not a verdict.
 - **Back up before and after the trip**: Settings → *Export all data* saves
   your notes, lists and progress to a file. The same file moves your data
-  to another device: export on one, import on the other. Opening Fjällkompis
+  to another device: export on one, import on the other. Opening Fjallkompis
   on a new device never copies data by itself — there is no account and
   nothing is synced — and offline maps are downloaded per device.
 - **Battery discipline beats everything**: flight mode + screen mostly off
@@ -112,5 +112,5 @@ second build mode and leaves the PWA untouched; see
 [docs/ANDROID.md](docs/ANDROID.md).
 
 Map data © OpenStreetMap contributors · Protomaps. Satellite imagery:
-Sentinel-2 cloudless by EOX. Full credits in Fjällkompis under Settings →
+Sentinel-2 cloudless by EOX. Full credits in Fjallkompis under Settings →
 *Data sources*.

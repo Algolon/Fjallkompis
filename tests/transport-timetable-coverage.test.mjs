@@ -3,7 +3,7 @@
  * app is allowed to say when none of them does.
  *
  * The contract this file defends is one distinction. "The service is out of
- * season" and "Fjällkompis has no verified table for this date" are different
+ * season" and "Fjallkompis has no verified table for this date" are different
  * claims, and only the operator can make the first. Before the period model the
  * app showed a neutral "Seasonal" pill for both, which reads as the first while
  * meaning the second — so a hiker could conclude no bus runs on a day the bus
@@ -248,10 +248,10 @@ test('an uncovered date is never presented as "Seasonal"', () => {
 
 test('the no-timetable notice says all three things it has to say', () => {
   const src = read('src/components/TransportView.tsx');
-  // 1. what the app does not have — and that this is about Fjällkompis, not
+  // 1. what the app does not have — and that this is about Fjallkompis, not
   //    about whether the operator runs a bus;
   assert.match(src, /No timetable for this date/);
-  assert.match(src, /Fjällkompis has no verified/);
+  assert.match(src, /Fjallkompis has no verified/);
   // 2. that the service may run anyway, with who to ask;
   assert.match(src, /The service may still\s*\n?\s*run — check \{entry\.operator\} before travelling/);
   // 3. what IS stored, so a gap never reads as "nothing exists".

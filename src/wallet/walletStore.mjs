@@ -170,11 +170,11 @@ export async function listWalletDocuments() {
     if (record?.id === WALLET_META_ID) continue;
     const doc = normalizeWalletDocument(record);
     if (!doc) {
-      console.warn('Fjällkompis: skipping an unreadable Trail Wallet record.', record?.id);
+      console.warn('Fjallkompis: skipping an unreadable Trail Wallet record.', record?.id);
       continue;
     }
     if (!blobIds.has(doc.id)) {
-      console.warn('Fjällkompis: Trail Wallet document has no stored file on this device.', doc.id);
+      console.warn('Fjallkompis: Trail Wallet document has no stored file on this device.', doc.id);
       doc.fileMissing = true;
     }
     documents.push(doc);

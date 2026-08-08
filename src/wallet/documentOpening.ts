@@ -25,7 +25,7 @@ export async function openWalletDocument(
   try {
     blob = await getFile(doc.id);
   } catch (err) {
-    console.warn('Fjällkompis: could not read the stored file.', err);
+    console.warn('Fjallkompis: could not read the stored file.', err);
   }
   if (!blob) return { kind: 'missing' };
 

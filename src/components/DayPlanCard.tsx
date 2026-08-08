@@ -293,7 +293,7 @@ function RecoveryNotice() {
         'application/json',
       );
     } catch (err) {
-      console.warn('Fjällkompis: could not save the Day plan recovery copy.', err);
+      console.warn('Fjallkompis: could not save the Day plan recovery copy.', err);
       setSaveFailed(true);
     }
   };

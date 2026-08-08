@@ -169,7 +169,7 @@ export function CreditsSheet({ open, onClose }: { open: boolean; onClose: () => 
           ))}
         </ul>
 
-        <span className="section-label">Fjällkompis</span>
+        <span className="section-label">Fjallkompis</span>
         <div className="credits-app">
           <div className="row-between">
             <span className="muted">App version</span>

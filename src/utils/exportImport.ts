@@ -93,7 +93,7 @@ export function parseImport(text: string): ImportResult {
       ok: false,
       reason: 'trail-mismatch',
       error:
-        'This backup belongs to a different trail. Fjällkompis is set up for the ' +
+        'This backup belongs to a different trail. Fjallkompis is set up for the ' +
         'Kungsleden, so nothing was imported and your trip data is unchanged.',
     };
   }

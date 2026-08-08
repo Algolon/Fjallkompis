@@ -120,7 +120,7 @@ function NoTimetableNotice({
         <Info size={15} strokeWidth={2} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
       )}
       <span>
-        <strong>No timetable for this date.</strong> {reason} Fjällkompis has no verified{' '}
+        <strong>No timetable for this date.</strong> {reason} Fjallkompis has no verified{' '}
         {MODE_LABEL[entry.mode].toLowerCase()} timetable stored for{' '}
         {coverage.date ? formatVerifiedDate(coverage.date) : 'this date'}. The service may still
         run — check {entry.operator} before travelling.

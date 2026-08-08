@@ -1,4 +1,4 @@
-# Fjällkompis — development documentation
+# Fjallkompis — development documentation
 
 Technical documentation for contributors and maintainers. For what the app
 is and how to use it, see the user-facing [README](../README.md); priorities
@@ -116,7 +116,7 @@ still renders on a clearly-marked placeholder background.
 
 ## Map coverage contract (bounded map)
 
-Fjällkompis is a bounded route companion, not a general map browser. One
+Fjallkompis is a bounded route companion, not a general map browser. One
 contract, defined in `scripts/route-configs.mjs` and materialised by
 `npm run generate:route` into the route JSON, governs everything:
 

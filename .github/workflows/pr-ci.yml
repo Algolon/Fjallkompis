@@ -28,3 +28,9 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      # `npm test` checks the branding SOURCE tree; this checks what the build
+      # actually emitted. vite-plugin-pwa rewrites the manifest between the
+      # two — a build that emits icon URLs outside the Pages subpath passes
+      # every source-level test and still installs with a blank icon.
+      - name: Verify the built PWA branding
+        run: node scripts/verify-brand-build.mjs

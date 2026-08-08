@@ -343,17 +343,17 @@ export function validateWalletIndex(index, presentEntryNames) {
 export function restoreRejectionText(reason) {
   switch (reason?.reason ?? reason) {
     case 'unreadable-archive':
-      return 'That file could not be read as a Fjällkompis backup — it may be corrupted.';
+      return 'That file could not be read as a Fjallkompis backup — it may be corrupted.';
     case 'not-a-backup':
-      return 'That file is not a Fjällkompis complete backup.';
+      return 'That file is not a Fjallkompis complete backup.';
     case 'newer-version':
-      return 'This backup was made by a newer version of Fjällkompis. Update the app, then restore.';
+      return 'This backup was made by a newer version of Fjallkompis. Update the app, then restore.';
     case 'trail-mismatch':
       return 'This backup belongs to a different trail, so nothing was restored and your data is unchanged.';
     case 'state-invalid':
       return 'The trip data inside this backup could not be validated, so nothing was restored.';
     case 'limits-exceeded':
-      return 'This backup exceeds the size limits Fjällkompis can restore safely.';
+      return 'This backup exceeds the size limits Fjallkompis can restore safely.';
     case 'unsafe-entry':
       return 'This backup contains an unexpected file path, so it was refused.';
     case 'attachment-hash-mismatch':

@@ -126,9 +126,9 @@ test('the native build resolves the PWA registration module to an inert stub', (
 test('PwaLifecycle still exists and is still the single web registration path', () => {
   const lifecycle = read('src/components/PwaLifecycle.tsx');
   assert.match(lifecycle, /useRegisterSW/, 'the web/PWA lifecycle component is untouched');
-  assert.match(lifecycle, /Install Fjällkompis on this device\?/);
-  assert.match(lifecycle, /A new version of Fjällkompis is available\./);
-  assert.match(lifecycle, /Fjällkompis is ready for offline use\./);
+  assert.match(lifecycle, /Install Fjallkompis on this device\?/);
+  assert.match(lifecycle, /A new version of Fjallkompis is available\./);
+  assert.match(lifecycle, /Fjallkompis is ready for offline use\./);
   assert.match(app, /import \{ PwaLifecycle \}/, 'App still imports it for web/PWA');
 });
 
@@ -402,9 +402,18 @@ test('native colours are quoted from existing owned tokens, not invented', () =>
 test('the launcher icon and splash reuse the existing app artwork', () => {
   const mark = 'android/app/src/main/res/drawable-nodpi/fjallkompis_mark.png';
   assert.ok(existsSync(join(root, mark)), 'the shared mark exists');
-  assert.deepEqual(
-    readFileSync(join(root, mark)),
-    readFileSync(join(root, 'public/icons/icon-512.png')),
+  // Buffer.equals rather than assert.deepEqual: a deepEqual of two 150 KB
+  // buffers spends ~12s constructing a byte diff and then reports it as an
+  // unreadable wall that hides the message. Same fact, constant time, legible
+  // failure.
+  //
+  // BOTH files are byte copies of assets/brand/fjallkompis-mark-512.png, the
+  // canonical master; assets/brand/brand.contract.mjs names them and
+  // tests/branding-parity.test.mjs checks the whole derivation chain. This
+  // assertion is kept here as well because it is the native spike's own
+  // promise — the logo is not redesigned for Android.
+  assert.ok(
+    readFileSync(join(root, mark)).equals(readFileSync(join(root, 'public/icons/icon-512.png'))),
     'the native mark is byte-identical to the web icon — the logo is not redesigned',
   );
   const foreground = read('android/app/src/main/res/drawable/ic_launcher_foreground.xml');
@@ -426,7 +435,7 @@ test('the application id is the documented permanent one', () => {
   assert.match(capConfig, /appId: 'com\.algolon\.fjallkompis'/);
   assert.match(capConfig, /PERMANENT Play identity/, 'the identity caveat stays next to the id');
   assert.match(read('android/app/build.gradle'), /applicationId "com\.algolon\.fjallkompis"/);
-  assert.match(read('android/app/src/main/res/values/strings.xml'), /<string name="app_name">Fjällkompis<\/string>/);
+  assert.match(read('android/app/src/main/res/values/strings.xml'), /<string name="app_name">Fjallkompis<\/string>/);
 });
 
 // --- Samsung physical-test corrections ---------------------------------------
@@ -500,7 +509,7 @@ test('the native three-button band colour IS the canonical tab-bar token', () =>
   // One colour, two renderers: the web tab bar paints #d4ded1 (as its opaque
   // token) and MainActivity's protection view paints the same value behind
   // the system buttons. The Samsung seam existed precisely because the band
-  // showed a DIFFERENT owned green (the launch colour), so "some Fjällkompis
+  // showed a DIFFERENT owned green (the launch colour), so "some Fjallkompis
   // green" is not good enough — the two literals must be equal.
   const cssToken = read('src/styles/mobile-shell-plan-polish.css')
     .match(/--tabbar-surface-opaque:\s*(#[0-9a-fA-F]{6})/)?.[1];

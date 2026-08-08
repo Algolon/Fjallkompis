@@ -139,7 +139,7 @@ export function WalletEditorSheet({
       );
       onClose();
     } catch (err) {
-      console.warn('Fjällkompis: could not save the Trail Wallet document.', err);
+      console.warn('Fjallkompis: could not save the Trail Wallet document.', err);
       setSaveError(
         err instanceof DOMException && err.name === 'QuotaExceededError'
           ? 'Not enough local storage space to save this document. Free some space (or remove another document) and try again.'
@@ -158,7 +158,7 @@ export function WalletEditorSheet({
       await onDelete();
       onClose();
     } catch (err) {
-      console.warn('Fjällkompis: could not delete the Trail Wallet document.', err);
+      console.warn('Fjallkompis: could not delete the Trail Wallet document.', err);
       setSaveError('The document could not be deleted. Nothing was changed — please try again.');
       setBusy(false);
     }

@@ -2,14 +2,16 @@
 
 **Status: in production on Google Play Internal Testing.** The wrapper is
 merged and physically validated; versionName **0.27.0** / versionCode
-**2700003** is the current Internal Testing build — uploaded, published,
+**2700004** is the current Internal Testing build — uploaded, published,
 installed from Google Play on the Samsung test device and physically
 validated (2026-08-08): the bundled topo/vector basemap on a cold start in
-airplane mode (2700002), and complete backup export + restore including
-Wallet documents (2700003). Installs and updates arrive the normal Play
-way — no sideloading, no security bypasses.
+airplane mode (2700002), complete backup export + restore including
+Wallet documents (2700003), and the branding-parity launcher icon, the
+`Fjallkompis` launcher label and a clean splash → first-frame handoff
+(2700004). Installs and updates arrive the normal Play way — no
+sideloading, no security bypasses.
 
-Fjällkompis is a web app. This document describes an *additional delivery
+Fjallkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
 that runs the existing build inside an Android WebView and can be installed as
 an APK.
@@ -524,7 +526,7 @@ Neither is implemented. This is a recommendation, not a plan of record.
 Installing the debug APK on a Samsung required bypassing normal device
 security: allowing installs from an unauthorised source, and getting past
 **Samsung Auto Blocker**. That was acceptable for a technical spike. It is
-**not** the installation or update path for Fjällkompis, and it should never
+**not** the installation or update path for Fjallkompis, and it should never
 be described as one — not even to a single tester.
 
 A manually signed *release APK* is no better: sideloading still needs
@@ -710,14 +712,35 @@ edit.
 Both reuse existing owned artwork; the logo is not redesigned and no
 third-party imagery was added.
 
-- `res/drawable-nodpi/fjallkompis_mark.png` is a byte-identical copy of
-  `public/icons/icon-512.png` (a test asserts this).
+**The source of truth is `assets/brand/`** — see `assets/brand/README.md`.
+Android does not own any branding artwork: every launcher icon and the splash
+mark are derived from `assets/brand/fjallkompis-mark-512.png`, the same master
+the PWA derives from, per `assets/brand/brand.contract.mjs`. Change the
+identity there and run `npm run generate:brand`; do not hand-edit anything
+under `res/`. `tests/branding-parity.test.mjs` re-derives every icon and
+compares pixels, so a hand-edited or reverted resource fails CI.
+
+- `res/drawable-nodpi/fjallkompis_mark.png` is a byte-identical copy of the
+  master (and therefore of `public/icons/icon-512.png`). Android cannot
+  reference a PNG outside `res/`, which is why the bytes are duplicated rather
+  than shared; tests assert the copies never diverge.
 - The adaptive icon insets that mark by 16%. This is not decoration: an
   adaptive foreground is masked to the central 66.7%, and the source artwork is
   drawn edge-to-edge, so used raw the compass points would be sliced off.
-- Legacy (API 24–25) PNG icons are `public/icons/icon-maskable-512.png`
-  downscaled; the adaptive background `#e9edeb` is that file's own background,
-  so the two match.
+- Legacy (API 24–25) PNG icons are the master plated on `#e9edeb` with the mark
+  framed at 80% — the same framing as the adaptive safe zone, so API 25 and
+  API 26+ present the mark at the same size. The adaptive background `#e9edeb`
+  is the same plate, so the two match.
+- `ic_launcher_round.png` is genuinely circular. Round-icon launchers on API
+  24–25 draw `android:roundIcon` **as supplied**, applying no mask of their
+  own; until the branding-parity pass this file was a byte-identical copy of
+  the square icon, so those launchers drew a square amongst circles. From API
+  26 the adaptive icon wins and both legacy sets go unused.
+- The Play Store listing icon is **not** any of these — it is
+  `assets/brand/play-store-icon-512.png`, uploaded by hand. Play requires a
+  flat, fully opaque 512×512 square and applies its own rounding; an adaptive
+  foreground handed to Play would render at the wrong scale. Same identity,
+  different platform contract.
 - The splash is the launch colour `#dce4d8` (the PWA manifest's
   `background_color`) plus the same mark — via `windowSplashScreen*` on
   Android 12+, and a layer-list window background below that.

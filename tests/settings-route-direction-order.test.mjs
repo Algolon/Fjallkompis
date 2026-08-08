@@ -93,7 +93,7 @@ test('the eyebrow is exactly "Trail readiness" (renders TRAIL READINESS, upperca
 test('the new introductory copy explains Settings and carries the interaction cue', () => {
   assert.match(
     settings,
-    /Adjust app settings to tailor Fjällkompis to your trip and how you use\s+it\. Tap a section to expand its options\./,
+    /Adjust app settings to tailor Fjallkompis to your trip and how you use\s+it\. Tap a section to expand its options\./,
   );
   // The old beta/offline-only intro is gone.
   assert.ok(

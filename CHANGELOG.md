@@ -14,7 +14,7 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 - **Complete backup & restore.** Settings now offers one portable backup file
   (`fjallkompis-backup-YYYY-MM-DD.fjallkompis`) containing everything needed
-  to restore a Fjällkompis setup on another install or device: trip data AND
+  to restore a Fjallkompis setup on another install or device: trip data AND
   the actual PDF and image files stored in the Trail Wallet — the files the
   JSON export has never carried. The backup is refused (with the documents
   named) if any stored document is missing its file, so a "complete" backup
@@ -76,7 +76,25 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 - Zoom buttons only appear for mouse/trackpad users — on touch, pinch is the
   gesture and the map keeps the space.
 
+### Changed
+
+- **The product is now spelled "Fjallkompis".** The app name shown on your
+  home screen, in the browser tab, in the installed-app list and throughout
+  the app drops the diaeresis: *Fjällkompis* becomes **Fjallkompis**. This is
+  a name change only — nothing about your saved trip, packing lists, Trail
+  Wallet documents, downloaded maps or backups is affected, and existing
+  backup files restore exactly as before.
+
 ### Fixed
+
+- **The Fjallkompis app icon is round on launchers that ask for a round
+  icon.** On older Android versions (7.0 and 7.1) the round launcher icon was
+  a copy of the square one, so on a home screen that uses circular icons
+  Fjallkompis appeared as a square amongst circles. It is now properly
+  circular. Newer Android versions were unaffected. The logo itself is
+  unchanged, on every platform: the app icon, the browser tab icon, the iOS
+  home-screen icon and the Android launcher and startup screen are now all
+  produced from one master image, and the build checks they stay that way.
 
 - **The Android app's built-in map renders again on a fresh install.** The
   vector basemap that ships inside the Android app package was being read

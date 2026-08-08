@@ -28,7 +28,7 @@ test('the summary lists exactly the whitelisted technical fields', () => {
     satellite: 'not stored',
   });
   const lines = out.split('\n');
-  assert.equal(lines[0], 'Fjällkompis diagnostic summary');
+  assert.equal(lines[0], 'Fjallkompis diagnostic summary');
   assert.equal(lines.length, 12, 'header + 11 fields, nothing more');
   assert.ok(out.includes('App version: 0.27.0'));
   assert.ok(out.includes('Content version: 1 (Kungsleden (Abisko–Nikkaluokta))'));
@@ -52,7 +52,7 @@ test('unknown keys are ignored — personal data has no path into the text', () 
 
 test('missing facts never throw and print as unknown', () => {
   const out = buildDiagnosticSummary();
-  assert.ok(out.startsWith('Fjällkompis diagnostic summary'));
+  assert.ok(out.startsWith('Fjallkompis diagnostic summary'));
   assert.ok(out.includes('App version: unknown'));
 });
 
