@@ -95,6 +95,29 @@ jobs:
         working-directory: android
         run: ./gradlew --no-daemon assembleDebug
 
+      - name: Verify the packaged vector basemap
+        # verify:native proves the archive is in dist/; this proves it is in
+        # the artifact a device actually installs, byte-identical to the
+        # committed file. The Map tab reads the PACKAGED copy as one complete
+        # blob in the native shell (src/map/bundledArchive.mjs), so an APK
+        # without it — or with a stale or truncated copy — has no offline
+        # basemap, silently, on every fresh install.
+        run: |
+          set -euo pipefail
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          entry=assets/public/maps/kungsleden.pmtiles
+          if ! unzip -l "$apk" "$entry" > /dev/null; then
+            echo "::error::$entry is missing from the APK — the Map tab would have no offline basemap"
+            exit 1
+          fi
+          packaged_sha="$(unzip -p "$apk" "$entry" | sha256sum | cut -d' ' -f1)"
+          source_sha="$(sha256sum public/maps/kungsleden.pmtiles | cut -d' ' -f1)"
+          if [ "$packaged_sha" != "$source_sha" ]; then
+            echo "::error::packaged basemap ($packaged_sha) differs from public/maps/kungsleden.pmtiles ($source_sha)"
+            exit 1
+          fi
+          echo "Packaged vector basemap verified (sha256 $packaged_sha)."
+
       - name: Name the APK and record its size
         id: apk
         run: |

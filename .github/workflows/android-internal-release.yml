@@ -267,7 +267,12 @@ jobs:
           # Play App Signing key.
           verify="$(jarsigner -verify "$aab")"
           echo "$verify"
-          echo "$verify" | grep -q "jar verified" || { echo "::error::bundle is not signed"; exit 1; }
+          # Herestring, NOT `echo | grep -q`: under pipefail, grep -q exiting
+          # at the first match (the verdict is the FIRST line, the ~500-line
+          # warnings blob follows) can kill echo with EPIPE and fail the
+          # pipeline on a perfectly signed bundle. Run 31249233733 lost that
+          # race; run 31229585172 had won it by timing luck.
+          grep -q "jar verified" <<<"$verify" || { echo "::error::bundle is not signed"; exit 1; }
 
           # The signer certificate, read with the tool that actually prints
           # one. An earlier revision scraped `jarsigner -verify -verbose
@@ -363,6 +368,29 @@ jobs:
             exit 1
           fi
           echo "No keystore material inside the bundle."
+
+      - name: Verify the packaged vector basemap
+        # verify:native proves the archive is in dist/; this proves it is in
+        # the bundle Play actually ingests, byte-identical to the committed
+        # file. The Map tab reads the PACKAGED copy as one complete blob in
+        # the native shell (src/map/bundledArchive.mjs), so a bundle without
+        # it — or with a stale or truncated copy — ships a Map tab with no
+        # offline basemap, silently, on every fresh install.
+        run: |
+          set -euo pipefail
+          aab=android/app/build/outputs/bundle/release/app-release.aab
+          entry=base/assets/public/maps/kungsleden.pmtiles
+          if ! unzip -l "$aab" "$entry" > /dev/null; then
+            echo "::error::$entry is missing from the bundle — the Map tab would have no offline basemap"
+            exit 1
+          fi
+          packaged_sha="$(unzip -p "$aab" "$entry" | sha256sum | cut -d' ' -f1)"
+          source_sha="$(sha256sum public/maps/kungsleden.pmtiles | cut -d' ' -f1)"
+          if [ "$packaged_sha" != "$source_sha" ]; then
+            echo "::error::packaged basemap ($packaged_sha) differs from public/maps/kungsleden.pmtiles ($source_sha)"
+            exit 1
+          fi
+          echo "Packaged vector basemap verified (sha256 $packaged_sha)."
 
       - name: Name the bundle and summarise
         id: bundle

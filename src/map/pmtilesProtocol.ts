@@ -7,8 +7,12 @@
  * Basemap resolution order:
  *   1. offline: the user-downloaded blob from Cache Storage, read through a
  *      blob-backed PMTiles Source (works without a service worker);
- *   2. online:  the hosted .pmtiles file via HTTP range requests;
- *   3. none:    no basemap available — the map falls back to a clearly
+ *   2. bundled (native shell only): the archive shipped inside the app
+ *      package, fetched ONCE as a complete file and read through the same
+ *      blob-backed source — never with range requests, which Capacitor's
+ *      asset server does not serve correctly (src/map/bundledArchive.mjs);
+ *   3. online:  the hosted .pmtiles file via HTTP range requests;
+ *   4. none:    no basemap available — the map falls back to a clearly
  *               marked plain-background placeholder with route layers only.
  */
 import maplibregl from 'maplibre-gl';
@@ -22,6 +26,8 @@ import {
   VECTOR_ARCHIVE,
   type ArchiveSpec,
 } from './offlineMap';
+import { classifyBundledArchive } from './bundledArchive.mjs';
+import { isNativeAndroid } from '../runtime/platform';
 
 let protocol: Protocol | null = null;
 
@@ -93,9 +99,51 @@ async function probeHostedArchive(url: string): Promise<boolean> {
 }
 
 /**
+ * One full-body read of an archive shipped inside the Android app package,
+ * kept for the session: the packaged asset cannot change while the app runs,
+ * and re-reading ~6 MB on every Map mount would be pure waste. Never persisted
+ * — Cache Storage stays reserved for the user-managed download flow.
+ */
+const bundledBlobs = new Map<string, Promise<Blob | null>>();
+
+/**
+ * The bundled archive as a Blob, or null when the package does not actually
+ * carry a usable copy. A plain GET without a Range header: the in-app asset
+ * server serves complete files correctly — it is only its byte-range answers
+ * that are broken (measured; see src/map/bundledArchive.mjs).
+ */
+function getBundledArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
+  const url = archiveUrl(spec);
+  let pending = bundledBlobs.get(url);
+  if (!pending) {
+    pending = (async () => {
+      const res = await fetch(url);
+      const blob = res.ok ? await res.blob() : null;
+      if (!blob) await res.body?.cancel().catch(() => {});
+      const verdict = classifyBundledArchive(
+        {
+          ok: res.ok,
+          contentType: res.headers.get('Content-Type'),
+          sizeBytes: blob?.size ?? 0,
+        },
+        spec.revision ?? null,
+      );
+      if (!verdict.usable || !blob) {
+        console.error(`[fjällkompis] ${verdict.reason}: ${url}`);
+        return null;
+      }
+      return blob;
+    })().catch(() => null);
+    bundledBlobs.set(url, pending);
+  }
+  return pending;
+}
+
+/**
  * Decide where an archive's basemap tiles come from, preferring the offline
  * copy. Called on map mount; cheap (one cache lookup + at most one tiny
- * ranged probe). Works for any vector-basemap ArchiveSpec: the Kungsleden
+ * ranged probe; in the native shell the bundled archive is read once per
+ * session). Works for any vector-basemap ArchiveSpec: the Kungsleden
  * default and the temporary Delft pilot archive. A hosted archive that does
  * not exist (e.g. the pilot file before it is built) is detected safely via
  * probeHostedArchive and resolves to 'none' instead of crashing MapLibre.
@@ -113,6 +161,18 @@ export async function resolveArchiveBasemap(
     // exactly what we want after a re-download.
     proto.add(new PMTiles(new BlobSource(blob, offlineKey)));
     return { mode: 'offline', sourceUrl: `pmtiles://${offlineKey}` };
+  }
+
+  // Native shell: the archive ships inside the app package and MUST be read
+  // whole. The ranged 'online' path below would resolve here too — the tiny
+  // probe looks fine — and then hand PMTiles the asset server's broken range
+  // responses, which is exactly the fresh-install blank-basemap regression.
+  if (spec.bundledInApp && isNativeAndroid()) {
+    const bundled = await getBundledArchiveBlob(spec);
+    if (bundled) {
+      proto.add(new PMTiles(new BlobSource(bundled, offlineKey)));
+      return { mode: 'offline', sourceUrl: `pmtiles://${offlineKey}` };
+    }
   }
 
   try {
