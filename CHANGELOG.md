@@ -78,6 +78,15 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Fixed
 
+- **The Fjällkompis app icon is round on launchers that ask for a round
+  icon.** On older Android versions (7.0 and 7.1) the round launcher icon was
+  a copy of the square one, so on a home screen that uses circular icons
+  Fjällkompis appeared as a square amongst circles. It is now properly
+  circular. Newer Android versions were unaffected. The logo itself is
+  unchanged, on every platform: the app icon, the browser tab icon, the iOS
+  home-screen icon and the Android launcher and startup screen are now all
+  produced from one master image, and the build checks they stay that way.
+
 - **The Android app's built-in map renders again on a fresh install.** The
   vector basemap that ships inside the Android app package was being read
   with HTTP byte-range requests, which the app's internal asset server does

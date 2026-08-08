@@ -402,9 +402,18 @@ test('native colours are quoted from existing owned tokens, not invented', () =>
 test('the launcher icon and splash reuse the existing app artwork', () => {
   const mark = 'android/app/src/main/res/drawable-nodpi/fjallkompis_mark.png';
   assert.ok(existsSync(join(root, mark)), 'the shared mark exists');
-  assert.deepEqual(
-    readFileSync(join(root, mark)),
-    readFileSync(join(root, 'public/icons/icon-512.png')),
+  // Buffer.equals rather than assert.deepEqual: a deepEqual of two 150 KB
+  // buffers spends ~12s constructing a byte diff and then reports it as an
+  // unreadable wall that hides the message. Same fact, constant time, legible
+  // failure.
+  //
+  // BOTH files are byte copies of assets/brand/fjallkompis-mark-512.png, the
+  // canonical master; assets/brand/brand.contract.mjs names them and
+  // tests/branding-parity.test.mjs checks the whole derivation chain. This
+  // assertion is kept here as well because it is the native spike's own
+  // promise — the logo is not redesigned for Android.
+  assert.ok(
+    readFileSync(join(root, mark)).equals(readFileSync(join(root, 'public/icons/icon-512.png'))),
     'the native mark is byte-identical to the web icon — the logo is not redesigned',
   );
   const foreground = read('android/app/src/main/res/drawable/ic_launcher_foreground.xml');

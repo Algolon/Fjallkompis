@@ -369,6 +369,19 @@ jobs:
           fi
           echo "No keystore material inside the bundle."
 
+      - name: Verify the packaged Fjällkompis branding
+        # tests/branding-parity.test.mjs proves the SOURCE tree derives every
+        # icon from assets/brand/fjallkompis-mark-512.png. This proves the
+        # bundle Play ingests actually carries them: AAPT2 sits in between,
+        # renaming resources into density-qualified directories, re-encoding
+        # PNGs and dropping anything that stopped resolving. A wrong launcher
+        # icon is invisible in CI logs and obvious on a home screen, which is
+        # the worst possible order to find out.
+        #
+        # Compares decoded PIXELS, not bytes — AAPT2's PNG crunching is
+        # lossless, so the pixels must match exactly while the bytes will not.
+        run: node scripts/verify-packaged-branding.mjs android/app/build/outputs/bundle/release/app-release.aab
+
       - name: Verify the packaged vector basemap
         # verify:native proves the archive is in dist/; this proves it is in
         # the bundle Play actually ingests, byte-identical to the committed
