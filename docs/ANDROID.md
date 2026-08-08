@@ -2,12 +2,14 @@
 
 **Status: in production on Google Play Internal Testing.** The wrapper is
 merged and physically validated; versionName **0.27.0** / versionCode
-**2700003** is the current Internal Testing build — uploaded, published,
+**2700004** is the current Internal Testing build — uploaded, published,
 installed from Google Play on the Samsung test device and physically
 validated (2026-08-08): the bundled topo/vector basemap on a cold start in
-airplane mode (2700002), and complete backup export + restore including
-Wallet documents (2700003). Installs and updates arrive the normal Play
-way — no sideloading, no security bypasses.
+airplane mode (2700002), complete backup export + restore including
+Wallet documents (2700003), and the branding-parity launcher icon, the
+`Fjallkompis` launcher label and a clean splash → first-frame handoff
+(2700004). Installs and updates arrive the normal Play way — no
+sideloading, no security bypasses.
 
 Fjallkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
