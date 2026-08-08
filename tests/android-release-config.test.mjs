@@ -261,7 +261,9 @@ test('the bundle is verified as release-signed, not merely built', () => {
   // a printable-string heuristic — `strings | grep` failed in CI with the id
   // present. The tool itself is pinned and checksum-verified before use.
   assert.match(verify, /bundletool\.jar"? dump manifest/, 'the manifest check is protobuf-aware');
-  assert.ok(!/strings\s*\|/.test(verify), 'no strings-based manifest heuristic');
+  // codeOf: the comments deliberately NAME the retired heuristic; only real
+  // code may not use it.
+  assert.ok(!/strings\s*\|/.test(codeOf(verify)), 'no strings-based manifest heuristic');
   assert.match(verify, /--xpath=\/manifest\/@package/, 'the package is resolved, not pattern-matched');
   assert.match(verify, /EXPECTED_VERSION_NAME/, 'the packaged versionName is cross-checked');
   assert.match(verify, /EXPECTED_VERSION_CODE/, 'the packaged versionCode is cross-checked');
