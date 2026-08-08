@@ -267,7 +267,12 @@ jobs:
           # Play App Signing key.
           verify="$(jarsigner -verify "$aab")"
           echo "$verify"
-          echo "$verify" | grep -q "jar verified" || { echo "::error::bundle is not signed"; exit 1; }
+          # Herestring, NOT `echo | grep -q`: under pipefail, grep -q exiting
+          # at the first match (the verdict is the FIRST line, the ~500-line
+          # warnings blob follows) can kill echo with EPIPE and fail the
+          # pipeline on a perfectly signed bundle. Run 31249233733 lost that
+          # race; run 31229585172 had won it by timing luck.
+          grep -q "jar verified" <<<"$verify" || { echo "::error::bundle is not signed"; exit 1; }
 
           # The signer certificate, read with the tool that actually prints
           # one. An earlier revision scraped `jarsigner -verify -verbose
