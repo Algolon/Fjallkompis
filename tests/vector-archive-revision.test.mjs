@@ -35,6 +35,7 @@ import {
   VECTOR_ARCHIVE_REVISION,
   VECTOR_ARCHIVE_SUPERSEDED_BYTES,
 } from '../src/map/archiveRevision.mjs';
+import { MAP_ASSETS, MAP_ASSET_IDS, mapAssetPath } from '../src/map/mapCatalog.mjs';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -612,45 +613,63 @@ test('the revision identifier is not the app version', () => {
   assert.ok(VECTOR_ARCHIVE_REVISION.id.length > 0);
 });
 
-test('Workbox range-request caching uses the app’s CURRENT vector cache name', () => {
+test('Workbox range-request caching uses the app’s CURRENT cache names', () => {
+  // The names are no longer written here at all — neither imported one by one
+  // nor typed out. Every route derives its cache from the catalog entry, which
+  // is what makes drift between the worker and the app impossible rather than
+  // merely discouraged.
   assert.match(
     viteConfig,
-    /import \{ VECTOR_ARCHIVE_CACHE \} from '\.\/src\/map\/archiveRevision\.mjs'/,
-    'the cache name is imported, not repeated',
+    /from '\.\/src\/map\/mapCatalog\.mjs'/,
+    'archive identities are imported from the catalog',
   );
-  assert.match(viteConfig, /cacheName: VECTOR_ARCHIVE_CACHE,\s*\n\s*rangeRequests: true/);
+  assert.match(viteConfig, /cacheName: asset\.cacheName,\s*\n\s*rangeRequests: true/);
   assert.ok(
     !viteConfig.includes('fjallkompis-offline-map-v1'),
     'no superseded vector cache name is left in the service-worker config',
   );
-  // The other three archive caches are pinned literals and must not move.
-  for (const name of OTHER_LAYER_CACHES.filter((n) => !n.includes('satellite'))) {
-    assert.ok(viteConfig.includes(`cacheName: '${name}'`), `${name} identity unchanged`);
+  // No archive cache name may be a literal in the worker config at all.
+  for (const name of [VECTOR_ARCHIVE_CACHE, ...OTHER_LAYER_CACHES]) {
+    assert.ok(!viteConfig.includes(`'${name}'`), `${name} is derived, not repeated`);
   }
+  // Satellite stays OUT of the worker: it is read from its own blob, and a
+  // route here would pull ~59 MB through the SW on the first online preview.
+  assert.match(viteConfig, /\(\['vector', 'terrain', 'contours'\] as const\)/);
 });
 
-test('the vector spec carries the revision; the other archives carry none', () => {
-  const specOf = (name) => {
-    const start = offlineMap.indexOf(`export const ${name}: ArchiveSpec = {`);
-    assert.ok(start > -1, `${name} is declared`);
-    return offlineMap.slice(start, offlineMap.indexOf('};', start));
-  };
-  const vector = specOf('VECTOR_ARCHIVE');
-  assert.match(vector, /cacheName: VECTOR_ARCHIVE_CACHE/);
-  assert.match(vector, /legacyCacheNames: VECTOR_ARCHIVE_LEGACY_CACHES/);
-  assert.match(vector, /revision: VECTOR_ARCHIVE_REVISION/);
+test('every spec derives its identity from the catalog, and only vector has a legacy cache', () => {
+  // The specs are built by one helper now, so "did someone hand-edit one
+  // archive's cache name" is answered by there being nothing to hand-edit.
+  assert.match(offlineMap, /function specFor\(id: string, resolveUrl\?: \(\) => string\): ArchiveSpec/);
+  assert.match(offlineMap, /cacheName: asset\.cacheName/);
+  assert.match(offlineMap, /revision: asset\.revision/);
+  assert.match(offlineMap, /legacyCacheNames: asset\.legacyCacheNames/);
+  for (const name of ['VECTOR', 'TERRAIN', 'CONTOURS', 'SATELLITE']) {
+    assert.match(offlineMap, new RegExp(`export const ${name}_ARCHIVE: ArchiveSpec = specFor\\(`));
+  }
 
-  for (const name of ['TERRAIN_ARCHIVE', 'CONTOURS_ARCHIVE', 'SATELLITE_ARCHIVE']) {
-    const spec = specOf(name);
-    assert.ok(!spec.includes('revision:'), `${name} declares no revision`);
-    assert.ok(!spec.includes('legacyCacheNames'), `${name} declares no legacy cache`);
+  // Every archive now carries a revision — that is the point of the catalog.
+  for (const id of MAP_ASSET_IDS) {
+    assert.ok(MAP_ASSETS[id].revision.bytes > 0, `${id} pins a byte length`);
+    assert.match(MAP_ASSETS[id].revision.sha256, /^[0-9a-f]{64}$/, `${id} pins a digest`);
+  }
+  // But only the vector archive separates revisions by CACHE NAME, which is
+  // what licenses it to treat superseded bytes in the current cache as
+  // untrustworthy while the others read them as a usable older revision.
+  assert.deepEqual([...MAP_ASSETS.vector.supersededBytes], []);
+  for (const id of ['terrain', 'contours', 'satellite']) {
+    assert.deepEqual([...MAP_ASSETS[id].legacyCacheNames], [], `${id} declares no legacy cache`);
+    assert.ok(MAP_ASSETS[id].supersededBytes.length > 0, `${id} names its shipped older sizes`);
   }
 });
 
 test('terrain, contour and satellite cache identities are unchanged', () => {
-  assert.match(offlineMap, /cacheName: 'fjallkompis-offline-terrain-v1'/);
-  assert.match(offlineMap, /cacheName: 'fjallkompis-offline-contours-v1'/);
-  assert.match(offlineMap, /cacheName: 'fjallkompis-offline-satellite-v1'/);
+  // Renaming any of these would orphan every existing PWA download and offer
+  // a pointless multi-megabyte re-download to users whose bytes are correct.
+  assert.equal(MAP_ASSETS.terrain.cacheName, 'fjallkompis-offline-terrain-v1');
+  assert.equal(MAP_ASSETS.contours.cacheName, 'fjallkompis-offline-contours-v1');
+  assert.equal(MAP_ASSETS.satellite.cacheName, 'fjallkompis-offline-satellite-v1');
+  assert.equal(MAP_ASSETS.vector.cacheName, 'fjallkompis-offline-map-v2');
 });
 
 test('the download request leaves the service worker’s route; the cache key does not', () => {
@@ -679,7 +698,7 @@ test('downloadArchive fetches the bypass URL but caches under the canonical one'
     offlineMap.indexOf('export async function removeArchive('),
   );
   assert.match(body, /const url = archiveUrl\(spec\)/);
-  assert.match(body, /fetch\(archiveFetchUrl\(url, spec\.revision\?\.id \?\? null\), \{\s*cache: 'no-store',?\s*\}\)/);
+  assert.match(body, /fetch\(archiveFetchUrl\(url, spec\.revision\.id\), \{\s*cache: 'no-store',?\s*\}\)/);
   assert.match(body, /storeArchiveRevision\(\s*caches,\s*probeSpec\(spec\)/);
   // probeSpec's url is archiveUrl(spec) — the bare URL — so the cache key is
   // never the parameterised one.
@@ -687,14 +706,17 @@ test('downloadArchive fetches the bypass URL but caches under the canonical one'
 });
 
 test('the public vector URL is deliberately unchanged — no query string, no cache-buster', () => {
-  assert.match(offlineMap, /path: 'maps\/kungsleden\.pmtiles'/);
-  assert.match(viteConfig, /request\.url\.endsWith\('\/maps\/kungsleden\.pmtiles'\)/);
+  assert.equal(MAP_ASSETS.vector.file, 'kungsleden.pmtiles');
+  assert.equal(mapAssetPath(MAP_ASSETS.vector), 'maps/kungsleden.pmtiles');
+  // The worker route is built from that same path, so the URL it matches and
+  // the Cache Storage key the app writes are one derivation, not two strings.
+  assert.match(viteConfig, /const suffix = `\/\$\{mapAssetPath\(asset\)\}`/);
+  assert.match(viteConfig, /request\.url\.endsWith\(suffix\)/);
   // A ?v= or #rev on either side would break Workbox matching against the
   // Cache Storage key the app writes; the revision lives in the cache NAME.
-  const declaration = offlineMap.slice(
-    offlineMap.indexOf('export const VECTOR_ARCHIVE: ArchiveSpec = {'),
-  );
-  assert.ok(!/kungsleden\.pmtiles[?#]/.test(declaration.slice(0, 400)));
+  for (const id of MAP_ASSET_IDS) {
+    assert.ok(!/[?#]/.test(MAP_ASSETS[id].file), `${id} filename carries no query or fragment`);
+  }
   assert.ok(!/kungsleden\.pmtiles[?#]/.test(viteConfig));
 });
 

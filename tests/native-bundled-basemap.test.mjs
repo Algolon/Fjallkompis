@@ -25,9 +25,17 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { classifyBundledArchive } from '../src/map/bundledArchive.mjs';
 import { VECTOR_ARCHIVE_REVISION } from '../src/map/archiveRevision.mjs';
+import {
+  BUNDLED_MAP_ASSETS,
+  MAP_ASSETS,
+  OPTIONAL_MAP_ASSETS,
+} from '../src/map/mapCatalog.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const protocol = readFileSync(join(root, 'src/map/pmtilesProtocol.ts'), 'utf8');
+// The bundled-archive READ moved into the platform store when Android gained
+// optional downloads; the resolution ORDER still lives in the protocol module.
+const store = readFileSync(join(root, 'src/map/archiveStore.ts'), 'utf8');
 const offlineMap = readFileSync(join(root, 'src/map/offlineMap.ts'), 'utf8');
 const releaseWorkflow = readFileSync(
   join(root, '.github/workflows/android-internal-release.yml'),
@@ -94,22 +102,43 @@ test('an unrevisioned archive is only checked for presence and type', () => {
 // Wiring inside pmtilesProtocol.ts
 // ---------------------------------------------------------------------------
 
-test('resolution order is cache blob → bundled (native only) → hosted probe', () => {
-  const blobFirst = protocol.indexOf('await getArchiveBlob(spec)');
-  const bundled = protocol.indexOf('spec.bundledInApp && isNativeAndroid()');
+test('resolution order is the local copy first, the ranged online probe last', () => {
+  // The order is what stopped the regression: on Android the packaged archive
+  // MUST be found before anything reaches probeHostedArchive, because that
+  // path hands PMTiles the asset server's broken range responses.
+  const local = protocol.indexOf('await addLocalSource(spec, offlineKey)');
   const probe = protocol.indexOf('await probeHostedArchive(archiveUrl(spec))');
-  assert.ok(blobFirst > 0, 'the Cache Storage blob is still consulted');
-  assert.ok(bundled > blobFirst, 'the bundled branch exists after the blob check');
-  assert.ok(probe > bundled, 'the ranged online probe is the LAST resort, after the bundled branch');
+  assert.ok(local > 0, 'the local copy is consulted');
+  assert.ok(probe > local, 'the ranged online probe is the LAST resort');
+});
+
+test('the local source is a PMTiles Source, never a URL handed to the network', () => {
+  // A Blob (Cache Storage download, or the packaged archive read whole) or a
+  // slice-reading native source. Either way PMTiles is given bytes we control,
+  // which is the whole point.
+  assert.match(protocol, /new BlobSource\(local\.blob, key\)/);
+  assert.match(protocol, /nativeArchiveSource\(local\.nativeAssetId!, key\)/);
+});
+
+test('the bundled branch is native-only and comes before any download check', () => {
+  const bundledFirst = store.indexOf('if (isBundledHere(spec))');
+  const nativeStore = store.indexOf('if (isNativeAndroid()) {\n    const probe');
+  assert.ok(bundledFirst > 0, 'openLocalArchive checks the app package first');
+  assert.ok(nativeStore > bundledFirst, 'and the downloaded-file check follows it');
+  assert.match(
+    store,
+    /return spec\.bundledInApp && isNativeAndroid\(\)/,
+    'bundled only counts inside the native shell',
+  );
 });
 
 /** The body of getBundledArchiveBlob, ending at its closing unindented brace. */
 function bundledHelperSource() {
-  const start = protocol.indexOf('function getBundledArchiveBlob');
+  const start = store.indexOf('export function getBundledArchiveBlob');
   assert.ok(start > 0, 'getBundledArchiveBlob exists');
-  const end = protocol.indexOf('\n}\n', start);
+  const end = store.indexOf('\n}\n', start);
   assert.ok(end > start, 'and closes');
-  return protocol.slice(start, end + 2);
+  return store.slice(start, end + 2);
 }
 
 test('the bundled fetch is a plain full-body GET — no Range header anywhere near it', () => {
@@ -121,7 +150,7 @@ test('the bundled fetch is a plain full-body GET — no Range header anywhere ne
 });
 
 test('the bundled copy is read once per session and never persisted', () => {
-  assert.match(protocol, /const bundledBlobs = new Map<string, Promise<Blob \| null>>\(\)/);
+  assert.match(store, /const bundledBlobs = new Map<string, Promise<Blob \| null>>\(\)/);
   assert.doesNotMatch(
     bundledHelperSource(),
     /caches\./,
@@ -129,15 +158,12 @@ test('the bundled copy is read once per session and never persisted', () => {
   );
 });
 
-test('exactly the vector basemap is declared bundled', () => {
-  const specs = offlineMap.split(/export const \w+_ARCHIVE: ArchiveSpec/);
-  const bundledSpecs = specs.filter((s) => /bundledInApp: true/.test(s.split('};')[0]));
-  assert.equal(bundledSpecs.length, 1, 'one archive ships inside the app package');
-  assert.match(
-    offlineMap,
-    /path: 'maps\/kungsleden\.pmtiles',\s*\n\s*bundledInApp: true/,
-    'and it is the Kungsleden vector archive',
-  );
+test('exactly the vector basemap is declared bundled, and the catalog says so', () => {
+  assert.deepEqual([...BUNDLED_MAP_ASSETS], ['vector']);
+  assert.deepEqual([...OPTIONAL_MAP_ASSETS], ['terrain', 'contours', 'satellite']);
+  assert.equal(MAP_ASSETS.vector.file, 'kungsleden.pmtiles');
+  // The runtime flag is DERIVED from the catalog, so the two cannot disagree.
+  assert.match(offlineMap, /bundledInApp: asset\.distribution === 'bundled'/);
 });
 
 // ---------------------------------------------------------------------------

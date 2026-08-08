@@ -405,6 +405,25 @@ jobs:
           fi
           echo "Packaged vector basemap verified (sha256 $packaged_sha)."
 
+      - name: Verify the optional map archives are NOT in the bundle
+        # The mirror image of the check above, and the one that has never
+        # existed. Terrain, contours and satellite are user-initiated
+        # downloads on both platforms (src/map/nativeArchiveStore.ts); they
+        # sit in public/maps/ on any machine that has run the deploy fetch,
+        # and Vite copies public/ wholesale. Without this, one such machine
+        # ships a ~90 MB heavier bundle and nobody finds out until Play shows
+        # the size.
+        run: |
+          set -euo pipefail
+          aab=android/app/build/outputs/bundle/release/app-release.aab
+          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles; do
+            if unzip -l "$aab" "base/assets/public/maps/$f" > /dev/null 2>&1; then
+              echo "::error::$f is an optional download and must not be packaged in the AAB"
+              exit 1
+            fi
+          done
+          echo "Optional map archives correctly absent from the bundle."
+
       - name: Name the bundle and summarise
         id: bundle
         env:

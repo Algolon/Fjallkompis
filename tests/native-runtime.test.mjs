@@ -97,7 +97,12 @@ test('both builds are reachable through explicit, separate npm scripts', () => {
 
 test('the PWA plugin runs for the web build and never for the native build', () => {
   assert.match(vite, /mode === 'native' \? \[\] : \[VitePWA\(\{/, 'VitePWA is web-only');
-  assert.match(vite, /mode === 'native' \? \[inertPwaRegister\(\), nativeBuildMarker\(\)\] : \[\]/);
+  // The native-only plugin trio: the inert PWA stub, the build marker, and the
+  // hook that keeps the optional map archives out of the app package.
+  assert.match(
+    vite,
+    /\[inertPwaRegister\(\), nativeBuildMarker\(\), stripOptionalMapArchives\(\)\]\s*:\s*\[\]/,
+  );
   // The web manifest, its theme colours and the precache sweep are untouched.
   assert.match(vite, /theme_color: '#2f4a3d'/);
   assert.match(vite, /background_color: '#dce4d8'/);
@@ -180,10 +185,13 @@ test('the adapter exposes only the spike surface, and detects without sniffing',
 test('platform knowledge stays in the adapter — screens and stores never ask', () => {
   // The spike's architectural boundary: no scattered `if (android)`. The
   // shell calls into the adapter at exactly three points. ONE data-path
-  // exception exists below: the basemap resolver asks the adapter whether the
-  // packaged archive must be read whole, because the native asset server
-  // cannot byte-serve it (src/map/bundledArchive.mjs) — a real platform
-  // difference in how bytes arrive, not a screen styling itself by platform.
+  // exception exists below: src/map/archiveStore.ts, which is the platform
+  // boundary for map archives — where they are stored and how their bytes
+  // arrive genuinely differs (Cache Storage vs app-private files vs the app
+  // package), and concentrating that in one module is precisely what keeps
+  // the resolver, the Settings card and MapView platform-blind. Note the
+  // basemap resolver is NOT on this list any more: it used to ask the adapter
+  // directly, and now asks the store instead.
   assert.equal((codeOf(app).match(/isNativeAndroid\(\)/g) ?? []).length, 1);
   assert.equal((codeOf(app).match(/subscribeAndroidBackButton\(\)/g) ?? []).length, 1);
   assert.equal((codeOf(main).match(/markRuntimeOnDocument\(\)/g) ?? []).length, 1);
@@ -195,8 +203,8 @@ test('platform knowledge stays in the adapter — screens and stores never ask',
     .filter((f) => /from '\.{1,2}\/(\.\.\/)*runtime\/platform'/.test(read(join('src', f))));
   assert.deepEqual(
     callers.sort(),
-    ['App.tsx', 'main.tsx', 'map/pmtilesProtocol.ts'],
-    'only the app shell and the basemap resolver may import the platform adapter',
+    ['App.tsx', 'main.tsx', 'map/archiveStore.ts'],
+    'only the app shell and the map-archive store may import the platform adapter',
   );
   assert.ok(
     !/Capacitor|@capacitor/.test(read('src/store/AppStore.tsx')),

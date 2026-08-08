@@ -1,3 +1,5 @@
+import { existsSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -6,10 +8,14 @@ import { VitePWA } from 'vite-plugin-pwa';
 // src/vite-env.d.ts, re-exported as APP_VERSION from src/constants.ts).
 // scripts/check-version-consistency.mjs guards this wiring in CI.
 import pkg from './package.json';
-// The vector basemap's CURRENT archive revision owns its cache name. Imported
-// rather than repeated so the service worker's range-request cache and the app
-// can never drift onto different caches (see src/map/archiveRevision.mjs).
-import { VECTOR_ARCHIVE_CACHE } from './src/map/archiveRevision.mjs';
+// Archive identities come from the canonical catalog, never from literals
+// here: the service worker's range-request caches and the app's own caches
+// MUST be the same caches, and a hardcoded name is how they stop being.
+import {
+  MAP_ASSETS,
+  OPTIONAL_MAP_ASSETS,
+  mapAssetPath,
+} from './src/map/mapCatalog.mjs';
 
 /**
  * TWO BUILD TARGETS, ONE APPLICATION.
@@ -94,6 +100,40 @@ export function registerSW() {
 }
 
 /**
+ * Keeps the OPTIONAL map archives out of the Android app package.
+ *
+ * They live in `public/maps/` whenever anyone has run the deploy fetch (or
+ * `npm run generate:map:*`) on this machine, and Vite copies `public/`
+ * wholesale into `dist`. Nothing used to notice, so a native build made on
+ * such a machine would quietly add ~90 MB of terrain, contour and satellite
+ * data to the AAB — an app that is six times larger for no product decision,
+ * shipped by accident. The archives are meant to be optional downloads on
+ * Android exactly as they are on the web (src/map/nativeArchiveStore.ts).
+ *
+ * `closeBundle` rather than `generateBundle`: public-directory files are
+ * copied outside the bundle graph, so they are only on disk by the end.
+ * scripts/verify-native-build.mjs asserts the result independently, and both
+ * Android workflows assert it again against the packaged artifact — this hook
+ * is the fix, not the proof.
+ */
+function stripOptionalMapArchives(): Plugin {
+  return {
+    name: 'fjallkompis:strip-optional-map-archives',
+    apply: 'build',
+    closeBundle() {
+      const outDir = resolve(process.cwd(), 'dist', 'maps');
+      for (const id of OPTIONAL_MAP_ASSETS) {
+        const file = join(outDir, MAP_ASSETS[id].file);
+        if (existsSync(file)) {
+          rmSync(file);
+          this.warn(`native build: removed optional map archive ${MAP_ASSETS[id].file}`);
+        }
+      }
+    },
+  };
+}
+
+/**
  * Stamps the native build's output so the wrong bundle can never be synced.
  *
  * Both targets write to the SAME `dist` directory (Capacitor's webDir), so
@@ -127,7 +167,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    ...(mode === 'native' ? [inertPwaRegister(), nativeBuildMarker()] : []),
+    ...(mode === 'native'
+      ? [inertPwaRegister(), nativeBuildMarker(), stripOptionalMapArchives()]
+      : []),
     ...(mode === 'native' ? [] : [VitePWA({
       // Prompt-style updates: a new service worker waits until the user taps
       // "Update now" in the in-app toast, so we never reload out from under an
@@ -194,66 +236,41 @@ export default defineConfig(({ mode }) => ({
         // maplibre-gl makes the main chunk larger than Workbox's 2 MiB
         // default precache limit.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        runtimeCaching: [
-          {
-            // Serve PMTiles byte-range requests from the user-downloaded
-            // FULL response in the offline-map cache (RangeRequestsPlugin
-            // slices it). The cache name comes from the archive-revision
-            // contract, so it is the CURRENT revision's cache and nothing
-            // else. cacheableResponse statuses [200] ensures a network 206
-            // partial is never cached — caching individual range responses
-            // would NOT work offline.
-            //
-            // A superseded cache is deliberately NOT wired up here: Workbox
-            // picks the first matching route, so one URL can only be served
-            // from one cache, and a legacy archive must never look current.
-            // Legacy fallback runs through the blob-backed PMTiles source
-            // instead (src/map/pmtilesProtocol.ts), which is the primary
-            // offline read path anyway — so a device still on the old
-            // archive keeps a working map, while a plain fetch reaches the
-            // network for the current bytes rather than stale ranges.
-            //
-            // Scoped to the VECTOR basemap only. The satellite archive is
-            // also same-origin (deploy.yml injects the verified Release asset
-            // into dist/maps, so Pages serves it from the app's own origin),
-            // but it is read from its own Cache Storage blob (not via the
-            // SW), so this rule must not intercept it — otherwise online
-            // satellite streaming would pull the whole 42 MB file through
-            // the SW into the wrong cache.
+        // Serve PMTiles byte-range requests from the user-downloaded FULL
+        // response in each archive's own cache (RangeRequestsPlugin slices
+        // it). Every cache name is READ FROM THE CATALOG, so a route here and
+        // the app's own reads cannot name different caches — which they did
+        // when these three were typed out by hand.
+        // cacheableResponse statuses [200] ensures a network 206 partial is
+        // never cached; caching individual range responses would NOT work
+        // offline.
+        //
+        // Superseded caches are deliberately NOT wired up: Workbox picks the
+        // first matching route, so one URL can only be served from one cache,
+        // and a legacy archive must never look current. Legacy fallback runs
+        // through the blob-backed PMTiles source instead
+        // (src/map/pmtilesProtocol.ts), which is the primary offline read path
+        // anyway — so a device still on the old archive keeps a working map,
+        // while a plain fetch reaches the network for the current bytes.
+        //
+        // SATELLITE IS EXCLUDED, on purpose. It is same-origin too, but it is
+        // read from its own Cache Storage blob rather than through the worker;
+        // a route here would pull the whole ~59 MB file through the SW into
+        // the wrong cache the first time anyone previewed Satellite online.
+        runtimeCaching: (['vector', 'terrain', 'contours'] as const).map((id) => {
+          const asset = MAP_ASSETS[id];
+          const suffix = `/${mapAssetPath(asset)}`;
+          return {
             urlPattern: ({ sameOrigin, request }) =>
-              sameOrigin && request.url.endsWith('/maps/kungsleden.pmtiles'),
-            handler: 'CacheFirst',
+              sameOrigin && request.url.endsWith(suffix),
+            handler: 'CacheFirst' as const,
             options: {
-              cacheName: VECTOR_ARCHIVE_CACHE,
+              cacheName: asset.cacheName,
               rangeRequests: true,
               cacheableResponse: { statuses: [200] },
             },
-          },
-          {
-            // Terrain relief, same mechanism as the vector basemap: byte
-            // ranges served from the user-downloaded FULL response. Cache
-            // names must match TERRAIN_ARCHIVE / CONTOURS_ARCHIVE in
-            // src/map/offlineMap.ts.
-            urlPattern: ({ sameOrigin, request }) =>
-              sameOrigin && request.url.endsWith('/maps/kungsleden-terrain.pmtiles'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'fjallkompis-offline-terrain-v1',
-              rangeRequests: true,
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          {
-            urlPattern: ({ sameOrigin, request }) =>
-              sameOrigin && request.url.endsWith('/maps/kungsleden-contours.pmtiles'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'fjallkompis-offline-contours-v1',
-              rangeRequests: true,
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-        ],
+          };
+        }),
       },
       devOptions: {
         // Let you test PWA/offline behaviour in `npm run dev`.

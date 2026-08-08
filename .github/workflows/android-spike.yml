@@ -125,6 +125,21 @@ jobs:
           fi
           echo "Packaged vector basemap verified (sha256 $packaged_sha)."
 
+      - name: Verify the optional map archives are NOT in the APK
+        # Mirror image of the check above: terrain, contours and satellite are
+        # user-initiated downloads on both platforms, and they reach dist only
+        # by accident (public/maps/ on a machine that ran the deploy fetch).
+        run: |
+          set -euo pipefail
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles; do
+            if unzip -l "$apk" "assets/public/maps/$f" > /dev/null 2>&1; then
+              echo "::error::$f is an optional download and must not be packaged in the APK"
+              exit 1
+            fi
+          done
+          echo "Optional map archives correctly absent from the APK."
+
       - name: Name the APK and record its size
         id: apk
         run: |

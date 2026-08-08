@@ -33,36 +33,38 @@ import {
   removeArchiveRevision,
   storeArchiveRevision,
   ARCHIVE_MISMATCH_ERROR,
-  VECTOR_ARCHIVE_CACHE,
-  VECTOR_ARCHIVE_LEGACY_CACHES,
-  VECTOR_ARCHIVE_REVISION,
   type ArchiveRevision,
   type ArchiveState,
 } from './archiveRevision.mjs';
+import { mapAsset, mapAssetPath, type MapAsset } from './mapCatalog.mjs';
 
 export type { ArchiveRevision, ArchiveState };
 export { ARCHIVE_MISMATCH_ERROR };
 
-/** Descriptor for one downloadable PMTiles archive. */
+/**
+ * Descriptor for one downloadable PMTiles archive — the runtime view of a
+ * src/map/mapCatalog.mjs entry. Every field is DERIVED from the catalog, which
+ * is what stops the app, the service worker, deployment, Android and the tests
+ * from drifting onto different bytes under the same label.
+ */
 export interface ArchiveSpec {
+  /** The catalog asset this spec was built from. */
+  asset: MapAsset;
   /**
-   * Cache Storage cache holding the CURRENT copy of this archive. The vector
-   * basemap's name is owned by the revision contract and imported by
-   * vite.config.ts too, so the service worker cannot drift onto another cache.
+   * Cache Storage cache holding the CURRENT copy of this archive (PWA). The
+   * name comes from the catalog, which vite.config.ts also imports, so the
+   * service worker cannot drift onto another cache.
    */
   cacheName: string;
   /**
    * Superseded caches for the SAME archive, newest first — read as an offline
    * fallback and deleted only after the current revision downloads
-   * successfully. Only a revisioned archive declares any.
+   * successfully. Only the vector archive declares any; the others keep their
+   * superseded revisions in place (catalog `supersededBytes`).
    */
   legacyCacheNames?: readonly string[];
-  /**
-   * Pins which build of the archive counts as current. Absent for archives
-   * that have only ever had one revision (terrain, contours, satellite),
-   * whose status stays existence-only.
-   */
-  revision?: ArchiveRevision;
+  /** Pins which build of the archive counts as current. */
+  revision: ArchiveRevision;
   /** Same-origin path under BASE_URL (default location / dev fallback). */
   path: string;
   /**
@@ -78,58 +80,55 @@ export interface ArchiveSpec {
    * packaged AAB/APK). In the native shell it is read as one complete file
    * through a blob-backed source — never with byte-range requests, which the
    * in-app asset server does not serve correctly (src/map/bundledArchive.mjs
-   * records the measurements). Only the vector basemap; terrain, contour and
-   * satellite archives are deliberately NOT in the package (docs/ANDROID.md).
+   * records the measurements). Only the vector basemap; the optional archives
+   * are downloaded into app-private storage instead (src/map/archiveStore.ts).
    */
-  bundledInApp?: boolean;
+  bundledInApp: boolean;
 }
 
 const sameOriginUrl = (path: string): string =>
   new URL(`${import.meta.env.BASE_URL}${path}`, window.location.origin).toString();
 
-export const VECTOR_ARCHIVE: ArchiveSpec = {
-  cacheName: VECTOR_ARCHIVE_CACHE,
-  legacyCacheNames: VECTOR_ARCHIVE_LEGACY_CACHES,
-  revision: VECTOR_ARCHIVE_REVISION,
-  path: 'maps/kungsleden.pmtiles',
-  bundledInApp: true,
-};
+/** Build the runtime spec for a catalog asset. The catalog decides everything. */
+function specFor(id: string, resolveUrl?: () => string): ArchiveSpec {
+  const asset = mapAsset(id);
+  return {
+    asset,
+    cacheName: asset.cacheName,
+    legacyCacheNames: asset.legacyCacheNames,
+    revision: asset.revision,
+    path: mapAssetPath(asset),
+    resolveUrl,
+    bundledInApp: asset.distribution === 'bundled',
+  };
+}
+
+export const VECTOR_ARCHIVE: ArchiveSpec = specFor('vector');
 
 /**
  * Terrain relief: two archives managed as ONE user-facing download (the
  * Settings "Terrain relief" card) because neither is useful alone —
  * hillshade needs the terrain-RGB raster, contours need the vector lines.
+ * The grouping itself is declared in the catalog (MAP_DOWNLOAD_GROUPS).
  * Built by scripts/build-terrain-map.sh from the Copernicus GLO-30 DEM;
- * like the satellite archive, the binaries are never committed — deploy.yml
- * injects the verified terrain-data release assets into the Pages build.
+ * like the satellite archive, the binaries are never committed — deployment
+ * injects the verified terrain-data release assets into the Pages build, and
+ * Android downloads the same release assets natively.
  */
-export const TERRAIN_ARCHIVE: ArchiveSpec = {
-  cacheName: 'fjallkompis-offline-terrain-v1',
-  path: 'maps/kungsleden-terrain.pmtiles',
-};
+export const TERRAIN_ARCHIVE: ArchiveSpec = specFor('terrain');
 
-export const CONTOURS_ARCHIVE: ArchiveSpec = {
-  cacheName: 'fjallkompis-offline-contours-v1',
-  path: 'maps/kungsleden-contours.pmtiles',
-};
+export const CONTOURS_ARCHIVE: ArchiveSpec = specFor('contours');
 
-export const SATELLITE_ARCHIVE: ArchiveSpec = {
-  cacheName: 'fjallkompis-offline-satellite-v1',
-  path: 'maps/kungsleden-satellite.pmtiles',
-  // Same-origin by default: deployment downloads the canonical archive from
-  // the pinned GitHub Release (satellite-data-vN) into the Pages build (see
-  // deploy.yml), so browsers fetch it from the app's own origin — no CORS.
-  // The 42 MB binary is never committed. VITE_SATELLITE_URL remains an
-  // optional override for alternative hosting; if the file is absent (e.g.
-  // local dev), resolveSatellite() detects the HTML/404 fallback and the
-  // Satellite toggle stays disabled.
-  resolveUrl: () => {
-    const configured = import.meta.env.VITE_SATELLITE_URL?.trim();
-    return configured
-      ? configured
-      : sameOriginUrl('maps/kungsleden-satellite.pmtiles');
-  },
-};
+// Same-origin by default: deployment downloads the canonical archive from the
+// pinned GitHub Release (satellite-data-vN) into the Pages build, so browsers
+// fetch it from the app's own origin — no CORS. The binary is never committed.
+// VITE_SATELLITE_URL remains an optional override for alternative hosting; if
+// the file is absent (e.g. local dev), resolveSatellite() detects the HTML/404
+// fallback and the Satellite toggle stays disabled.
+export const SATELLITE_ARCHIVE: ArchiveSpec = specFor('satellite', () => {
+  const configured = import.meta.env.VITE_SATELLITE_URL?.trim();
+  return configured ? configured : sameOriginUrl(mapAssetPath(mapAsset('satellite')));
+});
 
 /** @deprecated kept for existing imports; prefer VECTOR_ARCHIVE.cacheName. */
 export const OFFLINE_MAP_CACHE = VECTOR_ARCHIVE.cacheName;
@@ -188,7 +187,8 @@ const probeSpec = (spec: ArchiveSpec) => ({
   cacheName: spec.cacheName,
   url: archiveUrl(spec),
   legacyCacheNames: spec.legacyCacheNames ?? [],
-  expectedBytes: spec.revision?.bytes ?? null,
+  expectedBytes: spec.revision.bytes,
+  supersededBytes: spec.asset.supersededBytes,
 });
 
 export async function getArchiveStatus(spec: ArchiveSpec): Promise<OfflineMapStatus> {
@@ -246,7 +246,7 @@ export async function downloadArchive(
   //     CacheFirst route, which would otherwise answer it from Cache Storage
   //     without ever reaching the server (measured — see archiveFetchUrl).
   // The Cache Storage key below stays the bare `url`.
-  const res = await fetch(archiveFetchUrl(url, spec.revision?.id ?? null), {
+  const res = await fetch(archiveFetchUrl(url, spec.revision.id), {
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`Map download failed (HTTP ${res.status})`);
