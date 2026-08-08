@@ -2,10 +2,11 @@
 
 **Status: in production on Google Play Internal Testing.** The wrapper is
 merged and physically validated; versionName **0.27.0** / versionCode
-**2700001** was uploaded to Play Internal Testing, published, and installed
-from Google Play on the Samsung test device (2026-08-08). Installs and
-updates now arrive the normal Play way — no sideloading, no security
-bypasses.
+**2700002** is the current Internal Testing build — uploaded, published,
+installed from Google Play on the Samsung test device and physically
+validated (2026-08-08), including the bundled topo/vector basemap on a
+cold start in airplane mode. Installs and updates arrive the normal Play
+way — no sideloading, no security bypasses.
 
 Fjällkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
@@ -429,6 +430,9 @@ to the same blob-backed PMTiles source the offline download path uses
 (`src/map/bundledArchive.mjs` owns the decision; `tests/native-bundled-basemap.test.mjs`
 fences the resolution order). Both Android workflows additionally prove the
 packaged AAB/APK carries the archive byte-identical to the committed file.
+**Physically validated (Samsung, 2026-08-08): the Play-installed 2700002
+update renders the topo/vector basemap correctly, including a cold start in
+airplane mode.**
 
 The desktop cross-check (the same `dist/` served by a Range-conformant static
 server) still stands: the bundle and archive are correct in themselves, and
@@ -515,8 +519,8 @@ Turning it on is a separate change that needs its own evidence.
 | --- | --- |
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
-| **Consumed** | **2700001** (0.27.0, build 1) — uploaded and published to Internal Testing 2026-08-08; Play will never accept it again |
-| Next upload | **2700002** (0.27.0, build 2 — `androidBuild=2`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+| **Consumed** | **2700001** (0.27.0, build 1) and **2700002** (0.27.0, build 2 — the bundled-basemap fix, physically validated 2026-08-08) — both published to Internal Testing; Play will never accept either again |
+| Next upload | **2700003** (0.27.0, build 3 — `androidBuild=3`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 
 Neither is written by hand in `build.gradle`; a test fails if either becomes a
 literal. The only number a developer edits is `androidBuild` in

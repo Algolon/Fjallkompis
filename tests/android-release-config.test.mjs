@@ -114,11 +114,12 @@ test('the build counter is a single positive integer with instructions beside it
 
 test('the next Play artifact outranks every code Play has already accepted', () => {
   // Recomputed here from the real inputs so the number cannot drift from what
-  // Gradle will actually stamp. History: 2700001 (0.27.0 build 1) was
-  // uploaded and published to Internal Testing on 2026-08-08 and is burned
-  // forever — Play will never accept it again, so the next artifact MUST
-  // compute strictly higher. version.properties keeps the append-only list.
-  const HIGHEST_CONSUMED_VERSION_CODE = 2700001;
+  // Gradle will actually stamp. History: 2700001 (0.27.0 build 1) and
+  // 2700002 (0.27.0 build 2, the bundled-basemap fix) were uploaded and
+  // published to Internal Testing on 2026-08-08 and are burned forever —
+  // Play will never accept them again, so the next artifact MUST compute
+  // strictly higher. version.properties keeps the append-only list.
+  const HIGHEST_CONSUMED_VERSION_CODE = 2700002;
   const [major, minor, patch] = pkg.version.split('.').map(Number);
   const build = Number(versionProps.match(/^androidBuild=(\d+)$/m)[1]);
   const next = major * 10000000 + minor * 100000 + patch * 1000 + build;
@@ -127,6 +128,7 @@ test('the next Play artifact outranks every code Play has already accepted', () 
     `computed versionCode ${next} would not outrank the already-published ${HIGHEST_CONSUMED_VERSION_CODE} — bump androidBuild or the app version`,
   );
   assert.match(versionProps, /2700001/, 'the consumed-code history stays in version.properties');
+  assert.match(versionProps, /2700002/, 'the consumed-code history stays in version.properties');
   // When a code is published, raise HIGHEST_CONSUMED_VERSION_CODE here and
   // append it to the version.properties history — both in the same commit.
 });
