@@ -2,10 +2,11 @@
 
 **Status: in production on Google Play Internal Testing.** The wrapper is
 merged and physically validated; versionName **0.27.0** / versionCode
-**2700002** is the current Internal Testing build — uploaded, published,
+**2700003** is the current Internal Testing build — uploaded, published,
 installed from Google Play on the Samsung test device and physically
-validated (2026-08-08), including the bundled topo/vector basemap on a
-cold start in airplane mode. Installs and updates arrive the normal Play
+validated (2026-08-08): the bundled topo/vector basemap on a cold start in
+airplane mode (2700002), and complete backup export + restore including
+Wallet documents (2700003). Installs and updates arrive the normal Play
 way — no sideloading, no security bypasses.
 
 Fjällkompis is a web app. This document describes an *additional delivery
@@ -384,18 +385,47 @@ The lightweight **JSON export still exists and still carries no Wallet
 files** — it remains the small, state-only file it always was, and old JSON
 backups import exactly as before.
 
-**Saving the backup file is the wrapper's one download path.** The WebView
-does not turn blob-URL `<a download>` anchors into downloads (emulator-
-verified: the JSON export button writes nothing in the wrapper), so the
-complete backup crosses a narrow bridge (`SaveFilePlugin.java`, chunked
-base64) into the system's ACTION_CREATE_DOCUMENT picker — the user chooses
-the location, and no storage permission exists or is requested. The system
-may append `.zip` to the `.fjallkompis` name (SAF normalises unknown
-extensions to the declared `application/zip`); the restore picker accepts
-both shapes and identity always comes from the manifest, never the filename.
-Restore needs no native code: `<input type="file">` works in the WebView the
-same way the Wallet's attach-file flow already does — both flows were driven
-end-to-end in the emulator (export → picker → byte-identical restore).
+**Every generated file the app hands the user crosses one bridge.** The
+WebView does not turn blob-URL `<a download>` anchors into downloads —
+emulator-verified as a silent no-op, which is exactly how the pre-existing
+JSON export button was found to be broken in the wrapper. So all three
+generated-file exports (complete backup, lightweight JSON, Day plan
+recovery copy) go through `src/runtime/fileSave.ts` → `SaveFilePlugin.java`
+(chunked base64) into the system's ACTION_CREATE_DOCUMENT picker — the user
+chooses the location, and no storage permission exists or is requested. A
+test fences those surfaces so a future export cannot quietly reintroduce a
+browser-only download path.
+
+Saving an INDIVIDUAL Trail Wallet document (opening a stored PDF, or
+TripView's per-document export) is a different class — bytes the user
+supplied rather than a file the app generated — and still uses the browser
+path, so it remains a no-op in the wrapper. Choosing between a save picker
+and a share sheet there is its own decision; it is deliberately not folded
+into this boundary.
+
+The system may append `.zip` to the `.fjallkompis` name (SAF normalises
+unknown extensions to the declared `application/zip`); the restore picker
+accepts both shapes and identity always comes from the manifest, never the
+filename. Restore needs no native code: `<input type="file">` works in the
+WebView the same way the Wallet's attach-file flow already does — both flows
+were driven end-to-end in the emulator (export → picker → byte-identical
+restore).
+
+### ✓ Physically validated cross-platform (2026-08-08)
+
+Proven on real hardware, in the direction that matters — a backup exported
+from the **live PWA's real trip data** (Wallet documents included) restored
+into the **Play-installed Android build** (0.27.0 / versionCode 2700003,
+run 31260466056):
+
+- complete backup export and restore both succeeded on both platforms;
+- Trail Wallet PDFs/images survived the crossing and opened correctly;
+- the restored result was correct, and the flow was simple enough to use
+  without instructions.
+
+This is the case the lightweight JSON export never covered: the PWA and the
+wrapper have entirely separate storage, so before this there was no way to
+carry Wallet documents between them at all.
 
 Nothing about storage changed for the wrapper: `SCHEMA_VERSION`, the
 `fjallkompis:state` key, the `fjallkompis-wallet` database and the export
@@ -535,8 +565,8 @@ Turning it on is a separate change that needs its own evidence.
 | --- | --- |
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
-| **Consumed** | **2700001** (0.27.0, build 1) and **2700002** (0.27.0, build 2 — the bundled-basemap fix, physically validated 2026-08-08) — both published to Internal Testing; Play will never accept either again |
-| Next upload | **2700003** (0.27.0, build 3 — `androidBuild=3`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix) and **2700003** (build 3 — Complete Backup / Restore v1), all 0.27.0, all published to Internal Testing and physically validated 2026-08-08; Play will never accept any of them again |
+| Next upload | **2700004** (0.27.0, build 4 — `androidBuild=4`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 
 Neither is written by hand in `build.gradle`; a test fails if either becomes a
 literal. The only number a developer edits is `androidBuild` in

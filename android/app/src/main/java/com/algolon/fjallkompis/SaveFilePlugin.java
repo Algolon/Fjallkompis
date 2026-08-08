@@ -16,7 +16,11 @@ import java.io.OutputStream;
 
 /**
  * Save one generated file where the USER chooses — the native half of the
- * complete-backup export (src/runtime/backupFile.ts is the only caller).
+ * app's file-save boundary (src/runtime/fileSave.ts is the only caller;
+ * every generated-file export in the app goes through it: the complete
+ * backup, the lightweight JSON export and the Day plan recovery copy).
+ * This plugin is content-agnostic — it knows a file name, a MIME type and
+ * a stream of bytes, never what they mean.
  *
  * WHY THIS EXISTS. The web export path is an `<a download>` on a blob: URL,
  * which the Android WebView does not turn into a download — Capacitor
