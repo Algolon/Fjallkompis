@@ -1,7 +1,11 @@
 # Android wrapper (Capacitor)
 
-**Status: the wrapper is merged and physically validated. Play Internal Testing
-setup is in progress; nothing has been uploaded to Google Play.**
+**Status: in production on Google Play Internal Testing.** The wrapper is
+merged and physically validated; versionName **0.27.0** / versionCode
+**2700001** was uploaded to Play Internal Testing, published, and installed
+from Google Play on the Samsung test device (2026-08-08). Installs and
+updates now arrive the normal Play way — no sideloading, no security
+bypasses.
 
 Fjällkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
@@ -447,7 +451,7 @@ Neither is implemented. This is a recommendation, not a plan of record.
 | Channel | Artifact | Who | Status |
 | --- | --- | --- | --- |
 | **Development** | debug APK, `assembleDebug` | developers | in use |
-| **Private distribution** | signed release **AAB** → Play Internal Testing | invited testers | this iteration |
+| **Private distribution** | signed release **AAB** → Play Internal Testing | invited testers | **live — proven end to end 2026-08-08** |
 | **Future** | automated Internal Testing upload | CI | not built |
 
 ### Sideloaded debug APKs are development artifacts
@@ -496,7 +500,8 @@ Turning it on is a separate change that needs its own evidence.
 | --- | --- |
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
-| First Play upload | **2700001** (0.27.0, build 1) |
+| **Consumed** | **2700001** (0.27.0, build 1) — uploaded and published to Internal Testing 2026-08-08; Play will never accept it again |
+| Next upload | **2700002** (0.27.0, build 2 — `androidBuild=2`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 
 Neither is written by hand in `build.gradle`; a test fails if either becomes a
 literal. The only number a developer edits is `androidBuild` in
@@ -519,9 +524,12 @@ range would produce a colliding code — and you would only find out at upload.
 
 ## Release signing
 
-**Google Play App Signing holds the final app-signing key.** This repository
-only ever holds an **upload key**, and only as CI environment variables
-reconstructed from GitHub Actions secrets. No keystore, password or alias is
+**Google Play App Signing holds the final app-signing key** — enrolled at the
+first upload, which registered this project's upload key with Play. The whole
+chain is proven: CI built and signed the bundle, Play accepted it, and the
+app installed from the store. This repository only ever holds the **upload
+key**, and only as CI environment variables reconstructed from GitHub Actions
+secrets. No keystore, password or alias is
 committed; `.gitignore` and a test both enforce that, because a keystore
 committed once is compromised forever — git history keeps it.
 
