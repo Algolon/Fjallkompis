@@ -13,12 +13,13 @@ import type { RouteDirection } from '../types';
 import { ScreenHeader } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { APP_VERSION } from '../constants';
-import { buildExport, downloadJson, parseImport } from '../utils/exportImport';
+import { buildExport, parseImport } from '../utils/exportImport';
 import { readState } from '../utils/storage';
 import { clearWalletData, dumpWalletData, replaceWalletData } from '../wallet/walletStore.mjs';
 import {
   backupFileName,
   backupSummaryText,
+  preflightBackupFile,
   restoreRejectionText,
 } from '../backup/completeBackup.mjs';
 import {
@@ -27,7 +28,7 @@ import {
   type StagedBackup,
 } from '../backup/completeBackupArchive.mjs';
 import { applyCompleteRestore } from '../backup/completeBackupRestore.mjs';
-import { saveBackupFile } from '../runtime/backupFile';
+import { saveGeneratedFile } from '../runtime/fileSave';
 import { todayIso } from '../utils/format';
 import {
   OfflineMapCard,
@@ -341,9 +342,23 @@ export function SettingsScreen({
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const doExport = () => {
-    downloadJson(`fjallkompis-backup-${todayIso()}.json`, buildExport(state));
-    setNotice({ kind: 'ok', text: 'Backup downloaded.' });
+  // The SAME bytes downloadJson always produced (2-space JSON of the same
+  // envelope), but delivered through the platform save boundary: browsers
+  // keep the normal download, and the Android wrapper gets the system save
+  // picker instead of the silent blob-URL no-op the WebView made of it.
+  const doExport = async () => {
+    try {
+      const json = JSON.stringify(buildExport(state), null, 2);
+      const outcome = await saveGeneratedFile(
+        `fjallkompis-backup-${todayIso()}.json`,
+        new Blob([json], { type: 'application/json' }),
+        'application/json',
+      );
+      if (outcome === 'saved') setNotice({ kind: 'ok', text: 'Backup downloaded.' });
+    } catch (err) {
+      console.warn('Fjällkompis: JSON export failed.', err);
+      setNotice({ kind: 'err', text: 'Could not save the export file.' });
+    }
   };
 
   // ---- Complete backup (state + the actual Wallet PDF/image files) --------
@@ -387,7 +402,11 @@ export function SettingsScreen({
         return;
       }
       const blob = new Blob([result.bytes as BlobPart], { type: 'application/zip' });
-      const outcome = await saveBackupFile(backupFileName(todayIso()), blob);
+      const outcome = await saveGeneratedFile(
+        backupFileName(todayIso()),
+        blob,
+        'application/zip',
+      );
       if (outcome === 'saved') {
         setNotice({
           kind: 'ok',
@@ -407,6 +426,14 @@ export function SettingsScreen({
 
   const onBackupFile = async (file: File | undefined) => {
     if (!file) return;
+    // Container preflight BEFORE any bytes are read: a huge selection must
+    // be refused from its size alone, not after arrayBuffer() has already
+    // allocated it (MAX_BACKUP_FILE_BYTES in the backup contract).
+    const preflight = preflightBackupFile(file.size);
+    if (!preflight.ok) {
+      setNotice({ kind: 'err', text: restoreRejectionText(preflight) });
+      return;
+    }
     setBackupBusy(true);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -706,7 +733,11 @@ export function SettingsScreen({
             missing documents honestly so you can re-attach them there.
           </p>
 
-          <button className="btn btn-block" style={{ marginTop: 10 }} onClick={doExport}>
+          <button
+            className="btn btn-block"
+            style={{ marginTop: 10 }}
+            onClick={() => void doExport()}
+          >
             Export data (.json)
           </button>
 

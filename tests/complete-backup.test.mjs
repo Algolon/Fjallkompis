@@ -38,6 +38,7 @@ import {
   backupSummaryText,
   classifyEntryName,
   planWalletExport,
+  preflightBackupFile,
   restoreRejectionText,
   validateManifest,
 } from '../src/backup/completeBackup.mjs';
@@ -579,16 +580,26 @@ test('an export dump refuses to feed a complete backup when a file is missing', 
   assert.deepEqual(result.documents, [{ id: CURRENT_DOC.id, title: CURRENT_DOC.title }]);
 });
 
-// ---- The lightweight JSON export stays exactly what it was ------------------
+// ---- The lightweight JSON export: same bytes, platform-safe delivery --------
 
-test('the existing JSON export/import path is unchanged', () => {
+test('the JSON export contract is unchanged and no longer browser-only', () => {
   const exportImport = readFileSync(join(root, 'src/utils/exportImport.ts'), 'utf8');
   assert.match(exportImport, /app: 'fjallkompis',\s*\n\s*schemaVersion: SCHEMA_VERSION/);
   assert.match(exportImport, /export function parseImport/);
   assert.ok(!/fflate|zip/i.test(exportImport), 'the JSON path gained no archive machinery');
 
   const settings = readFileSync(join(root, 'src/screens/SettingsScreen.tsx'), 'utf8');
-  assert.match(settings, /downloadJson\(`fjallkompis-backup-\$\{todayIso\(\)\}\.json`, buildExport\(state\)\)/);
+  // Same envelope, same 2-space stringify downloadJson always produced…
+  assert.match(settings, /JSON\.stringify\(buildExport\(state\), null, 2\)/);
+  // …delivered through the platform save boundary with the right name and
+  // MIME type, so the Android wrapper gets the system picker instead of the
+  // WebView's silent blob-URL no-op. No direct browser-only download call
+  // remains in Settings.
+  assert.match(
+    settings,
+    /saveGeneratedFile\(\s*`fjallkompis-backup-\$\{todayIso\(\)\}\.json`,[\s\S]{0,120}'application\/json',\s*\)/,
+  );
+  assert.ok(!/downloadJson\(/.test(settings), 'Settings no longer calls the blob-URL-only helper');
   assert.match(settings, /accept="application\/json,\.json"/);
   // The restore picker accepts both name shapes SAF can produce — the
   // .fjallkompis file as named, and the .zip-suffixed variant Android's
@@ -597,6 +608,53 @@ test('the existing JSON export/import path is unchanged', () => {
     settings,
     /accept="\.fjallkompis,\.zip,application\/zip,application\/octet-stream"/,
   );
+
+  // The save boundary itself: browser branch keeps the normal download,
+  // native branch is the SAF bridge — one adapter for ANY generated file.
+  const fileSave = readFileSync(join(root, 'src/runtime/fileSave.ts'), 'utf8');
+  assert.match(fileSave, /export async function saveGeneratedFile/);
+  assert.match(fileSave, /if \(!isNativeAndroid\(\)\) \{\s*\n\s*downloadBlobFile\(fileName, blob\)/);
+  assert.match(fileSave, /registerPlugin<SaveFileBridge>\('SaveFile'\)/);
+  assert.match(fileSave, /USER_CANCELLED/, 'a dismissed picker stays a non-error outcome');
+});
+
+// ---- Container preflight (before any bytes are read) ------------------------
+
+test('an oversized selected file is refused from its size alone', async () => {
+  const { MAX_BACKUP_FILE_BYTES } = await import('../src/backup/completeBackup.mjs');
+  assert.deepEqual(preflightBackupFile(MAX_BACKUP_FILE_BYTES), { ok: true });
+  assert.deepEqual(preflightBackupFile(MAX_BACKUP_FILE_BYTES + 1), {
+    ok: false,
+    reason: 'limits-exceeded',
+  });
+  assert.deepEqual(preflightBackupFile(Number.NaN), { ok: false, reason: 'unreadable-archive' });
+  assert.deepEqual(preflightBackupFile(-1), { ok: false, reason: 'unreadable-archive' });
+
+  // The archive layer re-applies the preflight defensively: a fake "bytes"
+  // object whose byteLength busts the cap is rejected before ANY read or
+  // unzip work — no property of it other than byteLength is ever touched.
+  const untouched = new Proxy(
+    { byteLength: MAX_BACKUP_FILE_BYTES + 1 },
+    {
+      get(target, prop) {
+        if (prop !== 'byteLength') throw new Error(`unexpected read of ${String(prop)}`);
+        return target.byteLength;
+      },
+    },
+  );
+  const staged = await stageCompleteBackup(untouched, readStateFn);
+  assert.deepEqual(staged, { ok: false, reason: 'limits-exceeded' });
+
+  // And the UI runs the same preflight BEFORE arrayBuffer() — source order.
+  const settings = readFileSync(join(root, 'src/screens/SettingsScreen.tsx'), 'utf8');
+  const handler = settings.slice(
+    settings.indexOf('const onBackupFile'),
+    settings.indexOf('const doCompleteRestore'),
+  );
+  const preflightAt = handler.indexOf('preflightBackupFile(file.size)');
+  const readAt = handler.indexOf('file.arrayBuffer()');
+  assert.ok(preflightAt > 0 && readAt > 0, 'both steps exist in the restore handler');
+  assert.ok(preflightAt < readAt, 'the size preflight precedes reading the file into memory');
 });
 
 // ---- Integrity helper -------------------------------------------------------

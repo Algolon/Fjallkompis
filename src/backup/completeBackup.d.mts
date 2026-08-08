@@ -7,6 +7,7 @@ export declare const MANIFEST_ENTRY: string;
 export declare const DATA_ENTRY: string;
 export declare const WALLET_INDEX_ENTRY: string;
 export declare const WALLET_FILES_DIR: string;
+export declare const MAX_BACKUP_FILE_BYTES: number;
 export declare const MAX_BACKUP_ENTRIES: number;
 export declare const MAX_BACKUP_TOTAL_BYTES: number;
 export declare const MAX_DATA_ENTRY_BYTES: number;
@@ -83,4 +84,7 @@ export declare function validateWalletIndex(
 ):
   | { ok: true; documents: Array<{ document: WalletDocument; file: AttachmentDescriptor }> }
   | { ok: false; reason: string; id?: string; entry?: string };
+export declare function preflightBackupFile(
+  sizeBytes: number,
+): { ok: true } | { ok: false; reason: 'limits-exceeded' | 'unreadable-archive' };
 export declare function restoreRejectionText(reason: unknown): string;

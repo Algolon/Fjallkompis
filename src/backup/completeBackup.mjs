@@ -55,6 +55,22 @@ export const WALLET_FILES_DIR = 'wallet/files/';
 
 // ---- Limits (validated BEFORE any inflation or mutation) --------------------
 
+/**
+ * Ceiling for the SELECTED container file itself, checked from the picker's
+ * file size BEFORE a single byte is read into memory. Restore reads the
+ * whole archive with one `arrayBuffer()` call, so without this preflight an
+ * accidentally (or maliciously) huge selection would first allocate hundreds
+ * of megabytes of WebView memory and only then hit the inner limits.
+ *
+ * 256 MiB is deliberately conservative for a mobile-first app and consistent
+ * with the v1 contract: attachments are STORED (not deflated) with a 20 MB
+ * per-file cap, so the container's size is approximately its payload — a
+ * realistic wallet is tens of megabytes, and 256 MiB already leaves room for
+ * a dozen maximum-size documents. The inner declared-size limits below stay
+ * as SEPARATE validation: they guard what the entries claim to inflate to,
+ * this guards what the file physically is.
+ */
+export const MAX_BACKUP_FILE_BYTES = 256 * 1024 * 1024;
 /** Entries a well-formed v1 backup can contain: 3 fixed + one per document. */
 export const MAX_BACKUP_ENTRIES = 2048;
 /** Ceiling for the sum of declared uncompressed entry sizes. */
@@ -86,6 +102,20 @@ const WALLET_FILE_ENTRY_RE = /^wallet\/files\/[A-Za-z0-9][A-Za-z0-9_-]*\.(pdf|jp
 /** The ZIP entry path for a document's attachment. */
 export function walletFileEntryName(documentId, mimeType) {
   return `${WALLET_FILES_DIR}${documentId}.${EXTENSION_BY_MIME[mimeType]}`;
+}
+
+/**
+ * May a selected file of this size be read into memory at all? The UI calls
+ * this with `File.size` before `arrayBuffer()`; the archive layer applies it
+ * again defensively. Pure and centralised so the limit is a domain fact, not
+ * UI copy.
+ */
+export function preflightBackupFile(sizeBytes) {
+  if (typeof sizeBytes !== 'number' || !Number.isFinite(sizeBytes) || sizeBytes < 0) {
+    return { ok: false, reason: 'unreadable-archive' };
+  }
+  if (sizeBytes > MAX_BACKUP_FILE_BYTES) return { ok: false, reason: 'limits-exceeded' };
+  return { ok: true };
 }
 
 /**

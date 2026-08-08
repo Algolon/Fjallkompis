@@ -31,6 +31,7 @@ import {
   buildWalletIndex,
   classifyEntryName,
   planWalletExport,
+  preflightBackupFile,
   validateManifest,
   validateWalletIndex,
 } from './completeBackup.mjs';
@@ -110,6 +111,11 @@ export async function buildCompleteBackup({ exportEnvelope, documents, fileBytes
  * @param {(raw: unknown) => ({ok:true,state:object}|{ok:false})} readStateFn
  */
 export async function stageCompleteBackup(bytes, readStateFn) {
+  // Defensive re-check of the container preflight the UI already ran on the
+  // File's size — the domain layer must be safe for any caller.
+  const preflight = preflightBackupFile(bytes.byteLength);
+  if (!preflight.ok) return preflight;
+
   let files;
   const oversized = [];
   let totalDeclared = 0;

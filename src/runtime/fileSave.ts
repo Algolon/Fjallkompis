@@ -1,20 +1,23 @@
 /**
- * Platform boundary for DELIVERING the complete-backup file to the user.
+ * Platform boundary for handing a GENERATED file to the user — any file the
+ * app produces in memory: the complete backup package, the lightweight JSON
+ * export, and whatever future export needs a real file on disk.
  *
- * The domain layer (src/backup/*) builds bytes and knows nothing about
- * platforms; this adapter owns the one genuinely platform-specific step:
- *
- *  - Browser / PWA: a normal `<a download>` on a blob URL — the same
- *    mechanism the lightweight JSON export has always used.
+ *  - Browser / PWA: a normal `<a download>` on a blob URL — exactly the
+ *    mechanism these exports have always used in a browser.
  *  - Capacitor Android: the WebView does NOT turn blob-URL anchors into
- *    downloads (no DownloadListener; blob: has no meaning outside the page),
- *    so the bytes cross the bridge in base64 chunks to SaveFilePlugin.java,
- *    which runs the system's ACTION_CREATE_DOCUMENT picker — the user
- *    chooses the location, no storage permission exists or is asked for.
+ *    downloads (no DownloadListener; blob: has no meaning outside the page —
+ *    emulator-verified as a silent no-op), so the bytes cross the bridge in
+ *    base64 chunks to SaveFilePlugin.java, which runs the system's
+ *    ACTION_CREATE_DOCUMENT picker — the user chooses the location, no
+ *    storage permission exists or is asked for. The plugin is
+ *    content-agnostic; the MIME type passed here is what the picker uses
+ *    (and what decides whether Android appends an extension of its own —
+ *    .json is known and kept, the .fjallkompis container may gain ".zip").
  *
- * RESTORE needs no adapter: `<input type="file">` works identically in the
- * browser and in the Capacitor WebView (the wallet's attach-file flow
- *  already relies on it on the device).
+ * READING files back needs no adapter: `<input type="file">` works
+ * identically in the browser and in the Capacitor WebView (the Wallet's
+ * attach-file flow already relies on it on the device).
  *
  * Lives in src/runtime/ because it is runtime plumbing in the same sense as
  * platform.ts — screens call this narrow function and never touch Capacitor.
@@ -33,7 +36,7 @@ interface SaveFileBridge {
 const SaveFile = registerPlugin<SaveFileBridge>('SaveFile');
 
 /** 'cancelled' is the user dismissing the system picker — not an error. */
-export type SaveBackupOutcome = 'saved' | 'cancelled';
+export type SaveFileOutcome = 'saved' | 'cancelled';
 
 /** Bridge messages stay ~1.3 MB as base64 — small enough per call. */
 const CHUNK_BYTES = 1024 * 1024;
@@ -48,16 +51,18 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export async function saveBackupFile(fileName: string, blob: Blob): Promise<SaveBackupOutcome> {
+export async function saveGeneratedFile(
+  fileName: string,
+  blob: Blob,
+  mimeType: string,
+): Promise<SaveFileOutcome> {
   if (!isNativeAndroid()) {
     downloadBlobFile(fileName, blob);
     return 'saved';
   }
 
   try {
-    // The container is a plain ZIP; application/zip is what SAF understands.
-    // The .fjallkompis extension in fileName survives into the created file.
-    await SaveFile.begin({ fileName, mimeType: 'application/zip' });
+    await SaveFile.begin({ fileName, mimeType });
   } catch (err) {
     if ((err as { code?: string })?.code === 'USER_CANCELLED') return 'cancelled';
     throw err;
