@@ -538,6 +538,23 @@ The mechanics, and why each is not the obvious thing:
   app version, so an installed version always receives the map data it was
   built for even after Pages has moved on. There is no second pipeline and no
   Android-only file.
+- **The URL is a security boundary, not a parameter.** The plugin is handed a
+  URL by JavaScript and opens it in native code, outside the WebView's origin,
+  CORS and mixed-content rules — unconstrained, that is a general-purpose HTTPS
+  GET engine for anything that can run script in the page.
+  `MapArchiveUrlPolicy` refuses anything that is not HTTPS on `github.com`
+  under this project's release-download path, and re-checks **every redirect
+  hop** against a host allow-list rather than letting `HttpURLConnection`
+  follow them anywhere. It holds no archive identity, and
+  `MapArchiveUrlPolicyTest` runs it host-side in both Android workflows.
+
+**Optional layers are download-only on both platforms.** Terrain and Satellite
+become selectable once their archive is on the device, and not before — the
+browser's old ability to stream an undownloaded archive was removed rather than
+copied to Android. Two reasons: a 27 MB or 59 MB transfer must not start
+because someone opened the layer menu, and the same control must not mean
+"works" on one platform and "disabled" on the other with identical stored data.
+The basemap keeps its hosted fallback; on Android it is in the package anyway.
 
 Every archive identity lives in `src/map/mapCatalog.mjs`; there is no URL,
 filename, size or hash anywhere in the Java.
@@ -598,8 +615,8 @@ Turning it on is a separate change that needs its own evidence.
 | --- | --- |
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
-| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix) and **2700003** (build 3 — Complete Backup / Restore v1), all 0.27.0, all published to Internal Testing and physically validated 2026-08-08; Play will never accept any of them again |
-| Next upload | **2700004** (0.27.0, build 4 — `androidBuild=4`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix), **2700003** (build 3 — Complete Backup / Restore v1) and **2700004** (build 4 — branding parity), all 0.27.0, all published to Internal Testing and physically validated 2026-08-08; Play will never accept any of them again |
+| Next upload | **2700005** (0.27.0, build 5 — `androidBuild=5`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 
 Neither is written by hand in `build.gradle`; a test fails if either becomes a
 literal. The only number a developer edits is `androidBuild` in

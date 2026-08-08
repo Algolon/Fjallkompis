@@ -96,6 +96,15 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
             "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
+      - name: Gradle host-side unit tests
+        # MapArchiveUrlPolicyTest is the map downloader's security boundary
+        # exercised rather than asserted about: the bridge hands native code a
+        # URL from JavaScript, and without the policy the plugin is a
+        # general-purpose HTTPS GET engine outside the WebView's origin, CORS
+        # and mixed-content rules. An untested boundary is not one.
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest
+
       - name: Gradle assembleDebug
         # Debug signing config only — Gradle uses the standard auto-generated
         # ~/.android/debug.keystore. No secrets are read and none are needed.

@@ -28,6 +28,17 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
   download it. It now reads *Included in the app*, with no download or remove
   button for something there is nothing to fetch or reclaim.
 
+### Changed
+
+- **Terrain relief and satellite imagery are now used only from your own
+  device.** Previously the browser version could quietly stream them over the
+  network when you switched layer, which meant tens of megabytes could start
+  downloading because you opened a menu — and it made the same button behave
+  differently in the browser than on the phone. Both now stay switched off,
+  with one line saying where to get them, until you have downloaded them in
+  Settings. The basemap is unaffected: it still loads without any download,
+  and on Android it is part of the app.
+
 - **Complete backup & restore.** Settings now offers one portable backup file
   (`fjallkompis-backup-YYYY-MM-DD.fjallkompis`) containing everything needed
   to restore a Fjallkompis setup on another install or device: trip data AND

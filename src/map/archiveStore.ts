@@ -149,7 +149,8 @@ export function getBundledArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
         spec.revision,
       );
       if (!verdict.usable || !blob) {
-        console.error(`[fjällkompis] ${verdict.reason}: ${url}`);
+        // Canonical spelling: the product name is "Fjallkompis" (no umlaut).
+        console.error(`[Fjallkompis] ${verdict.reason}: ${url}`);
         return null;
       }
       return blob;

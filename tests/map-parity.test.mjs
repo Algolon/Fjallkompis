@@ -57,6 +57,10 @@ const offlineMap = read('src/map/offlineMap.ts');
 const archiveStore = read('src/map/archiveStore.ts');
 const nativeStore = read('src/map/nativeArchiveStore.ts');
 const plugin = read('android/app/src/main/java/com/algolon/fjallkompis/MapArchivePlugin.java');
+const urlPolicy = read('android/app/src/main/java/com/algolon/fjallkompis/MapArchiveUrlPolicy.java');
+const urlPolicyTest = read(
+  'android/app/src/test/java/com/algolon/fjallkompis/MapArchiveUrlPolicyTest.java',
+);
 const mainActivity = read('android/app/src/main/java/com/algolon/fjallkompis/MainActivity.java');
 const card = read('src/components/OfflineMapCard.tsx');
 const viteConfig = read('vite.config.ts');
@@ -192,6 +196,100 @@ test('the optional archives are kept out of the Android artifact at three layers
 test('the bundled archive is still asserted present — the opposite mistake', () => {
   assert.match(verifyNative, /for \(const id of BUNDLED_MAP_ASSETS\)/);
   assert.match(verifyNative, /would have no offline \$\{id\} archive in the APK/);
+});
+
+// ---------------------------------------------------------------------------
+// 2b. The native download boundary
+//
+// The behaviour of the policy is exercised host-side by
+// MapArchiveUrlPolicyTest (JUnit, run by both Android workflows). What is
+// asserted HERE is the one thing that test cannot see: that the origin the
+// policy allows still matches the origin the catalog actually derives.
+// ---------------------------------------------------------------------------
+
+test('the allowed release origin still matches what the catalog derives', () => {
+  const prefix = urlPolicy.match(
+    /RELEASE_DOWNLOAD_PREFIX\s*=\s*\n?\s*"([^"]+)"/,
+  )?.[1];
+  assert.ok(prefix, 'the policy declares a release-download prefix');
+  for (const id of OPTIONAL_MAP_ASSETS) {
+    const url = mapAssetReleaseUrl(MAP_ASSETS[id]);
+    assert.ok(
+      url.startsWith(prefix),
+      `${id} resolves to ${url}, which the native policy would refuse`,
+    );
+  }
+  // The reverse direction too: a prefix broad enough to admit anything else on
+  // github.com would not be a constraint worth having.
+  assert.match(prefix, /^https:\/\/github\.com\/[\w-]+\/[\w-]+\/releases\/download\/$/);
+});
+
+test('the URL policy is native-side, hardcoded, and carries no archive identity', () => {
+  // Passed in from JavaScript it would not be a constraint at all — the
+  // caller is exactly who it constrains.
+  assert.ok(
+    !/getString|PluginCall|call\./.test(urlPolicy),
+    'the policy reads nothing from the bridge',
+  );
+  assert.ok(
+    !/import android\.|import com\.getcapacitor\./.test(urlPolicy),
+    'and stays dependency-free so it can be unit-tested host-side',
+  );
+  for (const id of MAP_ASSET_IDS) {
+    const asset = MAP_ASSETS[id];
+    for (const identity of [asset.file, asset.revision.sha256, String(asset.revision.bytes)]) {
+      assert.ok(!urlPolicy.includes(identity), `${id} identity must not appear in the policy`);
+    }
+  }
+});
+
+test('the download is refused before any socket is opened', () => {
+  // Order matters: the check must precede the executor hand-off, or a refused
+  // URL still costs a thread and a connection attempt.
+  const check = plugin.indexOf('MapArchiveUrlPolicy.isAllowedDownloadUrl(url)');
+  const execute = plugin.indexOf('downloads.execute(');
+  const connect = plugin.indexOf('openConnection()');
+  assert.ok(check > 0, 'the entry URL is validated');
+  assert.ok(check < execute, 'before the work is queued');
+  assert.ok(check < connect, 'and before any connection is opened');
+  assert.match(plugin, /call\.reject\("Refused: not a canonical map-archive URL", "URL_NOT_ALLOWED"\)/);
+});
+
+test('redirects are followed manually so every hop is re-checked', () => {
+  // setInstanceFollowRedirects(true) would follow a redirect to any HTTPS host
+  // on earth — the arbitrary-GET capability back again, one hop later.
+  assert.match(plugin, /setInstanceFollowRedirects\(false\)/);
+  assert.ok(
+    !/setInstanceFollowRedirects\(true\)/.test(codeOnly(plugin)),
+    'automatic redirect following is never re-enabled',
+  );
+  assert.match(plugin, /MapArchiveUrlPolicy\.isAllowedRedirect\(next\)/);
+  assert.match(plugin, /hop <= MapArchiveUrlPolicy\.MAX_REDIRECTS/);
+  assert.match(plugin, /throw new IOException\("too many redirects"\)/);
+});
+
+test('the policy boundary is exercised by a host-side test, in both workflows', () => {
+  // A security boundary asserted about but never run is not a boundary.
+  assert.match(urlPolicyTest, /class MapArchiveUrlPolicyTest/);
+  for (const scenario of [
+    'rejectsPlaintextHttp',
+    'rejectsNonHttpSchemes',
+    'rejectsLoopbackAndLan',
+    'rejectsForeignHosts',
+    'rejectsHostsThatMerelyStartWithTheAllowedPrefix',
+    'rejectsCredentialsInTheAuthority',
+    'rejectsAnotherPathOnGithub',
+    'refusesToBeRedirectedOffTheAllowedHosts',
+    'aProtocolRelativeLocationChangesTheHost_andIsCaught',
+  ]) {
+    assert.match(urlPolicyTest, new RegExp(`public void ${scenario}\\(`), scenario);
+  }
+  for (const [name, source] of [
+    ['android-spike.yml', spikeWorkflow],
+    ['android-internal-release.yml', releaseWorkflow],
+  ]) {
+    assert.match(source, /gradlew --no-daemon testDebugUnitTest/, `${name} runs the unit tests`);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -486,6 +584,44 @@ test('every download group covers the catalog exactly once', () => {
   const grouped = MAP_DOWNLOAD_GROUPS.flatMap((g) => g.assetIds);
   assert.deepEqual([...grouped].sort(), [...MAP_ASSET_IDS].sort(), 'no archive is unmanaged');
   assert.equal(new Set(grouped).size, grouped.length, 'no archive is in two groups');
+});
+
+test('an optional archive is usable only once downloaded — on BOTH platforms', () => {
+  // The shared product semantic. Previously the PWA could stream an
+  // undownloaded optional archive same-origin while Android could not, so the
+  // same UI label meant two different things: on one platform Satellite was
+  // selectable, on the other it was not. Streaming was the half to drop —
+  // a 27 MB or 59 MB transfer must not start because someone opened a menu.
+  const resolver = read('src/map/pmtilesProtocol.ts');
+  assert.match(
+    resolver,
+    /if \(spec\.asset\.distribution === 'optional'\) \{[\s\S]{0,200}?return \{ mode: 'none', sourceUrl: null \};/,
+    'the optional path returns before the hosted probe',
+  );
+  // resolveSatellite must not probe the network at all any more.
+  const satellite = resolver.slice(resolver.indexOf('export async function resolveSatellite'));
+  assert.ok(
+    !satellite.includes('probeHostedArchive'),
+    'satellite never falls back to a hosted stream',
+  );
+  assert.match(satellite, /addLocalSource\(SATELLITE_ARCHIVE/);
+  // The basemap KEEPS its online fallback: it is what a first-time reader sees
+  // before choosing anything, and on Android it is in the package already.
+  const basemap = resolver.slice(
+    resolver.indexOf('export async function resolveArchiveBasemap'),
+    resolver.indexOf('export function resolveBasemap'),
+  );
+  assert.match(basemap, /probeHostedArchive\(archiveUrl\(spec\)\)/);
+  assert.equal(MAP_ASSETS.vector.distribution, 'bundled');
+});
+
+test('the layer menu explains an unavailable optional layer instead of hiding it', () => {
+  // Same states, same wording, both platforms — and no platform-specific
+  // control: the note is chosen by availability, never by runtime.
+  const controls = read('src/components/MapControlStack.tsx');
+  assert.match(controls, /satelliteAvailable \? 'Offline Sentinel-2 imagery' : 'Download in Settings first'/);
+  assert.match(controls, /disabled: !satelliteAvailable/);
+  assert.ok(!/isNativeAndroid|Capacitor/.test(controls), 'no platform branch in the map controls');
 });
 
 test('satellite availability is the same canonical asset on both platforms', () => {

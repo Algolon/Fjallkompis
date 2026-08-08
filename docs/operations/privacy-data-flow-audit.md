@@ -2,6 +2,11 @@
 
 **Audited tree:** `main` @ `9a873045f3a1e8abaf04765f420e621f0bd5e6a9` (PR #126 merge)
 **Audited:** 2026-08-08
+**Amended:** 2026-08-09 for the map-parity change (PR #128), which adds a
+**native** map-archive downloader. The amendment is scoped: §0, §1, §3, §5, §9
+and the fence list below are updated where that change touches them; nothing
+else was re-audited, and no finding was re-derived from a newer tree. Amended
+passages say so.
 **Targets covered:** the GitHub Pages PWA and the Capacitor Android app — one
 codebase, two build modes (`vite build` / `vite build --mode native`).
 
@@ -42,16 +47,27 @@ would make the audit either wrong or unfalsifiable. Throughout this document:
   enumerated by the build (the precache manifest, §7), not by a call site. On
   the PWA the service worker serves most of it from cache after the first load;
   in the APK these assets are packaged and never leave the device.
-- **(N2) Explicit runtime requests written in application code.** Requests the
-  app itself issues while running, from a call site a person wrote. These are
-  what §3 enumerates and what the regression fence pins, because these are the
-  ones that could carry something.
+- **(N2) Explicit runtime requests written in application code, in EITHER
+  language.** Requests the app itself issues while running, from a call site a
+  person wrote — whether that call site is JavaScript (`fetch`) or native Java
+  (`HttpURLConnection` in a Capacitor plugin). These are what §3 enumerates and
+  what the regression fences pin, because these are the ones that could carry
+  something.
+
+  *Amended 2026-08-09 (PR #128).* N2 previously meant "JavaScript `fetch`",
+  because that was the only kind there was. The Android map downloader is
+  application-authored, runs while the app runs, and reaches the network — it
+  is N2 by every part of the definition, and it would be a fiction to leave the
+  category meaning "the requests we happen to count". Note the consequence: a
+  scan of `src/` alone no longer enumerates N2, so §3 and the fences now cover
+  both languages.
 - **(N3) User-initiated navigation to external websites.** The reader tapping a
   link and leaving the app (§4). Not a request the app makes; a page the user
   chose to visit.
 
-Only **N2** is countable from the source tree, and only N2 is what "the app
-sends X" could ever mean. (These labels are orthogonal to the four data
+Only **N2** is countable from the source tree — now across `src/` **and**
+`android/app/src/main/java/` — and only N2 is what "the app sends X" could ever
+mean. (These labels are orthogonal to the four data
 categories above — N1–N3 are kinds of network activity, 1–4 are kinds of
 data.)
 
@@ -88,9 +104,18 @@ new phone implicitly. *(Device transfer is excluded conservatively — see the
 file's own comment; re-enabling it is a product decision, not a privacy defect.)*
 
 **Native components:** `MainActivity` (edge-to-edge + splash), `BootPlugin` (one
-method, carries no data), `SaveFilePlugin` (Storage Access Framework writer).
+method, carries no data), `SaveFilePlugin` (Storage Access Framework writer),
+and — *added 2026-08-09 (PR #128)* — `MapArchivePlugin` + `MapArchiveUrlPolicy`
+(optional map-archive download, storage and slice-reading; §3 row 4, §5).
 Capacitor plugins: `@capacitor/core`, `@capacitor/app` only
 (`android/capacitor.settings.gradle`).
+
+`MapArchivePlugin` handles **map data only**. It knows an archive id, a URL, an
+expected byte length and an expected digest — all supplied per call from the
+compiled-in catalog — and it reads and writes only inside its own directory
+under `filesDir`. It touches no trip state, no Wallet document, no location and
+no identifier, and **no new permission was added for it**: the existing
+`INTERNET` covers the download and app-private internal storage needs none.
 
 **No Firebase / Google Services.** `android/app/build.gradle` applies the
 `com.google.gms.google-services` plugin only if `android/app/google-services.json`
@@ -147,38 +172,79 @@ This section covers **N2 only** — requests issued by application code. Platfor
 resource loading (N1) is covered by §7, and user-initiated navigation to
 external sites (N3) by §4.
 
-**Three explicit application-authored runtime network request call-sites were
-found in the audited source** — all `fetch`, in two files:
+*Amended 2026-08-09 (PR #128): a fourth call-site, the first in native code.*
 
-| File | Call | Target |
-|---|---|---|
-| `src/map/pmtilesProtocol.ts:93` | ranged `bytes=0-0` probe | a `.pmtiles` archive |
-| `src/map/pmtilesProtocol.ts:120` | full GET of the archive bundled in the APK | app package asset |
-| `src/map/offlineMap.ts:249` | the user-initiated archive download | a `.pmtiles` archive |
+**Four explicit application-authored runtime network request call-sites** —
+three JavaScript `fetch`, one native:
+
+| # | File | Call | Target | Language |
+|---|---|---|---|---|
+| 1 | `src/map/pmtilesProtocol.ts:95` | ranged `bytes=0-0` probe | the **basemap** `.pmtiles` | JS |
+| 2 | `src/map/archiveStore.ts:140` | full GET of the archive bundled in the app package | app package asset (no network on Android) | JS |
+| 3 | `src/map/offlineMap.ts:249` | the user-initiated archive download (**PWA**) | a same-origin `.pmtiles` | JS |
+| 4 | `MapArchivePlugin.java:363` | the user-initiated archive download (**Android**) | the pinned GitHub Release asset | **native Java** |
+
+**Why 4 exists and 3 was not enough.** The PWA downloads archives same-origin;
+Android cannot, and not for a stylistic reason — GitHub Release assets send no
+CORS headers, so a WebView `fetch` cannot read them, and the WebView's own
+Cache Storage is quota-evictable and therefore the wrong home for ~90 MB a
+hiker needs on day four. The download is therefore native. Rows 3 and 4 are the
+same user action, the same bytes and the same revision, reached by the two
+mechanisms each platform actually permits.
+
+**None of the four carries a body, a user-supplied parameter, an identifier, a
+cookie, or a position.** All four are plain GETs for a static file whose name
+comes from the compiled-in catalog (`src/map/mapCatalog.mjs`). Row 4 sends only
+`Accept: application/octet-stream`; it attaches no credentials and reads no
+response data other than the archive bytes, which are then checked against the
+length and SHA-256 the catalog declares.
+
+**Row 4 is constrained at the boundary, not merely by convention.**
+`MapArchiveUrlPolicy` refuses any URL that is not HTTPS on `github.com` under
+the project's own release-download path, and re-checks every redirect hop
+against a host allow-list, before a socket is opened. Without that, a plugin
+that opens a JavaScript-supplied URL in native code would be a
+general-purpose GET engine outside the WebView's origin and CORS rules —
+a privacy and security surface much larger than the feature. Exercised by
+`MapArchiveUrlPolicyTest` (18 host-side JUnit cases: plaintext, `file:`/`data:`,
+loopback and LAN, foreign hosts, lookalike hosts, credentials-in-authority,
+wrong paths on the right host, and redirect escapes).
 
 No `XMLHttpRequest`, `WebSocket`, `EventSource` or `navigator.sendBeacon`
-anywhere in `src/` (fenced by test). **No one of the three carries a body, a
-user-supplied parameter, an identifier, or location** — all three are plain GETs
-for a static file.
+anywhere in `src/` (fenced by test), and no other networking class anywhere in
+the app's Java (fenced by test).
 
 **How that count was obtained, and what it does and does not prove.** It is a
-static enumeration of call sites in `src/` at the audited SHA, held in place by
-an allow-list fence that fails CI if the set changes
+static enumeration of call sites at the audited SHA, in `src/` **and** in
+`android/app/src/main/java/com/algolon/fjallkompis/`, held in place by two
+allow-list fences that fail CI if either set changes
 (`tests/privacy-policy.test.mjs` → "the app makes network requests from map code
-only"). It proves that application code contains no other request site, and —
-together with the dependency fence and the map-style check below — that no
-bundled library is configured to call out on the app's behalf. It is **not** a
-runtime packet capture, and it makes no claim about what the browser, the
+only" and "the only native code that reaches the network is the map-archive
+download"). It proves that application code contains no other request site,
+and — together with the dependency fence and the map-style check below — that
+no bundled library is configured to call out on the app's behalf. It is **not**
+a runtime packet capture, and it makes no claim about what the browser, the
 WebView, the OS or Play Services do underneath (see §10).
 
-**Where archive URLs resolve.** `archiveUrl()` in `src/map/offlineMap.ts` uses
-`sameOriginUrl(spec.path)` — the app's own origin — for the vector basemap,
-terrain, and contours. The satellite archive has one optional override,
-`VITE_SATELLITE_URL`, a **build-time** variable; it is unset (`.env.example`
-ships it commented out and no `.env.local` is committed), so satellite also
-resolves same-origin. `.github/workflows/deploy.yml` downloads the archives from
-pinned GitHub Release assets **into the build**, so browsers fetch them from the
-app's own origin.
+**Where archive URLs resolve.** *(Amended 2026-08-09.)* On the **PWA**,
+`archiveUrl()` in `src/map/offlineMap.ts` uses `sameOriginUrl(spec.path)` — the
+app's own origin — for the vector basemap, terrain, and contours. The satellite
+archive has one optional override, `VITE_SATELLITE_URL`, a **build-time**
+variable; it is unset (`.env.example` ships it commented out and no `.env.local`
+is committed), so satellite also resolves same-origin. Deployment downloads the
+archives from pinned GitHub Release assets **into the build**, so browsers fetch
+them from the app's own origin.
+
+On **Android**, the optional archives are downloaded from those same pinned
+Release assets directly (`mapAssetReleaseUrl()`), because the app's own origin
+in the native shell is `https://localhost` — Capacitor's in-app asset server,
+which does not have them. The release tag is pinned per app version, so an
+installed build always receives the archive it was built for. The **bundled**
+vector basemap is inside the app package and is read with no network at all.
+
+**What the archive host can see** is therefore the same class of thing GitHub
+Pages already sees for the PWA: IP address, requested path, timestamp,
+user-agent — §9. Fjallkompis adds nothing to it and receives none of it.
 
 **Map rendering makes no third-party requests.** `src/map/mapStyle.ts` emits no
 symbol layers, so the style declares **no `glyphs` and no `sprite` URL**, and
@@ -227,7 +293,13 @@ so.
 | `sessionStorage` | install-nudge dismissal flag | one `'1'` (`src/components/PwaLifecycle.tsx`) |
 | IndexedDB | `fjallkompis-wallet` (v1) | Trail Wallet: `documents` (metadata) + `files` (`{id, blob}`) — passports, insurance, membership cards (`src/wallet/walletStore.mjs`) |
 | Cache Storage | Workbox precache | the app shell (JS/CSS/HTML/images), **PWA only** |
-| Cache Storage | `fjallkompis-offline-map-v2`, `…-terrain-v1`, `…-contours-v1`, `…-satellite-v1` | user-downloaded map archives — map data, nothing about the user |
+| Cache Storage | `fjallkompis-offline-map-v2`, `…-terrain-v1`, `…-contours-v1`, `…-satellite-v1` | user-downloaded map archives, **PWA only** — map data, nothing about the user |
+| App-private files (Android) | `filesDir/map-archives/<id>.pmtiles` + `<id>.json` | user-downloaded optional map archives and a sidecar naming the revision — map data, nothing about the user *(added 2026-08-09, PR #128)* |
+
+The Android archive directory is internal app-private storage: no permission,
+invisible to other apps, removed on uninstall, and never shared or external
+storage. The sidecar holds a revision id, a byte count and the archive's
+SHA-256 — provenance for the map file, with nothing about the user in it.
 
 Everything is device-local. There is no account, no sign-in, no sync, and no
 backend that Fjallkompis operates.
@@ -292,9 +364,17 @@ choose. Guarded by `tests/diagnostic-summary.test.mjs` and re-fenced here.
 
 Not collection by Fjallkompis, but honest to state:
 
-- **GitHub Pages** serves the app and the map archives. Like any web host, its
-  servers see the ordinary request metadata: IP address, requested path,
-  timestamp, user-agent. Fjallkompis adds nothing to it and receives none of it.
+- **GitHub Pages** serves the app and, for the PWA, the map archives. Like any
+  web host, its servers see the ordinary request metadata: IP address, requested
+  path, timestamp, user-agent. Fjallkompis adds nothing to it and receives none
+  of it.
+- **GitHub release storage** serves the optional map archives to the **Android**
+  app (`github.com` and its `*.githubusercontent.com` asset CDN). *(Added
+  2026-08-09, PR #128.)* Same company, same class of metadata, same conclusion:
+  a request for a public static file, carrying nothing about the user beyond
+  what making any HTTP request inherently reveals. It is a **different host
+  name** from the Pages origin, which is why it is listed separately rather
+  than folded into the line above — and why the public policy names it too.
 - **Google Play** distributes the Android app; installs and updates are Google's
   transaction with the user, under Google's own policy.
 - If `VITE_SATELLITE_URL` were ever set to an off-origin host, that host would
@@ -327,9 +407,16 @@ Stated rather than assumed:
 ## Regression fences
 
 - `tests/privacy-policy.test.mjs` — the URL contract, the page, the Settings
-  entry, and the standing code claims (fetch call-site allow-list, transport
-  allow-list, dependency set, analytics scan, Android permissions and identity,
-  backup exclusions, location never persisted, diagnostic field list).
+  entry, and the standing code claims (JS fetch call-site allow-list, **native
+  network call-site allow-list**, transport allow-list, dependency set,
+  analytics scan, Android permissions and identity, backup exclusions, location
+  never persisted, diagnostic field list).
+- `android/app/src/test/java/…/MapArchiveUrlPolicyTest.java` — the map
+  downloader's URL boundary, run host-side by `./gradlew testDebugUnitTest` in
+  both Android workflows. *(Added 2026-08-09, PR #128.)*
+- `tests/map-parity.test.mjs` — that the native downloader carries no archive
+  identity of its own and that its allowed release origin still agrees with the
+  catalog. *(Added 2026-08-09, PR #128.)*
 - `scripts/verify-privacy-build.mjs` — the built output: the page ships, it has
   no JavaScript, it loads nothing off-origin, it is precached, and the SPA
   fallback cannot shadow it.

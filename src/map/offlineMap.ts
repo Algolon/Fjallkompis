@@ -148,10 +148,10 @@ export function offlineMapUrl(): string {
   return archiveUrl(VECTOR_ARCHIVE);
 }
 
-/** Absolute URL of the satellite raster imagery archive. */
-export function satelliteMapUrl(): string {
-  return archiveUrl(SATELLITE_ARCHIVE);
-}
+// NOTE: there is deliberately no satelliteMapUrl() helper any more. It existed
+// for the hosted-satellite streaming path, and satellite is now a download on
+// both platforms (see resolveSatellite). The download itself still resolves its
+// URL through archiveUrl(SATELLITE_ARCHIVE), honouring VITE_SATELLITE_URL.
 
 export interface OfflineMapStatus {
   supported: boolean;

@@ -224,12 +224,22 @@ the airplane-mode cold-start basemap; the PWA keeps Cache Storage and its
 existing byte-count contract; superseded archives keep working offline until
 their replacement has downloaded successfully.
 
-One deliberate delta, flagged for review rather than hidden: on the PWA an
-undownloaded satellite archive can still be streamed from Pages over the
-network, because it is same-origin. On Android the optional archives will be
-**download-or-nothing** — no silent 61 MB stream over a hiker's mobile data
-from inside the app shell. The user-facing states are the same set; what
-differs is that "available online, not downloaded" is not offered as a
-render path on the device. This matches the milestone's own rule that
-selections reflect *actual local availability*, but it is a product call and
-should be confirmed.
+**Resolved at review (2026-08-09): optional archives are download-or-nothing on
+BOTH platforms.** The original draft left one delta open — the PWA could stream
+an undownloaded satellite archive same-origin, Android could not — and flagged
+it as a product call. The call was made the other way from how it was written:
+rather than adding streaming to Android, the streaming was removed from the
+PWA.
+
+That is the right direction for three reasons. It is offline-first behaviour:
+a 27 MB or 59 MB transfer must not begin because someone opened the layer menu.
+It makes the availability states mean one thing — before, "Satellite" was
+selectable on one platform and disabled on the other with identical stored
+data, which is precisely the platform-identity coupling this milestone exists
+to remove. And it costs nothing a hiker wanted: the archives exist to work
+without a connection, so the case it deleted is "streaming 59 MB while online",
+not "seeing the map".
+
+Unchanged by that decision: the **basemap** keeps its hosted fallback. It is
+~6 MB, it is what a first-time reader sees before choosing anything, and on
+Android it is inside the app package already.

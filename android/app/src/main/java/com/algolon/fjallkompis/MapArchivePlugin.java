@@ -222,6 +222,16 @@ public class MapArchivePlugin extends Plugin {
             call.reject("url, expectedBytes, expectedSha256 and revisionId are required");
             return;
         }
+        // THE BRIDGE IS A SECURITY BOUNDARY. Refused here, before any socket is
+        // opened and before the work is handed to the executor: without this
+        // check the plugin is a general-purpose HTTPS GET engine running
+        // outside the WebView — no origin, no CORS, no mixed-content rule —
+        // available to anything that can run script in the page. The policy is
+        // native-side and hardcoded on purpose (MapArchiveUrlPolicy).
+        if (!MapArchiveUrlPolicy.isAllowedDownloadUrl(url)) {
+            call.reject("Refused: not a canonical map-archive URL", "URL_NOT_ALLOWED");
+            return;
+        }
 
         AtomicBoolean cancelled = new AtomicBoolean(false);
         cancellations.put(id, cancelled);
@@ -273,19 +283,14 @@ public class MapArchivePlugin extends Plugin {
             throw new IOException("could not clear the previous partial download");
         }
 
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        connection.setInstanceFollowRedirects(true);
-        connection.setConnectTimeout(30_000);
-        connection.setReadTimeout(60_000);
-        connection.setRequestProperty("Accept", "application/octet-stream");
+        HttpURLConnection connection = openVerifiedConnection(url);
 
         long written = 0;
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         try {
-            int code = connection.getResponseCode();
-            if (code < 200 || code > 299) {
-                throw new IOException("HTTP " + code);
-            }
+            // The status is already known to be 2xx — openVerifiedConnection
+            // only returns a connection that reached one, through hops it
+            // checked one at a time.
             long declared = connection.getContentLengthLong();
             long total = declared > 0 ? declared : expectedBytes;
 
@@ -338,6 +343,50 @@ public class MapArchivePlugin extends Plugin {
             StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         writeSidecar(id, revisionId, written, actualSha);
         return written;
+    }
+
+    /**
+     * Open the download, following redirects OURSELVES so every hop is checked.
+     *
+     * `setInstanceFollowRedirects(true)` would follow a redirect to any HTTPS
+     * host on earth, which hands back the arbitrary-GET capability the entry
+     * check just removed — one hop later and invisibly. GitHub does redirect a
+     * release download to its asset CDN, so redirects must be followed; they
+     * just may not be followed blindly. Each hop is re-validated against the
+     * same host rules, and the chain is bounded.
+     *
+     * @throws IOException on a refused hop, an over-long chain, or a bad status
+     */
+    private HttpURLConnection openVerifiedConnection(String url) throws IOException {
+        String target = url;
+        for (int hop = 0; hop <= MapArchiveUrlPolicy.MAX_REDIRECTS; hop++) {
+            HttpURLConnection connection = (HttpURLConnection) new URL(target).openConnection();
+            // Off: this loop is the redirect handling.
+            connection.setInstanceFollowRedirects(false);
+            connection.setConnectTimeout(30_000);
+            connection.setReadTimeout(60_000);
+            connection.setRequestProperty("Accept", "application/octet-stream");
+
+            int code = connection.getResponseCode();
+            if (code >= 200 && code <= 299) return connection;
+
+            if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
+                String next = MapArchiveUrlPolicy.resolveRedirect(
+                    target,
+                    connection.getHeaderField("Location")
+                );
+                connection.disconnect();
+                if (next == null || !MapArchiveUrlPolicy.isAllowedRedirect(next)) {
+                    throw new IOException("refused redirect away from the map-archive host");
+                }
+                target = next;
+                continue;
+            }
+
+            connection.disconnect();
+            throw new IOException("HTTP " + code);
+        }
+        throw new IOException("too many redirects");
     }
 
     private void emitProgress(String id, long loaded, long total) {

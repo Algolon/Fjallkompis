@@ -6,9 +6,18 @@ without the confirmations in §5.
 
 **Facts source:** [privacy-data-flow-audit.md](privacy-data-flow-audit.md),
 audited against `main` @ `9a873045f3a1e8abaf04765f420e621f0bd5e6a9` on
-2026-08-08.
+2026-08-08, **amended 2026-08-09** for the map-parity change (PR #128).
 **Public policy URL:** <https://algolon.github.io/Fjallkompis/privacy/>
 **Application id:** `com.algolon.fjallkompis` (unchanged)
+
+**What the 2026-08-09 amendment changes:** F1 and F2 (the network call-site
+facts) now cover a **native** call site as well as the JavaScript ones, and F13
+is new. **No answer in §3 changes**, and that is the finding rather than an
+oversight: the new request is a plain GET for a public static map file that
+carries nothing about the user, so every category still fails the "transmitted
+off the device" test that "collect" is defined by. The expected declaration
+remains **"No data collected"**. Nothing else in Google's answers is
+reinterpreted here — the implementation change does not require it.
 
 This document maps audit findings to the Data safety categories. It keeps two
 things apart on purpose: **what the code does** (proven, and fenced by tests)
@@ -57,9 +66,9 @@ Each row is proven in the audit and held in place by a named fence.
 
 | # | Fact | Evidence | Fence |
 |---|---|---|---|
-| F1 | Three explicit application-authored runtime network request call-sites were found in the audited source, in two map modules — all plain GETs for static `.pmtiles` files. This is a static enumeration of call sites, not a packet capture (audit §0 separates it from platform resource loading and from user-initiated navigation to external sites). | audit §3 | `privacy-policy.test.mjs` → "network requests from map code only" |
-| F2 | None of those three carries a body, an identifier, user content or a position | audit §3 | same + "no transport other than fetch" |
-| F3 | Map archives resolve to the app's **own origin** | `archiveUrl()` / `sameOriginUrl()`, audit §3 | — (build-time `VITE_SATELLITE_URL` unset; see A3) |
+| F1 | **Four** explicit application-authored runtime network request call-sites were found in the audited source — three JavaScript `fetch` in map modules and one **native** (`MapArchivePlugin.java`, the Android optional-archive download). All are plain GETs for static `.pmtiles` files. This is a static enumeration of call sites, not a packet capture (audit §0 separates it from platform resource loading and from user-initiated navigation to external sites). *(Amended 2026-08-09; was three, all JS.)* | audit §3 | `privacy-policy.test.mjs` → "network requests from map code only" **and** "the only native code that reaches the network is the map-archive download" |
+| F2 | None of the four carries a body, an identifier, user content, a cookie or a position. The native one sends only `Accept: application/octet-stream`. | audit §3 | same + "no transport other than fetch" (JS) + the native call-site fence |
+| F3 | Map archives resolve to the app's **own origin** on the PWA; on Android the optional archives come from the project's pinned GitHub **Release** assets, because Release assets send no CORS headers and the native shell's own origin (`https://localhost`) does not host them. Same bytes, same revision, same publisher. *(Amended 2026-08-09.)* | `archiveUrl()` / `mapAssetReleaseUrl()`, audit §3, §9 | `map-parity.test.mjs` → release-URL derivation; (build-time `VITE_SATELLITE_URL` unset; see A3) |
 | F4 | The map style declares no `glyphs` and no `sprite` URL — no third-party tile/font server | `src/map/mapStyle.ts` | "no glyphs, sprites or tiles from a third party" |
 | F5 | No analytics, telemetry, crash-reporting or ad SDK anywhere; no `google-services.json` | audit §1, §3 | "no analytics… SDK is present" |
 | F6 | Runtime dependencies are 8 packages, none of which calls out on its own | `package.json` | "runtime dependency set stays free of network/collection SDKs" |
@@ -69,6 +78,7 @@ Each row is proven in the audit and held in place by a named fence.
 | F10 | All user data (trip state, Wallet documents) lives in `localStorage` / IndexedDB on the device; no account, no sync, no backend | audit §5 | — (architectural; no backend exists to fence) |
 | F11 | Export/backup writes only to a location the user picks in the system picker (SAF on Android) | audit §6 | — |
 | F12 | The diagnostic summary is an eleven-field technical allow-list, copied to the clipboard, never sent | audit §8 | "diagnostic summary stays a fixed, non-personal field list" |
+| F13 | The native downloader is constrained to the project's own GitHub Release download location before a socket is opened — HTTPS only, exact host, release path prefix, and every redirect hop re-checked against a host allow-list. It is not a general-purpose GET mechanism reachable from page script, and it carries no archive identity of its own (no filename, revision, size or digest in Java). Downloaded archives land in app-private internal storage with **no new permission**. *(New 2026-08-09.)* | audit §1, §3, §5 | `MapArchiveUrlPolicyTest` (18 host-side JUnit cases, run in both Android workflows) + `map-parity.test.mjs` |
 
 ---
 
@@ -149,7 +159,7 @@ These are **not** code questions. They are Omar's to answer before submission.
 | **Q1** | **Is "accessed but never transmitted" location genuinely exempt for this app?** The quoted rule says on-device-only processing need not be disclosed, and the ephemeral-processing note reinforces it. Our reading is that location is not merely ephemeral but never leaves the device at all — a stronger position than the exception requires. Confirm against the form's own wording at submission time; some developers choose to disclose foreground location anyway, for transparency. | Changes one row of the form. |
 | **Q2** | **Does trail progress count as "Health & fitness"?** The app computes distance along a route from live position. Nothing is stored or sent, so it fails the collection test regardless — but if Google's category text is read as covering *access*, the answer would differ. | Low risk; recorded so it is not rediscovered later. |
 | **Q3** | **Do user-driven exports need mention?** A complete backup contains passport and insurance scans and is written wherever the user points the system picker. Under the quoted "user-initiated transfer" exception this needs no disclosure, and it is not a transfer to a third party at all — the file stays on the device. The policy describes it plainly anyway. Confirm nothing more is expected. | Interpretive only. |
-| **Q4** | **Is GitHub Pages a "service provider" whose request logs matter?** Serving the app is ordinary hosting, not collection by us, and we receive nothing. The policy states this in the "Network connections" section rather than claiming it does not happen. Confirm the framing is acceptable. | Interpretive only. |
+| **Q4** | **Is GitHub a "service provider" whose request logs matter?** Serving the app is ordinary hosting, not collection by us, and we receive nothing. Since 2026-08-09 this covers two GitHub host names rather than one: Pages serves the app (and the PWA's archives), and GitHub release storage serves the Android app's optional archives. Same company, same class of metadata, one extra host name — no change to the answer, recorded so the framing is confirmed against what the app actually does. | Interpretive only. |
 | **Q5** | **Store listing consistency.** The Data safety answers must match the listing and the policy. Nothing in this PR touches the listing. | Process. |
 | **Q6** | **Device transfer is currently disabled.** `data_extraction_rules.xml` excludes `device-transfer` as well as `cloud-backup`. That is a conservative product choice, not a privacy requirement; re-enabling it would be a genuinely useful feature and would need one policy sentence. | Product decision. |
 
@@ -187,6 +197,8 @@ revised before release**, and the Data safety form re-submitted:
 | Any backend that receives trip data or Wallet documents | "Files and docs", "Photos", "App activity" become collected — and this is the most sensitive possible change, because Wallet holds identity documents. |
 | Transmitting position anywhere (live sharing, SOS, weather-by-location) | "Location — precise" becomes collected; the ephemeral exception may or may not apply, and background location would need a separate Play declaration and review. |
 | Setting `VITE_SATELLITE_URL` to an off-origin host | A third party begins seeing request metadata for archive downloads; the policy's "Network connections" section needs a sentence. Not collection by us, but it changes who sees what. |
+| Pointing the native downloader at a host outside GitHub, or relaxing `MapArchiveUrlPolicy` | Same consequence as the row above, and a wider one: the plugin's value to an attacker is that it makes requests outside the WebView's origin and CORS rules. Loosening it needs its own review, not a URL edit. `MapArchiveUrlPolicyTest` breaks first. |
+| Sending anything but a plain GET from the native downloader — a header, a query parameter, a body, a credential | The "carries nothing about the user" half of F2 stops being true by construction, and F1's "plain GETs" wording would be wrong. |
 | An advertising SDK | Advertising ID, and a materially different form. |
 | Re-enabling `device-transfer` in `data_extraction_rules.xml` | Not collection (device to device, no cloud), but the policy's backup section should say so. |
 

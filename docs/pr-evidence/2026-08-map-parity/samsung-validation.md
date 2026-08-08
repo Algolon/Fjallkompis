@@ -30,7 +30,7 @@ Total optional download if both are taken: **~86 MB**.
 | A2 | Open **Map** | Vector basemap renders; route and stage overlays present; no blank background |
 | A3 | Open **Settings → Offline maps** | *Offline map*: "✓ Included in the app", no Download and no Remove button. *Terrain relief* and *Satellite imagery*: "Not downloaded", with a Download button and the sizes above |
 | A4 | **Settings → Trail readiness** | Offline basemap row reads **Included in app**, not "Not stored" |
-| A5 | Map layer menu | Terrain and Satellite both offered as unavailable/disabled with the line pointing at Settings — not silently missing, not enabled-and-broken |
+| A5 | Map layer menu | Terrain and Satellite both offered as unavailable/disabled, reading "Download in Settings first" — not silently missing, not enabled-and-broken, and **not** quietly streaming |
 
 **A2 is the regression fence.** A blank Map here is the versionCode 2700001
 defect returning, and it is the single most important observation in this
@@ -111,6 +111,7 @@ matrix.
 
 | # | Step | Expected |
 | --- | --- | --- |
+| I0 | On the PWA with terrain and satellite NOT downloaded, open the map layer menu | Both disabled, both reading "Download in Settings first" — identical to Android A5. Neither may render from the network |
 | I1 | Open the PWA on the same account/device browser, Settings → Offline maps | Same three cards, same wording, same reported sizes as Android — except the Offline map card, which is a normal download in the browser and "Included in the app" on Android |
 | I2 | Compare terrain rendering PWA vs Android at the same zoom/position | Visually identical — same archive revision on both |
 | I3 | Compare satellite rendering the same way | Visually identical |
@@ -122,13 +123,22 @@ matrix.
 Any of: a blank basemap on fresh install (A2); archives lost across reboot
 (D6) or cache clear (E3); an interrupted download presenting as usable (F5); an
 interrupted update destroying the previous archive (F6); removal of one archive
-affecting another (G2); or a stored archive rendering differently from the PWA
-at the same revision (I2/I3).
+affecting another (G2); a stored archive rendering differently from the PWA at
+the same revision (I2/I3); or either platform fetching an optional archive
+without the user asking for it (A5/I0).
 
-## Known gap to confirm during the run
+## The shared product semantic being validated
 
-On Android an optional archive that has **not** been downloaded cannot be
-previewed over the network, whereas the PWA can stream it same-origin. This is
-deliberate — no silent ~59 MB transfer over a hiker's mobile data from inside
-the app — but it is a product call, and A5 is where the tester should judge
-whether the disabled-with-explanation state reads acceptably.
+Terrain and Satellite are **download-or-nothing on both platforms**: they are
+selectable only once the archive is on the device. There is no online preview
+on either target any more — the PWA's same-origin streaming was removed rather
+than copied to Android, so a 27 MB or 59 MB transfer can never begin because
+someone opened the layer menu.
+
+This is what makes **I1–I3** a real parity check rather than a formality: with
+the same archives downloaded the two platforms must offer the same choices, and
+with none downloaded they must both disable Terrain and Satellite with the same
+explanation. **A5** is where the tester judges whether
+"Download in Settings first" reads acceptably as the resting state of a fresh
+install; **H1–H6** confirm the basemap itself is untouched by that rule — it
+keeps its hosted fallback, and on Android it is in the app package.

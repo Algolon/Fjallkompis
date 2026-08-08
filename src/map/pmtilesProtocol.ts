@@ -25,7 +25,6 @@ import { PMTiles, Protocol } from 'pmtiles';
 import type { Source, RangeResponse } from 'pmtiles';
 import {
   archiveUrl,
-  satelliteMapUrl,
   SATELLITE_ARCHIVE,
   VECTOR_ARCHIVE,
   type ArchiveSpec,
@@ -124,13 +123,25 @@ async function addLocalSource(spec: ArchiveSpec, key: string): Promise<boolean> 
 }
 
 /**
- * Decide where an archive's basemap tiles come from, preferring the local
- * copy. Called on map mount; cheap (one storage probe + at most one tiny
- * ranged probe; in the native shell a packaged archive is read once per
- * session). Works for any vector-basemap ArchiveSpec: the Kungsleden
- * default and the temporary Delft pilot archive. A hosted archive that does
- * not exist (e.g. the pilot file before it is built) is detected safely via
- * probeHostedArchive and resolves to 'none' instead of crashing MapLibre.
+ * Decide where an archive's tiles come from, preferring the local copy. Called
+ * on map mount; cheap (one storage probe, and at most one tiny ranged probe for
+ * the basemap; in the native shell a packaged archive is read once per
+ * session).
+ *
+ * THE ONLINE FALLBACK IS FOR THE BASEMAP ONLY, and that asymmetry is the
+ * product rule rather than an implementation detail. An OPTIONAL archive
+ * (terrain, contours, satellite) is usable only once it has been downloaded —
+ * on the PWA exactly as on Android. Streaming one on demand would mean a
+ * 27 MB or 59 MB transfer starting because somebody opened a menu, which is
+ * the opposite of what an offline-first trail companion should do, and it
+ * would give the two platforms different availability states under the same
+ * label. The bundled/hosted basemap keeps its fallback: it is the map you get
+ * before you have chosen anything, it is ~6 MB, and on Android it is in the
+ * app package already.
+ *
+ * A hosted basemap that does not exist (e.g. the Delft pilot archive before it
+ * is built) is detected safely via probeHostedArchive and resolves to 'none'
+ * instead of crashing MapLibre.
  */
 export async function resolveArchiveBasemap(
   spec: ArchiveSpec,
@@ -141,6 +152,11 @@ export async function resolveArchiveBasemap(
 
   if (await addLocalSource(spec, offlineKey)) {
     return { mode: 'offline', sourceUrl: `pmtiles://${offlineKey}` };
+  }
+
+  if (spec.asset.distribution === 'optional') {
+    // Downloaded or absent; there is no third state.
+    return { mode: 'none', sourceUrl: null };
   }
 
   try {
@@ -159,34 +175,22 @@ export function resolveBasemap(): Promise<BasemapResolution> {
 }
 
 /**
- * Resolve the optional satellite raster PMTiles archive, preferring the
- * user-downloaded offline copy and falling back to the hosted file. Returns a
- * null sourceUrl when no satellite archive is available anywhere, so callers
- * can disable the toggle instead of adding a broken layer.
+ * Resolve the optional satellite raster archive from the local copy, or not at
+ * all. Returns a null sourceUrl when the user has not downloaded it, so callers
+ * disable the toggle instead of adding a layer that would pull ~59 MB over
+ * whatever connection the reader happens to be on.
  *
  * The canonical archive lives on a versioned GitHub Release (pinned in
- * src/map/mapCatalog.mjs). Deployment downloads and verifies it into the Pages
- * build, so production serves it same-origin from maps/ (VITE_SATELLITE_URL is
- * only an optional override for alternative hosting); Android downloads the
- * same release asset natively. Once the user has it, the local copy is
- * preferred and no network is touched. The hosted probe is a tiny ranged GET
- * (see probeHostedArchive) — in the native shell it targets the app's own
- * asset server, which has no such file, so an undownloaded optional archive
- * resolves to 'none' there rather than streaming 60 MB over mobile data.
+ * src/map/mapCatalog.mjs). Deployment injects it into the Pages build for the
+ * PWA's download, and Android downloads the same release asset natively —
+ * same bytes, same revision, and on both platforms it must be downloaded
+ * before Satellite becomes selectable.
  */
 export async function resolveSatellite(): Promise<BasemapResolution> {
   ensurePmtilesProtocol();
 
   if (await addLocalSource(SATELLITE_ARCHIVE, SATELLITE_OFFLINE_KEY)) {
     return { mode: 'offline', sourceUrl: `pmtiles://${SATELLITE_OFFLINE_KEY}` };
-  }
-
-  try {
-    if (await probeHostedArchive(satelliteMapUrl())) {
-      return { mode: 'online', sourceUrl: `pmtiles://${satelliteMapUrl()}` };
-    }
-  } catch {
-    // No offline copy and the hosted file is unreachable — no satellite.
   }
   return { mode: 'none', sourceUrl: null };
 }

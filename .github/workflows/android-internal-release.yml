@@ -217,6 +217,18 @@ jobs:
           done < identity.txt
           rm -f identity.txt
 
+      - name: Gradle host-side unit tests
+        # The map downloader's URL policy (MapArchiveUrlPolicyTest) gates the
+        # release too, not only the spike APK: it is the boundary between
+        # JavaScript-supplied URLs and native HTTP, and a release is the last
+        # place to discover it stopped holding.
+        #
+        # The DEBUG variant deliberately: the policy is plain Java with no
+        # build-config input, so both variants compile identical source, and
+        # the debug task cannot interact with the release signing guard.
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest
+
       - name: Gradle bundleRelease
         working-directory: android
         env:

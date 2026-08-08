@@ -454,7 +454,7 @@ export function TerrainReliefCard({ embedded = false }: { embedded?: boolean }) 
       // The size is derived from the catalog, not typed in: a stale "~25 MB"
       // against a 27 MB download is exactly the kind of small lie that erodes
       // trust in a screen whose whole job is telling you what you have.
-      description={`Hillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (${formatBytes(mapAssetGroupBytes(['terrain', 'contours']))}, two files downloaded together). Download while online to keep the relief working offline, like the basemap.`}
+      description={`Hillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (${formatBytes(mapAssetGroupBytes(['terrain', 'contours']))}, two files downloaded together). Download it while you have a connection — relief is only drawn from the copy on your device, so nothing large is ever fetched on the trail.`}
       removeConfirm="Remove the terrain relief? The map will render without hillshade and contour lines."
       sourceHeading="Elevation data"
       source={TERRAIN_SOURCE_INFO}
@@ -468,7 +468,7 @@ export function SatelliteMapCard({ embedded = false }: { embedded?: boolean }) {
     <ArchiveCard
       specs={[SATELLITE_ARCHIVE]}
       title="Satellite imagery"
-      description={`Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (${formatBytes(mapAssetGroupBytes(['satellite']))}, hosted separately). Download it while online to use Satellite fully offline, like the basemap.`}
+      description={`Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (${formatBytes(mapAssetGroupBytes(['satellite']))}). Download it while you have a connection — the Satellite layer stays switched off until it is on your device, so this much data is never fetched unexpectedly.`}
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
       sourceHeading="Imagery"
       source={SATELLITE_SOURCE_INFO}
