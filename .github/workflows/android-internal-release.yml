@@ -250,32 +250,66 @@ jobs:
           [ -f "$aab" ] || { echo "::error::no release bundle at $aab"; exit 1; }
 
           # 1. The bundle carries a valid signature at all.
+          #
+          # The warnings jarsigner prints alongside "jar verified" — a
+          # self-signed certificate, an unbuildable PKIX path, no timestamp —
+          # are EXPECTED for an upload key and are not failures. Play requires
+          # exactly this shape: a self-signed key it then replaces with the
+          # Play App Signing key.
           verify="$(jarsigner -verify "$aab")"
           echo "$verify"
           echo "$verify" | grep -q "jar verified" || { echo "::error::bundle is not signed"; exit 1; }
 
-          # 2. It is signed by OUR upload key, not something else. Compare the
-          #    signer certificate's SHA-256 against the keystore's own — the
-          #    fingerprint is public information (Play displays it), so this is
-          #    safe to compute; only the passwords stay hidden.
-          signer_sha="$(jarsigner -verify -verbose -certs "$aab" \
-            | grep -A 20 'Signer certificate' | grep -m1 'SHA-256' | tr -d ' ' | cut -d: -f2-)"
+          # The signer certificate, read with the tool that actually prints
+          # one. An earlier revision scraped `jarsigner -verify -verbose
+          # -certs` for a line containing "Signer certificate" — jarsigner
+          # emits no such line, so the grep matched nothing, exited 1, and
+          # under `set -o pipefail` killed the whole step before any error
+          # message could explain why. Hence both the switch to
+          # `keytool -printcert -jarfile` and the explicit emptiness checks
+          # below: a verification step that dies silently teaches nobody
+          # anything.
+          if ! signer_cert="$(keytool -printcert -jarfile "$aab" 2>&1)"; then
+            echo "::error::could not read the signer certificate from the bundle:"
+            echo "$signer_cert" | tail -5
+            exit 1
+          fi
+
+          # 2. It is signed by OUR upload key, not something else. Certificate
+          #    fingerprints are public information (Play displays them), so
+          #    computing and comparing them here is safe; only the passwords
+          #    stay hidden.
+          signer_sha="$(echo "$signer_cert" | grep -m1 'SHA256:' | tr -d ' ' | cut -d: -f2-)"
+          if [ -z "$signer_sha" ]; then
+            echo "::error::no SHA256 fingerprint found in the bundle's signer certificate — cannot prove which key signed it"
+            echo "$signer_cert" | head -20
+            exit 1
+          fi
           key_sha="$(keytool -list -v \
               -keystore "$RUNNER_TEMP/upload-keystore.jks" \
               -alias "$KEY_ALIAS" \
               -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
             | grep -m1 'SHA256:' | tr -d ' ' | cut -d: -f2-)"
-          if [ -z "$signer_sha" ] || [ "$signer_sha" != "$key_sha" ]; then
-            echo "::error::bundle signer does not match the configured upload key"
+          if [ -z "$key_sha" ]; then
+            echo "::error::no SHA256 fingerprint found for the upload key in the keystore — cannot compare"
             exit 1
           fi
-          echo "Signer certificate matches the upload key."
+          if [ "$signer_sha" != "$key_sha" ]; then
+            echo "::error::bundle signer does not match the configured upload key"
+            echo "  bundle signer: $signer_sha"
+            echo "  upload key   : $key_sha"
+            exit 1
+          fi
+          echo "Signer certificate matches the upload key (SHA-256 $signer_sha)."
 
-          # 3. It is emphatically NOT the Android debug key.
-          if jarsigner -verify -verbose -certs "$aab" | grep -q "CN=Android Debug"; then
+          # 3. It is emphatically NOT the Android debug key — read from the
+          #    same certificate output, so this cannot pass by looking at
+          #    nothing.
+          if echo "$signer_cert" | grep -q "CN=Android Debug"; then
             echo "::error::bundle is DEBUG-signed — Play would reject it"
             exit 1
           fi
+          echo "Signer is not the Android debug key."
 
           # 4. The manifest inside the bundle carries the permanent id.
           unzip -p "$aab" base/manifest/AndroidManifest.xml | strings \
