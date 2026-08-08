@@ -23,15 +23,15 @@ const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
 
 test('the install prompt has a distinct heading and supporting copy', () => {
   // First line is the visual heading (its own element), second is support.
-  assert.match(src, /className="pwa-toast__title"[\s\S]*?Install Fjällkompis on this device\?/);
+  assert.match(src, /className="pwa-toast__title"[\s\S]*?Install Fjallkompis on this device\?/);
   assert.match(src, /<h2 id="pwa-install-title" className="pwa-toast__title">/);
   assert.match(
     src,
-    /className="pwa-toast__sub">\s*For the best experience, install Fjällkompis as an app\./,
+    /className="pwa-toast__sub">\s*For the best experience, install Fjallkompis as an app\./,
   );
   // The heading and support are not fused into one paragraph.
   assert.ok(
-    !src.includes('Install Fjällkompis on this device before beta testing offline'),
+    !src.includes('Install Fjallkompis on this device before beta testing offline'),
     'the old single-line install message is gone',
   );
 });
@@ -102,9 +102,9 @@ test('an unavailable native prompt degrades gracefully, not a dead button', () =
 
 test('the update-available and offline-ready toasts are unchanged', () => {
   assert.match(src, /role="alertdialog" aria-label="Update available"/);
-  assert.match(src, /A new version of Fjällkompis is available\./);
+  assert.match(src, /A new version of Fjallkompis is available\./);
   assert.match(src, /Update now/);
-  assert.match(src, /Fjällkompis is ready for offline use\./);
+  assert.match(src, /Fjallkompis is ready for offline use\./);
   // Only the INSTALL toast gets a close button: the class appears exactly
   // once in the component, so it cannot have leaked onto the update or
   // offline-ready toasts.

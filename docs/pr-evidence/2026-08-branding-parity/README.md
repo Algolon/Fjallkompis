@@ -17,7 +17,7 @@ the tree, not a mockup. Everything here is derived from
 
 At **16px** the mountain-and-compass detail collapses into a dark roundel: the
 mark reads as a shape and a colour, not as a mountain. It is legible and
-clearly Fjällkompis in context, but it is not crisp. From **24px** upward the
+clearly Fjallkompis in context, but it is not crisp. From **24px** upward the
 silhouette resolves, and from 32px the mountain is unambiguous.
 
 This is a property of the approved mark — a detailed illustration inside a

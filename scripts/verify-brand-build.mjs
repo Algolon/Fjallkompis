@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verify the BUILT PWA actually ships Fjällkompis branding.
+ * Verify the BUILT PWA actually ships Fjallkompis branding.
  *
  *     npm run build && node scripts/verify-brand-build.mjs
  *
@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
 import { decodePng } from './lib/png.mjs';
-import { DERIVED, MASTER_COPIES } from '../assets/brand/brand.contract.mjs';
+import { DERIVED, MASTER_COPIES, PRODUCT_NAME, PRODUCT_TITLE } from '../assets/brand/brand.contract.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -103,9 +103,11 @@ for (const expected of EXPECTED) {
   }
 }
 
+// Read from the contract rather than repeated here, so the canonical product
+// spelling has exactly one definition.
 for (const [key, expected] of [
-  ['name', 'Fjällkompis — Kungsleden hiking companion'],
-  ['short_name', 'Fjällkompis'],
+  ['name', PRODUCT_TITLE],
+  ['short_name', PRODUCT_NAME],
 ]) {
   if (manifest[key] !== expected) fail(`manifest.${key} is "${manifest[key]}", expected "${expected}"`);
 }

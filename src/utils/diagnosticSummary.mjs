@@ -29,7 +29,7 @@ const FIELDS = [
 
 /** Build the plain-text summary from explicitly whitelisted technical facts. */
 export function buildDiagnosticSummary(facts = {}) {
-  const lines = ['Fjällkompis diagnostic summary'];
+  const lines = ['Fjallkompis diagnostic summary'];
   for (const [key, label] of FIELDS) {
     const value = facts[key];
     lines.push(

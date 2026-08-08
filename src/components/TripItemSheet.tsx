@@ -350,7 +350,7 @@ export function TripItemSheet({
       await onSave(draft, pendingFiles);
       onClose();
     } catch (err) {
-      console.warn('Fjällkompis: could not save the trip item.', err);
+      console.warn('Fjallkompis: could not save the trip item.', err);
       setSaveError(
         err instanceof DOMException && err.name === 'QuotaExceededError'
           ? 'Not enough local storage space to store the attached file. Free some space and try again.'

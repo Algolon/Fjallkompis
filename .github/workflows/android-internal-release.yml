@@ -369,7 +369,7 @@ jobs:
           fi
           echo "No keystore material inside the bundle."
 
-      - name: Verify the packaged Fjällkompis branding
+      - name: Verify the packaged Fjallkompis branding
         # tests/branding-parity.test.mjs proves the SOURCE tree derives every
         # icon from assets/brand/fjallkompis-mark-512.png. This proves the
         # bundle Play ingests actually carries them: AAPT2 sits in between,
@@ -421,7 +421,7 @@ jobs:
           bytes="$(stat -c%s "artifact/${out}")"
           echo "name=${out}" >> "$GITHUB_OUTPUT"
           {
-            echo "### Fjällkompis — Internal Testing bundle"
+            echo "### Fjallkompis — Internal Testing bundle"
             echo
             echo "| | |"
             echo "|---|---|"

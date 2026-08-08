@@ -1,6 +1,6 @@
-# Fjällkompis branding — the source of truth
+# Fjallkompis branding — the source of truth
 
-**Change the Fjällkompis identity here.** The PWA and the Android app derive
+**Change the Fjallkompis identity here.** The PWA and the Android app derive
 every icon from this directory and are verified against it in CI. There is no
 second master; if you find yourself editing a PNG under `public/icons/` or
 `android/app/src/main/res/`, you are editing a generated file and CI will
@@ -10,7 +10,7 @@ notice.
 
 | File | What it is |
 | --- | --- |
-| `fjallkompis-mark-512.png` | The approved Fjällkompis mark — a compass star behind a mountain roundel. 512×512, transparent background. **Everything else is derived from this.** |
+| `fjallkompis-mark-512.png` | The approved Fjallkompis mark — a compass star behind a mountain roundel. 512×512, transparent background. **Everything else is derived from this.** |
 | `brand.contract.mjs` | The machine-readable contract: brand colours, and every derived icon with its size, framing and plate. |
 | `play-store-icon-512.png` | Generated. The file to upload in Play Console (see below). |
 

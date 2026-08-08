@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verify that a PACKAGED Android artefact carries Fjällkompis branding.
+ * Verify that a PACKAGED Android artefact carries Fjallkompis branding.
  *
  *     node scripts/verify-packaged-branding.mjs android/app/build/outputs/bundle/release/app-release.aab
  *     node scripts/verify-packaged-branding.mjs android/app/build/outputs/apk/debug/app-debug.apk

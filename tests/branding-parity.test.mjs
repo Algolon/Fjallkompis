@@ -1,7 +1,7 @@
 /**
- * Branding parity — one Fjällkompis identity, two distribution channels.
+ * Branding parity — one Fjallkompis identity, two distribution channels.
  *
- * Fjällkompis ships to GitHub Pages as a PWA and to Google Play as an Android
+ * Fjallkompis ships to GitHub Pages as a PWA and to Google Play as an Android
  * app. They are one product, so the launcher icon, the favicon, the iOS touch
  * icon, the splash mark and the Play listing icon must all be derivations of
  * ONE approved master (assets/brand/fjallkompis-mark-512.png) rather than a
@@ -42,6 +42,8 @@ import {
   DERIVED,
   MASTER,
   MASTER_COPIES,
+  PRODUCT_NAME,
+  PRODUCT_TITLE,
 } from '../assets/brand/brand.contract.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -226,7 +228,7 @@ test('the favicon and Apple touch icon are wired up and precached', () => {
 
 // --- Android wiring -----------------------------------------------------------
 
-test('the Android manifest points at the Fjällkompis launcher resources', () => {
+test('the Android manifest points at the Fjallkompis launcher resources', () => {
   assert.match(androidManifest, /android:icon="@mipmap\/ic_launcher"/);
   assert.match(androidManifest, /android:roundIcon="@mipmap\/ic_launcher_round"/);
 });
@@ -300,7 +302,7 @@ test('no generic Capacitor launcher or splash asset can silently return', () => 
   }
 
   // The template's foreground is a vector of the Android robot; ours is the
-  // Fjällkompis mark. Pin that the foreground is not a drawn shape at all.
+  // Fjallkompis mark. Pin that the foreground is not a drawn shape at all.
   const foreground = read('android/app/src/main/res/drawable/ic_launcher_foreground.xml');
   assert.ok(!/<vector|<path/.test(foreground), 'the adaptive foreground is the mark, not drawn vector art');
 
@@ -345,6 +347,124 @@ test('the post-splash window background is still a plain colour', () => {
   );
   assert.match(block, /<item name="android:windowBackground">@color\//, 'a colour, never a drawable');
   assert.ok(!/@drawable\//.test(block), 'the running app theme references no drawable at all');
+});
+
+// --- Display name: PWA and Android must agree --------------------------------
+
+test('every active display surface calls the product Fjallkompis', () => {
+  // The PWA and the Android app are one product. If these four surfaces
+  // disagree, the user sees one name in the browser tab, another under the
+  // launcher icon, and a third in the installed-app list — the exact failure
+  // branding parity exists to prevent, and one no build step would flag.
+  const strings = read('android/app/src/main/res/values/strings.xml');
+  const capacitor = read('capacitor.config.ts');
+
+  const surfaces = {
+    'manifest name': /name: '([^']+)'/.exec(vite.slice(vite.indexOf('manifest: {')))?.[1],
+    'manifest short_name': /short_name: '([^']+)'/.exec(vite)?.[1],
+    'document title': /<title>([^<]+)<\/title>/.exec(html)?.[1],
+    'capacitor appName': /appName: '([^']+)'/.exec(capacitor)?.[1],
+    'android app_name': /<string name="app_name">([^<]+)<\/string>/.exec(strings)?.[1],
+    'android activity title': /<string name="title_activity_main">([^<]+)<\/string>/.exec(strings)?.[1],
+  };
+
+  assert.deepEqual(
+    surfaces,
+    {
+      'manifest name': PRODUCT_TITLE,
+      'manifest short_name': PRODUCT_NAME,
+      'document title': PRODUCT_TITLE,
+      'capacitor appName': PRODUCT_NAME,
+      'android app_name': PRODUCT_NAME,
+      'android activity title': PRODUCT_NAME,
+    },
+    'PWA and Android display names must agree with assets/brand/brand.contract.mjs',
+  );
+
+  // And the superseded spelling may not survive in any of them. Checked
+  // explicitly because a surface could be renamed to a THIRD spelling and
+  // still satisfy an equality test elsewhere.
+  for (const [surface, value] of Object.entries(surfaces)) {
+    assert.ok(!/ä/.test(value), `${surface} still carries the superseded spelling: ${value}`);
+  }
+});
+
+test('normalising the display name did not touch any technical identity', () => {
+  // The rename is a DISPLAY change. Each of these is a compatibility contract
+  // where a change is not cosmetic: a different application id is a different
+  // app in Play with no upgrade path; a different scope breaks the deployed
+  // URL and orphans every installed PWA; a different storage key or backup
+  // envelope silently abandons the user's trip data.
+  assert.match(read('capacitor.config.ts'), /appId: 'com\.algolon\.fjallkompis'/, 'application id unchanged');
+  assert.ok(vite.includes("scope: '/Fjallkompis/'"), 'Pages scope unchanged');
+  assert.ok(vite.includes("start_url: '/Fjallkompis/'"), 'Pages start_url unchanged');
+  assert.ok(vite.includes("base: mode === 'native' ? '/' : '/Fjallkompis/'"), 'Pages base unchanged');
+  assert.match(read('src/backup/completeBackup.mjs'), /app: 'fjallkompis'/, 'backup envelope identity unchanged');
+
+  // The Android resource names are file identifiers with no user-facing
+  // value; renaming them would churn the tree for nothing.
+  assert.ok(
+    existsSync(join(root, 'android/app/src/main/res/drawable-nodpi/fjallkompis_mark.png')),
+    'the mark resource keeps its filename',
+  );
+
+  // Storage keys, cache names and the backup filename all use the lowercase
+  // unaccented form, so the rename could not reach them by construction.
+  // Assert the count directly rather than scanning for string literals: a
+  // regex for "quoted literal containing fjallkompis" trips over backticks in
+  // JSDoc and reports comments as identifiers.
+  const storage = read('src/utils/storage.ts');
+  assert.ok(storage.includes('fjallkompis'), 'storage keys keep the lowercase identity form');
+  assert.ok(
+    !/Fjallkompis-|fjallkompis-[a-z-]*[A-Z]/.test(storage),
+    'no storage key adopted the capitalised display spelling',
+  );
+});
+
+test('the superseded spelling is gone from every active display surface', () => {
+  // Checked as a property of the FILES, not of individual strings: a rename
+  // that misses one line of in-app copy leaves the old name visible in the
+  // running app, and no equality assertion elsewhere would notice.
+  //
+  // Deliberately scoped to active surfaces. Code comments, released CHANGELOG
+  // entries and dated design/evidence documents keep the spelling they were
+  // written with — rewriting history would add noise without changing
+  // anything a user sees.
+  const surfaces = [
+    'index.html',
+    'vite.config.ts',
+    'capacitor.config.ts',
+    'android/app/src/main/res/values/strings.xml',
+    'assets/brand/brand.contract.mjs',
+    'README.md',
+  ];
+  // Comments are stripped rather than line-filtered: index.html's brand-colour
+  // note wraps onto a continuation line that starts with no comment marker, so
+  // a per-line prefix test cannot see it and would report a false positive.
+  const withoutComments = (source) =>
+    source
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+  const offenders = surfaces.filter((f) => withoutComments(read(f)).includes('Fjällkompis'));
+  assert.deepEqual(offenders, [], 'these active surfaces still carry the superseded spelling');
+
+  // In-app copy: every rendered string that names the product. Comment lines
+  // are excluded, matching the rename's own rule.
+  const copyOffenders = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(rel);
+      else if (/\.(ts|tsx|mjs)$/.test(entry.name)) {
+        for (const line of read(rel).split('\n')) {
+          if (line.includes('Fjällkompis') && !/^\s*(\*|\/\/|\/\*)/.test(line)) copyOffenders.push(rel);
+        }
+      }
+    }
+  };
+  walk('src');
+  assert.deepEqual([...new Set(copyOffenders)], [], 'in-app copy still names the product with the old spelling');
 });
 
 // --- The contract itself ------------------------------------------------------

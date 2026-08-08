@@ -1,4 +1,4 @@
-# Fjällkompis visual design authority
+# Fjallkompis visual design authority
 
 Operational rules for the arctic-fjäll design system. This document records
 the *conventions and semantic roles* the interface must keep — it does not

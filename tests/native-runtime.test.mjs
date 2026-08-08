@@ -126,9 +126,9 @@ test('the native build resolves the PWA registration module to an inert stub', (
 test('PwaLifecycle still exists and is still the single web registration path', () => {
   const lifecycle = read('src/components/PwaLifecycle.tsx');
   assert.match(lifecycle, /useRegisterSW/, 'the web/PWA lifecycle component is untouched');
-  assert.match(lifecycle, /Install Fjällkompis on this device\?/);
-  assert.match(lifecycle, /A new version of Fjällkompis is available\./);
-  assert.match(lifecycle, /Fjällkompis is ready for offline use\./);
+  assert.match(lifecycle, /Install Fjallkompis on this device\?/);
+  assert.match(lifecycle, /A new version of Fjallkompis is available\./);
+  assert.match(lifecycle, /Fjallkompis is ready for offline use\./);
   assert.match(app, /import \{ PwaLifecycle \}/, 'App still imports it for web/PWA');
 });
 
@@ -435,7 +435,7 @@ test('the application id is the documented permanent one', () => {
   assert.match(capConfig, /appId: 'com\.algolon\.fjallkompis'/);
   assert.match(capConfig, /PERMANENT Play identity/, 'the identity caveat stays next to the id');
   assert.match(read('android/app/build.gradle'), /applicationId "com\.algolon\.fjallkompis"/);
-  assert.match(read('android/app/src/main/res/values/strings.xml'), /<string name="app_name">Fjällkompis<\/string>/);
+  assert.match(read('android/app/src/main/res/values/strings.xml'), /<string name="app_name">Fjallkompis<\/string>/);
 });
 
 // --- Samsung physical-test corrections ---------------------------------------
@@ -509,7 +509,7 @@ test('the native three-button band colour IS the canonical tab-bar token', () =>
   // One colour, two renderers: the web tab bar paints #d4ded1 (as its opaque
   // token) and MainActivity's protection view paints the same value behind
   // the system buttons. The Samsung seam existed precisely because the band
-  // showed a DIFFERENT owned green (the launch colour), so "some Fjällkompis
+  // showed a DIFFERENT owned green (the launch colour), so "some Fjallkompis
   // green" is not good enough — the two literals must be equal.
   const cssToken = read('src/styles/mobile-shell-plan-polish.css')
     .match(/--tabbar-surface-opaque:\s*(#[0-9a-fA-F]{6})/)?.[1];

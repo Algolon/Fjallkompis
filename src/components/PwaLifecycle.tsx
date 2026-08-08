@@ -99,7 +99,7 @@ export function PwaLifecycle() {
     <div className="pwa-toast-region" role="status" aria-live="polite">
       {needRefresh ? (
         <div className="pwa-toast" role="alertdialog" aria-label="Update available">
-          <p className="pwa-toast__msg">A new version of Fjällkompis is available.</p>
+          <p className="pwa-toast__msg">A new version of Fjallkompis is available.</p>
           <div className="pwa-toast__actions">
             <button
               type="button"
@@ -132,10 +132,10 @@ export function PwaLifecycle() {
             <X size={18} strokeWidth={2} aria-hidden />
           </button>
           <h2 id="pwa-install-title" className="pwa-toast__title">
-            Install Fjällkompis on this device?
+            Install Fjallkompis on this device?
           </h2>
           <p className="pwa-toast__sub">
-            For the best experience, install Fjällkompis as an app. It opens
+            For the best experience, install Fjallkompis as an app. It opens
             full-screen and keeps the route available offline once it has
             loaded.
           </p>
@@ -175,7 +175,7 @@ export function PwaLifecycle() {
         </div>
       ) : offlineReady ? (
         <div className="pwa-toast">
-          <p className="pwa-toast__msg">Fjällkompis is ready for offline use.</p>
+          <p className="pwa-toast__msg">Fjallkompis is ready for offline use.</p>
           <div className="pwa-toast__actions">
             <button
               type="button"

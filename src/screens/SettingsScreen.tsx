@@ -356,7 +356,7 @@ export function SettingsScreen({
       );
       if (outcome === 'saved') setNotice({ kind: 'ok', text: 'Backup downloaded.' });
     } catch (err) {
-      console.warn('Fjällkompis: JSON export failed.', err);
+      console.warn('Fjallkompis: JSON export failed.', err);
       setNotice({ kind: 'err', text: 'Could not save the export file.' });
     }
   };
@@ -417,7 +417,7 @@ export function SettingsScreen({
         });
       }
     } catch (err) {
-      console.warn('Fjällkompis: complete backup failed.', err);
+      console.warn('Fjallkompis: complete backup failed.', err);
       setNotice({ kind: 'err', text: 'Could not create the complete backup. Nothing was saved.' });
     } finally {
       setBackupBusy(false);
@@ -450,7 +450,7 @@ export function SettingsScreen({
       );
       setRestoreCandidate({ ...staged, formattedSize: formatBytes(totalBytes) });
     } catch (err) {
-      console.warn('Fjällkompis: could not read the backup file.', err);
+      console.warn('Fjallkompis: could not read the backup file.', err);
       setNotice({ kind: 'err', text: restoreRejectionText('unreadable-archive') });
     } finally {
       setBackupBusy(false);
@@ -496,7 +496,7 @@ export function SettingsScreen({
         });
       }
     } catch (err) {
-      console.warn('Fjällkompis: restore failed.', err);
+      console.warn('Fjallkompis: restore failed.', err);
       setNotice({ kind: 'err', text: 'The restore failed unexpectedly.' });
     } finally {
       setBackupBusy(false);
@@ -534,7 +534,7 @@ export function SettingsScreen({
       await clearWalletData();
       setNotice({ kind: 'ok', text: 'Local data reset to defaults.' });
     } catch (err) {
-      console.warn('Fjällkompis: could not clear document storage.', err);
+      console.warn('Fjallkompis: could not clear document storage.', err);
       setNotice({
         kind: 'err',
         text: 'Trip data was reset, but the stored documents could not be removed. Try again, or clear the site data in your browser settings.',
@@ -597,7 +597,7 @@ export function SettingsScreen({
   return (
     <div className="screen screen--settings">
       <ScreenHeader eyebrow="Trail readiness" title="Settings">
-        Adjust app settings to tailor Fjällkompis to your trip and how you use
+        Adjust app settings to tailor Fjallkompis to your trip and how you use
         it. Tap a section to expand its options.
       </ScreenHeader>
 
@@ -686,7 +686,7 @@ export function SettingsScreen({
         >
           <span className="card-title">Complete backup</span>
           <p className="card-sub" style={{ marginTop: 4 }}>
-            Everything needed to restore this Fjällkompis setup on another install or
+            Everything needed to restore this Fjallkompis setup on another install or
             device — trip data AND the document PDFs and images stored in your Wallet.
             The file contains your personal documents, so store it somewhere private.
             Restoring replaces what is currently on this device.
@@ -788,7 +788,7 @@ export function SettingsScreen({
           <span className="card-title">Data sources &amp; credits</span>
           <p className="card-sub" style={{ marginTop: 4 }}>
             Information about the maps, imagery, route data and open-source software
-            used in Fjällkompis.
+            used in Fjallkompis.
           </p>
           <button
             className="btn btn-block"
@@ -812,7 +812,7 @@ export function SettingsScreen({
         <Copy size={15} strokeWidth={1.8} aria-hidden /> Copy diagnostic summary
       </button>
 
-      <p className="app-version">Fjällkompis · prototype · v{APP_VERSION}</p>
+      <p className="app-version">Fjallkompis · prototype · v{APP_VERSION}</p>
     </div>
   );
 }

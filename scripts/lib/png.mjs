@@ -19,7 +19,7 @@
  * output: zlib's exact deflate stream is free to change between Node versions,
  * so a byte-comparison of generated PNGs would be a flaky test rather than a
  * branding fence. Callers compare DECODED PIXELS instead (see `meanAbsDiff`),
- * which is what "the launcher icon is still the Fjällkompis mark" actually
+ * which is what "the launcher icon is still the Fjallkompis mark" actually
  * means.
  */
 

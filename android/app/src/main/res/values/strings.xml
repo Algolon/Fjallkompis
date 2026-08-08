@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Fjällkompis</string>
-    <string name="title_activity_main">Fjällkompis</string>
+    <string name="app_name">Fjallkompis</string>
+    <string name="title_activity_main">Fjallkompis</string>
     <string name="package_name">com.algolon.fjallkompis</string>
     <string name="custom_url_scheme">com.algolon.fjallkompis</string>
 </resources>

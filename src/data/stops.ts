@@ -176,7 +176,7 @@ const CURATED: Omit<TrailStop, 'coord'>[] = [
     type: 'mountain-cabin',
     summary: 'Remote junction cabin where the route turns toward Kebnekaise.',
     description:
-      'Singi lies where several valleys and trails meet. It provides simple staffed accommodation and a shared kitchen, but no shop. From here, the Fjällkompis route leaves the official Kungsleden toward Kebnekaise.',
+      'Singi lies where several valleys and trails meet. It provides simple staffed accommodation and a shared kitchen, but no shop. From here, the Fjallkompis route leaves the official Kungsleden toward Kebnekaise.',
     facilities: [has('guest-kitchen'), has('staffed'), lacks('shop'), lacks('sauna')],
     summerOpening2026: '18 June – 13 September',
     bedCapacity: '26–50 beds',

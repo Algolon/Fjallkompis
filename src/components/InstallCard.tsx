@@ -60,23 +60,23 @@ export function InstallCard({ embedded = false }: { embedded?: boolean }) {
 
       {installed ? (
         <p className="card-sub" style={{ marginTop: 10 }}>
-          Fjällkompis is installed on this device and runs offline once the
+          Fjallkompis is installed on this device and runs offline once the
           route (and, optionally, the offline map) have loaded.
         </p>
       ) : canPrompt ? (
         <>
           <button className="btn btn-primary btn-block" style={{ marginTop: 12 }} onClick={onInstall}>
-            Install Fjällkompis
+            Install Fjallkompis
           </button>
           <p className="card-sub" style={{ marginTop: 8 }}>
-            Adds an app icon and lets Fjällkompis run full-screen and offline.
+            Adds an app icon and lets Fjallkompis run full-screen and offline.
           </p>
         </>
       ) : (
         <p className="card-sub" style={{ marginTop: 10, lineHeight: 1.5 }}>
           To install: open your browser’s <strong>Share</strong> or menu (⋮ / ▾)
           and choose <strong>Add to Home Screen</strong>. On iPhone/iPad use
-          Safari’s Share button. Fjällkompis then runs full-screen and offline.
+          Safari’s Share button. Fjallkompis then runs full-screen and offline.
         </p>
       )}
 

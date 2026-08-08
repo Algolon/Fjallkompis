@@ -59,7 +59,7 @@ export function useWalletDocuments(): WalletApi {
       // Opening/reading failed although indexedDB exists — restricted
       // storage behaves like no storage; keep the technical detail in the
       // console (the app's established diagnostics channel).
-      console.warn('Fjällkompis: Trail Wallet storage is not readable.', err);
+      console.warn('Fjallkompis: Trail Wallet storage is not readable.', err);
       setDocuments([]);
       setStatus('unavailable');
     }

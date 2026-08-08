@@ -91,7 +91,7 @@ export function RotateGuard({
       </svg>
       <h1 id="rotate-guard-title">Rotate your phone</h1>
       <p id="rotate-guard-text">
-        Fjällkompis is designed for portrait use on phones.
+        Fjallkompis is designed for portrait use on phones.
       </p>
     </dialog>
   );

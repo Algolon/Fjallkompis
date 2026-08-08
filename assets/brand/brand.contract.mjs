@@ -1,7 +1,7 @@
 /**
  * THE FJÄLLKOMPIS BRANDING CONTRACT — one identity, two distribution channels.
  *
- * Fjällkompis ships as a PWA (GitHub Pages) and as an Android app (Google
+ * Fjallkompis ships as a PWA (GitHub Pages) and as an Android app (Google
  * Play). They are ONE product, so they must not carry two separately
  * maintained sets of icons. This file is the machine-readable statement of
  * that: it names the single master artwork, the brand colours, and every
@@ -20,7 +20,7 @@
  * per platform.
  *
  * PROVENANCE AND ITS ONE LIMITATION. `fjallkompis-mark-512.png` is the
- * approved Fjällkompis mark — a compass star behind a mountain roundel — and
+ * approved Fjallkompis mark — a compass star behind a mountain roundel — and
  * it is a 512x512 RASTER. The repository contains no vector (SVG/AI) master
  * and none was reconstructed for this contract: redrawing or AI-recreating the
  * mark would be a redesign wearing the old logo's clothes. 512x512 is
@@ -53,6 +53,36 @@ export const BRAND_COLORS = {
   spruce: '#2f4a3d',
 };
 
+/**
+ * THE PRODUCT NAME, and the line between a NAME and an IDENTITY.
+ *
+ * `Fjallkompis` — no diaeresis — is the canonical v1 product spelling. It is
+ * what the user reads: the launcher label, the browser tab, the installed-PWA
+ * name, the Play listing, in-app copy.
+ *
+ * It is NOT a technical identifier, and normalising it must never be allowed
+ * to become one. Everything below keeps its existing value, because each is a
+ * compatibility contract where a change means data loss, a second app, or a
+ * dead URL — not a cosmetic difference:
+ *
+ *   repository / Pages base+scope   Fjallkompis            (already unaccented)
+ *   Android application id          com.algolon.fjallkompis
+ *   backup envelope                 app: 'fjallkompis'
+ *   localStorage / IndexedDB keys   fjallkompis-*
+ *   Cache Storage names             fjallkompis-offline-*
+ *   Android resource names          fjallkompis_mark, fjallkompis_splash
+ *
+ * Those all use the lowercase unaccented form already, so the rename touches
+ * none of them by construction — the only string that changes is the accented
+ * display spelling. tests/branding-parity.test.mjs asserts both halves: that
+ * every display surface says `Fjallkompis`, and that the identities above are
+ * untouched.
+ */
+export const PRODUCT_NAME = 'Fjallkompis';
+
+/** The full display title: manifest `name` and the document title. */
+export const PRODUCT_TITLE = `${PRODUCT_NAME} — Kungsleden hiking companion`;
+
 /** The one master everything below is derived from, repo-relative. */
 export const MASTER = 'assets/brand/fjallkompis-mark-512.png';
 
@@ -75,7 +105,7 @@ export const MASTER_COPIES = [
 ];
 
 /**
- * Default tolerance for "is this still the Fjällkompis mark?", as a mean
+ * Default tolerance for "is this still the Fjallkompis mark?", as a mean
  * absolute per-channel difference (0-255) against a freshly derived reference.
  *
  * WHY A TOLERANCE AND NOT BYTE EQUALITY. The PWA icons are the original

@@ -9,7 +9,7 @@ airplane mode (2700002), and complete backup export + restore including
 Wallet documents (2700003). Installs and updates arrive the normal Play
 way — no sideloading, no security bypasses.
 
-Fjällkompis is a web app. This document describes an *additional delivery
+Fjallkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
 that runs the existing build inside an Android WebView and can be installed as
 an APK.
@@ -524,7 +524,7 @@ Neither is implemented. This is a recommendation, not a plan of record.
 Installing the debug APK on a Samsung required bypassing normal device
 security: allowing installs from an unauthorised source, and getting past
 **Samsung Auto Blocker**. That was acceptable for a technical spike. It is
-**not** the installation or update path for Fjällkompis, and it should never
+**not** the installation or update path for Fjallkompis, and it should never
 be described as one — not even to a single tester.
 
 A manually signed *release APK* is no better: sideloading still needs

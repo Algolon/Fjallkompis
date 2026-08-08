@@ -67,7 +67,7 @@ function setAsideForeignState(rawText: string): void {
     }
   } catch (err) {
     console.warn(
-      'Fjällkompis: saved data belongs to another trail and could not be set aside. ' +
+      'Fjallkompis: saved data belongs to another trail and could not be set aside. ' +
         'It will be replaced when this session saves.',
       err,
     );
@@ -97,7 +97,7 @@ export function loadState(): PersistentState {
       // read), never silently destroyed (the raw text is set aside first).
       setAsideForeignState(raw);
       console.warn(
-        `Fjällkompis: saved data belongs to another trail (${String(result.trailId)}); ` +
+        `Fjallkompis: saved data belongs to another trail (${String(result.trailId)}); ` +
           `starting fresh for ${result.expectedTrailId}. The original was kept under ` +
           `"${FOREIGN_STATE_KEY}".`,
       );
@@ -105,7 +105,7 @@ export function loadState(): PersistentState {
     }
     return result.state;
   } catch (err) {
-    console.warn('Fjällkompis: could not read saved state, starting fresh.', err);
+    console.warn('Fjallkompis: could not read saved state, starting fresh.', err);
     return defaultState();
   }
 }
@@ -116,7 +116,7 @@ export function saveState(state: PersistentState): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (err) {
     // Most likely quota — non-fatal for a prototype, but surface it.
-    console.warn('Fjällkompis: could not save state.', err);
+    console.warn('Fjallkompis: could not save state.', err);
   }
 }
 

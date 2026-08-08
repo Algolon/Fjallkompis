@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.27.0",
   "type": "module",
-  "description": "Fjällkompis — an offline hiking companion for the Kungsleden, designed to complement hikers' navigation tools.",
+  "description": "Fjallkompis — an offline hiking companion for the Kungsleden, designed to complement hikers' navigation tools.",
   "scripts": {
     "dev": "npm run generate && vite",
     "build": "npm run check:version && npm run generate && tsc -b && vite build",

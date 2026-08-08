@@ -271,7 +271,7 @@ export function TripView({
         await enforceMembershipQuickAccess(id);
       } catch (err) {
         console.warn(
-          'Fjällkompis: could not clear the previous Today quick-access flag; the newest choice still wins deterministically.',
+          'Fjallkompis: could not clear the previous Today quick-access flag; the newest choice still wins deterministically.',
           err,
         );
       }

@@ -1,13 +1,13 @@
-# Fjällkompis roadmap
+# Fjallkompis roadmap
 
-Canonical roadmap for Fjällkompis. This file — not the README, code comments
+Canonical roadmap for Fjallkompis. This file — not the README, code comments
 or commit messages — is the single source of truth for priority and progress.
 Delivered iterations are summarised in [CHANGELOG.md](CHANGELOG.md); versioning
 rules live in the [development docs](docs/DEVELOPMENT.md#versioning--releases).
 
 ## Product identity
 
-Fjällkompis is an **offline hiking companion for the Kungsleden between Abisko
+Fjallkompis is an **offline hiking companion for the Kungsleden between Abisko
 and Nikkaluokta**. It complements appropriate maps, navigation tools and sound
 outdoor judgement by bringing the trail information hikers use most into one
 bounded, offline-first experience. It is deliberately not positioned as a
@@ -43,7 +43,7 @@ with tickets/bookings attachable to them and standalone important documents
 kept available offline on the device (document files stored in IndexedDB,
 outside the JSON backup — docs/proposals/trail-wallet.md and
 docs/proposals/trip-plan.md), install/update UX, opt-in
-foreground live tracking (beta) on the Map screen, and local backup/restore. Fjällkompis is one adaptive
+foreground live tracking (beta) on the Map screen, and local backup/restore. Fjallkompis is one adaptive
 experience: the same URL works on phones (the protected baseline experience,
 portrait-only by design — landscape shows a rotate-to-portrait prompt),
 tablets (navigation rail, portrait and landscape) and desktop browsers
@@ -52,7 +52,7 @@ working browser Back/Forward. The Map-tab GPS mechanics (one-shot fix,
 foreground live tracking, projection, off-route states, offline basemap
 handling) were validated in a real-device Delft pilot walk
 (docs/pilot-results/delft-2026-07-07-summary.md); the Kungsleden itself has not
-been field-tested. Fjällkompis therefore remains a beta companion and must be
+been field-tested. Fjallkompis therefore remains a beta companion and must be
 used alongside appropriate navigation tools.
 
 All personal data remains local to the browser/device in use; moving it
@@ -231,7 +231,7 @@ cross-device synchronization is deliberately far down this roadmap.
   canonical segments are now called "Stage N" on Stages and the Map, because
   which day you walk them on became personal. Design record: PR #74.
 - **App-owned date/time pickers (v0.25.0)**: the Trip plan's date and time
-  fields moved off the broken native Android dialogs onto Fjällkompis's own
+  fields moved off the broken native Android dialogs onto Fjallkompis's own
   picker system — a Monday-first calendar dialog and a digital 24-hour time
   dialog on the spruce credential surface, with wrap-safe Clear / Cancel /
   Set actions, the APG grid keyboard pattern, stable-top positioning across

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Derive every Fjällkompis icon — PWA and Android — from the one approved
+ * Derive every Fjallkompis icon — PWA and Android — from the one approved
  * master, per assets/brand/brand.contract.mjs.
  *
  *     node scripts/generate-brand-assets.mjs            # report drift, write nothing

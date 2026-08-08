@@ -2,7 +2,7 @@
  * A minimal read-only ZIP reader — enough to look inside an AAB or APK.
  *
  * An App Bundle is a ZIP, and the branding question "does the app Play
- * actually ingests carry the Fjällkompis launcher icon?" is answered by
+ * actually ingests carry the Fjallkompis launcher icon?" is answered by
  * reading entries out of it. `unzip` could do that in a workflow, but then the
  * check only exists as shell inside one CI job; as a Node module it runs the
  * same way against a locally built APK, which is where someone debugging a

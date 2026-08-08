@@ -234,7 +234,7 @@ function FullServicePanel() {
         <span>
           These locations provide broader services and shops than the standard STF cabin-shop
           model. Their shops do not use the STF Small/Large assortment lists and likely carry a
-          broader, more locally determined range. Fjällkompis has no reliable inventory or price
+          broader, more locally determined range. Fjallkompis has no reliable inventory or price
           list for them — check range, availability and prices with each facility. Do not assume
           every product in a Large cabin shop is stocked here.
         </span>
