@@ -400,24 +400,39 @@ so the Map tab works offline from first launch with no download step.
 
 ### ✓ Closed risk: byte-range reads from the APK's own assets
 
-**Physically verified working (Samsung, 2026-08-07).** The bundled vector map
-rendered correctly inside the real Capacitor WebView on the device: full route
-Abisko → Nikkaluokta, all seven stage colours, hut markers and labels.
+**The risk was real after all — closed now by not taking it.** The original
+source-level read was right: Capacitor's `WebViewLocalServer` range branch
+builds a `Content-Range: bytes a-b/total` header around a stream it never
+seeks or truncates. The 2026-08-07 Samsung debug install that appeared to
+disprove it was a false all-clear; the first Play Internal Testing install
+(versionCode 2700001, 2026-08-08) opened its Map tab to route overlays on a
+plain background — no basemap — and the failure was then reproduced and
+measured in the emulator against the *exact uploaded bundle*, in both debug
+and release packaging, on any fresh install:
 
-This deserved its "open risk" label while it had one: PMTiles is a byte-range
-format, and a source-level read of Capacitor's `WebViewLocalServer` range
-branch showed it building a `Content-Range: bytes a-b/total` header around a
-stream it never seeks (`no skip(fromRange)` in the path) — which predicted
-wrong bytes for every non-zero-offset read. That failure **did not reproduce
-on the device**, so the delivery path in real use is fine and no `BlobSource`
-workaround is needed or planned. The desktop cross-check (the same `dist/`
-served by a Range-conformant static server, 89.6 kB of `206` reads out of the
-5.6 MB archive) still stands as evidence that the bundle and archive are
-correct in themselves.
+- Cache Storage is empty on first run, so the app resolved the basemap
+  `'online'` and streamed the packaged archive with ranged GETs;
+- `Range: bytes=0-0` → `206`, `Content-Length: 1`, body **5 904 598 bytes**;
+  `Range: bytes=1000000-1000015` → `206`, `Content-Length: 16`, body
+  **4 904 598 bytes**. Chromium's intercepted-request loader skips the asset
+  stream to the range start, then serves it to EOF; nothing enforces the end;
+- PMTiles fails parsing the oversized buffers (`RangeError: Offset is outside
+  the bounds of the DataView`) and the vector source dies. The tiny probe the
+  app starts with cannot detect any of this — it looks exactly like a healthy
+  byte-serving host. How much misbehaviour is visible varies with the WebView
+  version, which is how one physical debug run could look fine.
 
-Keep the history in mind only if a future Capacitor major changes the local
-server: the first symptom would be a blank or garbled Map tab in the wrapper
-while the same build renders in a browser.
+Since the fix the native shell never byte-serves the bundled archive at all:
+`resolveArchiveBasemap` reads the packaged file ONCE as a complete blob (a
+plain full-body GET, which the asset server does serve correctly) and hands it
+to the same blob-backed PMTiles source the offline download path uses
+(`src/map/bundledArchive.mjs` owns the decision; `tests/native-bundled-basemap.test.mjs`
+fences the resolution order). Both Android workflows additionally prove the
+packaged AAB/APK carries the archive byte-identical to the committed file.
+
+The desktop cross-check (the same `dist/` served by a Range-conformant static
+server) still stands: the bundle and archive are correct in themselves, and
+the hosted `'online'` path remains correct for real HTTP hosts like Pages.
 
 **Terrain, contour and satellite archives are not in the APK.** They are not
 part of the Vite build at all: `deploy.yml` fetches them from pinned GitHub

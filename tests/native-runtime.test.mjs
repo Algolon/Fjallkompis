@@ -179,8 +179,11 @@ test('the adapter exposes only the spike surface, and detects without sniffing',
 
 test('platform knowledge stays in the adapter — screens and stores never ask', () => {
   // The spike's architectural boundary: no scattered `if (android)`. The
-  // shell calls into the adapter at exactly three points, and nowhere else in
-  // the app calls it at all.
+  // shell calls into the adapter at exactly three points. ONE data-path
+  // exception exists below: the basemap resolver asks the adapter whether the
+  // packaged archive must be read whole, because the native asset server
+  // cannot byte-serve it (src/map/bundledArchive.mjs) — a real platform
+  // difference in how bytes arrive, not a screen styling itself by platform.
   assert.equal((codeOf(app).match(/isNativeAndroid\(\)/g) ?? []).length, 1);
   assert.equal((codeOf(app).match(/subscribeAndroidBackButton\(\)/g) ?? []).length, 1);
   assert.equal((codeOf(main).match(/markRuntimeOnDocument\(\)/g) ?? []).length, 1);
@@ -192,8 +195,8 @@ test('platform knowledge stays in the adapter — screens and stores never ask',
     .filter((f) => /from '\.{1,2}\/(\.\.\/)*runtime\/platform'/.test(read(join('src', f))));
   assert.deepEqual(
     callers.sort(),
-    ['App.tsx', 'main.tsx'],
-    'only the app shell may import the platform adapter',
+    ['App.tsx', 'main.tsx', 'map/pmtilesProtocol.ts'],
+    'only the app shell and the basemap resolver may import the platform adapter',
   );
   assert.ok(
     !/Capacitor|@capacitor/.test(read('src/store/AppStore.tsx')),

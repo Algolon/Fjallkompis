@@ -72,6 +72,16 @@ export interface ArchiveSpec {
    * alternative-hosting override (production serves it same-origin).
    */
   resolveUrl?: () => string;
+  /**
+   * This archive ships INSIDE the Android app package (the Vite build copies
+   * it into dist, `cap sync` into assets/public, and CI verifies it in the
+   * packaged AAB/APK). In the native shell it is read as one complete file
+   * through a blob-backed source — never with byte-range requests, which the
+   * in-app asset server does not serve correctly (src/map/bundledArchive.mjs
+   * records the measurements). Only the vector basemap; terrain, contour and
+   * satellite archives are deliberately NOT in the package (docs/ANDROID.md).
+   */
+  bundledInApp?: boolean;
 }
 
 const sameOriginUrl = (path: string): string =>
@@ -82,6 +92,7 @@ export const VECTOR_ARCHIVE: ArchiveSpec = {
   legacyCacheNames: VECTOR_ARCHIVE_LEGACY_CACHES,
   revision: VECTOR_ARCHIVE_REVISION,
   path: 'maps/kungsleden.pmtiles',
+  bundledInApp: true,
 };
 
 /**

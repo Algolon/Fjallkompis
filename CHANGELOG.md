@@ -63,6 +63,18 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 - Zoom buttons only appear for mouse/trackpad users — on touch, pinch is the
   gesture and the map keeps the space.
 
+### Fixed
+
+- **The Android app's built-in map renders again on a fresh install.** The
+  vector basemap that ships inside the Android app package was being read
+  with HTTP byte-range requests, which the app's internal asset server does
+  not serve correctly — on a first launch with nothing downloaded, the Map
+  tab opened to route lines on a plain background and no map behind them.
+  The app now reads its packaged map as one complete file, so the full topo
+  map is there from the first launch, with no network and no download step.
+  Release builds are additionally checked so an Android package can never
+  ship without the map data again. Web and PWA behaviour is unchanged.
+
 ## [0.27.0] - 2026-08-01
 
 ### Added
