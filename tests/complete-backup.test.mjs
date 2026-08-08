@@ -618,6 +618,55 @@ test('the JSON export contract is unchanged and no longer browser-only', () => {
   assert.match(fileSave, /USER_CANCELLED/, 'a dismissed picker stays a non-error outcome');
 });
 
+test('no generated-file export bypasses the platform save boundary', () => {
+  // Every surface that hands the user a file the APP generated. A direct
+  // downloadJson/downloadTextFile/downloadBlobFile call here is a silent
+  // no-op in the Android wrapper (the WebView ignores blob-URL anchors), so
+  // the boundary is the only permitted route. src/runtime/fileSave.ts is
+  // deliberately absent: it IS the boundary, and owns the browser branch.
+  //
+  // Stored-document delivery (opening/saving a Wallet PDF the user attached
+  // — src/wallet/documentOpening.ts, TripView's exportDocument) is a
+  // DIFFERENT class and deliberately not covered: those hand back bytes the
+  // user supplied, and choosing between a save picker and a share sheet is
+  // its own decision. They are tracked separately, not silently swept in.
+  const GENERATED_FILE_SURFACES = [
+    'src/screens/SettingsScreen.tsx',
+    'src/components/DayPlanCard.tsx',
+  ];
+  for (const surface of GENERATED_FILE_SURFACES) {
+    const source = readFileSync(join(root, surface), 'utf8');
+    // Comments may name the old helper (they explain the migration); calls
+    // may not exist, and neither may an import of it.
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const helper of ['downloadJson', 'downloadTextFile', 'downloadBlobFile']) {
+      assert.ok(
+        !new RegExp(`\\b${helper}\\s*\\(`).test(code),
+        `${surface} calls ${helper} directly — it must use saveGeneratedFile`,
+      );
+      assert.ok(
+        !new RegExp(`import[^;]*\\b${helper}\\b[^;]*;`).test(code),
+        `${surface} imports ${helper} — it must use saveGeneratedFile`,
+      );
+    }
+    assert.match(
+      code,
+      /saveGeneratedFile\(/,
+      `${surface} produces a file, so it must go through the save boundary`,
+    );
+  }
+
+  // The Day plan recovery export specifically: same filename and payload it
+  // has always written, now via the boundary — and a failure is SHOWN,
+  // because the button beside it deletes the very data being saved.
+  const card = readFileSync(join(root, 'src/components/DayPlanCard.tsx'), 'utf8');
+  assert.match(card, /'fjallkompis-day-plan-recovery\.json'/);
+  assert.match(card, /kind: 'day-plan-recovery'/);
+  assert.match(card, /JSON\.stringify\(payload, null, 2\)/);
+  assert.match(card, /'application\/json'/);
+  assert.match(card, /setSaveFailed\(true\)/, 'a failed save is surfaced, never silent');
+});
+
 // ---- Container preflight (before any bytes are read) ------------------------
 
 test('an oversized selected file is refused from its size alone', async () => {
