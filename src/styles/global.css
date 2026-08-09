@@ -482,10 +482,29 @@ h3 {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+/* The grid gap owns the rhythm — neutralise the sibling-card margin, exactly
+   as .guide-grid, .stack and .wallet-list already do. Without this the SECOND
+   tile inherited `.card + .card { margin-top: 14px }` from the stacked-card
+   base rule: it started 14px lower than its neighbour and, because the grid
+   row height was already fixed, ended 14px shorter — two tiles bottom-aligned
+   with ragged tops. Guarded by tests/plan-tiles-alignment.test.mjs. */
+.plan-tiles > .card + .card {
+  margin-top: 0;
+}
 
 /* Day plan — the soft hero: the largest Plan surface, warm and glassy, but
-   deliberately lighter than Today's dark operational hero. */
-.plan-hero {
+   deliberately lighter than Today's dark operational hero.
+
+   The warm fill below is declared on `.card.plan-hero`, not `.plan-hero`, and
+   that is load-bearing: `.card { background: var(--paper) }` is declared LATER
+   in this stylesheet, so a bare `.plan-hero` background lost the cascade at
+   equal specificity and the hero silently rendered as flat green paper. The
+   result read as a different colour FAMILY from its three warm siblings
+   rather than as a heavier member of the same one — two card systems on one
+   screen. It also carries the same --glass-* backdrop lift as
+   .today-glass--light, so hero and tiles are one material: same glass, more
+   of it. */
+.card.plan-hero {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -493,7 +512,17 @@ h3 {
   padding: 18px 16px;
   text-align: left;
   cursor: pointer;
-  background: rgba(240, 232, 216, 0.6);
+  background: rgba(240, 232, 216, 0.72);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate))
+    brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+}
+@supports not (backdrop-filter: blur(1px)) {
+  /* Same fallback contract as .today-glass--light: no blur, so lean opaque. */
+  .card.plan-hero {
+    background: rgba(243, 236, 223, 0.96);
+  }
 }
 .plan-hero__eyebrow {
   display: inline-flex;
@@ -847,86 +876,8 @@ a.btn {
   gap: 8px;
 }
 
-/* --- Settings readiness / foldouts --------------------------------------- */
+/* --- Settings foldouts --------------------------------------------------- */
 
-.readiness-card {
-  border-color: #d5c4a9;
-  background: linear-gradient(180deg, #e9eee4 0%, var(--paper) 100%);
-}
-.readiness-card.is-ready {
-  border-color: #b8c9b0;
-}
-.readiness-score {
-  flex: 0 0 auto;
-  padding: 5px 7px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line);
-  background: var(--paper-bright);
-  text-align: right;
-}
-.readiness-score strong,
-.readiness-score span {
-  display: block;
-}
-.readiness-score strong {
-  font-size: 13px;
-  line-height: 1.1;
-}
-.readiness-score span {
-  margin-top: 1px;
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.readiness-list {
-  /* Rows sit flush inside the accordion panel padding, so their outer left and
-     right edges are equidistant from the parent card's inner edge. */
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-}
-.readiness-row {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: rgba(238, 243, 236, 0.55);
-}
-.readiness-row svg {
-  color: var(--good);
-}
-.readiness-row:has(.readiness-row__main small:not(:empty)) svg {
-  align-self: center;
-}
-.readiness-row__main {
-  min-width: 0;
-}
-.readiness-row__main span {
-  display: block;
-  font-weight: 700;
-  line-height: 1.2;
-}
-.readiness-row__main small {
-  display: block;
-  margin-top: 2px;
-  color: var(--ink-faint);
-  font-size: 11px;
-}
-.readiness-row__value {
-  max-width: 145px;
-  color: var(--ink-soft);
-  font-size: 12.5px;
-  font-weight: 650;
-  line-height: 1.25;
-  text-align: right;
-}
 .settings-grid--accordions {
   margin-top: 10px;
 }
@@ -1301,6 +1252,8 @@ a.btn {
   justify-content: center;
   gap: 1px;
   padding: 0;
+  /* Anchors the optional-data dot below. */
+  position: relative;
   border-radius: 14px;
   color: var(--ink-strong);
   font-size: 9px;
@@ -1428,6 +1381,33 @@ a.btn {
 }
 .map-popover__option[aria-checked='true'] .map-popover__note {
   color: rgba(244, 248, 245, 0.86);
+}
+.map-popover__foot {
+  padding: 6px 6px 2px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+}
+
+/* Optional map data not on the device: a standing FACT, not a fault.
+   Glacier (the cool / technical / spatial role) rather than any warning
+   tone, because the bundled basemap is complete and usable without it —
+   a danger colour here would misreport a working map as broken. The dot is
+   aria-hidden; the same fact is in the button's accessible name, so nothing
+   depends on colour alone. */
+.map-ctrl__dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--glacier);
+  /* A hairline of the control's own surface keeps the dot legible where it
+     overlaps the layers glyph. */
+  box-shadow: 0 0 0 1.5px var(--paper);
 }
 
 /* 2. Live-tracking pill — the ONLY bottom-band content, and only while a
@@ -1989,6 +1969,17 @@ button.map-status-pill {
   padding-bottom: 4px;
   margin-bottom: 10px;
   -webkit-overflow-scrolling: touch;
+}
+/* Wrapping variant for a SMALL, fixed set of filters that very nearly fits.
+   Packing's four/five status filters overflowed by 47px at 375 and 102px at
+   320 — enough to clip the last chip and raise a horizontal scrollbar, not
+   enough to be worth a scroll gesture. A second row costs ~48px once; the
+   scroller cost a hidden control on every visit. Long, open-ended chip rows
+   (a stage's highlights) keep the scroller above. */
+.stage-chips--wrap {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  row-gap: 8px;
 }
 .chip {
   border: 1px solid var(--line-strong);
@@ -4023,6 +4014,14 @@ button.stop-fac:focus-visible {
   gap: 10px;
   padding: 9px 0;
 }
+/* The row's status CONTROL — tap to cycle needed → ready → packed.
+   Paper + line is the design authority's "calm control" surface, which is
+   correct here, but the idle state also used --ink-faint, the metadata ink,
+   and had no pressed feedback: the one control repeated on every row read as
+   a label. It now matches .chip, the app's own calm-control exemplar
+   (--ink-soft text), and reinforces interactivity through pressed and
+   focus-visible states rather than colour — the settled states keep their
+   existing filled treatments below, untouched. */
 .pack-status {
   flex: 0 0 auto;
   width: 74px;
@@ -4032,7 +4031,16 @@ button.stop-fac:focus-visible {
   background: var(--paper);
   font-size: 12px;
   font-weight: 700;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.pack-status:active {
+  background: var(--paper-bright);
+  transform: scale(0.96);
+}
+.pack-status:focus-visible {
+  outline: 2px solid var(--glacier-700);
+  outline-offset: 2px;
 }
 .pack-status.is-ready {
   background: var(--glacier-soft);
@@ -4114,11 +4122,17 @@ button.stop-fac:focus-visible {
   color: var(--ink-faint);
   text-decoration: line-through;
 }
+/* "Essential" — a micro-label on the established scale (≤11.5/700/caps), not
+   a coloured dot. Cloudberry is kept as a SECOND, redundant cue on top of the
+   word; the word alone carries the meaning. It leads the row's metadata line
+   (see PackingView) so it never pushes a long item name onto another line. */
 .pack-essential {
   color: var(--cloudberry);
-  font-size: 9px;
-  margin-left: 6px;
-  vertical-align: 2px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 .pack-sub {
   display: block;

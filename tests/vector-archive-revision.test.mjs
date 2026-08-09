@@ -808,20 +808,25 @@ test('a failed download falls back to the true state instead of "Not downloaded"
   assert.match(download, /catch[\s\S]*await refresh\(\)/, 'the caches are re-read after a failure');
 });
 
-test('the readiness row does not present a superseded archive as up to date', () => {
-  assert.match(settings, /basemap\.updateAvailable\s*\n?\s*\?\s*'Update available'/);
-  assert.match(settings, /done=\{basemap\.downloaded\}/, 'a legacy archive still counts as ready');
+// These two states used to be reported twice: once by the Offline maps card
+// and once by a Trail readiness row that could contradict it (on Android the
+// row rendered "Included in app" beside "Needs attention"). The readiness
+// panel is gone; the card is the single surface, and it must still tell the
+// truth about both states.
+
+test('a superseded archive is not presented as up to date', () => {
+  assert.match(card, /updateAvailable\s*\n?\s*\?\s*'Map update available'/);
+  // …and the offer to act on it is the card's primary action.
+  assert.match(card, /\{updateAvailable \? 'Update map data' : 'Re-download \/ update'\}/);
 });
 
-test('the readiness row reports unusable data as needing repair, and not as ready', () => {
-  assert.match(settings, /basemap\.needsRepair\s*\n?\s*\?\s*'Needs repair'/);
-  // `done` is basemap.downloaded, which is false for invalid data — so the row
-  // is unchecked and the 4/4 score drops, which is the honest outcome.
-  assert.match(settings, /done=\{basemap\.downloaded\}/);
-  const row = settings.slice(settings.indexOf('label="Offline basemap"'));
+test('unusable data reports as needing repair, and not as stored', () => {
+  assert.match(card, /needsRepair/);
+  assert.match(card, /\$\{sourceHeading\} needs repair/);
+  const status = card.slice(card.indexOf("<span className=\"muted\">Status</span>"));
   assert.ok(
-    row.indexOf('needsRepair') < row.indexOf('updateAvailable'),
-    'repair is checked before update, so unusable data never reads "Update available"',
+    status.indexOf('needsRepair') < status.indexOf('updateAvailable'),
+    'repair is checked before update, so unusable data never reads "Map update available"',
   );
 });
 

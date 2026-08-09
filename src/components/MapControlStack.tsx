@@ -18,10 +18,24 @@
  *    underneath, with solid fallbacks;
  *  - no permanent zoom buttons on touch: pinch is the gesture, and MapLibre's
  *    own navigation control is added only for fine pointers (see MapView).
+ *
+ * CAPTIONS ARE FOR NON-DEFAULT STATES ONLY. A caption that is always present
+ * is not state, it is decoration — and it costs real geometry: the caption
+ * sits inside the 44px box, so a captioned control's glyph rides ~6px above
+ * an uncaptioned one's and the column loses its optical rhythm. So: no
+ * caption on the default terrain basemap ("Sat" only when satellite is on),
+ * and no caption on idle tracking ("On"/"Hold" only while a session runs,
+ * where the text is the only non-colour carrier of a three-way state).
  */
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { Crosshair, Layers, Maximize, Navigation } from 'lucide-react';
 import type { ImageryMode } from './MapView';
+import { useCombinedArchiveStatus } from './OfflineMapCard';
+import {
+  CONTOURS_ARCHIVE,
+  SATELLITE_ARCHIVE,
+  TERRAIN_ARCHIVE,
+} from '../map/offlineMap';
 
 export function MapControlStack({
   stackRef,
@@ -59,6 +73,21 @@ export function MapControlStack({
   const [layersOpen, setLayersOpen] = useState(false);
   const layersRef = useRef<HTMLButtonElement>(null);
 
+  // Optional map data, read from the SAME archive-status hook the Settings →
+  // Offline maps cards render, so the two surfaces can never disagree about
+  // what is on the device.
+  const relief = useCombinedArchiveStatus([TERRAIN_ARCHIVE, CONTOURS_ARCHIVE]);
+  const satellite = useCombinedArchiveStatus([SATELLITE_ARCHIVE]);
+  // A quiet standing fact, not a fault: the default basemap is complete and
+  // usable without either of these. It is therefore a small glacier dot (the
+  // "cool / technical / spatial" role), never a warning tone, and it is
+  // suppressed while the probes are still running so the map never blinks a
+  // marker at a hiker on the way to the truth.
+  const optionalMissing =
+    !relief.checking &&
+    !satellite.checking &&
+    (!relief.downloaded || !satellite.downloaded);
+
   // Live tracking has three states, and each one needs its own verb.
   const trackingLabel = !trackingActive
     ? 'Start live tracking'
@@ -75,18 +104,26 @@ export function MapControlStack({
           className="map-ctrl"
           aria-haspopup="true"
           aria-expanded={layersOpen}
-          aria-label="Choose map layer"
+          // The dot is decorative; the fact it carries belongs in the name, so
+          // it is never colour-only for anyone.
+          aria-label={
+            optionalMissing
+              ? 'Choose map layer — some optional map data is not downloaded'
+              : 'Choose map layer'
+          }
           onClick={() => setLayersOpen((o) => !o)}
         >
           <Layers size={20} strokeWidth={1.9} aria-hidden />
-          <span className="map-ctrl__caption">
-            {imagery === 'satellite' ? 'Sat' : 'Terr'}
-          </span>
+          {imagery === 'satellite' ? (
+            <span className="map-ctrl__caption">Sat</span>
+          ) : null}
+          {optionalMissing ? <span className="map-ctrl__dot" aria-hidden /> : null}
         </button>
         {layersOpen ? (
           <LayerPopover
             imagery={imagery}
             satelliteAvailable={satelliteAvailable}
+            reliefDownloaded={relief.downloaded}
             anchorRef={layersRef}
             onChoose={(mode) => {
               onImageryChange(mode);
@@ -129,9 +166,12 @@ export function MapControlStack({
         onClick={trackingActive ? onResumeFollow : onStartTracking}
       >
         <Navigation size={19} strokeWidth={1.9} aria-hidden />
-        <span className="map-ctrl__caption">
-          {!trackingActive ? 'Live' : following ? 'On' : 'Hold'}
-        </span>
+        {/* Idle needs no word — the arrow and the accessible name already say
+            "start tracking". A RUNNING session does: On vs Hold is a real
+            distinction that must not rest on colour alone. */}
+        {trackingActive ? (
+          <span className="map-ctrl__caption">{following ? 'On' : 'Hold'}</span>
+        ) : null}
       </button>
     </div>
   );
@@ -150,12 +190,17 @@ export function MapControlStack({
 function LayerPopover({
   imagery,
   satelliteAvailable,
+  reliefDownloaded,
   anchorRef,
   onChoose,
   onClose,
 }: {
   imagery: ImageryMode;
   satelliteAvailable: boolean;
+  /** Terrain relief (hillshade + contours) — an optional enhancement to the
+   *  terrain basemap, not a separate mode. Its absence is worth saying here
+   *  because this popover is where the dot on the control sends the user. */
+  reliefDownloaded: boolean;
   anchorRef: RefObject<HTMLButtonElement>;
   onChoose: (mode: ImageryMode) => void;
   onClose: () => void;
@@ -163,13 +208,23 @@ function LayerPopover({
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const options: { mode: ImageryMode; name: string; note: string; disabled: boolean }[] = [
-    { mode: 'terrain', name: 'Terrain', note: 'Offline Nordic basemap', disabled: false },
+    {
+      mode: 'terrain',
+      // The basemap itself is always there; only the relief on top is
+      // optional, so the note says which of the two is missing rather than
+      // implying the map does not work.
+      name: 'Terrain',
+      note: reliefDownloaded
+        ? 'Offline Nordic basemap with relief'
+        : 'Offline Nordic basemap · relief not downloaded',
+      disabled: false,
+    },
     {
       mode: 'satellite',
       name: 'Satellite',
       // Unavailable satellite is explained right here, in one line — no
       // second surface, and no permanent banner on the map.
-      note: satelliteAvailable ? 'Offline Sentinel-2 imagery' : 'Download in Settings first',
+      note: satelliteAvailable ? 'Offline Sentinel-2 imagery' : 'Not downloaded',
       disabled: !satelliteAvailable,
     },
   ];
@@ -243,6 +298,15 @@ function LayerPopover({
           <span className="map-popover__note">{o.note}</span>
         </button>
       ))}
+      {/* One resolution pointer for both optional archives, instead of
+          repeating "download this in Settings" on every option that happens
+          to be missing. Said once, calmly, and only when there is something
+          to resolve. */}
+      {!reliefDownloaded || !satelliteAvailable ? (
+        <span className="map-popover__foot">
+          Add optional map data in Settings → Offline maps.
+        </span>
+      ) : null}
     </div>
   );
 }

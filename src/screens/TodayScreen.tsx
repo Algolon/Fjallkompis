@@ -5,7 +5,6 @@ import { TodayOnRoute } from '../components/TodayOnRoute';
 import { resolveTodayArrivalStay } from '../plan/todayArrivalStay.mjs';
 import type { NavTarget } from '../components/TabBar';
 import type { LatLng, ShopCategory, TransportContext } from '../types';
-import type { SettingsDeepLinkSection } from './SettingsScreen';
 
 /**
  * Lists-era section ids — still the deep-link payload vocabulary for the
@@ -62,8 +61,6 @@ export interface NavPayload {
   guideReversedStageIds?: string[];
   /** Lists: one-shot deep link into a sub-section (from a Stop's chips). */
   lists?: ListsDeepLink;
-  /** Settings: one-shot deep link opening a section (Trail readiness). */
-  settings?: { section: SettingsDeepLinkSection };
   /**
    * Map: one-shot "View on map" focus for an experience (from Stages). Geometry
    * comes only from VERIFIED sources — a point, an owner GPX detour route, or the

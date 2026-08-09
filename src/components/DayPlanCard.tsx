@@ -67,10 +67,11 @@ export function DayPlanCard({
     return (
       <>
         <RecoveryNotice />
-        <p className="card-sub" style={{ marginTop: 0 }}>
-          Plan what happens on each day of your journey. Route stages, guides
-          and route data never change.
-        </p>
+        {/* ONE explanation. The screen header already says what a Day plan is
+            for; this says only what picking a date actually does. It used to
+            be three blocks — header, a paragraph above the field and a
+            paragraph below it — all restating each other around a single
+            input. */}
         <DateField
           label="First day of your journey"
           dialogTitle="First day of your journey"
@@ -79,8 +80,8 @@ export function DayPlanCard({
           style={{ marginTop: 12 }}
         />
         <p className="card-sub" style={{ marginTop: 8 }}>
-          Choosing a date creates a plan with one stage per day. You can then
-          add travel and rest days, and change where each hiking day ends.
+          Creates a plan with one stage per day. You can add travel and rest
+          days afterwards, and change where each day ends.
         </p>
       </>
     );
@@ -112,7 +113,7 @@ export function DayPlanCard({
       <div className="dayplan-journey-toggle">
         <span className="dayplan-journey-toggle__copy">
           <strong>Use Day plan on Today</strong>
-          <span>Show your planned calendar days instead of the generic seven-stage journey.</span>
+          <span>Today follows your dates instead of the seven route stages.</span>
           {dayPlan.journeyActive ? <em>Currently used by Today.</em> : null}
         </span>
         <button

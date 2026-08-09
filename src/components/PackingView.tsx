@@ -431,11 +431,20 @@ export function PackingView() {
           <div className="meter-fill" style={{ width: `${stats.percent}%` }} />
         </div>
         <div className="row" style={{ marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
+          {/* Same rule as the Plan home summary: the warning is for a pack
+              being closed with essentials left behind, not for a list nobody
+              has started, where it only restated the size of the job in an
+              alarm tone. Before the first item is packed the count is stated
+              plainly; the warning arrives once packing is under way. */}
           {stats.essentialNotPacked > 0 ? (
-            <span className="pill pill-warn">
-              <TriangleAlert size={12} strokeWidth={2.2} aria-hidden />
-              {stats.essentialNotPacked} essential not packed
-            </span>
+            stats.packed > 0 ? (
+              <span className="pill pill-warn">
+                <TriangleAlert size={12} strokeWidth={2.2} aria-hidden />
+                {stats.essentialNotPacked} essential not packed
+              </span>
+            ) : (
+              <span className="pill">{stats.essentialNotPacked} essentials to pack</span>
+            )
           ) : (
             <span className="pill pill-good">All essentials packed</span>
           )}
@@ -473,7 +482,12 @@ export function PackingView() {
           why the pills deliberately overlap on partially worn rows). Worn
           appears once the first unit is worn: until then the row is exactly
           the old one. */}
-      <div className="stage-chips" role="group" aria-label="Filter packing items" style={{ marginTop: 14 }}>
+      <div
+        className="stage-chips stage-chips--wrap"
+        role="group"
+        aria-label="Filter packing items"
+        style={{ marginTop: 14 }}
+      >
         {(['all', 'needed', 'ready', 'packed', 'worn'] as Filter[])
           .filter((f) => f !== 'worn' || stats.worn > 0 || filter === 'worn')
           .map((f) => (
@@ -552,12 +566,25 @@ export function PackingView() {
                       className={`pack-label ${state === 'packed' || state === 'worn' ? 'is-packed' : ''}`}
                     >
                       {item.label}
-                      {item.essential ? (
-                        <span className="pack-essential" title="Essential">
-                          ●
-                        </span>
-                      ) : null}
-                      <span className="pack-sub tnum">{sub}</span>
+                      {/* Was a bare "●" whose only explanation was a `title`
+                          tooltip: invisible on touch, where there is no
+                          hover, and carried by colour + shape alone. It is
+                          now the word itself — visible to everyone, read by
+                          assistive tech as part of the row, and legible with
+                          no colour perception at all.
+
+                          It sits on the metadata line rather than after the
+                          item name on purpose: appended to the name it pushed
+                          longer names onto a second line, growing every row
+                          of a 74-item list. This line is usually short or
+                          empty, so the word costs no height. */}
+                      <span className="pack-sub tnum">
+                        {item.essential ? (
+                          <span className="pack-essential">Essential</span>
+                        ) : null}
+                        {item.essential && sub ? ' · ' : ''}
+                        {sub}
+                      </span>
                     </span>
                     <button
                       className="pack-edit"

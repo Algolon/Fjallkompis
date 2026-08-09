@@ -73,7 +73,10 @@ test('choosing a scope moves the map only — never the persisted stage', () => 
 
 test('the stack holds four controls, with locate and tracking SEPARATE', () => {
   assert.match(stack, /aria-label="Map controls"/);
-  assert.match(stack, /aria-label="Choose map layer"/);
+  // The layers control's accessible name gains a clause when optional map
+  // data is absent, so the dot beside the glyph is never the only carrier.
+  assert.match(stack, /'Choose map layer — some optional map data is not downloaded'/);
+  assert.match(stack, /: 'Choose map layer'/);
   assert.match(stack, /aria-label=\{fitLabel\}/);
   // One-shot locate…
   assert.match(stack, /aria-label=\{locating \? 'Locating your position' : 'Locate me'\}/);
@@ -154,13 +157,55 @@ test('every cockpit control is at least a 44px target with a focus ring', () => 
 });
 
 test('state never rests on colour alone', () => {
-  // Layer: a caption next to the icon, plus the checked state in the popover.
-  assert.match(stack, /\{imagery === 'satellite' \? 'Sat' : 'Terr'\}/);
+  // Captions are for NON-DEFAULT states only. A caption on every control in
+  // every state is decoration, and it costs geometry: the caption sits inside
+  // the 44px box, so a captioned control's glyph rode ~6px above an
+  // uncaptioned one's and the column lost its optical rhythm.
+  //
+  // Layer: no caption on the default terrain basemap; "Sat" identifies the
+  // non-default one. The checked state is in the popover either way.
+  assert.match(stack, /\{imagery === 'satellite' \? \(\s*<span className="map-ctrl__caption">Sat<\/span>\s*\) : null\}/);
   assert.match(stack, /aria-checked=\{imagery === o\.mode\}/);
-  // Tracking: three distinct captions and three distinct accessible names.
-  assert.match(stack, /\{!trackingActive \? 'Live' : following \? 'On' : 'Hold'\}/);
+  assert.ok(!/'Terr'/.test(stack), 'the always-on default-state caption is gone');
+  // Tracking: idle needs no word (the arrow and the accessible name say
+  // "start"), but a RUNNING session has a three-way state, so On vs Hold
+  // stays in text — it must never rest on colour.
+  assert.match(stack, /\{trackingActive \? \(\s*<span className="map-ctrl__caption">\{following \? 'On' : 'Hold'\}<\/span>\s*\) : null\}/);
+  assert.ok(!/'Live'/.test(stack), 'the idle caption is gone');
+  // All three accessible names survive regardless of caption.
+  assert.match(stack, /aria-label=\{trackingLabel\}/);
   // The live pill states its route status in words.
   assert.match(pill, /\{pill\.state\}/);
+});
+
+test('uncaptioned controls centre their glyph, so the column keeps one rhythm', () => {
+  const ctrl = block('.map-ctrl');
+  assert.match(ctrl, /justify-content: center/);
+  // Captions render conditionally rather than as an always-present empty
+  // node, so a captionless control has nothing to offset its icon against.
+  assert.ok(
+    !/<span className="map-ctrl__caption">\s*\{[^}]*\?[^}]*:\s*''\s*\}/.test(stack),
+    'no empty-string caption is rendered to preserve a slot',
+  );
+});
+
+test('missing optional map data is a quiet standing fact, not an error', () => {
+  // A dot on the Layers control, driven by the SAME archive-status hook the
+  // Settings → Offline maps cards read, so the two can never disagree.
+  assert.match(stack, /useCombinedArchiveStatus\(\[TERRAIN_ARCHIVE, CONTOURS_ARCHIVE\]\)/);
+  assert.match(stack, /useCombinedArchiveStatus\(\[SATELLITE_ARCHIVE\]\)/);
+  assert.match(stack, /const optionalMissing =/);
+  // Suppressed while the probes run, so the map never blinks a marker on the
+  // way to the truth…
+  assert.match(stack, /!relief\.checking &&\s*!satellite\.checking/);
+  // …and it disappears once the data is there.
+  assert.match(stack, /\(!relief\.downloaded \|\| !satellite\.downloaded\)/);
+  assert.match(stack, /\{optionalMissing \? <span className="map-ctrl__dot" aria-hidden \/> : null\}/);
+  // The default basemap remains fully usable, so the dot must not use a
+  // warning tone — glacier is the cool/technical/spatial role.
+  const dot = block('.map-ctrl__dot');
+  assert.match(dot, /background: var\(--glacier\)/);
+  assert.ok(!/--danger/.test(dot), 'never a warning colour for a working map');
 });
 
 // ---- 3. Layers popover (NOT a sheet) ----------------------------------------
@@ -204,7 +249,12 @@ test('the popover closes every way it should, and gives focus back', () => {
 
 test('unavailable satellite stays listed, disabled, and explained in one line', () => {
   assert.match(stack, /disabled: !satelliteAvailable/);
-  assert.match(stack, /'Download in Settings first'/);
+  assert.match(stack, /'Not downloaded'/);
+  // Layers stays the place where the user SEES what is missing and learns
+  // where to resolve it — said once for both optional archives, not repeated
+  // per option.
+  assert.match(stack, /relief not downloaded/);
+  assert.match(stack, /Add optional map data in Settings → Offline maps\./);
   assert.match(block('.map-popover__option'), /min-height: 44px/);
   // …and nothing permanent is reserved on the map for it.
   assert.ok(

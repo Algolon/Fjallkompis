@@ -176,15 +176,10 @@ function Screens({
           return <PlanScreen onOpenSection={(s) => openSection('plan', s)} />;
       }
     case 'settings':
-      // Today Prepare's readiness card deep-links to the Trail readiness
-      // section (same one-shot payload pattern as Guide/Plan sections).
-      // Settings navigates OUT for exactly one thing: nothing anymore —
-      // the Day plan (and its Preview) moved to Plan.
-      return (
-        <SettingsScreen
-          initialSection={nav.payload?.settings?.section ?? null}
-        />
-      );
+      // No deep link in or out: every section opens collapsed. (The Day plan
+      // and its Preview moved to Plan; the Trail readiness panel that was the
+      // only deep-link target is gone — Offline maps owns map readiness.)
+      return <SettingsScreen />;
   }
 }
 

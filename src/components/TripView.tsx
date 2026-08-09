@@ -545,7 +545,7 @@ export function TripView({
             <Luggage size={30} strokeWidth={1.6} aria-hidden />
           </div>
           <p>
-            Organize your stays and transport here. Everything is stored on this
+            Organise your stays and transport here. Everything is stored on this
             device and stays available offline on the trail — tickets and
             bookings can be attached to the plans they belong to.
           </p>
@@ -595,11 +595,10 @@ export function TripView({
           <div className="glyph">
             <FileText size={30} strokeWidth={1.6} aria-hidden />
           </div>
-          <p>
-            Add and organize your bookings, tickets and other travel documents.
-            They are stored on this device and stay available offline on the
-            trail.
-          </p>
+          {/* Action only. The screen header above already states that Wallet
+              documents are kept on this device and available offline; saying
+              it again here was the same two facts twice in one viewport. */}
+          <p>Add your bookings, tickets and other travel documents.</p>
           <button
             className="btn btn-primary"
             style={{ marginTop: 14 }}

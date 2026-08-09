@@ -92,8 +92,10 @@ test('weights follow the Lists convention: lower bounds and no false zeroes', ()
 test('the essentials warning is conditional and uses the existing concept', () => {
   // essentialNotPacked is packingSummary's EXISTING definition; the warning
   // renders only when it is non-zero — no reserved dead space, no new
-  // classification.
-  assert.match(plan, /packing\.essentialNotPacked > 0 \? \(/);
+  // classification. It ALSO requires packed > 0: on an untouched list the
+  // count is the size of the job, not a fault, and an alarm-toned pill there
+  // scolded the user for arriving.
+  assert.match(plan, /packing\.essentialNotPacked > 0 && packing\.packed > 0 \? \(/);
   assert.match(plan, /essential\s*\n?\s*\{packing\.essentialNotPacked === 1 \? '' : 's'\} still to pack/);
   assert.ok(!plan.includes('essentialsMissing'), 'no parallel concept');
 });
@@ -104,12 +106,28 @@ test('empty states support the user instead of showing zeros', () => {
       'Build your packing list and track what is ready, packed and\n              carried.',
     ) || /Build your packing list and track what is ready, packed and\s+carried\./.test(plan),
   );
-  assert.match(plan, /Organize your stays and transport here\./);
-  assert.match(plan, /Add and organize your bookings, tickets and other travel\s+documents\./);
+  assert.match(plan, /Organise your stays and transport here\./);
+  assert.match(plan, /Add and organise your bookings, tickets and other travel\s+documents\./);
 });
 
-test('the header says where the data lives — and no cloud or account exists', () => {
-  assert.match(plan, /stored on this\s+device/);
+test('the progress column lists only states that have items in them', () => {
+  // "74 Needed / 0 Ready / 0 Packed" is a database row, not progress. Each
+  // non-needed count renders only once it is non-zero; the accessible name
+  // still states every count, so assistive tech loses nothing.
+  assert.match(plan, /\{packing\.ready > 0 \? \(/);
+  assert.match(plan, /\{packing\.packed > 0 \? \(/);
+  assert.match(plan, /\$\{packing\.needed\} needed, \$\{packing\.ready\} ready, \$\{packing\.packed\} packed/);
+});
+
+test('the local-first fact is stated where it is actionable — and no cloud or account exists', () => {
+  // The Plan home intro is now the agreed one-line sentence and carries no
+  // storage clause; the fact lives on Wallet, which is the screen that holds
+  // the files a user could lose.
+  assert.match(
+    plan,
+    /Plan your days, pack your gear and keep travel details and documents\s+close\./,
+  );
+  assert.match(plan, /kept on this device\s+and available offline/);
   for (const forbidden of [/cloud/i, /account/i, /\bsync/i, /sign.?in/i, /log.?in/i]) {
     assert.ok(!forbidden.test(planCode), `no ${forbidden} concept on Plan`);
   }

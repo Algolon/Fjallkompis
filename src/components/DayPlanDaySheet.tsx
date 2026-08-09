@@ -554,9 +554,10 @@ function LegEditor({
 
   return (
     <>
-      <span className="section-label">
-        Route legs — walked in this exact order
-      </span>
+      {/* The list is already ordered and numbered; it does not need a heading
+          asserting that the order is meaningful. "Route legs — walked in this
+          exact order" described the data structure to the user. */}
+      <span className="section-label">Walking this day</span>
       <ol className="dayplan-legs">
         {day.legs.map((leg, i) => {
           const note = occurrenceNote(leg);

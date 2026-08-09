@@ -1,12 +1,14 @@
 /**
- * Settings hierarchy after integrating PR #53 (Trail-readiness foldout +
- * simplified beta feedback) with the route-direction feature.
+ * Settings hierarchy.
  *
- * Source-text contracts (matching the repo's other Settings guard tests). They
- * pin the follow-up decisions: Route direction is the FIRST, default-open
- * section; the eyebrow/intro were rewritten; the old standalone foldout note
- * was removed; and the PR #53 behaviours (readiness foldout collapsed by
- * default, Google Forms button, diagnostics gone) are preserved.
+ * Source-text contracts (matching the repo's other Settings guard tests).
+ * They pin: Route direction is the FIRST section and, like every other, is
+ * collapsed on load; the header eyebrow and intro; and that the retired
+ * beta-era surfaces stay retired.
+ *
+ * The Trail-readiness and Install foldouts that used to sit here were removed
+ * in the v1 UX finishing pass — tests/settings-beta-readiness.test.mjs owns
+ * the contracts for their removal.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,16 +25,13 @@ const render = settings.slice(settings.indexOf('export function SettingsScreen')
 
 // ---- Route direction is first and the sole open section ---------------------
 
-test('Route direction is the first configurable section, before Trail readiness', () => {
+test('Route direction is the first configurable section', () => {
   const iDir = render.indexOf('id="direction"');
-  const iReady = render.indexOf('<TrailReadinessCard');
   const iGrid = render.indexOf('settings-grid--accordions');
   assert.ok(iDir > 0, 'Route direction accordion is rendered');
-  assert.ok(iDir < iReady, 'Route direction renders before Trail readiness');
-  // The Beta feedback card that used to sit between readiness and the grid
-  // is retired (see settings-beta-readiness.test.mjs) — readiness now hands
-  // over directly to the grouped foldouts.
-  assert.ok(iReady < iGrid, 'Trail readiness renders before the grouped foldouts');
+  // Trail readiness and Beta feedback used to sit between the two; Route
+  // direction now hands over directly to the grouped foldouts.
+  assert.ok(iDir < iGrid, 'Route direction renders before the grouped foldouts');
 });
 
 test('Route direction lives in the accordion/card system and is not duplicated', () => {
@@ -48,12 +47,6 @@ test('every section starts collapsed on load, Route direction included', () => {
   // Route direction is collapsed by default like the rest — no default-open,
   // visually dominant section.
   assert.match(settings, /const \[directionOpen, setDirectionOpen\] = useState\(false\)/);
-  // Collapsed unless the one-shot Today-Prepare deep link targets it; plain
-  // navigation passes no payload, so initialSection is null → collapsed.
-  assert.match(
-    settings,
-    /const \[readinessOpen, setReadinessOpen\] = useState\(initialSection === 'readiness'\)/,
-  );
   assert.match(
     settings,
     /const \[openSection, setOpenSection\] = useState<SettingsSection \| null>\(null\)/,
@@ -76,35 +69,38 @@ test('the collapsed Route direction summary shows the current direction', () => 
 });
 
 test('accordion open states stay independent and predictable', () => {
-  // Route direction and Trail readiness each own their boolean; the grid uses a
-  // single-open group. Toggling one never implicitly opens another.
+  // Route direction owns its own boolean; the grid uses a single-open group.
+  // Toggling one never implicitly opens another.
   assert.match(render, /onToggle=\{\(\) => setDirectionOpen\(\(current\) => !current\)\}/);
-  assert.match(render, /onToggle=\{\(\) => setReadinessOpen\(\(current\) => !current\)\}/);
-  assert.match(render, /onToggle=\{\(\) => toggleSection\('install'\)\}/);
+  assert.match(render, /onToggle=\{\(\) => toggleSection\('maps'\)\}/);
 });
 
 // ---- Header eyebrow + introductory copy -------------------------------------
 
-test('the eyebrow is exactly "Trail readiness" (renders TRAIL READINESS, uppercased)', () => {
-  assert.match(settings, /eyebrow="Trail readiness"/);
+test('the eyebrow names what the screen is about, not one of its sections', () => {
+  // It used to read "Trail readiness" — the name of a section BELOW it, which
+  // also made the screen look like a readiness dashboard. Every other tab's
+  // eyebrow names the tab's subject; Settings' subject is this device.
+  assert.match(settings, /eyebrow="This device"/);
   assert.ok(!/Beta trust/i.test(settings), 'the old "Beta trust" framing is gone');
 });
 
-test('the new introductory copy explains Settings and carries the interaction cue', () => {
+test('the introductory copy says what is in Settings, without teaching the UI', () => {
   assert.match(
     settings,
-    /Adjust app settings to tailor Fjallkompis to your trip and how you use\s+it\. Tap a section to expand its options\./,
+    /Route direction, offline maps, backups and what Fjallkompis stores on\s+this device\./,
   );
   // The old beta/offline-only intro is gone.
   assert.ok(
     !/Check whether this device is ready for offline testing/.test(settings),
     'old offline-testing intro removed',
   );
-});
-
-test('the interaction cue appears exactly once, in the header intro', () => {
-  const cues = (settings.match(/section to expand its options/gi) ?? []).length;
-  assert.equal(cues, 1, 'the "expand its options" cue is not repeated further down');
+  // "Tap a section to expand its options" instructed the user in how to
+  // operate a visible, chevroned accordion.
+  assert.ok(
+    !/section to expand its options/i.test(settings),
+    'the interaction cue is gone — the chevrons carry it',
+  );
 });
 
 // ---- The intermediate explanatory block is removed --------------------------
@@ -148,17 +144,6 @@ test('the Trail-readiness manual-reminder note and its CSS are removed', () => {
 });
 
 // ---- PR #53 behaviours preserved through the reorder ------------------------
-
-test('Trail readiness stays a foldout: accordion, collapsed by default, score in header', () => {
-  assert.match(settings, /<SettingsAccordion[\s\S]*?title="Trail readiness"[\s\S]*?aside=\{score\}/);
-  // Collapsed unless the one-shot Today-Prepare deep link targets it; plain
-  // navigation passes no payload, so initialSection is null → collapsed.
-  assert.match(
-    settings,
-    /const \[readinessOpen, setReadinessOpen\] = useState\(initialSection === 'readiness'\)/,
-  );
-  assert.match(settings, /const score = \(\s*<span className="readiness-score">/);
-});
 
 test('the beta feedback entry is retired entirely — no form or GitHub route', () => {
   assert.ok(!/BETA_FORM_URL/.test(settings), 'form URL constant removed');

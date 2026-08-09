@@ -42,7 +42,14 @@ test('the Day plan lives under Plan (vNext) and left Settings entirely', () => {
 
 test('the Day plan has one accessible persistent Today switch only when a plan exists', () => {
   assert.match(card, /Use Day plan on Today/);
-  assert.match(card, /Show your planned calendar days instead of the generic seven-stage journey\./);
+  // Wording only: the switch's BEHAVIOUR and default are unchanged (a new
+  // plan is still inactive until the user turns it on). "the generic
+  // seven-stage journey" described the app's own data model to the user.
+  assert.match(card, /Today follows your dates instead of the seven route stages\./);
+  assert.ok(
+    !/generic seven-stage journey/.test(card),
+    'the implementation phrasing does not return',
+  );
   assert.match(card, /role="switch"/);
   assert.match(card, /aria-checked=\{dayPlan\.journeyActive\}/);
   assert.match(card, /setDayPlanJourneyActive\(!dayPlan\.journeyActive\)/);
@@ -94,10 +101,17 @@ test('the feature is never named Itinerary, Trip plan, Journey or Schedule', () 
   assert.match(copy, /Stay no longer in your Trip plan/);
 });
 
-test('the supporting copy is the agreed sentence', () => {
-  assert.match(
-    card,
-    /Plan what happens on each day of your journey\. Route stages, guides\s*\n?\s*and route data never change\./,
+test('the empty state explains itself exactly once', () => {
+  // There used to be THREE consecutive explanations around a single date
+  // field: the screen header, a paragraph above the field and a paragraph
+  // below it, all restating that picking a date builds a plan of days. The
+  // header keeps the "what it is"; this keeps the "what the date does".
+  const noPlan = card.slice(card.indexOf('if (!dayPlan) {'), card.indexOf('const lastDay'));
+  const paragraphs = noPlan.match(/<p className="card-sub"/g) ?? [];
+  assert.equal(paragraphs.length, 1, 'exactly one explanatory paragraph in the empty state');
+  assert.ok(
+    !/Plan what happens on each day of your journey/.test(card),
+    'the duplicate paragraph above the field is gone',
   );
 });
 
@@ -111,7 +125,7 @@ test('no new navigation destination or route is added', () => {
 test('with no plan the card invites one and states nothing exists yet', () => {
   assert.match(card, /if \(!dayPlan\) \{/);
   assert.match(card, /label="First day of your journey"/);
-  assert.match(card, /Choosing a date creates a plan with one stage per day/);
+  assert.match(card, /Creates a plan with one stage per day/);
   // The collapsed invitation now lives on the Plan home's Day plan row.
   assert.match(
     read('src/screens/PlanScreen.tsx'),
