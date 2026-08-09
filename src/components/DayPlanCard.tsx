@@ -95,7 +95,42 @@ export function DayPlanCard({
   return (
     <>
       <RecoveryNotice />
-      <div className="row-between" style={{ marginTop: 0 }}>
+
+      {/* ACTIVATION FIRST. Having a plan and showing it on Today are two
+          different decisions, and this is the one the user cannot guess:
+          creating a plan deliberately does NOT activate it (see
+          effectiveToday.mjs — the generic route stays the default until the
+          user asks for their own days). It therefore leads the populated
+          surface, on its own card, ABOVE the summary and Edit controls it
+          used to sit under. Nothing else changed about when a plan activates.
+
+          The supporting line states what is true RIGHT NOW and differs
+          between the two states. It previously read "Today follows your dates
+          …" in BOTH, which in the off state described behaviour the user was
+          not getting. */}
+      <div className="dayplan-journey-toggle">
+        <span className="dayplan-journey-toggle__copy">
+          <strong>Use this plan on Today</strong>
+          <span className="dayplan-journey-toggle__state">
+            {dayPlan.journeyActive
+              ? 'Today is using this plan.'
+              : 'Today is showing the standard route.'}
+          </span>
+        </span>
+        <button
+          type="button"
+          className="setting-switch"
+          role="switch"
+          aria-checked={dayPlan.journeyActive}
+          aria-label="Use this plan on Today"
+          onClick={() => setDayPlanJourneyActive(!dayPlan.journeyActive)}
+        >
+          <span className="setting-switch__thumb" aria-hidden />
+          <span className="sr-only">{dayPlan.journeyActive ? 'On' : 'Off'}</span>
+        </button>
+      </div>
+
+      <div className="row-between" style={{ marginTop: 14 }}>
         <span className="card-sub" style={{ marginTop: 0 }}>
           {plannedDays.length} days
           {firstLabel && lastLabel ? ` · ${firstLabel} – ${lastLabel}` : ''}
@@ -107,25 +142,6 @@ export function DayPlanCard({
           aria-pressed={editing}
         >
           {editing ? 'Done' : 'Edit plan'}
-        </button>
-      </div>
-
-      <div className="dayplan-journey-toggle">
-        <span className="dayplan-journey-toggle__copy">
-          <strong>Use Day plan on Today</strong>
-          <span>Today follows your dates instead of the seven route stages.</span>
-          {dayPlan.journeyActive ? <em>Currently used by Today.</em> : null}
-        </span>
-        <button
-          type="button"
-          className="setting-switch"
-          role="switch"
-          aria-checked={dayPlan.journeyActive}
-          aria-label="Use Day plan on Today"
-          onClick={() => setDayPlanJourneyActive(!dayPlan.journeyActive)}
-        >
-          <span className="setting-switch__thumb" aria-hidden />
-          <span className="sr-only">{dayPlan.journeyActive ? 'On' : 'Off'}</span>
         </button>
       </div>
 

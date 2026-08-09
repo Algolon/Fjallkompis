@@ -5802,15 +5802,34 @@ span.trip-attach-open {
   flex-direction: column;
 }
 
+/* The activation control leads the populated Day plan. It was a bare row
+   between two hairlines, sitting on the Plan backdrop's contour lines below
+   the Edit controls — the least prominent thing on the surface, despite being
+   the only decision a user cannot infer.
+
+   It now carries the SAME surface as the day rows beneath it (.dayplan-day):
+   paper-2 with a hairline and the small radius. Deliberately not the
+   .today-glass material — those tokens are scoped to .today-screen /
+   .guide-screen / .plan-screen, and this is the .screen--plan-section
+   sub-route, where --glass-fill-light is undefined and the "card" would
+   render fully transparent. */
 .dayplan-journey-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 14px;
-  padding: 11px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  margin-top: 0;
+  padding: 12px 14px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+/* Active: the surface itself confirms the state, so the answer survives a
+   glance without reading the switch. Spruce is the brand/active-state role;
+   it is not a success or warning signal. */
+.dayplan-journey-toggle:has(.setting-switch[aria-checked='true']) {
+  background: var(--paper-bright);
+  border-color: var(--spruce);
 }
 .dayplan-journey-toggle__copy {
   display: flex;
@@ -5824,10 +5843,13 @@ span.trip-attach-open {
   font-size: 14px;
   color: var(--ink);
 }
-.dayplan-journey-toggle__copy em {
-  color: var(--spruce-700);
-  font-style: normal;
-  font-weight: 700;
+/* The current state, not a description of the feature — so it carries ink a
+   step stronger than the surrounding support text. Deliberately NOT a
+   colour-coded or warning treatment: this switch is reversible and neither
+   state is a fault. */
+.dayplan-journey-toggle__state {
+  color: var(--ink-soft);
+  font-weight: 600;
 }
 .setting-switch {
   position: relative;

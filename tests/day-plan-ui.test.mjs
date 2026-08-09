@@ -41,11 +41,13 @@ test('the Day plan lives under Plan (vNext) and left Settings entirely', () => {
 });
 
 test('the Day plan has one accessible persistent Today switch only when a plan exists', () => {
-  assert.match(card, /Use Day plan on Today/);
-  // Wording only: the switch's BEHAVIOUR and default are unchanged (a new
-  // plan is still inactive until the user turns it on). "the generic
-  // seven-stage journey" described the app's own data model to the user.
-  assert.match(card, /Today follows your dates instead of the seven route stages\./);
+  // The control names the two things it relates — THIS plan and Today —
+  // rather than the screen the user is already looking at ("Day plan").
+  assert.match(card, /Use this plan on Today/);
+  assert.ok(
+    !/Use Day plan on Today/.test(card),
+    'the old screen-naming label does not return',
+  );
   assert.ok(
     !/generic seven-stage journey/.test(card),
     'the implementation phrasing does not return',
@@ -53,10 +55,54 @@ test('the Day plan has one accessible persistent Today switch only when a plan e
   assert.match(card, /role="switch"/);
   assert.match(card, /aria-checked=\{dayPlan\.journeyActive\}/);
   assert.match(card, /setDayPlanJourneyActive\(!dayPlan\.journeyActive\)/);
-  assert.match(card, /Currently used by Today\./);
   assert.match(css, /\.setting-switch \{[^}]*height: 44px;/s);
   const noPlan = card.slice(card.indexOf('if (!dayPlan) {'), card.indexOf('const lastDay'));
   assert.ok(!noPlan.includes('role="switch"'), 'no switch exists until a plan exists');
+});
+
+test('the supporting line states the CURRENT state, and differs between the two', () => {
+  // It used to read "Today follows your dates instead of the seven route
+  // stages." in BOTH states — describing, in the off state, behaviour the
+  // user was not getting. The two sentences are now mutually exclusive.
+  assert.match(card, /'Today is using this plan\.'/);
+  assert.match(card, /'Today is showing the standard route\.'/);
+  assert.match(
+    card,
+    /dayPlan\.journeyActive\s*\?\s*'Today is using this plan\.'\s*:\s*'Today is showing the standard route\.'/,
+    'the sentence is chosen by the live state, not duplicated per branch',
+  );
+  // The old always-on description and the separate "Currently used by Today."
+  // line are both gone — the state line replaces them. Checked against CODE,
+  // not comments: the source comment explains what the old copy said, and
+  // should keep being allowed to.
+  const cardCode = card
+    .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(!/Today follows your dates/.test(cardCode));
+  assert.ok(!/Currently used by Today/.test(cardCode));
+});
+
+test('activation leads the populated plan, above the editing controls', () => {
+  // Having a plan and showing it on Today are distinct decisions, and this is
+  // the one a user cannot infer. It must not sit below "Edit plan" again.
+  const body = card.slice(card.indexOf('const lastDay'));
+  const activation = body.indexOf('dayplan-journey-toggle');
+  const edit = body.indexOf('Edit plan');
+  const list = body.indexOf('<ol className="dayplan"');
+  assert.ok(activation > -1 && edit > -1, 'both controls render');
+  assert.ok(activation < edit, 'the activation control renders before Edit plan');
+  assert.ok(edit < list, 'and the editing row still precedes the day list');
+});
+
+test('activation is a plain reversible switch — no dialog, no warning tone', () => {
+  // Nothing about turning this on or off is destructive or alarming.
+  const toggle = card.slice(card.indexOf('dayplan-journey-toggle'), card.indexOf('row-between'));
+  assert.ok(!/ConfirmDialog/.test(toggle), 'no confirmation for a reversible switch');
+  const rule = css.slice(
+    css.indexOf('.dayplan-journey-toggle {'),
+    css.indexOf('.dayplan-journey-toggle__copy'),
+  );
+  assert.ok(!/--danger/.test(rule), 'never a warning colour');
 });
 
 test('the planned-day chooser is modal, cancellable and separates selection from Preview', () => {
