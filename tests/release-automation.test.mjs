@@ -22,7 +22,14 @@ import {
   UPLOAD_KEY_SHA256,
   normaliseFingerprint,
 } from '../scripts/release-candidate.mjs';
-import { LEDGER_PATHS, appendToLedger, updateAndroidDoc } from '../scripts/close-release-ledger.mjs';
+import {
+  LEDGER_PATHS,
+  appendToLedger,
+  updateAndroidDoc,
+  currentReleaseLine,
+  versioningRows,
+  replaceMarkedSection,
+} from '../scripts/close-release-ledger.mjs';
 import { scrub, reportTrustClaims } from '../scripts/lib/google-auth.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -784,12 +791,174 @@ test('the ledger is only closed for a release Play actually accepted', () => {
   );
 });
 
-test('the generated ANDROID.md rows have somewhere to be generated into', () => {
+test('the generated ANDROID.md regions have somewhere to be generated into', () => {
   const doc = read('docs/ANDROID.md');
-  assert.ok(doc.includes('<!-- release-ledger:begin -->'), 'the begin marker exists');
-  assert.ok(doc.includes('<!-- release-ledger:end -->'), 'the end marker exists');
-  assert.ok(doc.indexOf('<!-- release-ledger:begin -->') < doc.indexOf('<!-- release-ledger:end -->'));
+  for (const marker of ['release-ledger', 'release-current']) {
+    const begin = `<!-- ${marker}:begin -->`;
+    const end = `<!-- ${marker}:end -->`;
+    assert.ok(doc.includes(begin), `${begin} exists`);
+    assert.ok(doc.includes(end), `${end} exists`);
+    assert.ok(doc.indexOf(begin) < doc.indexOf(end), `${marker} markers are ordered`);
+    assert.equal(doc.indexOf(begin, doc.indexOf(begin) + 1), -1, `${begin} appears once`);
+    assert.equal(doc.indexOf(end, doc.indexOf(end) + 1), -1, `${end} appears once`);
+  }
   assert.throws(() => updateAndroidDoc('no markers here', 'rows'), /missing the/);
+
+  // Both regions really are written by one call, and each lands in its own
+  // marker pair rather than one overwriting the other.
+  const rewritten = updateAndroidDoc(doc, 'ROWS-SENTINEL', 'CURRENT-SENTINEL');
+  assert.equal(markedSection(rewritten, 'release-ledger'), 'ROWS-SENTINEL');
+  assert.equal(markedSection(rewritten, 'release-current'), 'CURRENT-SENTINEL');
+});
+
+// --- The generated current-build statement -----------------------------------
+
+/** The text between one marker pair, as committed. */
+const markedSection = (doc, marker) => {
+  const begin = `<!-- ${marker}:begin -->`;
+  const end = `<!-- ${marker}:end -->`;
+  return doc.slice(doc.indexOf(begin) + begin.length, doc.indexOf(end)).trim();
+};
+
+test('the committed current-build line is exactly what the ledger generates', () => {
+  // The defect this closes: the status header stated the current build in
+  // prose, so it kept naming 2700005 after 2700006 shipped. It is now
+  // generated, and this is the assertion that stops it drifting again.
+  const doc = read('docs/ANDROID.md');
+  const ledger = readLedger(ledgerSource);
+  assert.equal(
+    markedSection(doc, 'release-current'),
+    currentReleaseLine(ledger),
+    'docs/ANDROID.md current-build line is stale — it is generated from android/release-ledger.json',
+  );
+});
+
+test('the current-build line cannot drift from the ledger high-water mark', () => {
+  const doc = read('docs/ANDROID.md');
+  const ledger = readLedger(ledgerSource);
+  const line = markedSection(doc, 'release-current');
+
+  // Whatever the sentence says, the number in it IS the fence.
+  const quoted = [...line.matchAll(/`(\d{7,})`/g)].map((m) => Number(m[1]));
+  assert.equal(quoted.length, 1, 'the line quotes exactly one versionCode');
+  assert.equal(quoted[0], ledger.highestConsumedVersionCode, 'and it is the high-water mark');
+  const latest = ledger.consumed[ledger.consumed.length - 1];
+  assert.equal(quoted[0], latest.versionCode, 'which is also the final consumed entry');
+
+  // Every field the line claims comes from that entry.
+  assert.ok(line.includes(`\`${latest.versionName}\``), 'versionName is the entry’s');
+  assert.ok(line.includes(`\`${latest.playTrack}\``), 'track is the entry’s');
+  assert.ok(line.includes(latest.acceptedOn), 'accepted date is the entry’s');
+
+  // A ledger whose last entry is not its fence must not be describable at all.
+  const inconsistent = { ...ledger, highestConsumedVersionCode: ledger.highestConsumedVersionCode + 1 };
+  assert.throws(() => currentReleaseLine(inconsistent), /not its high-water mark/);
+  assert.throws(() => currentReleaseLine({ consumed: [], highestConsumedVersionCode: 0 }), /records no accepted release/);
+});
+
+test('the generator yields the present release now, and the next one later', () => {
+  // Present: applying the generator to the committed ledger describes 2700006.
+  const ledger = readLedger(ledgerSource);
+  assert.match(currentReleaseLine(ledger), /versionCode `2700006`/);
+
+  // Later: a synthetic NEXT legitimate closure. The expected code is derived,
+  // never named — so releases after this one need no edit to this test.
+  const nextBuild = committedBuild() + 0; // the counter already points at the next build
+  const nextCode = expectedCode(JSON.parse(read('package.json')).version, nextBuild);
+  const advanced = appendToLedger(ledgerSource, {
+    versionCode: nextCode,
+    versionName: JSON.parse(read('package.json')).version,
+    androidBuild: nextBuild,
+    track: 'internal',
+    acceptedOn: '2026-09-01',
+    sourceSha: 'cafef00d',
+    workflowRunUrl: 'https://example.invalid/run',
+    note: 'synthetic next closure',
+  });
+  const line = currentReleaseLine(readLedger(advanced));
+  assert.ok(line.includes(`\`${nextCode}\``), `the next closure describes ${nextCode}`);
+  assert.ok(!line.includes(`\`${ledger.highestConsumedVersionCode}\``), 'and no longer describes the previous build');
+  assert.ok(line.includes('2026-09-01'), 'with the new acceptance date');
+
+  // And once more, so the mechanism is shown to advance repeatedly.
+  const twice = appendToLedger(advanced, {
+    versionCode: expectedCode(JSON.parse(read('package.json')).version, nextBuild + 1),
+    versionName: JSON.parse(read('package.json')).version,
+    androidBuild: nextBuild + 1,
+    track: 'internal',
+    acceptedOn: '2026-09-02',
+    sourceSha: 'deadbeef',
+    workflowRunUrl: 'https://example.invalid/run2',
+    note: 'synthetic closure after next',
+  });
+  assert.ok(currentReleaseLine(readLedger(twice)).includes(`\`${expectedCode(JSON.parse(read('package.json')).version, nextBuild + 1)}\``));
+});
+
+test('regenerating the document leaves the human-owned prose byte-stable', () => {
+  const doc = read('docs/ANDROID.md');
+  const ledger = readLedger(ledgerSource);
+  const pkgVersion = JSON.parse(read('package.json')).version;
+
+  // Regenerate BOTH regions with the values already committed: the document
+  // must come back byte-identical. If it does not, something outside the
+  // markers is being rewritten — which is the failure mode that would silently
+  // put the validation narrative under machine control.
+  const regenerated = updateAndroidDoc(
+    doc,
+    versioningRows(ledger, pkgVersion, committedBuild()),
+    currentReleaseLine(ledger),
+  );
+  assert.equal(regenerated, doc, 'regeneration is a no-op when nothing has changed');
+
+  // Now advance the current-build region only, and prove everything outside it
+  // is untouched — including the historical versionCodes in the prose.
+  const moved = updateAndroidDoc(doc, versioningRows(ledger, pkgVersion, committedBuild()), 'CHANGED LINE');
+  const outside = (text) =>
+    text.split('<!-- release-current:begin -->')[0] + text.split('<!-- release-current:end -->')[1];
+  assert.equal(outside(moved), outside(doc), 'prose outside the marker is byte-stable');
+  for (const historical of ['2700002', '2700003', '2700004', '2700005']) {
+    assert.ok(moved.includes(historical), `the ${historical} validation history survives regeneration`);
+  }
+  assert.ok(
+    moved.includes('Physically validated on the Samsung test device'),
+    'the human-owned validation narrative survives regeneration',
+  );
+});
+
+test('the marker mechanism refuses malformed or duplicated regions', () => {
+  const doc = read('docs/ANDROID.md');
+  // Mutation: markers reversed.
+  const reversed = doc
+    .replace('<!-- release-current:begin -->', '@@B@@')
+    .replace('<!-- release-current:end -->', '<!-- release-current:begin -->')
+    .replace('@@B@@', '<!-- release-current:end -->');
+  assert.throws(() => replaceMarkedSection(reversed, 'release-current', 'x'), /missing the/);
+
+  // Mutation: the region declared twice — which pair would win is undefined, so
+  // it must be refused rather than guessed.
+  const duplicated = `${doc}\n<!-- release-current:begin -->\nsecond\n<!-- release-current:end -->\n`;
+  assert.throws(() => replaceMarkedSection(duplicated, 'release-current', 'x'), /more than once/);
+
+  // Mutation: absent entirely.
+  assert.throws(() => replaceMarkedSection('nothing here', 'release-current', 'x'), /missing the/);
+});
+
+test('the closure script regenerates both regions, not just the table', () => {
+  const closer = read('scripts/close-release-ledger.mjs');
+  assert.match(closer, /currentReleaseLine\(closedLedger\)/, 'the CLI passes the generated current line');
+  assert.match(closer, /replaceMarkedSection\(updated, 'release-current', currentLine\)/);
+  // Reuse, not a parallel generator: one marker mechanism serves both regions.
+  assert.equal(
+    (closer.match(/function replaceMarkedSection/g) ?? []).length,
+    1,
+    'there is exactly one marker-replacement implementation',
+  );
+  // And no new file entered the ledger job's allowlist.
+  assert.deepEqual(LEDGER_PATHS, [
+    'android/release-ledger.json',
+    'android/version.properties',
+    'docs/ANDROID.md',
+  ]);
 });
 
 // --- Credentials -------------------------------------------------------------
