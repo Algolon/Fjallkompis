@@ -6,13 +6,22 @@
  */
 
 /* Bottom navigation: every compact tab uses the same internal geometry.
-   Active/inactive styling can change, but the icon and label never move. */
+   Active/inactive styling can change, but the icon and label never move.
+
+   The pill is the SELECTED SURFACE, not the hit area — the whole .tab cell
+   stays the touch target. So it is deliberately smaller than the cell it sits
+   in: 62x44 inside a 64-75px x 55px cell leaves a visible margin on all four
+   sides, which is what keeps the selected state reading as a state rather
+   than as a full-height block of colour. 44px is also the touch-target
+   reference the design authority sets, so the painted surface never suggests
+   a smaller target than the user actually has. */
 .tabbar--bar .tab-pill {
   width: 100%;
-  max-width: 68px;
-  min-height: 54px;
+  max-width: 62px;
+  min-height: 44px;
   justify-content: center;
-  padding: 5px 6px;
+  padding: 4px 6px;
+  border-radius: 12px;
 }
 
 .tabbar--bar .tab .ic {

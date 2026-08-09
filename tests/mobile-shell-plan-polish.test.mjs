@@ -44,10 +44,17 @@ test('the opaque browser canvas cannot cover negative-z contour backdrops', () =
   assert.match(css, /\.app\s*\{[\s\S]*?isolation:\s*isolate;?[\s\S]*?\}/);
 });
 
-test('Today never flashes the retired rectangular pressed container', () => {
+test('no tab needs its own press-feedback exception any more', () => {
+  // This suppressed the rectangular press flash behind Today's circular disc.
+  // With equal geometry there is no second shape to suppress: every tab
+  // shares one press rule, so the exception is gone rather than dormant.
+  assert.ok(!/tab--center/.test(css), 'the Today-only press override is removed');
+  const global = readFileSync(join(root, 'src/styles/global.css'), 'utf8');
+  assert.match(global, /\.tab:active \.tab-pill \{/, 'one shared press rule');
   assert.match(
-    css,
-    /\.tab--center:active \.tab-pill,[\s\S]*?\.tab--center\[aria-current='page'\]:active \.tab-pill\s*\{\s*background:\s*none;/,
+    global,
+    /\.tab\[aria-current='page'\]:active \.tab-pill \{[^}]*background: var\(--spruce-700\)/s,
+    'pressing the selected tab deepens it rather than lightening it',
   );
 });
 

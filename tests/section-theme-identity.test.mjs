@@ -137,16 +137,21 @@ test('the bottom navigation stays neutral — no section-specific tab styling', 
   // file contains no .tab selector of any kind.
   const code = themes.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.ok(!code.includes('.tab'), 'no .tab rules in the section theme layer');
-  assert.match(globalCss, /\.tab\[aria-current='page'\] \.tab-pill \{[^}]*background: var\(--line-strong\);/s);
-  assert.match(globalCss, /\.tab\[aria-current='page'\] \{\s*\n\s*color: var\(--spruce\);/);
+  assert.match(globalCss, /\.tab\[aria-current='page'\] \.tab-pill \{[^}]*background: var\(--spruce\);/s);
+  assert.match(globalCss, /\.tab\[aria-current='page'\] \{\s*\n\s*color: #eef3ec;/);
   // Colour-only layer: the entire file may not declare any box geometry or
   // type sizing — theming can never shift layout.
   assert.ok(
     !/\b(width|height|padding|margin|font-size|gap|border-radius|top|bottom|left|right)\s*:/.test(themes),
     'section-themes.css declares no geometry',
   );
-  // Today's centre disc treatment is never overridden by a section theme.
-  assert.match(globalCss, /\.tab--center\[aria-current='page'\] \.tab-center-disc \{\s*\n\s*background: var\(--spruce\);/);
+  // The selected-tab treatment is one destination-agnostic rule, and no
+  // section theme may override it — the bar reads the same on every screen.
+  assert.ok(!/\.tab--center/.test(globalCss), 'no per-destination tab exception exists to theme');
+  // Against RULES, not prose: the file's own comment says it contains no .tab
+  // rules, and that sentence should stay allowed to exist.
+  const themeRules = themes.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/\.tab\b/.test(themeRules), 'section themes never restyle the navigation');
 });
 
 test('the shell still offers exactly five destinations', () => {

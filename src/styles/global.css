@@ -2692,11 +2692,14 @@ button.map-status-pill {
   align-items: center;
   justify-content: center;
   color: var(--ink-soft);
-  /* Scale the label with viewport width instead of shrinking the pill's
-     padding on small phones: that keeps a constant, comfortable gap between
-     the label and the pill edge at every width, while still guaranteeing the
-     longest label ("Settings") never clips. */
-  font-size: clamp(6.5px, calc(3.2vw - 3.4px), 10px);
+  /* Scale the label with viewport width, with a READABLE floor. The previous
+     expression — clamp(6.5px, calc(3.2vw - 3.4px), 10px) — resolved to
+     6.84px at 320px wide, which is decorative rather than legible. This one
+     lands 9.5px at 320, ~9.75px at 375, ~10.1px at 390 and tops out at 11px,
+     so the smallest supported phone still gets a label a hiker can read with
+     cold eyes. Labels are never hidden: all five destinations stay named at
+     every width, and "Settings" (the longest) is verified unclipped at 320. */
+  font-size: clamp(9.5px, 2.6vw, 11px);
   font-weight: 600;
   letter-spacing: 0.01em;
   /* Tight vertical padding so the 56px row (see --tabbar-h) reads lean, not
@@ -2747,70 +2750,35 @@ button.map-status-pill {
   outline: 2px solid var(--spruce);
   outline-offset: 2px;
 }
+/* --- Selected destination (Variant C) --------------------------------------
+   ONE treatment, identical for all five tabs. The selected cell fills with
+   solid spruce — the design authority's documented role for "active
+   navigation/segment states" — and its glyph and label go near-white on it.
+
+   Why solid rather than the previous --line-strong tint: that tint sat only
+   one step off the bar's own colour, so with the elevated Today disc removed
+   it would have been the ONLY selection signal, and a weak one. Spruce is
+   unmistakable in peripheral vision.
+
+   Why it stays restrained rather than becoming another loud pill family:
+   the surface is capped well inside the cell (see .tabbar--bar .tab-pill in
+   map-popup-polish.css — 62px wide, 44px tall inside a 64-75px x 55px cell),
+   it carries no shadow, no elevation and no geometry change, and it never
+   moves the icon or the label. It reads as a state inside a navigation cell,
+   which is what it is. There is deliberately no Today exception here. */
 .tab[aria-current='page'] {
-  color: var(--spruce);
+  color: #eef3ec;
 }
 .tab[aria-current='page'] .tab-pill {
-  /* A shade darker green than the tab bar's own tint. */
-  background: var(--line-strong);
-}
-
-/* --- Centre destination: Today (vNext) ------------------------------------
-   The bottom bar's middle item is Today — a subtly ELEVATED navigation tab,
-   never an action button: same button semantics, same aria-current, same
-   always-visible label, and identical geometry in both states (states
-   differ through fill and a restrained shadow only). The disc pokes ~9px
-   above the bar edge; the bar itself never clips (no overflow rule), and
-   the toast region below clears the protrusion. Rail/sidebar keep the
-   uniform treatment — the centre belongs to the horizontal bar. */
-.tab--center .tab-pill {
-  overflow: visible;
-  padding-top: 0;
-}
-.tab-center-disc {
-  display: grid;
-  place-items: center;
-  width: 54px;
-  height: 54px;
-  margin-top: -12px; /* 54px disc in a 56px bar → ~9px above the bar edge */
-  border-radius: 50%;
-  background: var(--paper-bright);
-  border: 1px solid var(--line-strong);
-  box-shadow: 0 2px 6px rgba(18, 31, 25, 0.18);
-  color: var(--ink-soft);
-}
-.tab--center .ic {
-  width: 24px;
-  height: 24px;
-}
-/* Active: fill + shadow change only — position and size never jump. */
-.tab--center[aria-current='page'] {
-  color: var(--spruce);
-}
-.tab--center[aria-current='page'] .tab-pill {
-  background: none; /* the disc carries the active state, not the chip */
-}
-.tab--center[aria-current='page'] .tab-center-disc {
   background: var(--spruce);
-  border-color: var(--spruce-700);
-  color: #eef3ec;
-  box-shadow: 0 3px 9px rgba(18, 31, 25, 0.28);
-}
-/* The generic active-icon rule strokes icons spruce — on the spruce disc
-   the glyph must stay near-white instead. */
-.tab--center[aria-current='page'] .tab-center-disc .ic {
-  stroke: #eef3ec;
-}
-.tab--center:focus-visible .tab-center-disc {
-  outline: 2px solid var(--glacier-700);
-  outline-offset: 2px;
-}
-/* Pressing the already-active tab deepens the green further still. */
-.tab[aria-current='page']:active .tab-pill {
-  background: rgba(47, 74, 61, 0.34);
 }
 .tab[aria-current='page'] .ic {
-  stroke: var(--spruce);
+  stroke: #eef3ec;
+}
+/* Pressing the already-selected tab deepens the fill rather than lightening
+   it — the press must never look like a deselection. */
+.tab[aria-current='page']:active .tab-pill {
+  background: var(--spruce-700);
 }
 
 
