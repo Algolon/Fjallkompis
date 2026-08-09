@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
+import { releaseCandidate } from '../scripts/release-candidate.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
@@ -113,30 +114,41 @@ test('the build counter is a single positive integer with instructions beside it
 });
 
 test('the next Play artifact outranks every code Play has already accepted', () => {
-  // Recomputed here from the real inputs so the number cannot drift from what
-  // Gradle will actually stamp. History: 2700001 (0.27.0 build 1),
-  // 2700002 (0.27.0 build 2, the bundled-basemap fix), 2700003
-  // (0.27.0 build 3, Complete Backup / Restore v1) and 2700004
-  // (0.27.0 build 4, branding parity) were uploaded and published to
-  // Internal Testing on 2026-08-08; 2700005 (0.27.0 build 5, map parity)
-  // followed on 2026-08-09. All are burned forever — Play will never accept
-  // them again, so the next artifact MUST compute strictly higher.
-  // version.properties keeps the append-only list.
-  const HIGHEST_CONSUMED_VERSION_CODE = 2700005;
+  // The authority is android/release-ledger.json, read through the same module
+  // the release workflow fences on — so the number this test blesses and the
+  // number the workflow would upload cannot be different numbers. Until this
+  // milestone the authority was a constant declared right here, which nothing
+  // outside this file could read.
+  const candidate = releaseCandidate();
+  assert.deepEqual(candidate.failures, [], 'the committed metadata describes a legal candidate');
+  assert.ok(candidate.ok);
+
+  // Recomputed independently of the module, so a bug in the module's formula
+  // cannot bless itself.
   const [major, minor, patch] = pkg.version.split('.').map(Number);
   const build = Number(versionProps.match(/^androidBuild=(\d+)$/m)[1]);
   const next = major * 10000000 + minor * 100000 + patch * 1000 + build;
+  assert.equal(candidate.versionCode, next, 'the module and the formula agree');
   assert.ok(
-    next > HIGHEST_CONSUMED_VERSION_CODE,
-    `computed versionCode ${next} would not outrank the already-published ${HIGHEST_CONSUMED_VERSION_CODE} — bump androidBuild or the app version`,
+    next > candidate.highestConsumedVersionCode,
+    `computed versionCode ${next} would not outrank the already-published ${candidate.highestConsumedVersionCode} — bump androidBuild or the app version`,
   );
-  assert.match(versionProps, /2700001/, 'the consumed-code history stays in version.properties');
-  assert.match(versionProps, /2700002/, 'the consumed-code history stays in version.properties');
-  assert.match(versionProps, /2700003/, 'the consumed-code history stays in version.properties');
-  assert.match(versionProps, /2700004/, 'the consumed-code history stays in version.properties');
-  assert.match(versionProps, /2700005/, 'the consumed-code history stays in version.properties');
-  // When a code is published, raise HIGHEST_CONSUMED_VERSION_CODE here and
-  // append it to the version.properties history — both in the same commit.
+
+  // The prose history and the machine-readable ledger must describe the same
+  // set. Two records of a permanent fact are only useful while they agree.
+  for (const code of candidate.consumedVersionCodes) {
+    assert.match(
+      versionProps,
+      new RegExp(String(code)),
+      `consumed code ${code} is in the ledger but not in the version.properties history`,
+    );
+  }
+  for (const [, code] of versionProps.matchAll(/^#\s+(\d{7,})\s/gm)) {
+    assert.ok(
+      candidate.consumedVersionCodes.includes(Number(code)),
+      `version.properties history names ${code}, which is not in android/release-ledger.json`,
+    );
+  }
 });
 
 // --- Signing -----------------------------------------------------------------
@@ -204,14 +216,22 @@ test('release build settings are not weakened and carry no debug configuration',
 
 // --- Release workflow --------------------------------------------------------
 
-test('the release workflow builds only — it never publishes', () => {
+test('the release workflow publishes to Play through this repository only', () => {
   const yaml = codeOf(workflow);
-  assert.ok(!/androidpublisher|play-?store|Gradle-Play|r0adkll|upload-google-play/i.test(yaml),
-    'no Google Play Developer API automation in this iteration');
-  assert.match(workflow, /permissions:\s*\n\s*contents: read/);
-  const permissions = yaml.split('permissions:')[1]?.split(/\n\s*\n/)[0] ?? '';
-  assert.ok(!/pages/.test(permissions), 'no pages permission');
-  assert.ok(!/id-token/.test(permissions), 'no id-token permission');
+  // The Play upload is deliberate as of the release-automation milestone, but
+  // it must go through scripts/play-release.mjs — the one place the track is a
+  // constant and Play is probed before anything is consumed. A third-party
+  // publishing action would be a step with a Play credential and no fence.
+  assert.ok(!/r0adkll|upload-google-play|Gradle-Play|fastlane/i.test(yaml),
+    'the Play upload must not be delegated to a third-party action');
+  assert.match(workflow, /node scripts\/play-release\.mjs upload/, 'the upload goes through the fenced script');
+
+  // The WORKFLOW-level default stays read-only; only the ledger job widens it.
+  assert.match(workflow, /^permissions:\n  contents: read\n/m, 'the workflow default is contents: read');
+  const topLevel = workflow.split(/^permissions:\n/m)[1]?.split(/\n\s*\n/)[0] ?? '';
+  assert.ok(!/pages/.test(topLevel), 'no pages permission');
+  assert.ok(!/id-token/.test(topLevel), 'no id-token permission by default');
+  assert.ok(!/write/.test(topLevel), 'no write permission by default');
   assert.match(workflow, /^\s{2}workflow_dispatch:/m, 'manual dispatch is always available');
 
   // A push trigger on a release workflow is normally wrong — an unattended

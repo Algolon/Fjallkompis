@@ -568,7 +568,13 @@ filename, size or hash anywhere in the Java.
 | --- | --- | --- | --- |
 | **Development** | debug APK, `assembleDebug` | developers | in use |
 | **Private distribution** | signed release **AAB** → Play Internal Testing | invited testers | **live — proven end to end 2026-08-08** |
-| **Future** | automated Internal Testing upload | CI | not built |
+| **Production / open testing** | — | — | deliberately out of scope, and fenced against |
+
+The upload is automated: **Actions → Release Fjallkompis → Run workflow**. See
+[Releasing Fjallkompis](operations/release-automation.md) for the whole path,
+the Play credential design and the failure semantics. Production rollout is not
+automated, and the target track is a code constant rather than a workflow input
+so that it cannot drift there.
 
 ### Sideloaded debug APKs are development artifacts
 
@@ -616,8 +622,15 @@ Turning it on is a separate change that needs its own evidence.
 | --- | --- |
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
-| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix), **2700003** (build 3 — Complete Backup / Restore v1) and **2700004** (build 4 — branding parity), all published to Internal Testing and physically validated 2026-08-08; and **2700005** (build 5 — map parity), published and physically validated 2026-08-09. All 0.27.0; Play will never accept any of them again |
+<!-- release-ledger:begin -->
+| **Consumed** | **0.27.0** — `2700001`, `2700002`, `2700003`, `2700004`, `2700005`. Every one accepted by Play on the `internal` track and burned forever — Play will never accept any of them again. The complete record, with source SHAs and workflow runs, is [`android/release-ledger.json`](../android/release-ledger.json) |
 | Next upload | **2700006** (0.27.0, build 6 — `androidBuild=6`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+<!-- release-ledger:end -->
+
+The two rows above are **generated**. `scripts/close-release-ledger.mjs` rewrites
+them between the markers after Play accepts a release; edit
+`android/release-ledger.json` instead, and never by hand while a release is in
+flight.
 
 Neither is written by hand in `build.gradle`; a test fails if either becomes a
 literal. The only number a developer edits is `androidBuild` in
@@ -703,11 +716,16 @@ rm -P fjallkompis-upload.jks               # ONLY after the backup is verified
 
 ### How CI uses it
 
-`.github/workflows/android-internal-release.yml` (manual dispatch only)
+`.github/workflows/android-internal-release.yml` (manual dispatch, `main` only)
 decodes the keystore into the runner's temp directory — outside the workspace,
 so it cannot be swept into an artifact — builds `bundleRelease`, verifies the
 signature, and destroys the keystore in an `if: always()` step. No secret is
 ever echoed; the workflow only ever tests whether one is empty.
+
+The four signing secrets are reachable from **one job only**, and that job
+cannot start until the preflight has proven the dispatch is committed `main`.
+The job that talks to Google Play never sees them, and the job that signs never
+holds a Google credential.
 
 ### Verification, because "Gradle succeeded" is not "ready for Play"
 
