@@ -19,9 +19,11 @@ import {
   computeVersionCode,
   RELEASE_TRACK,
   APPLICATION_ID,
+  UPLOAD_KEY_SHA256,
+  normaliseFingerprint,
 } from '../scripts/release-candidate.mjs';
 import { LEDGER_PATHS, appendToLedger, updateAndroidDoc } from '../scripts/close-release-ledger.mjs';
-import { scrub } from '../scripts/lib/google-auth.mjs';
+import { scrub, reportTrustClaims } from '../scripts/lib/google-auth.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
@@ -208,12 +210,12 @@ test('a ledger that disagrees with itself is refused rather than trusted', () =>
   assert.throws(() => readLedger(JSON.stringify(shuffled)), /strictly ascend/);
 });
 
-test('Play itself is asked what it holds, because the committed ledger can be stale', () => {
+test('Play is asked what it currently shows — as a live fence, not a history', () => {
   // The ledger is written AFTER a release. A lost upload response leaves it
   // saying a burned code is free, which is the one failure that must never
   // result in a retry.
   assert.match(JOBS.preflight, /node scripts\/play-release\.mjs probe/);
-  assert.match(playRelease, /Play ALREADY HOLDS versionCode/);
+  assert.match(playRelease, /Play ALREADY SHOWS versionCode/);
   assert.match(playRelease, /above the candidate/, 'a ledger that is behind reality also stops the release');
   // Two independent readings of Play's state, not one.
   assert.match(playRelease, /\$\{base\}\/bundles/);
@@ -223,12 +225,43 @@ test('Play itself is asked what it holds, because the committed ledger can be st
   assert.match(playRelease, /const \{ candidate, token \} = await probe\(\)/);
 });
 
+test('Play is never claimed to be a historical registry of consumed codes', () => {
+  // Google documents edits.bundles.list as "all CURRENT Android App Bundles",
+  // and guarantees no immutable record of every code ever accepted. Claiming
+  // otherwise would make "absent at Play" look like proof a code is free, and
+  // the whole retry fence rests on not believing that.
+  assert.match(playRelease, /function visibleAtPlay\(/, 'the name states live state, not history');
+  assert.ok(!/consumedAtPlay/.test(playRelease), 'the misleading name is gone');
+  assert.match(playRelease, /READ THE NAME LITERALLY\. This is live state, not history\./);
+  assert.match(playRelease, /A code that is absent\s+\*?\s*here is NOT thereby proven to be free/);
+
+  // The historical authority is named as the ledger, and both fences are
+  // required — the docs must say so too.
+  assert.match(playRelease, /append-only HISTORICAL authority/);
+  assert.match(playRelease, /A release must clear BOTH/);
+  const doc = read('docs/operations/release-automation.md');
+  assert.match(doc, /absence at\s+Play is not proof that a code is free/i);
+  assert.match(doc, /Lists all current Android App Bundles/, 'the actual documented wording is quoted');
+  assert.ok(
+    !/registry of every versionCode/i.test(doc.replace(/Neither is documented as[\s\S]{0,200}/g, '')),
+    'no claim of a complete historical registry survives',
+  );
+
+  // The post-upload re-read is still load-bearing and still fails closed.
+  assert.match(playRelease, /const after = await visibleAtPlay\(token\)/);
+  assert.match(playRelease, /Treating it as CONSUMED — that is the fail-closed reading/);
+  assert.ok(
+    !/The candidate appears to be free;/.test(playRelease),
+    'the old wording implied absence proves reusability',
+  );
+});
+
 test('an ambiguous Play response never resolves to "the code is reusable"', () => {
   assert.match(playRelease, /Treating it as CONSUMED — that is the fail-closed reading/);
   assert.match(playRelease, /State is ambiguous: check Play Console before any retry/);
   assert.match(playRelease, /do NOT assume the code is reusable/);
   // Acceptance is proven by re-reading Play, not by trusting the commit call.
-  assert.match(playRelease, /const after = await consumedAtPlay\(token\)/);
+  assert.match(playRelease, /const after = await visibleAtPlay\(token\)/);
 });
 
 // --- The gates ---------------------------------------------------------------
@@ -256,6 +289,43 @@ test('every release gate still runs in the real release workflow', () => {
   assert.ok(JOBS.build.indexOf('npm test') < JOBS.build.indexOf('bundleRelease'));
   assert.ok(JOBS.build.indexOf('npm run build\n') < JOBS.build.indexOf('npm run build:native'));
   assert.ok(JOBS.build.indexOf('verify-privacy-build') < JOBS.build.indexOf('bundleRelease'));
+});
+
+test('the upload-key fingerprint is a committed, mandatory trust anchor', () => {
+  // The threat: someone rewrites the ANDROID_UPLOAD_* secrets with a keystore
+  // they control. Every same-run check still passes, because "the configured
+  // upload key" is then theirs. Only a value the secrets cannot reach detects
+  // it, and only a COMMITTED one makes the substitution show up in a diff.
+  assert.match(UPLOAD_KEY_SHA256, /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/, 'a full SHA-256 certificate fingerprint');
+  assert.equal(normaliseFingerprint(UPLOAD_KEY_SHA256).length, 64);
+  assert.equal(
+    normaliseFingerprint('67:6f:10:47 '),
+    '676F1047',
+    'punctuation, case and whitespace are normalised before comparison',
+  );
+
+  // Enforced in BOTH jobs, and in the publish job it is re-read rather than
+  // inherited — otherwise that job would trust the job it exists to check.
+  for (const job of [JOBS.build, JOBS.publish]) {
+    assert.match(job, /UPLOAD_KEY_SHA256/, 'the anchor is consulted');
+  }
+  assert.match(JOBS.build, /MANDATORY — there is no skip path/);
+  assert.match(JOBS.build, /refusing to release without the signing trust anchor/);
+  assert.match(JOBS.publish, /does not match the committed upload-key anchor — refusing to upload/);
+
+  // No optional/skippable variant may return.
+  assert.ok(
+    !/vars\.ANDROID_UPLOAD_KEY_SHA256/.test(workflow),
+    'the anchor must not come from a repository variable — same control plane as the secrets it checks',
+  );
+  assert.ok(
+    !/is not set — set it to pin/.test(workflow),
+    'there is no "unset, carry on" path any more',
+  );
+
+  // A dry run must fail on it too: it is a trust anchor, not a release-time
+  // formality, and the build job is not conditional on dry_run.
+  assert.ok(!/^ {4}if:/m.test(JOBS.build.split('steps:')[0]));
 });
 
 test('signer and package identity are proven against the packaged artifact', () => {
@@ -471,11 +541,79 @@ test('Play access uses federated identity, never a stored key', () => {
   );
   assert.match(workflow, /vars\.PLAY_WORKLOAD_IDENTITY_PROVIDER/);
   assert.match(workflow, /vars\.PLAY_SERVICE_ACCOUNT/);
+  // Only the two jobs that talk to Google may name them.
+  for (const name of ['build', 'ledger']) {
+    assert.ok(!/PLAY_/.test(JOBS[name]), `the ${name} job must not see Play credentials`);
+  }
   // id-token: write is what makes OIDC possible, and only two jobs hold it.
   assert.equal(permissionsOf(JOBS.preflight)['id-token'], 'write');
   assert.equal(permissionsOf(JOBS.publish)['id-token'], 'write');
   assert.ok(!('id-token' in permissionsOf(JOBS.build)));
   assert.ok(!('id-token' in permissionsOf(JOBS.ledger)));
+});
+
+test('the documented WIF condition binds repository, ref AND workflow', () => {
+  // assertion.repository alone would let ANY workflow in this repository, on
+  // ANY branch, mint a Play credential. That is wider than the release trust
+  // boundary, so the condition names all three.
+  const doc = read('docs/operations/release-automation.md');
+  const cel = doc.match(/```cel\n([\s\S]*?)```/)?.[1];
+  assert.ok(cel, 'the condition is documented as a CEL block');
+  assert.match(cel, /assertion\.repository_id == '1286996996'/, 'pinned by numeric id, per Google guidance');
+  assert.match(cel, /assertion\.repository == 'Algolon\/Fjallkompis'/);
+  assert.match(cel, /assertion\.ref == 'refs\/heads\/main'/);
+  assert.match(
+    cel,
+    /assertion\.workflow_ref ==\s*'Algolon\/Fjallkompis\/\.github\/workflows\/android-internal-release\.yml@refs\/heads\/main'/,
+    'and to this one workflow file',
+  );
+  // workflow_ref, not job_workflow_ref: this workflow is not a reusable one.
+  assert.ok(
+    !/assertion\.job_workflow_ref/.test(cel),
+    'job_workflow_ref is the reusable-workflow claim and would be the wrong choice here',
+  );
+  // The workflow path in the condition must be the file that actually exists.
+  assert.ok(
+    doc.includes('.github/workflows/android-internal-release.yml@refs/heads/main'),
+    'the condition names the real workflow path',
+  );
+  // Defense in depth: the workflow keeps its own main-only guard.
+  assert.match(doc, /The workflow's own `main`-only guard stays/);
+  assert.match(JOBS.preflight, /releases committed main only/);
+});
+
+test('the OIDC claim diagnostic reports three public claims and nothing else', () => {
+  const auth = read('scripts/lib/google-auth.mjs');
+  assert.match(auth, /\['repository', 'ref', 'workflow_ref'\]/, 'an explicit allow-list, not a payload dump');
+
+  // Prove it behaves: a token carrying a secret-looking extra claim must not
+  // leak it, and the token itself must never be printed.
+  const payload = Buffer.from(
+    JSON.stringify({
+      repository: 'Algolon/Fjallkompis',
+      ref: 'refs/heads/main',
+      workflow_ref: 'Algolon/Fjallkompis/.github/workflows/android-internal-release.yml@refs/heads/main',
+      sub: 'repo:Algolon/Fjallkompis:ref:refs/heads/main',
+      secret_looking_claim: 'MUST-NOT-APPEAR',
+    }),
+  ).toString('base64url');
+  const jwt = `header.${payload}.signature`;
+  const lines = [];
+  reportTrustClaims(jwt, (line) => lines.push(line));
+
+  const output = lines.join('\n');
+  assert.match(output, /OIDC repository: Algolon\/Fjallkompis/);
+  assert.match(output, /OIDC ref: refs\/heads\/main/);
+  assert.match(output, /OIDC workflow_ref: .*android-internal-release\.yml@refs\/heads\/main/);
+  assert.ok(!output.includes('MUST-NOT-APPEAR'), 'unlisted claims are never printed');
+  assert.ok(!output.includes('sub'), 'not even the subject claim');
+  assert.ok(!output.includes(jwt) && !output.includes(payload), 'the token itself never appears');
+
+  // A malformed token must not throw — a diagnostic that crashes the release
+  // would be worse than no diagnostic.
+  const fallback = [];
+  reportTrustClaims('not-a-jwt', (line) => fallback.push(line));
+  assert.match(fallback.join('\n'), /could not be read for reporting — this is not fatal/);
 });
 
 test('nothing token-shaped can reach a log', () => {

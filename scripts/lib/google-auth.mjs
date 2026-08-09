@@ -15,8 +15,13 @@
  * THE THREE CALLS:
  *
  *   1. Ask the Actions runtime for an OIDC JWT whose `aud` is the workload
- *      identity provider. GitHub signs it; its `sub` carries the repository and
- *      ref, which is what Google's attribute condition matches on.
+ *      identity provider. GitHub signs it, and its claims carry the repository,
+ *      the git ref and the workflow file path — which is what Google's
+ *      attribute condition matches on. The condition is bound to all three, so
+ *      an OIDC token minted by any other repository, from any other branch, or
+ *      by any other workflow in THIS repository, is rejected by Google before
+ *      it becomes a credential. See "Play Developer API access" in
+ *      docs/operations/release-automation.md for the exact CEL.
  *   2. Exchange that JWT at Google STS for a federated access token.
  *   3. Use the federated token to impersonate the Play service account, asking
  *      for the `androidpublisher` scope only, for ten minutes only.
@@ -106,6 +111,28 @@ export async function githubOidcToken(audience) {
 }
 
 /**
+ * The three claims Google's attribute condition is written against, and
+ * NOTHING else.
+ *
+ * Configuring that condition by guesswork is how a release ends up either
+ * broken or fenced too loosely, so the exact strings this token presents are
+ * printed. All three are public facts about a public repository — its name, the
+ * branch, the workflow file path — and none is a credential. The token itself,
+ * its signature and every other claim stay unread and unprinted: this
+ * deliberately allow-lists three fields rather than dumping a payload.
+ */
+export function reportTrustClaims(jwt, log = console.log) {
+  try {
+    const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8'));
+    for (const claim of ['repository', 'ref', 'workflow_ref']) {
+      log(`  OIDC ${claim}: ${payload[claim] ?? '(absent)'}`);
+    }
+  } catch {
+    log('  (the OIDC token claims could not be read for reporting — this is not fatal)');
+  }
+}
+
+/**
  * Steps 2 and 3. `workloadIdentityProvider` is the full resource name:
  *   projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
  */
@@ -128,6 +155,8 @@ export async function playAccessToken({
   }
 
   const subjectToken = await githubOidcToken(audience);
+  console.log('Presenting a GitHub OIDC assertion to Google with:');
+  reportTrustClaims(subjectToken);
 
   // The STS exchange must ask for cloud-platform: it is the scope that permits
   // the impersonation call below. The narrow androidpublisher scope is applied

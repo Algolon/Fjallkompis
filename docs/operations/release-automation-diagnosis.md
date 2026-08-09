@@ -135,6 +135,19 @@ Established by inspection, not assumption:
   is no service-account JSON, no Workload Identity Federation configuration, no
   GCP project reference anywhere in the tree.
 
+  **`VITE_THUNDERFOREST_API_KEY` is provably unread** — established by tracing,
+  not by reading its name. No workflow passes it into any step's `env:` (the
+  single occurrence in `deploy.yml` is a comment saying it is retired); no
+  source file reads it, and `tests/map-styles.test.mjs` already fails if the
+  identifier `THUNDERFOREST_` reappears anywhere under `src/`; it is absent from
+  `.env.example`; and Vite only exposes `VITE_*` variables it is given, which
+  nothing does. Its every remaining mention is prose in `CHANGELOG.md`,
+  `ROADMAP.md` and `docs/`. **Safe to delete from repository secrets**, together
+  with the `VITE_ENABLE_MAP_BENCHMARK` variable, and the key itself is worth
+  revoking in the Thunderforest dashboard since it was live in past builds.
+  Deleting it is a Settings action, out of scope for a pull request, and is left
+  to a human.
+
   Upload *signing* working proves only that a keystore exists. Play API access
   is a separate capability that has never been configured, and assuming
   otherwise because installs work would have been the single most expensive

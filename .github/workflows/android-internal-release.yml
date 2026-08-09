@@ -422,7 +422,6 @@ jobs:
           EXPECTED_APPLICATION_ID: ${{ steps.identity.outputs.applicationId }}
           EXPECTED_VERSION_NAME: ${{ steps.identity.outputs.versionName }}
           EXPECTED_VERSION_CODE: ${{ steps.identity.outputs.versionCode }}
-          PINNED_SIGNER_SHA256: ${{ vars.ANDROID_UPLOAD_KEY_SHA256 }}
         run: |
           set -euo pipefail
           aab=android/app/build/outputs/bundle/release/app-release.aab
@@ -486,22 +485,32 @@ jobs:
           fi
           echo "Signer certificate matches the upload key (SHA-256 $signer_sha)."
 
-          #    If the expected fingerprint has been pinned as a repository
-          #    variable (read it off Play Console -> App integrity -> Upload
-          #    key certificate), the signer must ALSO equal that. This is the
-          #    check that survives someone swapping the keystore secret for a
-          #    different key they control.
-          if [ -n "${PINNED_SIGNER_SHA256:-}" ]; then
-            want="$(echo "$PINNED_SIGNER_SHA256" | tr -d ' :' | tr '[:lower:]' '[:upper:]')"
-            got="$(echo "$signer_sha" | tr -d ' :' | tr '[:lower:]' '[:upper:]')"
-            if [ "$want" != "$got" ]; then
-              echo "::error::signer does not match the pinned ANDROID_UPLOAD_KEY_SHA256 repository variable"
-              exit 1
-            fi
-            echo "Signer also matches the pinned upload-key fingerprint."
-          else
-            echo "::notice::ANDROID_UPLOAD_KEY_SHA256 is not set — set it to pin the expected upload-key fingerprint."
+          #    …and against the COMMITTED fingerprint, which is the check that
+          #    actually matters. The comparison above is against a key derived
+          #    from the same secrets in the same run: if someone replaced the
+          #    ANDROID_UPLOAD_* secrets with a keystore they control, it would
+          #    pass, because "the configured upload key" would be theirs. Only a
+          #    value the secrets cannot reach can detect that, and the only such
+          #    value here is one that lives in the repository and moves through
+          #    a reviewed pull request. MANDATORY — there is no skip path.
+          want="$(node -e '
+            import("./scripts/release-candidate.mjs").then(m =>
+              process.stdout.write(m.normaliseFingerprint(m.UPLOAD_KEY_SHA256)))')"
+          got="$(echo "$signer_sha" | tr -d ' :' | tr '[:lower:]' '[:upper:]')"
+          if [ -z "$want" ]; then
+            echo "::error::UPLOAD_KEY_SHA256 could not be read from scripts/release-candidate.mjs — refusing to release without the signing trust anchor"
+            exit 1
           fi
+          if [ "$want" != "$got" ]; then
+            echo "::error::the bundle signer does NOT match the upload key Play has registered."
+            echo "  committed anchor: $want"
+            echo "  bundle signer   : $got"
+            echo "If the upload key was legitimately rotated, change UPLOAD_KEY_SHA256 in"
+            echo "scripts/release-candidate.mjs in a reviewed pull request. If it was not,"
+            echo "the ANDROID_UPLOAD_* secrets have been replaced — stop and investigate."
+            exit 1
+          fi
+          echo "Signer matches the committed upload-key anchor."
           echo "signer_sha256=$signer_sha" >> "$GITHUB_OUTPUT"
 
           # 3. It is emphatically NOT the Android debug key — read from the
@@ -768,6 +777,16 @@ jobs:
           [ -n "$signer" ] || { echo "::error::the artifact carries no readable signer certificate"; exit 1; }
           [ "$signer" = "$EXPECTED_SIGNER" ] || {
             echo "::error::artifact signer $signer != the signer the build job verified $EXPECTED_SIGNER"; exit 1; }
+
+          # And independently against the committed anchor, re-read here rather
+          # than inherited from the build job — otherwise this job would be
+          # trusting a value produced by the job it exists to check.
+          anchor="$(node -e '
+            import("./scripts/release-candidate.mjs").then(m =>
+              process.stdout.write(m.normaliseFingerprint(m.UPLOAD_KEY_SHA256)))')"
+          [ -n "$anchor" ] || { echo "::error::the committed upload-key anchor could not be read"; exit 1; }
+          [ "$anchor" = "$(echo "$signer" | tr -d ' :' | tr '[:lower:]' '[:upper:]')" ] || {
+            echo "::error::artifact signer does not match the committed upload-key anchor — refusing to upload"; exit 1; }
           keytool -printcert -jarfile "$aab" | grep -q "CN=Android Debug" && {
             echo "::error::the artifact is debug-signed"; exit 1; } || true
 

@@ -118,9 +118,61 @@ reason `deploy.yml` hand-rolls the Pages deployment.
 * The Play Console account grant is **Release to testing tracks** on the
   Fjallkompis app only. **Not** "Release to production", not account-level
   admin, not access to other apps.
-* The provider's attribute condition binds the exchange to this repository, so
-  an OIDC token from any other repository is rejected by Google before it
-  becomes a credential.
+* The provider's attribute condition binds the exchange to **this repository,
+  the `main` branch, and this one workflow file** — see below.
+
+### The trust boundary
+
+`assertion.repository == 'Algolon/Fjallkompis'` alone is *necessary but wider
+than the release trust boundary*: it would let any workflow in this repository,
+on any branch, impersonate the Play service account. The condition is therefore
+bound to all three of repository, ref and workflow:
+
+```cel
+assertion.repository_id == '1286996996' &&
+assertion.repository == 'Algolon/Fjallkompis' &&
+assertion.ref == 'refs/heads/main' &&
+assertion.workflow_ref == 'Algolon/Fjallkompis/.github/workflows/android-internal-release.yml@refs/heads/main'
+```
+
+Why each term:
+
+| Term | What it stops |
+| --- | --- |
+| `repository_id` | the repository being renamed and the old name reclaimed — Google [recommends](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines) numeric ids precisely because name fields invite typo/cybersquatting |
+| `repository` | a different repository entirely (redundant with the id, kept for legibility in the condition) |
+| `ref` | a release attempted from a feature branch |
+| `workflow_ref` | **any other workflow in this repository** — including a newly added one — minting a Play credential |
+
+`workflow_ref` is a standard GitHub OIDC claim: *"The ref path to the workflow.
+For example, `octocat/hello-world/.github/workflows/my-workflow.yml@refs/heads/my_branch`"*
+([GitHub OIDC reference](https://docs.github.com/en/actions/reference/security/oidc)).
+It is the right claim here because this workflow is **not** a reusable workflow;
+`job_workflow_ref` is the reusable-workflow variant and would be the wrong
+choice. Google attribute conditions can read raw claims as `assertion.<claim>`
+with no prior attribute mapping, which is why none of these needs to be mapped.
+
+Because `workflow_ref` embeds the ref, the `ref` term is strictly redundant —
+it is kept because a condition that states its intent survives editing better
+than one that relies on a substring.
+
+**The workflow's own `main`-only guard stays** as defense in depth. Google's
+condition and the workflow guard fail independently; neither is load-bearing
+alone.
+
+**Configuring it without guessing:** the first run prints the exact claim values
+it presents —
+
+```
+Presenting a GitHub OIDC assertion to Google with:
+  OIDC repository: Algolon/Fjallkompis
+  OIDC ref: refs/heads/main
+  OIDC workflow_ref: Algolon/Fjallkompis/.github/workflows/android-internal-release.yml@refs/heads/main
+```
+
+Those three claims only, never the token or any other claim. All three are
+public facts about a public repository, not credentials. Paste them into the
+condition rather than transcribing from this document.
 
 ### Remaining human setup
 
@@ -146,8 +198,11 @@ agent. None of it produces a secret to store — that is the design.
    * Audience: **Allowed audiences** →
      `https://iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github`
    * Attribute mapping: `google.subject` = `assertion.sub`,
-     `attribute.repository` = `assertion.repository`
-   * Attribute condition: `assertion.repository == 'Algolon/Fjallkompis'`
+     `attribute.repository` = `assertion.repository`,
+     `attribute.repository_id` = `assertion.repository_id`
+   * Attribute condition: the four-term CEL expression under
+     [The trust boundary](#the-trust-boundary) — repository id, repository, ref
+     **and** `workflow_ref`. Do not stop at the repository term.
 4. Grant the pool permission to impersonate the service account:
    *Service Accounts → `fjallkompis-play-release` → Permissions → Grant access*,
    principal
@@ -170,18 +225,37 @@ Variables*, not Secrets — these are identifiers, not credentials):
 | `PLAY_WORKLOAD_IDENTITY_PROVIDER` | `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github` |
 | `PLAY_SERVICE_ACCOUNT` | `fjallkompis-play-release@<project>.iam.gserviceaccount.com` |
 
-**Optional but recommended hardening:**
-
-| Variable | Value |
-| --- | --- |
-| `ANDROID_UPLOAD_KEY_SHA256` | the upload key's SHA-256, read off *Play Console → App integrity → Upload key certificate* |
-
-With it set, the build additionally refuses any bundle not signed by that exact
-key — the check that survives someone replacing the keystore secret with a key
-they control.
-
 Then run the workflow once with **`dry_run: true`**. It exercises the Play
 probe, every gate and the full artifact verification, and uploads nothing.
+
+### The signing trust anchor
+
+`UPLOAD_KEY_SHA256` in `scripts/release-candidate.mjs` is the SHA-256 of the
+upload-key certificate Play has registered. Every release checks the packaged
+bundle against it, in both the build job and the publish job, and **fails closed
+if it is missing or does not match** — including on a dry run.
+
+It exists because the other signer check cannot catch the threat it is for.
+"The bundle matches the configured upload key" compares the artifact against a
+key derived from the same `ANDROID_UPLOAD_*` secrets in the same run: if those
+secrets were replaced with a keystore an attacker controls, that check still
+passes. Only a value the secrets cannot reach detects the substitution.
+
+It is **committed, not a repository variable**, and that is the point. Variables
+and secrets share one control plane and one admin — whoever can swap the
+keystore can swap a variable in the next click, neither change reviewed. A
+committed constant moves that substitution into a pull request diff against a
+protected branch.
+
+The value was not transcribed from a keystore or invented: it is the fingerprint
+the release workflow printed for the four artifacts Play **accepted** as
+2700002–2700005, in the runs recorded against those entries in
+`android/release-ledger.json`. All four agree. Cross-check any time against
+*Play Console → App integrity → App signing → Upload key certificate*.
+
+If the upload key is ever legitimately rotated, change the constant in a
+reviewed pull request. If a release fails on it and no rotation happened, treat
+the signing secrets as compromised.
 
 ---
 
@@ -210,10 +284,35 @@ After Play accepts, the `ledger` job opens a PR that appends the entry, raises
 the two `docs/ANDROID.md` rows between the `<!-- release-ledger:… -->` markers.
 It contains no product or runtime change and still needs CI and a human merge.
 
-**A second release fails closed while the ledger still describes the candidate
-as unconsumed**, because the workflow does not rely on the ledger alone — it
-asks Play. That is what makes the window between an accepted upload and a merged
-ledger PR safe.
+### Two fences, and what each one actually guarantees
+
+A release must clear **both**. Neither is sufficient alone, and neither
+overrules the other.
+
+| | `android/release-ledger.json` | Play |
+| --- | --- | --- |
+| Role | the **historical** authority | the **live-state** fence |
+| Guarantee | append-only; nothing ever leaves it | whatever Play currently shows |
+| Catches | any code ever recorded as consumed | a code Play accepted whose ledger PR has not merged, or that arrived by a route the repository never recorded |
+| Blind to | a release that never reached the ledger | anything Play no longer lists |
+
+**Play is deliberately not described as a historical registry.** Google
+documents `edits.bundles.list` as *"Lists all current Android App Bundles of the
+app and edit"*, and `edits.tracks.list` returns an edit's tracks with their
+current releases. Neither is documented as an immutable record of every
+versionCode ever accepted, and no such guarantee is offered — so **absence at
+Play is not proof that a code is free.** The committed ledger is what carries
+that claim.
+
+The converse is solid, and is what the retry safety rests on: a code Play has
+*just* accepted is unambiguously part of its current state. It appears in the
+post-upload re-read, and it keeps appearing on any retry — which is exactly what
+refuses a second release while the ledger PR is still outstanding. The weaker
+guarantee above concerns old codes ageing out of a listing, not one accepted
+seconds ago.
+
+**So a second release fails closed while the committed ledger still calls the
+candidate unconsumed**, because the workflow never relies on the ledger alone.
 
 ---
 
@@ -276,12 +375,26 @@ exempt" toggle, and it is readable back through one API call.
 | Block force pushes | yes |
 | Block branch deletion | yes |
 | Merge method | unrestricted — merge commits stay the established strategy |
-| Bypass | **Repository admin** (`RepositoryRole` 5), always |
+| Bypass | **Repository admin** (`RepositoryRole` 5), **`pull_request` only** |
 
-Verified after applying: the ruleset resolves on `main` with all four rules,
-the API reports `current_user_can_bypass: always`, and PR #129 — with the only
-required check green — reported `mergeStateStatus: CLEAN`, which is what proves
+The bypass is deliberately **not** `always`. With `always`, a direct push to
+`main` stays possible for the admin as an everyday accident — which is most of
+what this ruleset exists to prevent, given the admin is the only person here.
+`pull_request` keeps the admin able to bypass *when merging through a pull
+request* while making a direct push behave like everyone else's: refused.
+GitHub documents the mode as *"The actor can only bypass rules on pull
+requests"*, and it applies to branch rulesets, which this is.
+
+Verified after applying: all four rules resolve on `main`, the API reports
+`current_user_can_bypass: "pull_requests_only"`, and PR #129 — with the only
+required check green — reports `mergeStateStatus: CLEAN`, which is what proves
 the rule does not deadlock an ordinary merge.
+
+*Not* verified by attempting a real direct push to `main`: that test is only
+safe if it fails, and if the rule were misconfigured it would silently land a
+commit that force-push protection then makes awkward to remove. `git push
+--dry-run` is no substitute — it is a client-side simulation and never reaches
+the server-side rule evaluation, so it reports success either way.
 
 Zero required approvals is deliberate: a solo developer must be able to merge
 their own work. What the rule buys is that changes arrive *through* a PR with
@@ -295,19 +408,52 @@ which is why the ruleset was written against the observed check names.
 
 **Release automation does not bypass this.** The `ledger` job pushes a
 `release/ledger-*` branch and opens a PR like anything else; GitHub Actions is
-not a bypass actor.
+not a bypass actor, and must never become one.
+
+### The ledger PR needs one repository setting
+
+Job-level `permissions:` are necessary but **not sufficient** for the ledger job
+to open its pull request. `GITHUB_TOKEN` is additionally gated by a repository
+setting, and this repository had it switched off:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| *Workflow permissions* → default `GITHUB_TOKEN` scope | **Read repository contents and packages permissions** | least privilege by default. A workflow may still request more in its own `permissions:` block, which is exactly how the `ledger` job gets `contents: write` — so this stays read-only |
+| *Allow GitHub Actions to create and approve pull requests* | **enabled** (was disabled) | without it `gh pr create` fails outright, regardless of `pull-requests: write` |
+
+The second setting also permits Actions to *approve* pull requests, which is
+worth naming rather than glossing. It grants nothing here: the `main` ruleset
+requires **0** approvals, so an approval from any actor — Actions included — is
+not a merge gate and cannot be used to bypass one. If required approvals ever
+becomes non-zero, revisit this: an Actions-approvable PR would then be a real
+escalation path, and the ledger job should push its branch and leave the PR to a
+human instead.
+
+Verified with `GET /repos/Algolon/Fjallkompis/actions/permissions/workflow` →
+`{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}`.
 
 ### Recovery / emergency
 
-* **Normal escape hatch:** you are a repository admin and admins bypass the
-  ruleset, so a direct push to `main` remains possible when something is on
-  fire. It is a deliberate act, not the default path.
-* **Disable the ruleset:** *Settings → Rules → Rulesets → `main protection` →
-  Enabled/Disabled*, or
+The admin bypass is `pull_request`-scoped, so **a direct push to `main` is no
+longer an escape hatch** — not even for you. That is intentional. The real
+emergency route is one deliberate, auditable step:
+
+* **Merge through a PR, bypassing the checks.** With `pull_request` bypass an
+  admin can merge a pull request that has not satisfied the required check —
+  enough for almost every "this must land now" situation, without ever leaving
+  the reviewed path.
+* **If you truly need a direct push**, disable the ruleset, push, re-enable it.
+  Two commands, and both appear in the audit log:
 
   ```bash
   gh api -X PUT repos/Algolon/Fjallkompis/rulesets/20597178 -f enforcement=disabled
   ```
+
+  ```bash
+  gh api -X PUT repos/Algolon/Fjallkompis/rulesets/20597178 -f enforcement=active
+  ```
+* The same switch lives in the UI at *Settings → Rules → Rulesets →
+  `main protection` → Enabled/Disabled*.
 * **If a required check is renamed**, PRs will hang waiting for a check that
   never reports. Fix the ruleset's `required_status_checks`, or disable it,
   merge, and re-enable. Renaming the `pr-ci.yml` job's `name:` is what would

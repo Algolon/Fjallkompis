@@ -92,12 +92,35 @@ async function withReadOnlyEdit(token, fn) {
 }
 
 /**
- * Every versionCode Play already holds, from two independent readings: the
- * bundle list and every track's releases. Two, because a bundle can exist
- * without being on a track and a track can reference a code whose bundle the
- * list has rolled off.
+ * The versionCodes Play CURRENTLY SHOWS for this app, from two independent
+ * readings: the bundle list and every track's releases. Two, because a bundle
+ * can exist without being on a track and a track can reference a code whose
+ * bundle the list no longer returns.
+ *
+ * READ THE NAME LITERALLY. This is live state, not history.
+ *
+ * `edits.bundles.list` is documented as "Lists all current Android App Bundles
+ * of the app and edit", and `edits.tracks.list` returns the tracks of an edit
+ * with their current releases. Neither is documented as an immutable registry
+ * of every versionCode Play has ever accepted, and Google guarantees no such
+ * thing — so this function must never be treated as one. A code that is absent
+ * here is NOT thereby proven to be free.
+ *
+ * That is exactly why there are two fences and not one:
+ *
+ *   android/release-ledger.json  the append-only HISTORICAL authority. Nothing
+ *                                ever leaves it, so a code it names is burned
+ *                                whether or not Play still shows it.
+ *   this function                the independent LIVE fence. It catches the
+ *                                case the ledger structurally cannot: a code
+ *                                Play accepted whose ledger PR has not merged
+ *                                yet, and any code that arrived by some route
+ *                                the repository never recorded.
+ *
+ * A release must clear BOTH. Neither is sufficient alone, and neither is
+ * allowed to overrule the other.
  */
-async function consumedAtPlay(token) {
+async function visibleAtPlay(token) {
   return withReadOnlyEdit(token, async (editId) => {
     const base = `/applications/${APPLICATION_ID}/edits/${editId}`;
     const bundles = await api(token, `${base}/bundles`);
@@ -147,33 +170,45 @@ function candidateOrDie() {
 }
 
 async function probe() {
+  // Fence 1 — the committed, append-only HISTORY. This is the authority on what
+  // has ever been consumed, and it is checked first because it is the one that
+  // cannot silently forget.
   const candidate = candidateOrDie();
-  const token = await playAccessToken(resolveCredentials());
-  const { codes, tracks } = await consumedAtPlay(token);
 
-  console.log(`Play already holds ${codes.length} versionCode(s): ${codes.join(', ') || '(none)'}`);
+  // Fence 2 — Play's CURRENT state, independent of anything this repository
+  // believes.
+  const token = await playAccessToken(resolveCredentials());
+  const { codes, tracks } = await visibleAtPlay(token);
+
+  console.log(`Play currently shows ${codes.length} versionCode(s): ${codes.join(', ') || '(none)'}`);
   console.log(`Tracks visible to this service account: ${tracks.join(', ') || '(none)'}`);
 
   if (codes.includes(candidate.versionCode)) {
     fail(
-      `Play ALREADY HOLDS versionCode ${candidate.versionCode}. It is consumed and can never be ` +
+      `Play ALREADY SHOWS versionCode ${candidate.versionCode}. It is consumed and can never be ` +
         're-uploaded. The committed ledger (android/release-ledger.json) is stale — close it for ' +
         `${candidate.versionCode}, raise androidBuild, and release the next code.`,
     );
   }
 
-  // A code above ours at Play means the committed ledger has fallen behind by
-  // more than one release. Uploading now would work, but the ledger would then
-  // be wrong in a way nobody notices, so stop.
+  // A visible code above ours means Play knows about a release the committed
+  // ledger does not. Uploading would probably succeed, and the ledger would
+  // then be wrong in a way nobody notices, so stop and reconcile.
   const ahead = codes.filter((code) => code > candidate.versionCode);
   if (ahead.length > 0) {
     fail(
-      `Play holds versionCode(s) ${ahead.join(', ')} above the candidate ${candidate.versionCode}. ` +
+      `Play shows versionCode(s) ${ahead.join(', ')} above the candidate ${candidate.versionCode}. ` +
         'The committed ledger is behind reality — reconcile android/release-ledger.json before releasing.',
     );
   }
 
-  console.log(`✓ ${candidate.versionCode} is free at Play and legal in the committed ledger.`);
+  // Deliberately NOT "the code is free". Play showing nothing is not proof that
+  // nothing was ever accepted — see visibleAtPlay. What has been established is
+  // the conjunction of both fences, which is what the release is allowed to
+  // proceed on.
+  console.log(
+    `✓ ${candidate.versionCode} is absent from Play's current state and unconsumed in the committed ledger.`,
+  );
   return { candidate, token, playCodes: codes };
 }
 
@@ -262,13 +297,21 @@ async function upload() {
 
   // Whether or not the commit response arrived, ask Play what is true. A lost
   // response is the case this exists for: the release may well have succeeded.
-  const after = await consumedAtPlay(token);
+  //
+  // This read is where the live fence earns its keep. A code Play has just
+  // accepted is unambiguously part of its current state, so it WILL appear
+  // here — and it will keep appearing on any retry, which is what stops a
+  // second release while the ledger PR is still open. The weaker guarantee
+  // discussed in visibleAtPlay concerns old codes ageing out of the listing,
+  // not one accepted seconds ago.
+  const after = await visibleAtPlay(token);
   const present = after.codes.includes(candidate.versionCode);
 
   if (!committed && !present) {
     fail(
       `the edit failed to commit and Play does not hold ${candidate.versionCode}: ${commitError.message}\n` +
-        'Nothing was released. The candidate appears to be free; the next run re-probes before trusting that.',
+        'Nothing was released, and Play does not show the candidate. That is not by itself proof it ' +
+          'is reusable — the next run re-checks both the committed ledger and Play before trusting it.',
     );
   }
   if (!committed && present) {

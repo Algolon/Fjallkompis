@@ -42,6 +42,46 @@ const read = (rel) => readFileSync(join(root, rel), 'utf8');
 export const APPLICATION_ID = 'com.algolon.fjallkompis';
 
 /**
+ * The SHA-256 of the UPLOAD KEY certificate Google Play has registered for
+ * com.algolon.fjallkompis, and the trust anchor for "is this our signing key?"
+ *
+ * WHY THIS IS COMMITTED, and not a repository variable.
+ *
+ * The threat is an attacker who can rewrite the four ANDROID_UPLOAD_* secrets,
+ * substituting a keystore they control. Every in-build check would still pass:
+ * the bundle really is signed, really is not the debug key, and really does
+ * match "the configured upload key" — because the configured key is the
+ * attacker's. Comparing the artifact against a key derived from the same
+ * secrets in the same run cannot detect that; the comparison has to be against
+ * a value the secrets cannot reach.
+ *
+ * A repository VARIABLE is not that value. Variables and secrets are the same
+ * control plane and the same admin: whoever can swap the keystore can swap the
+ * variable in the next click, and neither change is reviewed. A committed
+ * constant is different in the way that matters — changing it needs a pull
+ * request against a protected branch, so the substitution becomes visible in a
+ * diff instead of silent in a settings page.
+ *
+ * PROVENANCE. Not transcribed from a keystore and not invented. This is the
+ * fingerprint the release workflow itself printed for the artifacts Play
+ * ACCEPTED as 2700002, 2700003, 2700004 and 2700005 — runs 31249499518,
+ * 31260466056, 31271009542 and 31285046146, whose ids are recorded against
+ * those entries in android/release-ledger.json. All four agree. Since Play
+ * accepted those bundles under Play App Signing, this is by construction the
+ * upload key Play has registered.
+ *
+ * Cross-check it any time against Play Console -> App integrity -> App signing
+ * -> Upload key certificate. Certificate fingerprints are public information;
+ * Play displays this one. It is not a credential.
+ */
+export const UPLOAD_KEY_SHA256 =
+  '67:6F:10:47:74:6A:B9:BB:51:55:5E:B0:DB:FC:6A:0E:21:90:41:DF:C6:10:1B:9C:05:FF:47:6A:D9:08:56:EB';
+
+/** Fingerprints differ only in punctuation and case between tools. */
+export const normaliseFingerprint = (value) =>
+  String(value).replace(/[\s:]/g, '').toUpperCase();
+
+/**
  * The ONLY track this repository releases to automatically. A constant, not an
  * input: a free-text track would put "production" one typo away from a
  * rollout that cannot be taken back.
