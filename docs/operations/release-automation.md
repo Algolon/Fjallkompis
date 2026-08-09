@@ -259,7 +259,14 @@ the workflow run.
 
 ## `main` branch protection
 
-A repository ruleset on `refs/heads/main`:
+Repository ruleset **`main protection`**, id **20597178**
+([settings](https://github.com/Algolon/Fjallkompis/rules/20597178)), targeting
+`~DEFAULT_BRANCH`. Applied and verified 2026-08-09; before it, `main` accepted
+direct pushes, force pushes and deletion.
+
+A ruleset rather than legacy branch protection: it targets the default branch
+symbolically, its bypass list is explicit rather than an implicit "admins are
+exempt" toggle, and it is readable back through one API call.
 
 | Rule | Setting |
 | --- | --- |
@@ -269,7 +276,12 @@ A repository ruleset on `refs/heads/main`:
 | Block force pushes | yes |
 | Block branch deletion | yes |
 | Merge method | unrestricted — merge commits stay the established strategy |
-| Bypass | **Repository admin**, always |
+| Bypass | **Repository admin** (`RepositoryRole` 5), always |
+
+Verified after applying: the ruleset resolves on `main` with all four rules,
+the API reports `current_user_can_bypass: always`, and PR #129 — with the only
+required check green — reported `mergeStateStatus: CLEAN`, which is what proves
+the rule does not deadlock an ordinary merge.
 
 Zero required approvals is deliberate: a solo developer must be able to merge
 their own work. What the rule buys is that changes arrive *through* a PR with
@@ -292,7 +304,10 @@ not a bypass actor.
   fire. It is a deliberate act, not the default path.
 * **Disable the ruleset:** *Settings → Rules → Rulesets → `main protection` →
   Enabled/Disabled*, or
-  `gh api -X PUT repos/Algolon/Fjallkompis/rulesets/<id> -f enforcement=disabled`.
+
+  ```bash
+  gh api -X PUT repos/Algolon/Fjallkompis/rulesets/20597178 -f enforcement=disabled
+  ```
 * **If a required check is renamed**, PRs will hang waiting for a check that
   never reports. Fix the ruleset's `required_status_checks`, or disable it,
   merge, and re-enable. Renaming the `pr-ci.yml` job's `name:` is what would
