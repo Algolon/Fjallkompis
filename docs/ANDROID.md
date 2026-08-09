@@ -1,16 +1,27 @@
 # Android wrapper (Capacitor)
 
 **Status: in production on Google Play Internal Testing.** The wrapper is
-merged and physically validated; versionName **0.27.0** / versionCode
-**2700005** is the current Internal Testing build — uploaded, published,
-installed from Google Play on the Samsung test device and physically
-validated: the bundled topo/vector basemap on a cold start in airplane mode
-(2700002), complete backup export + restore including Wallet documents
-(2700003), the branding-parity launcher icon, the `Fjallkompis` launcher
-label and a clean splash → first-frame handoff (2700004), all 2026-08-08;
-and map parity — optional terrain/contours and satellite downloading and
-working alongside the bundled basemap — on 2026-08-09 (2700005). Installs and
-updates arrive the normal Play way — no sideloading, no security bypasses.
+merged and physically validated. Installs and updates arrive the normal Play
+way — no sideloading, no security bypasses.
+
+<!-- release-current:begin -->
+**Current Internal Testing build: `0.27.0` / versionCode `2700006`** — accepted by Google Play on the `internal` track on 2026-08-09. The source commit and workflow run that produced it are recorded in [`android/release-ledger.json`](../android/release-ledger.json).
+<!-- release-current:end -->
+
+The line above is **generated** from the final entry of
+[`android/release-ledger.json`](../android/release-ledger.json) by
+`scripts/close-release-ledger.mjs`, and a test fails if it drifts from the
+ledger. Do not edit it by hand — this sentence named 2700005 for two releases
+after 2700006 shipped, which is exactly why it is no longer prose.
+
+**Physically validated on the Samsung test device**, cumulatively: the bundled
+topo/vector basemap on a cold start in airplane mode (2700002), complete backup
+export + restore including Wallet documents (2700003), the branding-parity
+launcher icon, the `Fjallkompis` launcher label and a clean splash → first-frame
+handoff (2700004), all 2026-08-08; and map parity — optional terrain/contours
+and satellite downloading and working alongside the bundled basemap — on
+2026-08-09 (2700005). Those versionCodes are **history**: each names the build
+that closed the risk beside it, and none of them moves when a new release ships.
 
 Fjallkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell

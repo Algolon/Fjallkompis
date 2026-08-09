@@ -11,7 +11,9 @@
  *
  *   android/release-ledger.json   append the accepted code, raise the fence
  *   android/version.properties    append the prose history line, androidBuild + 1
- *   docs/ANDROID.md               regenerate the versioning table's two live rows
+ *   docs/ANDROID.md               regenerate BOTH marked regions — the
+ *                                 versioning table's two live rows, and the
+ *                                 status header's current-build line
  *
  * No product or runtime file is in that list, and the workflow re-checks the
  * working tree against it before pushing.
@@ -34,8 +36,19 @@ export const LEDGER_PATHS = [
   'docs/ANDROID.md',
 ];
 
-const BEGIN = '<!-- release-ledger:begin -->';
-const END = '<!-- release-ledger:end -->';
+/**
+ * The generated regions of docs/ANDROID.md, by marker name.
+ *
+ *   release-ledger   the versioning table's two live rows
+ *   release-current  the one-line "current Internal Testing build" statement
+ *
+ * Two regions rather than one because they have different owners. Everything
+ * outside them — including the physical-validation narrative, which cites older
+ * versionCodes as HISTORY and must not move — stays human-written. The status
+ * header used to state the current build in that same prose, and went stale the
+ * moment a release succeeded: it still named 2700005 after 2700006 shipped.
+ */
+const MARKERS = ['release-ledger', 'release-current'];
 
 /** The two rows of the ANDROID.md versioning table that move with every release. */
 export function versioningRows(ledger, nextVersionName, nextAndroidBuild) {
@@ -100,14 +113,67 @@ export function appendToVersionProperties(source, accepted, nextAndroidBuild) {
   return source.replace(counter, `${line}androidBuild=${nextAndroidBuild}`);
 }
 
-export function updateAndroidDoc(source, rows) {
-  const begin = source.indexOf(BEGIN);
-  const end = source.indexOf(END);
-  if (begin === -1 || end === -1 || end < begin) {
-    throw new Error(`docs/ANDROID.md is missing the ${BEGIN} / ${END} markers around the versioning rows`);
+/**
+ * The one volatile sentence in the status header, derived from the ledger's
+ * FINAL accepted entry — never from provenance, and never hand-written.
+ *
+ * Reading the last entry rather than being handed the release being closed is
+ * deliberate: it makes the line a pure function of the committed ledger, so it
+ * can be regenerated and verified at any time, by anyone, without a release in
+ * flight.
+ */
+export function currentReleaseLine(ledger) {
+  const latest = ledger.consumed[ledger.consumed.length - 1];
+  if (!latest) throw new Error('the release ledger records no accepted release to describe');
+
+  // The ledger's own fence and its last entry must agree before either is
+  // quoted in prose. readLedger already enforces this; asserting it here too
+  // means the sentence cannot be generated from a ledger that disagrees with
+  // itself even if this function is ever called with a hand-built object.
+  if (latest.versionCode !== ledger.highestConsumedVersionCode) {
+    throw new Error(
+      `the ledger's last entry (${latest.versionCode}) is not its high-water mark ` +
+        `(${ledger.highestConsumedVersionCode}) — refusing to describe a current build`,
+    );
   }
-  return `${source.slice(0, begin + BEGIN.length)}\n${rows}\n${source.slice(end)}`;
+
+  return (
+    `**Current Internal Testing build: \`${latest.versionName}\` / versionCode ` +
+    `\`${latest.versionCode}\`** — accepted by Google Play on the \`${latest.playTrack}\` ` +
+    `track on ${latest.acceptedOn}. The source commit and workflow run that produced ` +
+    'it are recorded in [`android/release-ledger.json`](../android/release-ledger.json).'
+  );
 }
+
+/** Replace one marked region, leaving everything outside it byte-for-byte alone. */
+function replaceMarkedSection(source, marker, content) {
+  const begin = `<!-- ${marker}:begin -->`;
+  const end = `<!-- ${marker}:end -->`;
+  const b = source.indexOf(begin);
+  const e = source.indexOf(end);
+  if (b === -1 || e === -1 || e < b) {
+    throw new Error(`docs/ANDROID.md is missing the ${begin} / ${end} markers`);
+  }
+  if (source.indexOf(begin, b + 1) !== -1 || source.indexOf(end, e + 1) !== -1) {
+    throw new Error(`docs/ANDROID.md declares the ${marker} markers more than once`);
+  }
+  return `${source.slice(0, b + begin.length)}\n${content}\n${source.slice(e)}`;
+}
+
+/**
+ * Regenerate every marked region of docs/ANDROID.md. One entry point, one
+ * marker mechanism — a second document generator would be a second thing to
+ * keep in step with the ledger.
+ */
+export function updateAndroidDoc(source, rows, currentLine) {
+  let updated = replaceMarkedSection(source, 'release-ledger', rows);
+  if (currentLine !== undefined) {
+    updated = replaceMarkedSection(updated, 'release-current', currentLine);
+  }
+  return updated;
+}
+
+export { MARKERS, replaceMarkedSection };
 
 // --- CLI ---------------------------------------------------------------------
 
@@ -149,11 +215,13 @@ if (isMain) {
     path('android/version.properties'),
     appendToVersionProperties(read('android/version.properties'), accepted, nextAndroidBuild),
   );
+  const closedLedger = readLedger(newLedger);
   writeFileSync(
     path('docs/ANDROID.md'),
     updateAndroidDoc(
       read('docs/ANDROID.md'),
-      versioningRows(readLedger(newLedger), accepted.versionName, nextAndroidBuild),
+      versioningRows(closedLedger, accepted.versionName, nextAndroidBuild),
+      currentReleaseLine(closedLedger),
     ),
   );
 
