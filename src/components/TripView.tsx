@@ -34,6 +34,7 @@ import {
   resolveWalletMimeType,
   sortWalletDocuments,
   walletCategoryTitle,
+  walletDownloadFileName,
   walletSummaryText,
 } from '../wallet/walletModel.mjs';
 import { useWalletDocuments } from '../hooks/useWalletDocuments';
@@ -49,7 +50,7 @@ import {
   type TripItemPrefill,
 } from './TripItemSheet';
 import { formatBytes } from '../map/offlineMap';
-import { downloadBlobFile } from '../utils/exportImport';
+import { saveGeneratedFile } from '../runtime/fileSave';
 import { formatTripDate, todayIso } from '../utils/format';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 
@@ -178,22 +179,43 @@ export function TripView({
         `The file for “${doc.title}” is missing from local storage on this device. ` +
           'It may have been removed by the browser — delete the entry and add the document again.',
       );
-    } else if (result.kind === 'pdf-downloaded') {
+    } else if (result.kind === 'pdf-saved') {
       setNotice(
-        'This browser could not open the PDF viewer directly, so a copy was downloaded instead.',
+        'This device could not open the PDF viewer directly, so a copy was saved instead.',
+      );
+    } else if (result.kind === 'pdf-save-cancelled') {
+      setNotice(
+        'This device could not open the PDF viewer directly. Saving a copy was cancelled, ' +
+          'so the document is still stored here and nothing was written.',
       );
     } else if (result.kind === 'image') {
       setViewer({ doc, url: result.url });
     }
   };
 
+  /**
+   * "Download a copy" — the constant, viewer-independent path to the file
+   * (docs/proposals/trail-wallet.md §4.2), and the reason it must actually
+   * work: it is the fallback the PDF viewer decision leans on.
+   *
+   * Goes through the platform save boundary rather than a blob-URL anchor,
+   * which the Android WebView ignores — the button was a silent no-op in the
+   * wrapper. A dismissed picker is a normal outcome, not a failure.
+   */
   const exportDocument = async (doc: WalletDocument) => {
+    setNotice(null);
     const blob = await wallet.getFile(doc.id);
     if (!blob) {
       setNotice(`The file for “${doc.title}” is missing from local storage on this device.`);
       return;
     }
-    downloadBlobFile(doc.fileName || doc.title, blob);
+    try {
+      const outcome = await saveGeneratedFile(walletDownloadFileName(doc), blob, doc.mimeType);
+      if (outcome === 'saved') setNotice(`A copy of “${doc.title}” was saved.`);
+    } catch (err) {
+      console.warn('Fjallkompis: could not save a copy of the document.', err);
+      setNotice(`A copy of “${doc.title}” could not be saved on this device.`);
+    }
   };
 
   // ---- Persistence handlers ---------------------------------------------------

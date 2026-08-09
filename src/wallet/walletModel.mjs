@@ -87,6 +87,35 @@ const ACCEPTED_MIME_TYPES = new Set(Object.values(MIME_BY_EXTENSION));
 /** Common non-standard aliases some platforms report. */
 const MIME_ALIASES = { 'image/jpg': 'image/jpeg', 'image/pjpeg': 'image/jpeg' };
 
+/** The canonical extension for a stored MIME type — jpeg wins over jpg. */
+const EXTENSION_BY_MIME = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+/**
+ * The filename to hand the platform when delivering ONE stored document.
+ *
+ * The name the user attached is preserved verbatim whenever there is one —
+ * that is the name they will recognise. Only when a document has no stored
+ * fileName (older entries, and anything created before file names were kept)
+ * is one derived from the title, and then it must still carry the extension
+ * for its MIME type: Android's ACTION_CREATE_DOCUMENT picker and every desktop
+ * browser decide how to treat a file by that suffix, so an extensionless
+ * "Insurance" saves as something neither can open.
+ */
+export function walletDownloadFileName(doc) {
+  const stored = typeof doc?.fileName === 'string' ? doc.fileName.trim() : '';
+  if (stored) return stored;
+
+  const base = (typeof doc?.title === 'string' && doc.title.trim()) || 'document';
+  const ext = EXTENSION_BY_MIME[doc?.mimeType];
+  if (!ext) return base;
+  return base.toLowerCase().endsWith(`.${ext}`) ? base : `${base}.${ext}`;
+}
+
 /**
  * The <input accept> allowlist — MIME types AND extensions, because some
  * pickers match on one and some on the other. Single source of truth: the
