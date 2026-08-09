@@ -1,51 +1,171 @@
-name: Android internal release AAB
+name: Release Fjallkompis
 
-# Builds a RELEASE-SIGNED Android App Bundle for manual upload to Google Play
-# Internal Testing.
+# ONE committed `main` SHA -> a verified, reproducible signed AAB -> Google Play
+# Internal Testing -> a ledger pull request recording what was consumed.
 #
-# IT BUILDS ONLY. There is no Google Play Developer API call anywhere in this
-# workflow: the .aab is uploaded to Play by a human, deliberately, for this
-# first iteration. Automating that comes later, once one complete manual
-# release has been proven end to end.
+# Production rollout is NOT part of this workflow and is not one input away from
+# it: the track is a constant in scripts/release-candidate.mjs, and
+# scripts/play-release.mjs refuses every other track by name.
 #
-# It also cannot touch production: no `pages` permission, no `id-token`, no
-# deployment step. The one credential involved is the UPLOAD key, reconstructed
-# from repository secrets into the runner's temp directory (outside the
-# workspace, so it can never be swept into an artifact) and destroyed
-# afterwards. Google Play App Signing holds the final app-signing key; this
-# repository never sees it.
+# THE SHAPE, and why it is four jobs rather than one:
 #
-# Manual dispatch only. A release build is a deliberate act with a versionCode
-# that can never be reused, so it must not fire on a push.
+#   preflight  cheap, fast-failing. Proves the dispatch is `main`, pins the
+#              exact SHA, derives the candidate versionCode from committed
+#              metadata, and asks PLAY ITSELF which codes it already holds.
+#              Holds `id-token: write` (for Google) and no signing secrets.
+#
+#   build      the long one. Every existing release gate, unchanged, plus the
+#              signed bundle. Holds the four signing secrets and `contents:
+#              read`. It has no Google credential and cannot publish anything.
+#
+#   publish    downloads the artifact and inspects it INDEPENDENTLY — in a job
+#              that never saw the keystore — re-deriving the expected identity
+#              from committed metadata rather than trusting the build job's
+#              word for it. Then, and only then, uploads to Play.
+#
+#   ledger     after Play accepts, opens a pull request recording the consumed
+#              code. The only job with write permission, restricted to three
+#              release-metadata files and enforced by a path allowlist before
+#              the push. It cannot reach `main`: branch protection requires a
+#              pull request, and this workflow is not a bypass actor.
+#
+# A versionCode Play accepts can never be reused or reclaimed. Every ambiguous
+# outcome below therefore fails closed and says so, rather than assuming a code
+# is still free.
 
 on:
-  # Manual dispatch ONLY — a release build is a deliberate act. (During this
-  # workflow's own pull request a temporary branch-scoped push trigger existed
-  # here, because GitHub only dispatches workflows that already exist on the
-  # default branch; it was removed once the signed bundle was proven in run
+  # Manual dispatch ONLY, and only from `main` — enforced below rather than
+  # assumed, because workflow_dispatch lets the caller choose a ref. (During
+  # this workflow's own pull request a temporary branch-scoped push trigger
+  # existed here, because GitHub only dispatches workflows that already exist on
+  # the default branch; it was removed once the signed bundle was proven in run
   # 31229585172. Do not reintroduce it.)
   workflow_dispatch:
     inputs:
-      reason:
-        description: 'What this build is for (recorded in the job summary)'
+      release_notes:
+        description: "What testers should read in Play (optional, <=500 chars)"
         required: false
-        default: 'Internal Testing candidate'
+        type: string
+        default: ''
+      dry_run:
+        description: 'Build and verify everything, then STOP before the Play upload'
+        required: false
+        type: boolean
+        default: false
 
+# Least privilege at the top; only the ledger job widens it, and only to what it
+# needs to open a pull request.
 permissions:
   contents: read
 
 concurrency:
-  # Its own group: never queue behind or cancel the Pages deploy or the debug
-  # APK job.
-  group: android-internal-release-${{ github.ref }}
+  # A CONSTANT group, deliberately not scoped by ref or run: releasing twice at
+  # once is the way to consume a versionCode by accident. cancel-in-progress is
+  # false because cancelling a release mid-upload is worse than queueing.
+  group: fjallkompis-release
   cancel-in-progress: false
 
 jobs:
-  aab:
-    name: Build signed release AAB
+  # ---------------------------------------------------------------------------
+  preflight:
+    name: Pin main, derive the candidate, ask Play
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # ONLY for the Google STS exchange. No other job has it.
+    outputs:
+      source_sha: ${{ steps.pin.outputs.source_sha }}
+      application_id: ${{ steps.candidate.outputs.applicationId }}
+      version_name: ${{ steps.candidate.outputs.versionName }}
+      version_code: ${{ steps.candidate.outputs.versionCode }}
+      android_build: ${{ steps.candidate.outputs.androidBuild }}
+      track: ${{ steps.candidate.outputs.track }}
+    steps:
+      - name: Refuse anything that is not main
+        # workflow_dispatch accepts any ref. A release built from a feature
+        # branch would carry a versionCode derived from uncommitted-to-main
+        # metadata and consume it forever.
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+          if [ "$REF_TYPE" != "branch" ] || [ "$REF_NAME" != "main" ]; then
+            echo "::error::this workflow releases committed main only — dispatched from $REF_TYPE '$REF_NAME'"
+            exit 1
+          fi
+          echo "Dispatched from branch main."
+
+      - name: Pin the exact main SHA
+        id: pin
+        # github.sha is what GitHub resolved at dispatch. It is compared against
+        # the live tip so a release cannot silently be of a commit that is
+        # already stale, and every later job checks out this SHA by name rather
+        # than re-resolving `main`.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PINNED: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tip="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$tip" != "$PINNED" ]; then
+            echo "::error::main advanced between dispatch and start (dispatched $PINNED, tip is $tip). Re-run the workflow."
+            exit 1
+          fi
+          echo "source_sha=$PINNED" >> "$GITHUB_OUTPUT"
+          echo "Releasing main @ $PINNED"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pin.outputs.source_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Derive the release candidate from committed metadata
+        id: candidate
+        # Derived — never chosen, never incremented here. The script reads
+        # package.json + android/version.properties + android/release-ledger.json
+        # with the same formula android/app/build.gradle uses, and refuses a
+        # candidate that is at or below the consumed fence, or already in the
+        # append-only list.
+        run: node scripts/release-candidate.mjs --github-output
+
+      - name: Ask Play which versionCodes it already holds
+        # The committed ledger is written AFTER a release, so it can be stale —
+        # a lost upload response is exactly the case that leaves it so. Play is
+        # the authority on what is consumed, and it is asked before a runner is
+        # spent on a build.
+        #
+        # Skipped only when a dry run is requested on a repository that has not
+        # finished the Google setup; a real release cannot skip it.
+        if: ${{ !inputs.dry_run || (vars.PLAY_WORKLOAD_IDENTITY_PROVIDER != '' && vars.PLAY_SERVICE_ACCOUNT != '') }}
+        env:
+          PLAY_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.PLAY_WORKLOAD_IDENTITY_PROVIDER }}
+          PLAY_SERVICE_ACCOUNT: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+        run: node scripts/play-release.mjs probe
+
+      - name: Note that this is a dry run
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "::notice::DRY RUN — the bundle will be built and verified, and nothing will be uploaded."
+
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build and verify the signed AAB
+    needs: preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # No id-token here: this job must not be able to reach Google.
+    outputs:
+      aab_name: ${{ steps.bundle.outputs.name }}
+      aab_sha256: ${{ steps.bundle.outputs.sha256 }}
+      signer_sha256: ${{ steps.verify.outputs.signer_sha256 }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -113,6 +233,13 @@ jobs:
       # else, so a bundle can never be built without the policy again.
       - name: Verify the privacy policy in the release bundle
         run: node scripts/verify-privacy-build.mjs
+
+      # The map catalog is the single source of archive identity for the app
+      # runtime, the service worker, the Android adapter and the tests. A
+      # release whose catalog disagrees with the bundled basemap ships a Map tab
+      # that cannot resolve its own data.
+      - name: Verify the map catalog and the bundled archive revision
+        run: node --test tests/map-parity.test.mjs tests/coverage-contract.test.mjs
 
       - name: Sync Capacitor Android
         run: npx cap sync android
@@ -227,6 +354,25 @@ jobs:
           done < identity.txt
           rm -f identity.txt
 
+      - name: Gradle must agree with the derived candidate
+        # Two independent derivations of the same number — the Groovy formula in
+        # build.gradle and the JavaScript one in scripts/release-candidate.mjs.
+        # If they ever disagree, the artifact and the ledger would describe
+        # different releases, and the ledger is what fences the next one.
+        env:
+          GRADLE_ID: ${{ steps.identity.outputs.applicationId }}
+          GRADLE_NAME: ${{ steps.identity.outputs.versionName }}
+          GRADLE_CODE: ${{ steps.identity.outputs.versionCode }}
+          EXPECTED_ID: ${{ needs.preflight.outputs.application_id }}
+          EXPECTED_NAME: ${{ needs.preflight.outputs.version_name }}
+          EXPECTED_CODE: ${{ needs.preflight.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          [ "$GRADLE_ID" = "$EXPECTED_ID" ] || { echo "::error::Gradle applicationId '$GRADLE_ID' != derived '$EXPECTED_ID'"; exit 1; }
+          [ "$GRADLE_NAME" = "$EXPECTED_NAME" ] || { echo "::error::Gradle versionName '$GRADLE_NAME' != derived '$EXPECTED_NAME'"; exit 1; }
+          [ "$GRADLE_CODE" = "$EXPECTED_CODE" ] || { echo "::error::Gradle versionCode '$GRADLE_CODE' != derived '$EXPECTED_CODE'"; exit 1; }
+          echo "Gradle and the release-candidate script agree: $EXPECTED_ID $EXPECTED_NAME ($EXPECTED_CODE)."
+
       - name: Gradle host-side unit tests
         # The map downloader's URL policy (MapArchiveUrlPolicyTest) gates the
         # release too, not only the spike APK: it is the boundary between
@@ -269,6 +415,7 @@ jobs:
           java -jar "$jar" version
 
       - name: Verify the bundle is release-signed with the upload key
+        id: verify
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
@@ -338,6 +485,34 @@ jobs:
           fi
           echo "Signer certificate matches the upload key (SHA-256 $signer_sha)."
 
+          #    …and against the COMMITTED fingerprint, which is the check that
+          #    actually matters. The comparison above is against a key derived
+          #    from the same secrets in the same run: if someone replaced the
+          #    ANDROID_UPLOAD_* secrets with a keystore they control, it would
+          #    pass, because "the configured upload key" would be theirs. Only a
+          #    value the secrets cannot reach can detect that, and the only such
+          #    value here is one that lives in the repository and moves through
+          #    a reviewed pull request. MANDATORY — there is no skip path.
+          want="$(node -e '
+            import("./scripts/release-candidate.mjs").then(m =>
+              process.stdout.write(m.normaliseFingerprint(m.UPLOAD_KEY_SHA256)))')"
+          got="$(echo "$signer_sha" | tr -d ' :' | tr '[:lower:]' '[:upper:]')"
+          if [ -z "$want" ]; then
+            echo "::error::UPLOAD_KEY_SHA256 could not be read from scripts/release-candidate.mjs — refusing to release without the signing trust anchor"
+            exit 1
+          fi
+          if [ "$want" != "$got" ]; then
+            echo "::error::the bundle signer does NOT match the upload key Play has registered."
+            echo "  committed anchor: $want"
+            echo "  bundle signer   : $got"
+            echo "If the upload key was legitimately rotated, change UPLOAD_KEY_SHA256 in"
+            echo "scripts/release-candidate.mjs in a reviewed pull request. If it was not,"
+            echo "the ANDROID_UPLOAD_* secrets have been replaced — stop and investigate."
+            exit 1
+          fi
+          echo "Signer matches the committed upload-key anchor."
+          echo "signer_sha256=$signer_sha" >> "$GITHUB_OUTPUT"
+
           # 3. It is emphatically NOT the Android debug key — read from the
           #    same certificate output, so this cannot pass by looking at
           #    nothing.
@@ -383,7 +558,17 @@ jobs:
           fi
           echo "Packaged version identity: versionName=$vname versionCode=$vcode"
 
-          # 5. No signing material rode along inside the bundle. The signature
+          # 5. It is not debuggable. A release AAB with android:debuggable="true"
+          #    re-enables remote WebView inspection on every install; the gradle
+          #    default keeps it off, and this proves the default held.
+          dbg="$(dump --xpath=/manifest/application/@android:debuggable 2>/dev/null | tr -d '[:space:]' || true)"
+          if [ "$dbg" = "true" ]; then
+            echo "::error::the packaged application is DEBUGGABLE — refusing to release it"
+            exit 1
+          fi
+          echo "Packaged application is not debuggable."
+
+          # 6. No signing material rode along inside the bundle. The signature
           #    itself lives in META-INF and is expected; a keystore is not.
           if unzip -l "$aab" | grep -Eq '\.(jks|keystore|p12)$'; then
             echo "::error::a keystore is present INSIDE the bundle"
@@ -452,7 +637,9 @@ jobs:
           APPLICATION_ID: ${{ steps.identity.outputs.applicationId }}
           VERSION_NAME: ${{ steps.identity.outputs.versionName }}
           VERSION_CODE: ${{ steps.identity.outputs.versionCode }}
-          REASON: ${{ inputs.reason }}
+          SIGNER: ${{ steps.verify.outputs.signer_sha256 }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
           out="fjallkompis-${VERSION_NAME}-${VERSION_CODE}-internal-release.aab"
@@ -460,22 +647,23 @@ jobs:
           cp android/app/build/outputs/bundle/release/app-release.aab "artifact/${out}"
           size="$(du -h "artifact/${out}" | cut -f1)"
           bytes="$(stat -c%s "artifact/${out}")"
+          sha="$(sha256sum "artifact/${out}" | cut -d' ' -f1)"
           echo "name=${out}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${sha}" >> "$GITHUB_OUTPUT"
           {
-            echo "### Fjallkompis — Internal Testing bundle"
+            echo "### Built and verified"
             echo
             echo "| | |"
             echo "|---|---|"
+            echo "| Source \`main\` | \`${SOURCE_SHA}\` |"
             echo "| File | \`${out}\` |"
             echo "| Size | ${size} (${bytes} bytes) |"
+            echo "| AAB SHA-256 | \`${sha}\` |"
             echo "| Application id | \`${APPLICATION_ID}\` |"
             echo "| versionName | \`${VERSION_NAME}\` |"
             echo "| versionCode | \`${VERSION_CODE}\` |"
-            echo "| Signing | upload key (verified), Play App Signing to be enabled on first upload |"
-            echo "| Commit | \`${GITHUB_SHA}\` |"
-            echo "| Reason | ${REASON} |"
-            echo
-            echo "Upload manually in Play Console. Nothing was published by this workflow."
+            echo "| Upload signer SHA-256 | \`${SIGNER}\` |"
+            echo "| Dry run | ${DRY_RUN} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the AAB
@@ -500,3 +688,302 @@ jobs:
           find "$GITHUB_WORKSPACE" -type f \
             \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' \) -delete 2>/dev/null || true
           echo "Signing material removed."
+
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Inspect the artifact independently, then release to Internal Testing
+    needs: [preflight, build]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # The Google STS exchange. Nothing else needs it.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fjallkompis-android-internal-release
+          path: artifact
+
+      - name: Fetch bundletool (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          jar="$RUNNER_TEMP/bundletool.jar"
+          curl -sSfL --retry 3 \
+            -o "$jar" \
+            https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $jar" | sha256sum -c - \
+            || { echo "::error::bundletool download failed its checksum — refusing to run an unverified tool"; exit 1; }
+
+      - name: Inspect the artifact that will actually be uploaded
+        id: inspect
+        # INDEPENDENT of the build job on purpose. This job never held the
+        # keystore, so it cannot re-derive the signer from the key; instead it
+        # re-derives the expected IDENTITY from committed metadata and checks
+        # the artifact against that, and pins the signer to the fingerprint the
+        # build job recorded. An artifact swapped between jobs fails here.
+        env:
+          EXPECTED_ID: ${{ needs.preflight.outputs.application_id }}
+          EXPECTED_NAME: ${{ needs.preflight.outputs.version_name }}
+          EXPECTED_CODE: ${{ needs.preflight.outputs.version_code }}
+          EXPECTED_NAME_FILE: ${{ needs.build.outputs.aab_name }}
+          EXPECTED_SHA256: ${{ needs.build.outputs.aab_sha256 }}
+          EXPECTED_SIGNER: ${{ needs.build.outputs.signer_sha256 }}
+        run: |
+          set -euo pipefail
+          aab="artifact/${EXPECTED_NAME_FILE}"
+          [ -f "$aab" ] || { echo "::error::the built artifact ${EXPECTED_NAME_FILE} is not in the download"; exit 1; }
+
+          # Same bytes the build job verified — not a rebuild, not a re-sign.
+          sha="$(sha256sum "$aab" | cut -d' ' -f1)"
+          [ "$sha" = "$EXPECTED_SHA256" ] || {
+            echo "::error::downloaded artifact sha256 $sha != the built $EXPECTED_SHA256"; exit 1; }
+
+          # Re-derive the candidate here rather than trusting the passed value:
+          # this is the second, independent reading of the committed metadata.
+          derived_code="$(node -e '
+            import("./scripts/release-candidate.mjs").then(m => {
+              const c = m.releaseCandidate();
+              if (!c.ok) { console.error(c.failures.join("\n")); process.exit(1); }
+              process.stdout.write(String(c.versionCode));
+            })')"
+          [ "$derived_code" = "$EXPECTED_CODE" ] || {
+            echo "::error::re-derived versionCode $derived_code != $EXPECTED_CODE"; exit 1; }
+
+          dump() { java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$aab" "$@"; }
+          pkg="$(dump --xpath=/manifest/@package | tr -d '[:space:]')"
+          vname="$(dump --xpath=/manifest/@android:versionName | tr -d '[:space:]')"
+          vcode="$(dump --xpath=/manifest/@android:versionCode | tr -d '[:space:]')"
+          [ "$pkg" = "$EXPECTED_ID" ] || { echo "::error::packaged package '$pkg' != '$EXPECTED_ID'"; exit 1; }
+          [ "$vname" = "$EXPECTED_NAME" ] || { echo "::error::packaged versionName '$vname' != '$EXPECTED_NAME'"; exit 1; }
+          [ "$vcode" = "$derived_code" ] || { echo "::error::packaged versionCode '$vcode' != derived '$derived_code'"; exit 1; }
+
+          dbg="$(dump --xpath=/manifest/application/@android:debuggable 2>/dev/null | tr -d '[:space:]' || true)"
+          [ "$dbg" != "true" ] || { echo "::error::the artifact is debuggable"; exit 1; }
+
+          signer="$(keytool -printcert -jarfile "$aab" | grep -m1 'SHA256:' | tr -d ' ' | cut -d: -f2-)"
+          [ -n "$signer" ] || { echo "::error::the artifact carries no readable signer certificate"; exit 1; }
+          [ "$signer" = "$EXPECTED_SIGNER" ] || {
+            echo "::error::artifact signer $signer != the signer the build job verified $EXPECTED_SIGNER"; exit 1; }
+
+          # And independently against the committed anchor, re-read here rather
+          # than inherited from the build job — otherwise this job would be
+          # trusting a value produced by the job it exists to check.
+          anchor="$(node -e '
+            import("./scripts/release-candidate.mjs").then(m =>
+              process.stdout.write(m.normaliseFingerprint(m.UPLOAD_KEY_SHA256)))')"
+          [ -n "$anchor" ] || { echo "::error::the committed upload-key anchor could not be read"; exit 1; }
+          [ "$anchor" = "$(echo "$signer" | tr -d ' :' | tr '[:lower:]' '[:upper:]')" ] || {
+            echo "::error::artifact signer does not match the committed upload-key anchor — refusing to upload"; exit 1; }
+          keytool -printcert -jarfile "$aab" | grep -q "CN=Android Debug" && {
+            echo "::error::the artifact is debug-signed"; exit 1; } || true
+
+          unzip -l "$aab" | grep -Eq '\.(jks|keystore|p12)$' && {
+            echo "::error::a keystore is present INSIDE the artifact"; exit 1; } || true
+
+          unzip -l "$aab" base/assets/public/maps/kungsleden.pmtiles > /dev/null || {
+            echo "::error::the artifact has no bundled vector basemap"; exit 1; }
+          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles; do
+            if unzip -l "$aab" "base/assets/public/maps/$f" > /dev/null 2>&1; then
+              echo "::error::optional archive $f is packaged in the artifact"; exit 1
+            fi
+          done
+
+          echo "aab=$aab" >> "$GITHUB_OUTPUT"
+          echo "Independent inspection passed: $pkg $vname ($vcode), sha256 $sha, signer $signer."
+
+      - name: Release to Google Play Internal Testing
+        id: release
+        # The ONLY step in this repository that can consume a versionCode.
+        # The track is not an input; scripts/play-release.mjs holds it as a
+        # constant and refuses production, beta, alpha, open and closed by name.
+        env:
+          PLAY_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.PLAY_WORKLOAD_IDENTITY_PROVIDER }}
+          PLAY_SERVICE_ACCOUNT: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+          # release_notes is caller-supplied free text. It reaches the shell as
+          # an environment variable and never as a ${{ }} expansion inside a
+          # run: block, because that expansion is textual substitution into the
+          # script — the standard Actions injection.
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          AAB_PATH: ${{ steps.inspect.outputs.aab }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/play-release.mjs upload \
+            --aab "$AAB_PATH" \
+            --notes "$RELEASE_NOTES" \
+            --source-sha "$SOURCE_SHA" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --provenance release-provenance.json
+
+      - name: Record the provenance
+        # Machine-generated, never hand-maintained prose. Answers "which exact
+        # Fjallkompis source produced this Play build?" from the run itself.
+        run: |
+          set -euo pipefail
+          {
+            echo "### Released to Google Play — Internal Testing"
+            echo
+            echo '```json'
+            cat release-provenance.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fjallkompis-release-provenance
+          path: release-provenance.json
+          if-no-files-found: error
+          retention-days: 90
+
+  # ---------------------------------------------------------------------------
+  ledger:
+    name: Open the release-ledger pull request
+    needs: [preflight, build, publish]
+    if: ${{ !inputs.dry_run && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      # The ONLY write permissions in this workflow, and the narrowest pair that
+      # can open a pull request. This job cannot reach `main`: the ruleset
+      # requires a pull request there and does not list Actions as a bypass
+      # actor. What it writes is re-checked against a path allowlist below.
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        # Downloaded as a FILE rather than passed as a job output — the
+        # provenance embeds caller-supplied release notes, and a job output is
+        # substituted textually into whatever consumes it — and downloaded
+        # OUTSIDE the working tree, so the allowlist check below can demand a
+        # clean tree rather than carve out an exception for scratch files.
+        with:
+          name: fjallkompis-release-provenance
+          path: ${{ runner.temp }}/provenance
+
+      - name: Check the provenance is well-formed and describes this release
+        env:
+          EXPECTED_CODE: ${{ needs.preflight.outputs.version_code }}
+          EXPECTED_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          node -e '
+            const p = JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP + "/provenance/release-provenance.json", "utf8"));
+            const fail = (m) => { console.error(`::error::${m}`); process.exit(1); };
+            if (String(p.versionCode) !== process.env.EXPECTED_CODE) fail("provenance versionCode does not match this run");
+            if (p.sourceSha !== process.env.EXPECTED_SHA) fail("provenance sourceSha does not match the pinned main SHA");
+            if (p.track !== "internal") fail(`provenance track is ${p.track}`);
+          '
+
+      - name: Close the ledger
+        run: node scripts/close-release-ledger.mjs --provenance "$RUNNER_TEMP/provenance/release-provenance.json"
+
+      - name: Refuse anything outside the release-metadata allowlist
+        # Runtime enforcement, not merely a test: whatever the script did, only
+        # these three files may leave this job.
+        #
+        # `git status --porcelain`, NOT `git diff --name-only`: the latter shows
+        # only tracked modifications, so a NEW file the script created would be
+        # invisible here. Every scratch file this job needs is written to
+        # RUNNER_TEMP for exactly this reason — the working tree must contain
+        # nothing but the three allowed edits.
+        run: |
+          set -euo pipefail
+          allowed="android/release-ledger.json android/version.properties docs/ANDROID.md"
+          status="$(git status --porcelain)"
+          echo "Working tree:"
+          echo "$status"
+          [ -n "$status" ] || { echo "::error::the ledger script changed nothing"; exit 1; }
+          while read -r state file; do
+            [ -n "${file:-}" ] || continue
+            if [ "$state" != "M" ]; then
+              echo "::error::unexpected working-tree state '$state' for $file — the ledger job may only MODIFY files"
+              exit 1
+            fi
+            case " $allowed " in
+              *" $file "*) ;;
+              *) echo "::error::the ledger job touched $file, which is not release metadata"; exit 1 ;;
+            esac
+          done <<< "$status"
+          echo "Only release metadata changed."
+
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_CODE: ${{ needs.preflight.outputs.version_code }}
+          VERSION_NAME: ${{ needs.preflight.outputs.version_name }}
+          SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          branch="release/ledger-${VERSION_CODE}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add android/release-ledger.json android/version.properties docs/ANDROID.md
+          {
+            printf 'chore(release): consume %s on Internal Testing\n\n' "$VERSION_CODE"
+            printf 'Play accepted versionCode %s (%s) from main %s in run %s.\n' \
+              "$VERSION_CODE" "$VERSION_NAME" "$SOURCE_SHA" "$GITHUB_RUN_ID"
+            printf 'Records it in the append-only ledger, raises the consumed fence and\n'
+            printf 'advances androidBuild by one.\n\nNo product or runtime change.\n'
+          } > "$RUNNER_TEMP/commit-message.txt"
+          git commit -F "$RUNNER_TEMP/commit-message.txt"
+          git push origin "$branch"
+
+          # Body built in a file, never as a --body argument: it embeds the
+          # provenance, which embeds caller-supplied release notes.
+          {
+            printf 'Play accepted `%s` (`%s`) on the `internal` track.\n\n' "$VERSION_CODE" "$VERSION_NAME"
+            printf '| | |\n|---|---|\n'
+            printf '| Source `main` | `%s` |\n' "$SOURCE_SHA"
+            printf '| Workflow run | %s/%s/actions/runs/%s |\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf '| Track | `internal` |\n\n'
+            printf 'Release metadata only — no product or runtime change. Until this merges the\n'
+            printf 'committed ledger still says `%s` is free; the release workflow refuses a\n' "$VERSION_CODE"
+            printf 're-release anyway, because its probe reads the consumed codes from Play.\n\n'
+            printf '<details><summary>Provenance</summary>\n\n```json\n'
+            cat "$RUNNER_TEMP/provenance/release-provenance.json"
+            printf '\n```\n\n</details>\n'
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore(release): consume ${VERSION_CODE} on Internal Testing" \
+            --body-file "$RUNNER_TEMP/pr-body.md"
+
+      - name: Say what to do if this job failed
+        if: failure()
+        run: |
+          {
+            echo "### The ledger pull request could not be opened"
+            echo
+            echo "**Play has already accepted versionCode \`${{ needs.preflight.outputs.version_code }}\`.**"
+            echo "It is consumed. Close the ledger by hand before the next release:"
+            echo
+            echo '1. add the entry to `android/release-ledger.json` and raise `highestConsumedVersionCode`;'
+            echo '2. append the history line in `android/version.properties` and increment `androidBuild`;'
+            echo '3. run `node scripts/release-candidate.mjs` to confirm the next candidate is legal.'
+            echo
+            echo "Until then the release workflow will still refuse a re-release: its Play probe reads"
+            echo "the consumed codes from Play, not from this repository."
+          } >> "$GITHUB_STEP_SUMMARY"

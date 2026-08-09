@@ -648,9 +648,15 @@ npm run build && npm run preview   # production PWA (SW active only in build)
 - **GitHub Pages (automatic):** push to `main` runs
   `.github/workflows/deploy.yml` → https://algolon.github.io/Fjallkompis/
   (Settings → Pages → Source: GitHub Actions, one-time).
+- **Android / Google Play (manual dispatch):** Actions → **Release
+  Fjallkompis** → Run workflow, from `main`. Builds, verifies and uploads the
+  signed AAB to Play Internal Testing, then opens a release-ledger PR. See
+  [Releasing Fjallkompis](operations/release-automation.md).
 - **Pull requests:** `.github/workflows/pr-ci.yml` runs `npm ci`,
   `npm test`, `npm run typecheck` and `npm run build` without fetching
-  release-hosted map archives or deploying Pages.
+  release-hosted map archives or deploying Pages. Its job — check name
+  **`Test, typecheck and build`** — is the required status check on `main`;
+  renaming it would stall every pull request until the ruleset is updated.
 - **Netlify:** `npm run build`, publish `dist` — change `base` in
   `vite.config.ts` from `/Fjallkompis/` to `/` first.
 

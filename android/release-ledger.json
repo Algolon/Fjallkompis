@@ -1,0 +1,73 @@
+{
+  "$comment": [
+    "APPEND-ONLY. Every versionCode Google Play has accepted, forever.",
+    "",
+    "A versionCode is 'consumed' the moment Play accepts the upload — not when",
+    "CI builds it, not when the artifact is downloaded. Play will never accept",
+    "a consumed code again and it cannot be reclaimed, so entries are only ever",
+    "added; none is edited or removed.",
+    "",
+    "This file is the SINGLE authority. scripts/release-candidate.mjs reads it,",
+    "the release workflow fences on it, and tests/android-release-config.test.mjs",
+    "cross-checks it against the prose history in android/version.properties.",
+    "Before this file existed the authority was a constant inside a test file,",
+    "which nothing else could read.",
+    "",
+    "It is NOT the only fence. The release workflow also asks Play directly which",
+    "versionCodes it already holds, because this file is written after the fact",
+    "and a lost response would leave it stale."
+  ],
+  "highestConsumedVersionCode": 2700005,
+  "consumed": [
+    {
+      "versionCode": 2700001,
+      "versionName": "0.27.0",
+      "androidBuild": 1,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-08",
+      "sourceSha": null,
+      "workflowRunUrl": null,
+      "note": "First upload. Enrolled Play App Signing and registered the upload key. Uploaded, published to Internal Testing and installed from Google Play on the Samsung test device."
+    },
+    {
+      "versionCode": 2700002,
+      "versionName": "0.27.0",
+      "androidBuild": 2,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-08",
+      "sourceSha": null,
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31249499518",
+      "note": "The bundled-basemap fix (PR #124). Physically validated on the Samsung: topo/vector basemap renders on the Play-installed update, including a cold start in airplane mode."
+    },
+    {
+      "versionCode": 2700003,
+      "versionName": "0.27.0",
+      "androidBuild": 3,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-08",
+      "sourceSha": null,
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31260466056",
+      "note": "Complete Backup / Restore v1 (PR #125). Physically validated: export and restore both succeeded, Wallet documents included, cross-platform against a backup exported from the live PWA."
+    },
+    {
+      "versionCode": 2700004,
+      "versionName": "0.27.0",
+      "androidBuild": 4,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-08",
+      "sourceSha": "a386832",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31271009542",
+      "note": "Branding parity (PR #126). Physically validated: One UI launcher icon, launcher label, cold-start splash, clean splash to first React frame. First artifact checked by scripts/verify-packaged-branding.mjs."
+    },
+    {
+      "versionCode": 2700005,
+      "versionName": "0.27.0",
+      "androidBuild": 5,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-09",
+      "sourceSha": "d341d7c",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31285046146",
+      "note": "Map parity (PR #128). Physically validated: bundled vector basemap works; terrain/contours and satellite each download and work; downloaded map data survives relaunch. Satellite tiles read through the native readRange bridge showed no blocking performance issue."
+    }
+  ]
+}
