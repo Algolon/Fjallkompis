@@ -59,31 +59,33 @@ export function TabBar({
 }) {
   return (
     <nav className={`tabbar tabbar--${variant}`} aria-label="Primary">
+      {/* EQUAL GEOMETRY, ALL FIVE. There is no per-destination branch here,
+          and that is the contract: every tab renders the identical element
+          tree, so no destination can acquire exceptional size, offset or
+          elevation without changing this map for all of them.
+
+          Today used to render an extra elevated disc in the bottom bar. It
+          was removed because it failed at the two things a tab bar must do.
+          It was present whether or not Today was selected, so a bright 54px
+          circle out-shouted whichever tab actually WAS current; and it cost
+          geometry — the disc pushed Today's label 10px below its four
+          siblings, leaving 1px of clearance at 375x812 and landing exactly on
+          the system-navigation seam under Samsung's 3-button navigation.
+          Today keeps its primacy the honest way: centre position, the default
+          destination, the operational home. */}
       {TAB_ROUTES.map(({ tab, label }) => {
         const Icon = TAB_ICONS[tab];
-        // Today is the centre destination and gets a subtly elevated disc in
-        // the BOTTOM BAR only (the rail keeps a uniform column). Same button
-        // semantics, same aria-current, same size in both states — states
-        // differ through fill and a restrained shadow, never geometry, and
-        // the control navigates only; it never implies add/start/create.
-        const centred = tab === 'today' && variant === 'bar';
         return (
           <button
             key={tab}
-            className={`tab${centred ? ' tab--center' : ''}`}
+            className="tab"
             aria-current={active === tab ? 'page' : undefined}
             onClick={() => onChange(tab)}
           >
             {/* Pill wraps icon + label so the active tab reads as one chip —
                 legible from shape + fill, not colour alone. */}
             <span className="tab-pill">
-              {centred ? (
-                <span className="tab-center-disc" aria-hidden>
-                  <Icon className="ic" />
-                </span>
-              ) : (
-                <Icon className="ic" />
-              )}
+              <Icon className="ic" />
               <span className="tab-label">{label}</span>
             </span>
           </button>

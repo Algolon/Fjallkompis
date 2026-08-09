@@ -32,14 +32,9 @@ html {
   isolation: isolate;
 }
 
-/* Today has its own circular state shape. The generic tab press rule paints
-   the old rounded rectangle around icon + label for one frame; explicitly
-   suppress that container feedback for Today in both inactive and active
-   states. Focus-visible remains on the disc. */
-.tab--center:active .tab-pill,
-.tab--center[aria-current='page']:active .tab-pill {
-  background: none;
-}
+/* (The Today-only press-feedback suppression that lived here is gone with the
+   elevated Today disc it existed for. Every tab now shares one press rule in
+   global.css, because every tab now shares one shape.) */
 
 /* Packing's warning belongs to the card header, opposite the section label,
    rather than below the two dashboard columns. CSS grid reorders the existing
