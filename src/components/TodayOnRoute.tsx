@@ -562,6 +562,13 @@ function PlannedJourney({
     setChoosing(false);
     window.requestAnimationFrame(() => chooserTriggerRef.current?.focus());
   };
+  // Why this day is the one on screen. Every value except the last names a
+  // specific, unambiguous situation; the date-resolved case — the ordinary
+  // one — used to read "Following dates", which described the RESOLUTION
+  // MECHANISM rather than answering the question a hiker actually has ("is
+  // Today showing my plan?"). It now says so. The others are unchanged: they
+  // are already specific, and 'Preview' in particular must keep reading as a
+  // temporary look, since previewing works whether or not the plan is active.
   const context =
     source === 'preview'
       ? 'Preview'
@@ -571,7 +578,7 @@ function PlannedJourney({
           ? 'Up next'
           : source === 'after-plan'
             ? 'Plan ended'
-            : 'Following dates';
+            : 'Your plan';
   const label = (d: PlannedDay) => {
     if (d.fromStopId && d.toStopId) {
       return `${stopShortName(STOPS_BY_ID[d.fromStopId])} to ${stopShortName(
