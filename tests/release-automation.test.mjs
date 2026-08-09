@@ -37,6 +37,76 @@ const versionProps = read('android/version.properties');
 /** Strip comments so prose describing a refusal cannot satisfy a check. */
 const codeOf = (source) => source.replace(/^\s*#.*$/gm, '');
 
+// --- Deriving expectations instead of naming them ----------------------------
+//
+// An earlier revision of this file asserted the CURRENT candidate against the
+// literal `2700006`, and the committed history against a literal array. Both
+// were true when written and both became false the moment a release succeeded:
+// the ledger PR that closed 2700006 advanced androidBuild to 7, the candidate
+// became 2700007, and CI failed on a pull request whose metadata was exactly
+// right. A release-metadata test that must be hand-edited after every release
+// is not a fence — it is a second place to make the mistake, and it arrives
+// when attention is lowest.
+//
+// So: nothing below names a MOVING number. Two techniques, used deliberately.
+
+/**
+ * The versionCode formula, restated here in full rather than imported.
+ *
+ * This is the one deliberate duplication in the file, and it is what keeps the
+ * derived assertions from being tautological: comparing the production module
+ * against itself would pass for any formula at all. If this expression and
+ * android/app/build.gradle ever disagree, that is the bug worth failing on.
+ */
+const expectedCode = (versionName, androidBuild) => {
+  const [major, minor, patch] = versionName.split('.').map(Number);
+  return major * 10000000 + minor * 100000 + patch * 1000 + androidBuild;
+};
+
+/** The androidBuild committed right now, whatever it happens to be. */
+const committedBuild = (source = versionProps) => Number(/^androidBuild=(\d+)$/m.exec(source)[1]);
+
+/** A version.properties whose counter is `build`, preserving the real prose. */
+const withBuild = (build, source = versionProps) =>
+  source.replace(/^androidBuild=\d+$/m, `androidBuild=${build}`);
+
+/**
+ * A SYNTHETIC ledger — never the committed one.
+ *
+ * Mutation tests below feed deliberately broken states to the fence. Building
+ * those by editing the real ledger makes them drift as the real ledger grows
+ * (a build number that was "already consumed" when written stops being so, or
+ * starts colliding). A fixture is fixed by construction, so these tests assert
+ * the same thing in 2026 and after the fiftieth release.
+ */
+const ledgerFixture = (versionName, builds) =>
+  JSON.stringify(
+    {
+      highestConsumedVersionCode: expectedCode(versionName, builds[builds.length - 1]),
+      consumed: builds.map((build) => ({
+        versionCode: expectedCode(versionName, build),
+        versionName,
+        androidBuild: build,
+        playTrack: 'internal',
+        acceptedOn: '2026-01-01',
+        sourceSha: null,
+        workflowRunUrl: null,
+        note: `fixture build ${build}`,
+      })),
+    },
+    null,
+    2,
+  );
+
+const pkgFixture = (versionName) => JSON.stringify({ name: 'fjallkompis', version: versionName });
+
+/** Everything releaseCandidate() reads, as a synthetic world. */
+const world = (versionName, consumedBuilds, nextBuild) => ({
+  pkgSource: pkgFixture(versionName),
+  versionPropsSource: withBuild(nextBuild),
+  ledgerSource: ledgerFixture(versionName, consumedBuilds),
+});
+
 /**
  * The workflow's jobs, split on the two-space job keys under `jobs:`. Enough
  * structure to assert per-job permissions without adding a YAML dependency to
@@ -144,8 +214,18 @@ test('the uploader refuses a non-internal track even if the constant were change
 
 test('the versionCode comes from committed metadata and is never incremented', () => {
   const candidate = releaseCandidate();
-  assert.equal(candidate.versionCode, 2700006, 'the candidate on this commit');
-  assert.equal(candidate.androidBuild, 6);
+  const pkg = JSON.parse(read('package.json'));
+  const build = committedBuild();
+
+  // Derived from the two committed files and checked against the formula
+  // restated in this file — NOT against a literal that a release would age out.
+  assert.equal(candidate.versionName, pkg.version, 'versionName is package.json, verbatim');
+  assert.equal(candidate.androidBuild, build, 'androidBuild is version.properties, verbatim');
+  assert.equal(
+    candidate.versionCode,
+    expectedCode(pkg.version, build),
+    'the candidate is exactly what the formula makes of the committed inputs',
+  );
   assert.equal(candidate.applicationId, APPLICATION_ID);
 
   // No writer anywhere in the derivation path. A script that could bump
@@ -165,49 +245,235 @@ test('the versionCode comes from committed metadata and is never incremented', (
   assert.match(JOBS.build, /Gradle versionCode '\$GRADLE_CODE' != derived/);
 });
 
-test('a consumed versionCode cannot be re-released', () => {
+test('the committed ledger is append-only, ordered, and fences the committed candidate', () => {
+  // Structural properties of whatever has been consumed so far. These hold on
+  // every commit of this repository, before and after any release.
   const ledger = readLedger(ledgerSource);
-  assert.deepEqual(ledger.codes, [2700001, 2700002, 2700003, 2700004, 2700005]);
-  assert.equal(ledger.highestConsumedVersionCode, 2700005);
+  assert.ok(ledger.codes.length > 0, 'the ledger records at least one consumed code');
+  assert.equal(new Set(ledger.codes).size, ledger.codes.length, 'no duplicates');
+  for (let i = 1; i < ledger.codes.length; i += 1) {
+    assert.ok(ledger.codes[i] > ledger.codes[i - 1], `codes ascend strictly (${ledger.codes[i - 1]} → ${ledger.codes[i]})`);
+  }
+  assert.equal(
+    ledger.highestConsumedVersionCode,
+    ledger.codes[ledger.codes.length - 1],
+    'the fence is the latest consumed entry',
+  );
 
-  // Mutation: rewind the counter so the candidate lands on a consumed code.
-  const rewound = versionProps.replace(/^androidBuild=\d+$/m, 'androidBuild=3');
-  const refused = releaseCandidate({ versionPropsSource: rewound });
-  assert.equal(refused.versionCode, 2700003);
-  assert.equal(refused.ok, false);
+  // And the committed candidate clears it — the relationship, not a number.
+  const candidate = releaseCandidate();
+  assert.equal(candidate.ok, true, candidate.failures.join('; '));
   assert.ok(
-    refused.failures.some((f) => f.includes('does not outrank')),
-    'the fence refuses a code at or below the consumed high-water mark',
+    candidate.versionCode > ledger.highestConsumedVersionCode,
+    'the candidate strictly outranks the fence',
+  );
+  assert.ok(!ledger.codes.includes(candidate.versionCode), 'and does not appear in HISTORY');
+});
+
+test('a rewound counter is refused — below the fence, and exactly at it', () => {
+  // Synthetic world: builds 1..3 consumed. Nothing here moves when the real
+  // ledger grows.
+  const consumed = [1, 2, 3];
+
+  const below = releaseCandidate(world('0.27.0', consumed, 2));
+  assert.equal(below.ok, false);
+  assert.ok(
+    below.failures.some((f) => f.includes('does not outrank')),
+    'the fence refuses a code below the consumed high-water mark',
   );
   assert.ok(
-    refused.failures.some((f) => f.includes('already in the append-only ledger')),
+    below.failures.some((f) => f.includes('already in the append-only ledger')),
     'and refuses it again for being in the list, independently of the fence',
   );
 
-  // Mutation: exactly the consumed high-water mark is refused too — the
-  // comparison must be strict.
-  const equal = releaseCandidate({ versionPropsSource: versionProps.replace(/^androidBuild=\d+$/m, 'androidBuild=5') });
-  assert.equal(equal.ok, false, '2700005 is consumed; equalling the fence is not outranking it');
+  // Exactly the high-water mark: the comparison must be STRICT.
+  //
+  // Asserting only `ok === false` here is not enough, and mutation testing
+  // proved it: the fence's `<=` can be weakened to `<` and this still passes,
+  // because a code equal to the fence is also IN the list, so the membership
+  // check refuses it anyway. The two guards are meant to be independent, so the
+  // outranking failure must be named explicitly or it stops being tested.
+  const at = releaseCandidate(world('0.27.0', consumed, 3));
+  assert.equal(at.ok, false, 'equalling the fence is not outranking it');
+  assert.ok(
+    at.failures.some((f) => f.includes('does not outrank')),
+    'the fence comparison itself must fire at equality, not merely the HISTORY check',
+  );
+  assert.ok(
+    at.failures.some((f) => f.includes('already in the append-only ledger')),
+    'and the membership check fires too — they are two fences, not one',
+  );
+
+  // One past it is the legal case, so the test above is not passing by refusing
+  // everything.
+  const above = releaseCandidate(world('0.27.0', consumed, 4));
+  assert.equal(above.ok, true, above.failures.join('; '));
+  assert.equal(above.versionCode, expectedCode('0.27.0', 4));
+});
+
+test('closing a release advances the candidate with no test edit — the #130 case', () => {
+  // THE REGRESSION. Release run 31309975280 consumed 0.27.0 build 6; the
+  // automatic ledger PR (#130) appended it and advanced androidBuild to 7. That
+  // is a structurally correct closure, and it failed CI only because this file
+  // used to name the next code. It must now follow the metadata.
+  //
+  // The scenario names its INPUTS — build 6 consumed, counter at 7. It never
+  // names the output.
+  const consumedThroughSix = ledgerFixture('0.27.0', [1, 2, 3, 4, 5, 6]);
+  const candidate = releaseCandidate({
+    pkgSource: pkgFixture('0.27.0'),
+    versionPropsSource: withBuild(7),
+    ledgerSource: consumedThroughSix,
+  });
+
+  assert.equal(candidate.ok, true, candidate.failures.join('; '));
+  assert.equal(candidate.androidBuild, 7);
+  assert.equal(candidate.versionCode, expectedCode('0.27.0', 7), 'the formula decides, not a constant');
+  // The three properties that actually matter, stated as relationships.
+  const ledger = readLedger(consumedThroughSix);
+  assert.equal(candidate.highestConsumedVersionCode, ledger.highestConsumedVersionCode);
+  assert.ok(candidate.versionCode > ledger.highestConsumedVersionCode, 'it outranks the fence');
+  assert.ok(!ledger.codes.includes(candidate.versionCode), 'it is absent from HISTORY');
+  // Exactly one code past the fence, since build 6 was the fence and 7 follows.
+  assert.equal(candidate.versionCode - ledger.highestConsumedVersionCode, 1);
+});
+
+test('the ledger can be advanced indefinitely without editing this test', () => {
+  // The same closure, applied over and over. This is what makes the fix
+  // durable rather than a one-off patch for build 7: releases 8, 9, 10 … walk
+  // through here on the existing assertions, so the next consumed code never
+  // needs a line changed anywhere in this file.
+  const versionName = '0.27.0';
+  let ledgerNow = ledgerFixture(versionName, [1, 2, 3, 4, 5, 6]);
+
+  for (let build = 7; build <= 12; build += 1) {
+    const before = readLedger(ledgerNow);
+    const candidate = releaseCandidate({
+      pkgSource: pkgFixture(versionName),
+      versionPropsSource: withBuild(build),
+      ledgerSource: ledgerNow,
+    });
+
+    assert.equal(candidate.ok, true, `build ${build}: ${candidate.failures.join('; ')}`);
+    assert.equal(candidate.versionCode, expectedCode(versionName, build));
+    assert.ok(candidate.versionCode > before.highestConsumedVersionCode, `build ${build} outranks the fence`);
+    assert.ok(!before.codes.includes(candidate.versionCode), `build ${build} is absent from HISTORY`);
+
+    // Play accepts it; the ledger PR closes it.
+    ledgerNow = appendToLedger(ledgerNow, {
+      versionCode: candidate.versionCode,
+      versionName,
+      androidBuild: build,
+      track: 'internal',
+      acceptedOn: '2026-01-01',
+      sourceSha: null,
+      workflowRunUrl: null,
+      note: `fixture build ${build}`,
+    });
+
+    // Now the SAME counter is refused — the code is consumed.
+    const retry = releaseCandidate({
+      pkgSource: pkgFixture(versionName),
+      versionPropsSource: withBuild(build),
+      ledgerSource: ledgerNow,
+    });
+    assert.equal(retry.ok, false, `build ${build} must not be re-releasable`);
+    assert.ok(retry.failures.some((f) => f.includes('already in the append-only ledger')));
+  }
+
+  // Six more releases recorded, still a valid append-only ledger.
+  const final = readLedger(ledgerNow);
+  assert.equal(final.codes.length, 12);
+  assert.equal(final.highestConsumedVersionCode, expectedCode(versionName, 12));
+});
+
+test('every field of the formula is exercised, including a non-zero patch', () => {
+  // The app has sat at 0.27.0 — patch ZERO — for every release so far, so any
+  // fixture that copies the real version silently stops testing the patch
+  // weight entirely. Mutation testing caught exactly that: `patch: 1_000` could
+  // be changed to `patch: 100` and every other test in this file still passed.
+  //
+  // Table-driven so each field carries a value that would collide with its
+  // neighbours if a weight were wrong.
+  const cases = [
+    { versionName: '0.0.1', build: 1 },
+    { versionName: '0.27.3', build: 9 },
+    { versionName: '1.2.3', build: 4 },
+    { versionName: '3.0.99', build: 999 },
+    { versionName: '12.34.56', build: 78 },
+  ];
+
+  for (const { versionName, build } of cases) {
+    // Consume build 1 of a much older version so the candidate is always legal.
+    const candidate = releaseCandidate({
+      pkgSource: pkgFixture(versionName),
+      versionPropsSource: withBuild(build),
+      ledgerSource: ledgerFixture('0.0.1', [1]),
+    });
+    if (versionName === '0.0.1' && build === 1) {
+      assert.equal(candidate.ok, false, 'build 1 of 0.0.1 is the consumed fixture itself');
+      continue;
+    }
+    assert.equal(candidate.ok, true, `${versionName} build ${build}: ${candidate.failures.join('; ')}`);
+    assert.equal(
+      candidate.versionCode,
+      expectedCode(versionName, build),
+      `${versionName} build ${build} must derive the documented code`,
+    );
+    // And the module's own exported formula agrees with the restatement above.
+    const [major, minor, patch] = versionName.split('.').map(Number);
+    assert.equal(computeVersionCode(major, minor, patch, build), expectedCode(versionName, build));
+  }
+
+  // Field independence, stated directly: moving ONLY the patch must move the
+  // code by exactly the patch weight, and nothing else.
+  assert.equal(expectedCode('1.2.3', 4) - expectedCode('1.2.2', 4), 1000);
+  assert.equal(expectedCode('1.3.0', 4) - expectedCode('1.2.0', 4), 100000);
+  assert.equal(expectedCode('2.0.0', 4) - expectedCode('1.0.0', 4), 10000000);
+  assert.equal(expectedCode('1.2.3', 5) - expectedCode('1.2.3', 4), 1);
+});
+
+test('an app-version bump outranks every build of the version below it', () => {
+  // The other way the counter legitimately moves: package.json goes up and
+  // androidBuild resets to 1. The reset must not look like a rewind.
+  const consumedThrough999 = ledgerFixture('0.27.0', [1, 500, 999]);
+  const bumped = releaseCandidate({
+    pkgSource: pkgFixture('0.28.0'),
+    versionPropsSource: withBuild(1),
+    ledgerSource: consumedThrough999,
+  });
+  assert.equal(bumped.ok, true, bumped.failures.join('; '));
+  assert.equal(bumped.versionCode, expectedCode('0.28.0', 1));
+  assert.ok(bumped.versionCode > readLedger(consumedThrough999).highestConsumedVersionCode);
 });
 
 test('a ledger that disagrees with itself is refused rather than trusted', () => {
-  const parsed = JSON.parse(ledgerSource);
+  // Synthetic throughout: these are statements about the VALIDATOR, so they
+  // must not depend on how far the real ledger has advanced.
+  const parsed = JSON.parse(ledgerFixture('0.27.0', [1, 2, 3, 4]));
 
   // A fence lowered by hand while the list still holds higher codes.
-  const lowered = JSON.stringify({ ...parsed, highestConsumedVersionCode: 2700001 });
+  const lowered = JSON.stringify({ ...parsed, highestConsumedVersionCode: parsed.consumed[0].versionCode });
   assert.throws(() => readLedger(lowered), /largest consumed entry/);
 
   // An entry whose versionCode does not follow from its own versionName and
   // build number — a transcription error is how a consumed code looks free.
   const mistyped = structuredClone(parsed);
-  mistyped.consumed[2].versionCode = 2700099;
-  mistyped.highestConsumedVersionCode = 2700099;
-  assert.throws(() => readLedger(JSON.stringify(mistyped)), /derives 2700003/);
+  const honest = mistyped.consumed[2].versionCode;
+  mistyped.consumed[2].versionCode = honest + 96;
+  mistyped.highestConsumedVersionCode = mistyped.consumed[mistyped.consumed.length - 1].versionCode;
+  assert.throws(() => readLedger(JSON.stringify(mistyped)), new RegExp(`derives ${honest}`));
 
   // Out-of-order entries: append-only means ascending.
   const shuffled = structuredClone(parsed);
   [shuffled.consumed[1], shuffled.consumed[2]] = [shuffled.consumed[2], shuffled.consumed[1]];
   assert.throws(() => readLedger(JSON.stringify(shuffled)), /strictly ascend/);
+
+  // A duplicate is not merely "not ascending" — name it separately, because
+  // re-appending an already-consumed code is the exact accident that matters.
+  const duplicated = structuredClone(parsed);
+  duplicated.consumed[2] = structuredClone(duplicated.consumed[1]);
+  assert.throws(() => readLedger(JSON.stringify(duplicated)), /strictly ascend/);
 });
 
 test('Play is asked what it currently shows — as a live fence, not a history', () => {
@@ -481,19 +747,25 @@ test('the ledger is only closed for a release Play actually accepted', () => {
   assert.match(JOBS.ledger, /needs\.publish\.result == 'success'/);
 
   // Appending a code that is already recorded, or that does not advance the
-  // fence, is refused.
+  // fence, is refused. Synthetic ledger: builds 1..5 consumed.
+  const fixture = ledgerFixture('0.27.0', [1, 2, 3, 4, 5]);
   assert.throws(
-    () => appendToLedger(ledgerSource, { versionCode: 2700005, versionName: '0.27.0', androidBuild: 5 }),
+    () => appendToLedger(fixture, { versionCode: expectedCode('0.27.0', 5), versionName: '0.27.0', androidBuild: 5 }),
     /already recorded/,
   );
+  // A code BELOW the fence that is not itself recorded — a skipped build
+  // number, which is legal to skip and illegal to go back for. It needs its own
+  // fixture with a gap, or the duplicate check above would fire first and this
+  // would silently stop testing the fence.
+  const gapped = ledgerFixture('0.27.0', [1, 2, 3, 5]);
   assert.throws(
-    () => appendToLedger(ledgerSource, { versionCode: 2700000, versionName: '0.27.0', androidBuild: 0 }),
+    () => appendToLedger(gapped, { versionCode: expectedCode('0.27.0', 4), versionName: '0.27.0', androidBuild: 4 }),
     /does not exceed the recorded fence/,
   );
 
   // The happy path leaves a ledger that still validates, with the fence raised.
-  const closed = appendToLedger(ledgerSource, {
-    versionCode: 2700006,
+  const closed = appendToLedger(fixture, {
+    versionCode: expectedCode('0.27.0', 6),
     versionName: '0.27.0',
     androidBuild: 6,
     track: 'internal',
@@ -503,10 +775,13 @@ test('the ledger is only closed for a release Play actually accepted', () => {
     note: 'test',
   });
   const reread = readLedger(closed);
-  assert.equal(reread.highestConsumedVersionCode, 2700006);
-  assert.ok(reread.codes.includes(2700006));
-  // And the next candidate is then refused until androidBuild advances.
-  assert.equal(releaseCandidate({ ledgerSource: closed }).ok, false);
+  assert.equal(reread.highestConsumedVersionCode, expectedCode('0.27.0', 6));
+  assert.ok(reread.codes.includes(expectedCode('0.27.0', 6)));
+  // And re-releasing that same build is then refused until the counter advances.
+  assert.equal(
+    releaseCandidate({ pkgSource: pkgFixture('0.27.0'), versionPropsSource: withBuild(6), ledgerSource: closed }).ok,
+    false,
+  );
 });
 
 test('the generated ANDROID.md rows have somewhere to be generated into', () => {
