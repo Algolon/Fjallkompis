@@ -118,10 +118,11 @@ test('the next Play artifact outranks every code Play has already accepted', () 
   // 2700002 (0.27.0 build 2, the bundled-basemap fix), 2700003
   // (0.27.0 build 3, Complete Backup / Restore v1) and 2700004
   // (0.27.0 build 4, branding parity) were uploaded and published to
-  // Internal Testing on 2026-08-08 and are burned forever —
-  // Play will never accept them again, so the next artifact MUST compute
-  // strictly higher. version.properties keeps the append-only list.
-  const HIGHEST_CONSUMED_VERSION_CODE = 2700004;
+  // Internal Testing on 2026-08-08; 2700005 (0.27.0 build 5, map parity)
+  // followed on 2026-08-09. All are burned forever — Play will never accept
+  // them again, so the next artifact MUST compute strictly higher.
+  // version.properties keeps the append-only list.
+  const HIGHEST_CONSUMED_VERSION_CODE = 2700005;
   const [major, minor, patch] = pkg.version.split('.').map(Number);
   const build = Number(versionProps.match(/^androidBuild=(\d+)$/m)[1]);
   const next = major * 10000000 + minor * 100000 + patch * 1000 + build;
@@ -133,6 +134,7 @@ test('the next Play artifact outranks every code Play has already accepted', () 
   assert.match(versionProps, /2700002/, 'the consumed-code history stays in version.properties');
   assert.match(versionProps, /2700003/, 'the consumed-code history stays in version.properties');
   assert.match(versionProps, /2700004/, 'the consumed-code history stays in version.properties');
+  assert.match(versionProps, /2700005/, 'the consumed-code history stays in version.properties');
   // When a code is published, raise HIGHEST_CONSUMED_VERSION_CODE here and
   // append it to the version.properties history — both in the same commit.
 });

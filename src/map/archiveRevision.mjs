@@ -1,5 +1,5 @@
 /**
- * Vector-archive REVISION contract and the Cache Storage lifecycle built on it.
+ * Archive REVISION contract and the Cache Storage lifecycle built on it.
  *
  * The problem this exists to solve: the vector basemap keeps a stable public
  * URL (`maps/kungsleden.pmtiles`) across rebuilds, so "is there a cached
@@ -7,6 +7,11 @@
  * Before this module, any cached response counted as downloaded, so a device
  * that fetched the archive before the 2026-08 overview-corridor rebuild kept
  * serving the superseded 5,603,107-byte file forever.
+ *
+ * The contract began as the vector basemap's alone. It now governs all four
+ * archives, whose identities live in src/map/mapCatalog.mjs — the constants
+ * re-exported below are that catalog's vector entry, kept under their original
+ * names because deployed service workers and existing call sites use them.
  *
  * The contract instead pins an archive revision to two things a browser can
  * check for free:
@@ -35,8 +40,10 @@
  * can never name different caches.
  */
 
+import { MAP_ASSETS } from './mapCatalog.mjs';
+
 /** Cache Storage cache holding the CURRENT vector archive revision. */
-export const VECTOR_ARCHIVE_CACHE = 'fjallkompis-offline-map-v2';
+export const VECTOR_ARCHIVE_CACHE = MAP_ASSETS.vector.cacheName;
 
 /**
  * Superseded vector caches, newest first. Entries here are read as an offline
@@ -44,20 +51,14 @@ export const VECTOR_ARCHIVE_CACHE = 'fjallkompis-offline-map-v2';
  * successfully. Vector caches only — never a terrain, contour or satellite
  * cache (fenced by tests).
  */
-export const VECTOR_ARCHIVE_LEGACY_CACHES = Object.freeze([
-  'fjallkompis-offline-map-v1',
-]);
+export const VECTOR_ARCHIVE_LEGACY_CACHES = MAP_ASSETS.vector.legacyCacheNames;
 
 /**
  * The archive shipped by PR #104 (the widened z0–z9 overview corridor merged
  * with the unchanged z10–z14 cutout). `bytes` is the freshness proof; `id` and
  * `sha256` are provenance for evidence and review.
  */
-export const VECTOR_ARCHIVE_REVISION = Object.freeze({
-  id: 'kungsleden-vector-2026-08-overview-corridor',
-  bytes: 5_904_598,
-  sha256: '17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51',
-});
+export const VECTOR_ARCHIVE_REVISION = MAP_ASSETS.vector.revision;
 
 /**
  * The revision this replaced, kept so the regression test can name the exact
@@ -96,22 +97,28 @@ export const ARCHIVE_MISMATCH_ERROR = 'ArchiveRevisionMismatch';
  *   2. otherwise a declared legacy cache hit → legacy — a revision we shipped,
  *      so it renders; used as the offline fallback even when the current cache
  *      also holds an unusable entry
- *   3. otherwise a wrong-size entry in the current cache → invalid — unusable,
+ *   3. otherwise a current-cache entry matching a declared SUPERSEDED length →
+ *      legacy, read from the current cache (see `supersededBytes`)
+ *   4. otherwise a wrong-size entry in the current cache → invalid — unusable,
  *      not downloaded, never read
- *   4. nothing → absent
+ *   5. nothing → absent
  *
- * Without `expectedBytes` (terrain, contours, satellite — single-revision
- * archives that declare no legacy caches) this reduces to the existence-only
- * behaviour those archives have always had, and `invalid` cannot occur.
+ * Without `expectedBytes` this reduces to existence-only behaviour and
+ * `invalid` cannot occur. No shipped archive is unrevisioned any more (every
+ * entry in src/map/mapCatalog.mjs declares one), but the branch is kept: it is
+ * what makes the decision table total, and a future archive may be added
+ * before its revision is pinned.
  *
  * @param {{ currentBytes?: number | null, legacyBytes?: number | null,
- *           expectedBytes?: number | null }} [probe]
+ *           expectedBytes?: number | null,
+ *           supersededBytes?: readonly number[] }} [probe]
  * @returns {ArchiveClassification}
  */
 export function classifyArchiveProbe({
   currentBytes = null,
   legacyBytes = null,
   expectedBytes = null,
+  supersededBytes = [],
 } = {}) {
   const settle = (state, source, sizeBytes) => ({
     state,
@@ -133,8 +140,62 @@ export function classifyArchiveProbe({
   // A shipped legacy revision beats an unverifiable current-cache entry: it is
   // the only one of the two that is known to parse.
   if (legacyBytes != null) return settle('legacy', 'legacy', legacyBytes);
+  // Same reasoning, one cache along: an archive whose revisions are NOT
+  // separated by cache name keeps its superseded copies in the current cache,
+  // so bytes matching a length we shipped are our own earlier download — it
+  // parses, it renders, and it is the offline fallback until the replacement
+  // arrives. Only the vector archive separates revisions by cache name, and it
+  // declares no superseded lengths, so this branch cannot soften its contract.
+  if (currentBytes != null && supersededBytes.includes(currentBytes)) {
+    return settle('legacy', 'current', currentBytes);
+  }
   if (currentBytes != null) return settle('invalid', null, currentBytes);
   return settle('absent', null, null);
+}
+
+/**
+ * Classify what a NATIVE store holds, in the same vocabulary as the Cache
+ * Storage probe above. This is the other half of "one product model, two
+ * mechanics": the phone and the browser reach `current` / `legacy` /
+ * `invalid` / `absent` through the same decision table, so no state can come
+ * to mean different things on the two platforms.
+ *
+ * The one thing this adds is that the RECORDED REVISION has the final say on
+ * `current`. The native store writes a sidecar naming the revision it
+ * verified, and two revisions can coincide in byte length — so deciding
+ * freshness from the size alone is exactly how an old archive ends up
+ * presenting as the current one. When the identity disagrees, the size is
+ * still used to tell a shipped older revision (usable, "update available")
+ * from bytes nothing vouches for.
+ *
+ * @param {{ present: boolean, bytes: number, revisionId: string | null }} stored
+ * @param {{ revision: { id: string, bytes: number },
+ *           supersededBytes: readonly number[] }} asset
+ * @returns {ArchiveClassification}
+ */
+export function classifyStoredArchive(stored, asset) {
+  const expectedBytes = asset.revision.bytes;
+  if (!stored?.present) {
+    return classifyArchiveProbe({ currentBytes: null, expectedBytes });
+  }
+
+  if (stored.revisionId === asset.revision.id && stored.bytes === expectedBytes) {
+    return classifyArchiveProbe({ currentBytes: expectedBytes, expectedBytes });
+  }
+
+  // The identity disagrees, so this is NOT current — including when the byte
+  // count happens to match, which is the whole reason a sidecar exists. What
+  // remains is whether the bytes are still something we shipped: a length we
+  // have published (this revision's or a superseded one) came out of our own
+  // verified download, so it parses and stays usable offline until the
+  // replacement arrives. Anything else is data nothing vouches for.
+  const shipped =
+    stored.bytes === expectedBytes || asset.supersededBytes.includes(stored.bytes);
+  return classifyArchiveProbe({
+    currentBytes: shipped ? null : stored.bytes,
+    legacyBytes: shipped ? stored.bytes : null,
+    expectedBytes,
+  });
 }
 
 /**
@@ -169,13 +230,14 @@ async function cachedBytes(cacheStorage, cacheName, url) {
  *
  * @param {CacheStorage} cacheStorage
  * @param {{ cacheName: string, url: string,
- *           legacyCacheNames?: readonly string[], expectedBytes?: number | null }} spec
+ *           legacyCacheNames?: readonly string[], expectedBytes?: number | null,
+ *           supersededBytes?: readonly number[] }} spec
  * @returns {Promise<ArchiveClassification & { cacheName: string | null }>}
  *   `cacheName` names the cache holding the readable blob, or null.
  */
 export async function probeArchiveCaches(
   cacheStorage,
-  { cacheName, url, legacyCacheNames = [], expectedBytes = null },
+  { cacheName, url, legacyCacheNames = [], expectedBytes = null, supersededBytes = [] },
 ) {
   const currentBytes = await cachedBytes(cacheStorage, cacheName, url);
 
@@ -195,7 +257,12 @@ export async function probeArchiveCaches(
     }
   }
 
-  const classification = classifyArchiveProbe({ currentBytes, legacyBytes, expectedBytes });
+  const classification = classifyArchiveProbe({
+    currentBytes,
+    legacyBytes,
+    expectedBytes,
+    supersededBytes,
+  });
   return {
     ...classification,
     cacheName:

@@ -12,6 +12,33 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Added
 
+- **Terrain relief and satellite imagery now work on Android.** They were
+  web-only: the Android app shipped the vector basemap inside the package and
+  had no way to reach the other archives at all. Both are now the same
+  optional download they have always been in the browser, from the same
+  published files — same Settings cards, same wording, same states. The
+  downloads go into the app's own private storage (no new permission, nothing
+  visible to other apps, removed when you uninstall), are checked against a
+  published checksum before they are kept, and can be cancelled part-way. A
+  download that is interrupted or arrives damaged is discarded rather than
+  half-used, and whatever map you already had is left untouched.
+- **Settings tells the truth about the map that ships with the app.** On
+  Android the basemap is included in the install and works offline from the
+  first launch, but Trail readiness said "Not downloaded" and offered to
+  download it. It now reads *Included in the app*, with no download or remove
+  button for something there is nothing to fetch or reclaim.
+
+### Changed
+
+- **Terrain relief and satellite imagery are now used only from your own
+  device.** Previously the browser version could quietly stream them over the
+  network when you switched layer, which meant tens of megabytes could start
+  downloading because you opened a menu — and it made the same button behave
+  differently in the browser than on the phone. Both now stay switched off,
+  with one line saying where to get them, until you have downloaded them in
+  Settings. The basemap is unaffected: it still loads without any download,
+  and on Android it is part of the app.
+
 - **Complete backup & restore.** Settings now offers one portable backup file
   (`fjallkompis-backup-YYYY-MM-DD.fjallkompis`) containing everything needed
   to restore a Fjallkompis setup on another install or device: trip data AND

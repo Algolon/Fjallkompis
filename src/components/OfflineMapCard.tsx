@@ -1,25 +1,36 @@
 /**
- * Settings download management for a regional PMTiles archive. Used for both
- * the vector basemap and the optional satellite imagery — each file lives in
- * its own Cache Storage cache, separate from the Workbox app-shell precache
- * (see src/map/offlineMap.ts).
+ * Settings download management for the offline map archives — the basemap,
+ * terrain relief and satellite imagery.
+ *
+ * ONE card implementation, both platforms. Where the bytes are kept is the
+ * platform's business and lives behind src/map/archiveStore.ts: Cache Storage
+ * in a browser, app-private files on Android, the app package for an archive
+ * that ships inside it. This component only ever asks the store what the
+ * device holds, and every state it renders — not downloaded, downloading,
+ * stored, update available, needs repair, included in the app — means the same
+ * thing in both places.
  */
 import { useEffect, useState } from 'react';
 import {
+  archiveStatus,
+  cancelArchiveDownload,
+  downloadArchiveToDevice,
+  removeArchiveFromDevice,
+  type StoredArchiveState,
+  type StoredArchiveStatus,
+} from '../map/archiveStore';
+import {
   archiveUrl,
-  downloadArchive,
   ARCHIVE_MISMATCH_ERROR,
   formatBytes,
-  getArchiveStatus,
-  removeArchive,
   CONTOURS_ARCHIVE,
   SATELLITE_ARCHIVE,
   TERRAIN_ARCHIVE,
   VECTOR_ARCHIVE,
   type ArchiveSpec,
-  type ArchiveState,
-  type OfflineMapStatus,
 } from '../map/offlineMap';
+import { mapAssetGroupBytes } from '../map/mapCatalog.mjs';
+import { ARCHIVE_CANCELLED_ERROR } from '../map/nativeArchiveStore';
 import {
   BASEMAP_SOURCE_INFO,
   SATELLITE_SOURCE_INFO,
@@ -31,15 +42,19 @@ import { SourceSummary } from './SourceSummary';
 /** Combined download state of a card's archives (usually one; relief: two). */
 interface CombinedStatus {
   supported: boolean;
-  /** A USABLE archive is stored — current OR a shipped superseded revision. */
+  /** A USABLE archive is stored — current, a shipped superseded one, or bundled. */
   downloaded: boolean;
   sizeBytes: number | null;
   /** 'legacy' when a superseded revision is in use; 'invalid' when unusable. */
-  state: ArchiveState;
-  /** Bytes the replacement download will store, when a revision is declared. */
+  state: StoredArchiveState;
+  /** Bytes the replacement download will store. */
   expectedBytes: number | null;
   updateAvailable: boolean;
   needsRepair: boolean;
+  /** Every archive in this group ships with the app — nothing to manage. */
+  bundled: boolean;
+  /** The store can interrupt an in-flight download (native only). */
+  cancellable: boolean;
 }
 
 export type ArchiveCombinedStatus = CombinedStatus & { checking: boolean };
@@ -56,16 +71,23 @@ type Phase =
  * — it is the one state that needs the user to act — then anything missing
  * reads as not downloaded (the primary button offers to complete the set), and
  * anything superseded reads as an update. Never as current.
+ *
+ * `bundled` only survives the fold when EVERY archive in the group is bundled,
+ * so a hypothetical mixed group would present as an ordinary download rather
+ * than claiming to be complete because half of it ships with the app.
  */
-function combineStatuses(statuses: OfflineMapStatus[]): CombinedStatus {
+function combineStatuses(statuses: StoredArchiveStatus[]): CombinedStatus {
   const downloaded = statuses.every((s) => s.downloaded);
-  const state: ArchiveState = statuses.some((s) => s.state === 'invalid')
+  const bundled = statuses.length > 0 && statuses.every((s) => s.state === 'bundled');
+  const state: StoredArchiveState = statuses.some((s) => s.state === 'invalid')
     ? 'invalid'
     : !downloaded
       ? 'absent'
       : statuses.some((s) => s.state === 'legacy')
         ? 'legacy'
-        : 'current';
+        : bundled
+          ? 'bundled'
+          : 'current';
   return {
     supported: statuses.every((s) => s.supported),
     downloaded,
@@ -78,6 +100,8 @@ function combineStatuses(statuses: OfflineMapStatus[]): CombinedStatus {
       : null,
     updateAvailable: state === 'legacy',
     needsRepair: state === 'invalid',
+    bundled,
+    cancellable: statuses.every((s) => s.cancellable),
   };
 }
 
@@ -110,11 +134,13 @@ export function useCombinedArchiveStatus(specs: ArchiveSpec[]): ArchiveCombinedS
     expectedBytes: null,
     updateAvailable: false,
     needsRepair: false,
+    bundled: false,
+    cancellable: false,
   });
 
   useEffect(() => {
     let alive = true;
-    void Promise.all(specs.map((s) => getArchiveStatus(s))).then((statuses) => {
+    void Promise.all(specs.map((s) => archiveStatus(s))).then((statuses) => {
       if (!alive) return;
       setStatus({ checking: false, ...combineStatuses(statuses) });
     });
@@ -142,10 +168,15 @@ function ArchiveCard({
   // status — for a superseded archive that is "update available", never
   // "not downloaded".
   const [error, setError] = useState<string | null>(null);
+  // Whether the store can interrupt a download, remembered across the
+  // downloading phase (where there is no status to read it from).
+  const [cancellable, setCancellable] = useState(false);
 
   const refresh = async () => {
-    const statuses = await Promise.all(specs.map((s) => getArchiveStatus(s)));
-    setPhase({ kind: 'idle', status: combineStatuses(statuses) });
+    const statuses = await Promise.all(specs.map((s) => archiveStatus(s)));
+    const status = combineStatuses(statuses);
+    setCancellable(status.cancellable);
+    setPhase({ kind: 'idle', status });
   };
 
   useEffect(() => {
@@ -163,7 +194,7 @@ function ArchiveCard({
       let totalKnown: number[] = [];
       let size = 0;
       for (const [i, spec] of specs.entries()) {
-        const fileSize = await downloadArchive(spec, (loaded, total) => {
+        const fileSize = await downloadArchiveToDevice(spec, (loaded, total) => {
           if (total != null) totalKnown[i] = total;
           const combinedTotal =
             totalKnown.filter((t) => t != null).length === specs.length
@@ -177,23 +208,34 @@ function ArchiveCard({
       setPhase({ kind: 'done', sizeBytes: size });
     } catch (e) {
       setError(
-        // A rejected archive arrived intact — its message is already the whole
-        // story, and "check your connection" would be the wrong advice.
-        e instanceof Error && e.name === ARCHIVE_MISMATCH_ERROR
-          ? e.message
-          : e instanceof Error && e.message
-            ? `${e.message} — check your connection and try again.`
-            : 'Download failed — check your connection and try again.',
+        // Stopping the download yourself is not a failure to report.
+        e instanceof Error && e.name === ARCHIVE_CANCELLED_ERROR
+          ? null
+          : // A rejected archive arrived intact — its message is already the
+            // whole story, and "check your connection" would be wrong advice.
+            e instanceof Error && e.name === ARCHIVE_MISMATCH_ERROR
+            ? e.message
+            : e instanceof Error && e.message
+              ? `${e.message} — check your connection and try again.`
+              : 'Download failed — check your connection and try again.',
       );
-      // Re-read the caches rather than assuming: nothing was replaced, so the
-      // previously stored archive is still there and still usable offline.
+      // Re-read what is stored rather than assuming: nothing was replaced, so
+      // the previously stored archive is still there and still usable offline.
       await refresh();
     }
   };
 
+  /**
+   * Stop an in-flight download. Only the native store can interrupt one; in a
+   * browser the fetch runs to completion and this button is not offered.
+   */
+  const cancel = async () => {
+    for (const spec of specs) await cancelArchiveDownload(spec);
+  };
+
   const remove = async () => {
     if (confirm(removeConfirm)) {
-      for (const spec of specs) await removeArchive(spec);
+      for (const spec of specs) await removeArchiveFromDevice(spec);
       setError(null);
       await refresh();
     }
@@ -207,11 +249,17 @@ function ArchiveCard({
       : phase.kind === 'idle'
         ? phase.status.sizeBytes
         : null;
-  // A completed download is current by construction — downloadArchive refuses
-  // to store an archive that fails its revision contract.
+  // A completed download is current by construction — both stores refuse to
+  // keep an archive that fails its revision contract.
   const updateAvailable = phase.kind === 'idle' && phase.status.updateAvailable;
   const needsRepair = phase.kind === 'idle' && phase.status.needsRepair;
   const expectedBytes = phase.kind === 'idle' ? phase.status.expectedBytes : null;
+  /**
+   * Shipped inside the app package. There is no download to start and nothing
+   * to reclaim by removing it, so the card states the fact and offers no
+   * controls — the same card, one state further along, not a platform fork.
+   */
+  const bundled = phase.kind === 'idle' && phase.status.bundled;
 
   const content = (
     <>
@@ -244,9 +292,11 @@ function ArchiveCard({
                 `${sourceHeading} needs repair`
               : updateAvailable
                 ? 'Map update available'
-                : downloaded
-                  ? '✓ Stored on this device'
-                  : 'Not downloaded'}
+                : bundled
+                  ? '✓ Included in the app'
+                  : downloaded
+                    ? '✓ Stored on this device'
+                    : 'Not downloaded'}
         </span>
       </div>
       <div className="row-between" style={{ marginTop: 8 }}>
@@ -274,6 +324,17 @@ function ArchiveCard({
           max={phase.total ?? undefined}
           aria-label={`${title} download progress`}
         />
+      ) : null}
+
+      {bundled ? (
+        <p className="banner-info" style={{ marginTop: 12 }}>
+          <span aria-hidden>✓</span>
+          <span>
+            This map is part of the app, so it is ready the moment you install
+            it and works with no connection. There is nothing to download and
+            nothing to remove.
+          </span>
+        </p>
       ) : null}
 
       {phase.kind === 'done' ? (
@@ -312,7 +373,7 @@ function ArchiveCard({
         </p>
       ) : null}
 
-      {needsRepair ? (
+      {bundled ? null : needsRepair ? (
         <>
           {/* Not "Download for offline use": there IS data here, it just
               cannot be used. Remove stays available so the unusable bytes can
@@ -344,14 +405,24 @@ function ArchiveCard({
           </button>
         </>
       ) : (
-        <button
-          className="btn btn-primary btn-block"
-          style={{ marginTop: 12 }}
-          onClick={download}
-          disabled={phase.kind === 'downloading' || phase.kind === 'checking'}
-        >
-          {phase.kind === 'downloading' ? 'Downloading…' : 'Download for offline use'}
-        </button>
+        <>
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 12 }}
+            onClick={download}
+            disabled={phase.kind === 'downloading' || phase.kind === 'checking'}
+          >
+            {phase.kind === 'downloading' ? 'Downloading…' : 'Download for offline use'}
+          </button>
+          {/* Only where the store can actually interrupt the transfer. A
+              browser download assembles one Blob and either completes or
+              throws, so a Cancel button there would be a lie. */}
+          {phase.kind === 'downloading' && cancellable ? (
+            <button className="btn btn-block" style={{ marginTop: 10 }} onClick={cancel}>
+              Cancel download
+            </button>
+          ) : null}
+        </>
       )}
 
       <SourceSummary heading={sourceHeading} source={source} assetUrls={specs.map(archiveUrl)} />
@@ -380,7 +451,10 @@ export function TerrainReliefCard({ embedded = false }: { embedded?: boolean }) 
     <ArchiveCard
       specs={[TERRAIN_ARCHIVE, CONTOURS_ARCHIVE]}
       title="Terrain relief"
-      description="Hillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (~25 MB, two files downloaded together). Download while online to keep the relief working offline, like the basemap."
+      // The size is derived from the catalog, not typed in: a stale "~25 MB"
+      // against a 27 MB download is exactly the kind of small lie that erodes
+      // trust in a screen whose whole job is telling you what you have.
+      description={`Hillshade and 20 m contour lines for the Kungsleden area, derived from the Copernicus elevation model (${formatBytes(mapAssetGroupBytes(['terrain', 'contours']))}, two files downloaded together). Download it while you have a connection — relief is only drawn from the copy on your device, so nothing large is ever fetched on the trail.`}
       removeConfirm="Remove the terrain relief? The map will render without hillshade and contour lines."
       sourceHeading="Elevation data"
       source={TERRAIN_SOURCE_INFO}
@@ -394,7 +468,7 @@ export function SatelliteMapCard({ embedded = false }: { embedded?: boolean }) {
     <ArchiveCard
       specs={[SATELLITE_ARCHIVE]}
       title="Satellite imagery"
-      description="Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (~59 MB, hosted separately). Download it while online to use Satellite fully offline, like the basemap."
+      description={`Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (${formatBytes(mapAssetGroupBytes(['satellite']))}). Download it while you have a connection — the Satellite layer stays switched off until it is on your device, so this much data is never fetched unexpectedly.`}
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
       sourceHeading="Imagery"
       source={SATELLITE_SOURCE_INFO}

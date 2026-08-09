@@ -13,13 +13,20 @@
  *   - a registered service worker puts a second, stale cache in front of
  *     assets the APK already ships, and can prompt to "update" an app that
  *     updates through an APK install;
- *   - a missing basemap means the Map tab opens to nothing offline.
+ *   - a missing basemap means the Map tab opens to nothing offline;
+ *   - an OPTIONAL map archive that slipped into dist adds tens of megabytes to
+ *     the AAB, silently, on whichever machine happened to have it on disk.
  *
  * Run: node scripts/verify-native-build.mjs [distDir]
  */
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  BUNDLED_MAP_ASSETS,
+  MAP_ASSETS,
+  OPTIONAL_MAP_ASSETS,
+} from '../src/map/mapCatalog.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = join(root, process.argv[2] ?? 'dist');
@@ -142,20 +149,41 @@ if (registrations.length > 0) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. The offline vector basemap must ship inside the app.
+// 4. Exactly the BUNDLED archives ship inside the app — no more, no fewer.
+//
+// Both halves matter, and the second half used to be unchecked. The bundled
+// vector basemap missing is the versionCode 2700001 blank-map regression. An
+// OPTIONAL archive being present is the opposite mistake and just as real: the
+// binaries land in public/maps/ on any machine that has run the deploy fetch,
+// Vite copies public/ wholesale, and the result is ~90 MB of terrain, contour
+// and satellite data added to the AAB by accident. The catalog decides which
+// is which, so this can never disagree with the app.
 // ---------------------------------------------------------------------------
-const basemap = join(dist, 'maps', 'kungsleden.pmtiles');
-if (!existsSync(basemap)) {
-  fail('dist/maps/kungsleden.pmtiles is missing — the Map tab would have no offline basemap in the APK');
-} else {
-  notes.push(`vector basemap: ${(statSync(basemap).size / 1024 / 1024).toFixed(1)} MB`);
+for (const id of BUNDLED_MAP_ASSETS) {
+  const asset = MAP_ASSETS[id];
+  const path = join(dist, 'maps', asset.file);
+  if (!existsSync(path)) {
+    fail(`dist/maps/${asset.file} is missing — the Map tab would have no offline ${id} archive in the APK`);
+    continue;
+  }
+  const size = statSync(path).size;
+  if (size !== asset.revision.bytes) {
+    fail(`dist/maps/${asset.file} is ${size} bytes, catalog declares ${asset.revision.bytes}`);
+  } else {
+    notes.push(`bundled ${id}: ${(size / 1024 / 1024).toFixed(1)} MB, revision ${asset.revision.id}`);
+  }
 }
 
-// Terrain and satellite archives are injected by the Pages deploy, not by
-// Vite, so their absence here is expected and correct for this spike.
-for (const optional of ['kungsleden-terrain.pmtiles', 'kungsleden-satellite.pmtiles', 'kungsleden-contours.pmtiles']) {
-  if (!existsSync(join(dist, 'maps', optional))) {
-    notes.push(`optional archive absent (expected in this spike): ${optional}`);
+for (const id of OPTIONAL_MAP_ASSETS) {
+  const asset = MAP_ASSETS[id];
+  if (existsSync(join(dist, 'maps', asset.file))) {
+    fail(
+      `dist/maps/${asset.file} is an OPTIONAL archive and must not be packaged — ` +
+        'it is a user-initiated download on both platforms (src/map/nativeArchiveStore.ts). ' +
+        'The native build strips these; a copy surviving here means that hook did not run.',
+    );
+  } else {
+    notes.push(`optional archive correctly absent: ${asset.file}`);
   }
 }
 

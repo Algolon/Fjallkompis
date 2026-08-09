@@ -103,6 +103,11 @@ public class MainActivity extends BridgeActivity {
         // (Storage Access Framework, src/runtime/fileSave.ts) must exist
         // for the first page load too.
         registerPlugin(SaveFilePlugin.class);
+        // And the optional map-archive store (src/map/nativeArchiveStore.ts).
+        // The Map tab resolves its archives on mount, which can happen on the
+        // very first frame if the app was last closed on Map, so this bridge
+        // cannot be registered late either.
+        registerPlugin(MapArchivePlugin.class);
 
         super.onCreate(savedInstanceState);
 

@@ -2,14 +2,15 @@
 
 **Status: in production on Google Play Internal Testing.** The wrapper is
 merged and physically validated; versionName **0.27.0** / versionCode
-**2700004** is the current Internal Testing build — uploaded, published,
+**2700005** is the current Internal Testing build — uploaded, published,
 installed from Google Play on the Samsung test device and physically
-validated (2026-08-08): the bundled topo/vector basemap on a cold start in
-airplane mode (2700002), complete backup export + restore including
-Wallet documents (2700003), and the branding-parity launcher icon, the
-`Fjallkompis` launcher label and a clean splash → first-frame handoff
-(2700004). Installs and updates arrive the normal Play way — no
-sideloading, no security bypasses.
+validated: the bundled topo/vector basemap on a cold start in airplane mode
+(2700002), complete backup export + restore including Wallet documents
+(2700003), the branding-parity launcher icon, the `Fjallkompis` launcher
+label and a clean splash → first-frame handoff (2700004), all 2026-08-08;
+and map parity — optional terrain/contours and satellite downloading and
+working alongside the bundled basemap — on 2026-08-09 (2700005). Installs and
+updates arrive the normal Play way — no sideloading, no security bypasses.
 
 Fjallkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
@@ -486,30 +487,78 @@ The desktop cross-check (the same `dist/` served by a Range-conformant static
 server) still stands: the bundle and archive are correct in themselves, and
 the hosted `'online'` path remains correct for real HTTP hosts like Pages.
 
-**Terrain, contour and satellite archives are not in the APK.** They are not
-part of the Vite build at all: `deploy.yml` fetches them from pinned GitHub
-Releases and injects them into the Pages output. The wrapper deliberately does
-not duplicate that logic and does not download them silently. Requests for them
-fail the same way they already fail when a Pages user has not downloaded
-them — the app degrades honestly rather than crashing.
+**Terrain, contour and satellite archives are not in the APK, and that is now
+enforced rather than assumed.** They are optional downloads on both platforms.
+The native build strips them from `dist` and both workflows assert their
+absence from the packaged artifact — not a theoretical guard: the archives land
+in `public/maps/` on any machine that has run the deploy fetch, Vite copies
+`public/` wholesale, and before this fence such a machine would have shipped a
+~90 MB heavier bundle with nothing to notice.
 
-### Phase two, if the spike is accepted
+### Optional archives on Android: how they are stored
 
-| | A. Bundle archives in a "full trail" APK | B. Download into native storage after install |
+Resolved by **B** below (download into native storage), not the earlier
+recommendation of A. What changed the answer: bundling makes every app update a
+full re-download of imagery that changes on its own schedule, and the "new
+plugin and duplicated UI" cost that made A attractive turned out to be a plugin
+plus *no* new UI at all — the Settings card, its states and its copy are shared
+verbatim once storage sits behind `src/map/archiveStore.ts`.
+
+| | A. Bundle archives in a "full trail" AAB | B. Download into native storage after install |
 | --- | --- | --- |
-| Size | +~45 MB satellite, +~25 MB terrain/contours → a **~80–90 MB** APK | APK stays ~15 MB |
-| Offline | Works the moment it is installed — the strongest story for a hut-to-hut trail with no signal | Needs one deliberate Wi-Fi step before departure |
-| Updating imagery | Requires a new APK | Independent of the app version |
-| Play Store | Over the 150 MB APK limit? No. But it makes every update a full re-download | Fine |
-| Work required | Wire the release-asset fetch into the Android build | A native filesystem plugin plus a new download/verify/repair UI, duplicating logic the web `OfflineMapCard` already owns |
+| Size | +~59 MB satellite, +~29 MB terrain/contours → a **~100 MB** app | app stays ~11 MB |
+| Offline | Works the moment it is installed | Needs one deliberate Wi-Fi step before departure |
+| Updating imagery | Requires a new app release | Independent of the app version |
+| Play Store | Every update is a full re-download | Fine |
 
-**Recommendation: A**, with the vector basemap and terrain/contours bundled and
-satellite left as an optional download. The users are hikers who lose signal for
-a week; an app that is complete at install time is worth 80 MB, and A adds no
-new plugin, no new storage code and no new failure mode. Revisit B only if
-bundle size becomes a real distribution constraint.
+The mechanics, and why each is not the obvious thing:
 
-Neither is implemented. This is a recommendation, not a plan of record.
+- **Storage is `filesDir/map-archives/`** — app-private internal storage. No
+  permission, invisible to other apps, removed on uninstall. Deliberately *not*
+  Cache Storage, even though the WebView has it and the web code already works:
+  Cache Storage is quota-managed and evictable, `storage.persist()` promises
+  nothing in a WebView, and ~90 MB is exactly what an eviction sweep reclaims.
+  Losing the satellite archive is an inconvenience in a browser; on day four of
+  a hut-to-hut trail it is the failure the app exists to prevent. Also not
+  `getCacheDir()`, which Android's "Clear cache" empties.
+- **Reads go through a `readRange` bridge method**, not a file URL.
+  `Capacitor.convertFileSrc()` produces `/_capacitor_file_/…`, which
+  `WebViewLocalServer.handleLocalRequest` serves through the *same* range
+  branch that caused the versionCode 2700001 blank basemap — still unfixed in
+  @capacitor/android 8.5.0. PMTiles asks for a header, some directory pages and
+  one tile at a time, so each read is kilobytes across the bridge; the archive
+  is never held whole in memory or turned into a base64 string.
+- **Downloads stream natively** to `<id>.part` with a SHA-256 computed in the
+  same pass, are checked against the catalog's byte length *and* digest, and
+  only then atomically renamed and given a sidecar recording the revision.
+  Nothing opens a `.part` file, so an interrupted, cancelled or corrupt
+  download cannot become a readable archive by any path.
+- **The bytes are the same bytes.** Android downloads the pinned GitHub Release
+  asset — the canonical origin that `deploy.yml` also injects into the Pages
+  build and verifies byte-for-byte. Release tags are immutable and pinned per
+  app version, so an installed version always receives the map data it was
+  built for even after Pages has moved on. There is no second pipeline and no
+  Android-only file.
+- **The URL is a security boundary, not a parameter.** The plugin is handed a
+  URL by JavaScript and opens it in native code, outside the WebView's origin,
+  CORS and mixed-content rules — unconstrained, that is a general-purpose HTTPS
+  GET engine for anything that can run script in the page.
+  `MapArchiveUrlPolicy` refuses anything that is not HTTPS on `github.com`
+  under this project's release-download path, and re-checks **every redirect
+  hop** against a host allow-list rather than letting `HttpURLConnection`
+  follow them anywhere. It holds no archive identity, and
+  `MapArchiveUrlPolicyTest` runs it host-side in both Android workflows.
+
+**Optional layers are download-only on both platforms.** Terrain and Satellite
+become selectable once their archive is on the device, and not before — the
+browser's old ability to stream an undownloaded archive was removed rather than
+copied to Android. Two reasons: a 27 MB or 59 MB transfer must not start
+because someone opened the layer menu, and the same control must not mean
+"works" on one platform and "disabled" on the other with identical stored data.
+The basemap keeps its hosted fallback; on Android it is in the package anyway.
+
+Every archive identity lives in `src/map/mapCatalog.mjs`; there is no URL,
+filename, size or hash anywhere in the Java.
 
 ---
 
@@ -567,8 +616,8 @@ Turning it on is a separate change that needs its own evidence.
 | --- | --- |
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
-| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix) and **2700003** (build 3 — Complete Backup / Restore v1), all 0.27.0, all published to Internal Testing and physically validated 2026-08-08; Play will never accept any of them again |
-| Next upload | **2700004** (0.27.0, build 4 — `androidBuild=4`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix), **2700003** (build 3 — Complete Backup / Restore v1) and **2700004** (build 4 — branding parity), all published to Internal Testing and physically validated 2026-08-08; and **2700005** (build 5 — map parity), published and physically validated 2026-08-09. All 0.27.0; Play will never accept any of them again |
+| Next upload | **2700006** (0.27.0, build 6 — `androidBuild=6`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 
 Neither is written by hand in `build.gradle`; a test fails if either becomes a
 literal. The only number a developer edits is `androidBuild` in

@@ -104,6 +104,16 @@ jobs:
       - name: Verify the native web bundle
         run: npm run verify:native
 
+      # Play is given ONE public privacy-policy URL, and the Data safety form
+      # cannot be completed without it. deploy.yml, pr-ci.yml and
+      # android-spike.yml all run this verifier; the RELEASE workflow — the one
+      # whose artifact actually reaches Play — was the only one that did not.
+      # The 2700005 candidate was checked by hand after the fact instead, which
+      # is not a gate. Same canonical verifier, same invocation as everywhere
+      # else, so a bundle can never be built without the policy again.
+      - name: Verify the privacy policy in the release bundle
+        run: node scripts/verify-privacy-build.mjs
+
       - name: Sync Capacitor Android
         run: npx cap sync android
 
@@ -216,6 +226,18 @@ jobs:
             esac
           done < identity.txt
           rm -f identity.txt
+
+      - name: Gradle host-side unit tests
+        # The map downloader's URL policy (MapArchiveUrlPolicyTest) gates the
+        # release too, not only the spike APK: it is the boundary between
+        # JavaScript-supplied URLs and native HTTP, and a release is the last
+        # place to discover it stopped holding.
+        #
+        # The DEBUG variant deliberately: the policy is plain Java with no
+        # build-config input, so both variants compile identical source, and
+        # the debug task cannot interact with the release signing guard.
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Gradle bundleRelease
         working-directory: android
@@ -404,6 +426,25 @@ jobs:
             exit 1
           fi
           echo "Packaged vector basemap verified (sha256 $packaged_sha)."
+
+      - name: Verify the optional map archives are NOT in the bundle
+        # The mirror image of the check above, and the one that has never
+        # existed. Terrain, contours and satellite are user-initiated
+        # downloads on both platforms (src/map/nativeArchiveStore.ts); they
+        # sit in public/maps/ on any machine that has run the deploy fetch,
+        # and Vite copies public/ wholesale. Without this, one such machine
+        # ships a ~90 MB heavier bundle and nobody finds out until Play shows
+        # the size.
+        run: |
+          set -euo pipefail
+          aab=android/app/build/outputs/bundle/release/app-release.aab
+          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles; do
+            if unzip -l "$aab" "base/assets/public/maps/$f" > /dev/null 2>&1; then
+              echo "::error::$f is an optional download and must not be packaged in the AAB"
+              exit 1
+            fi
+          done
+          echo "Optional map archives correctly absent from the bundle."
 
       - name: Name the bundle and summarise
         id: bundle

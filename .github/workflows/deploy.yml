@@ -30,71 +30,26 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      # ---- Terrain relief archives: canonical GitHub Release assets ---------
+      # ---- Optional map archives: canonical GitHub Release assets -----------
       #
-      # Hillshade terrain-RGB + contour vectors (built by
-      # scripts/build-terrain-map.sh from the Copernicus GLO-30 DEM). Same
-      # model as the satellite archive: never committed, downloaded from the
-      # pinned terrain-data release into the Pages build and served
-      # same-origin. New data ⇒ new release tag ⇒ update TAG/SHA-256 pins.
+      # Hillshade terrain-RGB, contour vectors and Sentinel-2 imagery. None of
+      # them is committed (~90 MB between them); the canonical copies live on
+      # pinned GitHub Releases, and deployment injects them into the Pages
+      # build so browsers fetch them SAME-ORIGIN — Release assets send no CORS
+      # headers, so the PWA cannot fetch them cross-origin. Android downloads
+      # the same release assets natively, where CORS does not apply, so both
+      # platforms end up on the same bytes from the same tag.
       #
-      # terrain-data-v3 (0.17.0 earlier contours, issue #33): contours
-      # retiled so 100 m index lines exist from z9 tiles and the 20 m set
-      # from z12 — required by the z9.5/z11.5 contour fade-ins. The terrain
-      # archive is bit-identical to terrain-data-v2 (same SHA pin).
-      - name: Fetch terrain relief archives from the pinned data release
+      # Release tags, sizes and SHA-256 digests are NOT written here any more:
+      # they live in src/map/mapCatalog.mjs, which the app runtime, the service
+      # worker, the Android adapter and the tests also read. New data ⇒ new
+      # release tag ⇒ edit the catalog, and nothing else.
+      - name: Fetch the optional map archives from their pinned releases
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p public/maps
-          gh release download terrain-data-v3 \
-            --repo Algolon/Fjallkompis \
-            --pattern 'kungsleden-terrain.pmtiles' \
-            --pattern 'kungsleden-contours.pmtiles' \
-            --dir public/maps
-      - name: Verify terrain relief archive integrity
-        run: |
-          set -euo pipefail
-          verify() {
-            local f="$1" expected_sha="$2"
-            local actual_sha
-            actual_sha="$(sha256sum "$f" | awk '{print $1}')"
-            echo "$f sha256: $actual_sha (expected $expected_sha)"
-            [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: $f SHA-256 mismatch"; exit 1; }
-          }
-          verify public/maps/kungsleden-terrain.pmtiles "89eef71787ceb1f4b827b9eee1906fd799d89c4d4d587be31a4d944efb399aa5"
-          verify public/maps/kungsleden-contours.pmtiles "3e8fbcfa6ee1ea8df9abaec641d836e11602867c09c83f77173e522826b7d573"
-
-      # ---- Satellite archive: canonical GitHub Release asset ----------------
-      #
-      # The ~59 MB PMTiles binary is NOT committed. The canonical copy lives on
-      # the satellite-data-v3 Release; deployment downloads it into the Pages
-      # build so browsers fetch it SAME-ORIGIN (GitHub Release assets send no
-      # CORS headers, so the app cannot fetch them cross-origin directly).
-      # New imagery ⇒ new release tag ⇒ update TAG/SHA-256/size pins here.
-      - name: Fetch satellite archive from the pinned data release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p public/maps
-          gh release download satellite-data-v3 \
-            --repo Algolon/Fjallkompis \
-            --pattern kungsleden-satellite.pmtiles \
-            --dir public/maps
-      - name: Verify satellite archive integrity
-        run: |
-          set -euo pipefail
-          f=public/maps/kungsleden-satellite.pmtiles
-          expected_sha="b94714526b48bc07220a851e4cc05684800e5d2967804b6907f72a922258c694"
-          expected_size=61704169
-          actual_sha="$(sha256sum "$f" | awk '{print $1}')"
-          actual_size="$(stat -c '%s' "$f")"
-          echo "sha256: $actual_sha (expected $expected_sha)"
-          echo "size  : $actual_size (expected $expected_size)"
-          [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: satellite archive SHA-256 mismatch"; exit 1; }
-          [ "$actual_size" = "$expected_size" ] || { echo "FATAL: satellite archive size mismatch"; exit 1; }
+        run: node scripts/map-archives.mjs fetch public/maps
+      - name: Verify the fetched archives against the catalog
+        run: node scripts/map-archives.mjs verify public/maps
 
       # The temporary map-comparison benchmark concluded with the 0.17.0
       # Nordic terrain iteration: the VITE_ENABLE_MAP_BENCHMARK variable and
@@ -109,22 +64,11 @@ jobs:
       - name: Verify the public privacy policy made it into the build
         run: node scripts/verify-privacy-build.mjs
 
-      - name: Verify terrain relief archives made it into the build
-        run: |
-          set -euo pipefail
-          for f in dist/maps/kungsleden-terrain.pmtiles dist/maps/kungsleden-contours.pmtiles; do
-            test -f "$f" || { echo "FATAL: $f missing from build output"; exit 1; }
-          done
-          echo "✓ terrain relief archives present in dist/maps"
-      - name: Verify satellite archive made it into the build
-        run: |
-          set -euo pipefail
-          f=dist/maps/kungsleden-satellite.pmtiles
-          test -f "$f" || { echo "FATAL: $f missing from build output"; exit 1; }
-          expected_sha="b94714526b48bc07220a851e4cc05684800e5d2967804b6907f72a922258c694"
-          actual_sha="$(sha256sum "$f" | awk '{print $1}')"
-          [ "$actual_sha" = "$expected_sha" ] || { echo "FATAL: built archive SHA-256 mismatch"; exit 1; }
-          echo "✓ dist/maps/kungsleden-satellite.pmtiles present, sha256 verified"
+      # Two different claims, so two different checks: the step above proved we
+      # downloaded the right bytes, this one proves the right bytes are in the
+      # artifact readers will actually be served.
+      - name: Verify the optional archives made it into the build
+        run: node scripts/map-archives.mjs verify dist/maps
       - id: pages-artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -58,7 +58,17 @@ export declare function classifyArchiveProbe(probe?: {
   currentBytes?: number | null;
   legacyBytes?: number | null;
   expectedBytes?: number | null;
+  /** Shipped earlier lengths this archive's own current cache may hold. */
+  supersededBytes?: readonly number[];
 }): ArchiveClassification;
+
+export declare function classifyStoredArchive(
+  stored: { present: boolean; bytes: number; revisionId: string | null },
+  asset: {
+    revision: { id: string; bytes: number };
+    supersededBytes: readonly number[];
+  },
+): ArchiveClassification;
 
 export declare function probeArchiveCaches(
   cacheStorage: ArchiveCacheStorage,
@@ -67,6 +77,7 @@ export declare function probeArchiveCaches(
     url: string;
     legacyCacheNames?: readonly string[];
     expectedBytes?: number | null;
+    supersededBytes?: readonly number[];
   },
 ): Promise<ArchiveClassification & { cacheName: string | null }>;
 

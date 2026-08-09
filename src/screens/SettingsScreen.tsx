@@ -153,9 +153,14 @@ function TrailReadinessCard({
               ? 'Needs repair'
               : basemap.updateAvailable
                 ? 'Update available'
-                : basemap.downloaded
-                  ? formatBytes(basemap.sizeBytes)
-                  : 'Not stored'
+                : // Where the basemap ships inside the app package there is
+                  // nothing to store and nothing to check: say so, rather
+                  // than quoting a size that implies a download happened.
+                  basemap.bundled
+                  ? 'Included in app'
+                  : basemap.downloaded
+                    ? formatBytes(basemap.sizeBytes)
+                    : 'Not stored'
           }
           done={basemap.downloaded}
           pending={basemap.checking}

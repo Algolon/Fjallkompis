@@ -5,29 +5,31 @@
  * guard) — never per map instance or per React render.
  *
  * Basemap resolution order:
- *   1. offline: the user-downloaded blob from Cache Storage, read through a
- *      blob-backed PMTiles Source (works without a service worker);
- *   2. bundled (native shell only): the archive shipped inside the app
- *      package, fetched ONCE as a complete file and read through the same
- *      blob-backed source — never with range requests, which Capacitor's
- *      asset server does not serve correctly (src/map/bundledArchive.mjs);
- *   3. online:  the hosted .pmtiles file via HTTP range requests;
- *   4. none:    no basemap available — the map falls back to a clearly
+ *   1. local:   whatever this platform has stored — the downloaded Cache
+ *               Storage blob in a browser, the downloaded app-private file on
+ *               Android, or the archive bundled in the app package. The
+ *               platform mechanics live behind src/map/archiveStore.ts; what
+ *               reaches PMTiles here is always a Source, never a URL.
+ *   2. online:  the hosted .pmtiles file via HTTP range requests;
+ *   3. none:    no basemap available — the map falls back to a clearly
  *               marked plain-background placeholder with route layers only.
+ *
+ * The local step comes first everywhere, and on Android it is the ONLY step
+ * that can succeed for a packaged archive: the ranged 'online' path resolves
+ * against Capacitor's asset server, whose range answers are broken, and
+ * handing PMTiles those responses is exactly the fresh-install blank-basemap
+ * regression (src/map/bundledArchive.mjs records the measurements).
  */
 import maplibregl from 'maplibre-gl';
 import { PMTiles, Protocol } from 'pmtiles';
 import type { Source, RangeResponse } from 'pmtiles';
 import {
   archiveUrl,
-  getArchiveBlob,
-  satelliteMapUrl,
   SATELLITE_ARCHIVE,
   VECTOR_ARCHIVE,
   type ArchiveSpec,
 } from './offlineMap';
-import { classifyBundledArchive } from './bundledArchive.mjs';
-import { isNativeAndroid } from '../runtime/platform';
+import { nativeArchiveSource, openLocalArchive } from './archiveStore';
 
 let protocol: Protocol | null = null;
 
@@ -99,80 +101,62 @@ async function probeHostedArchive(url: string): Promise<boolean> {
 }
 
 /**
- * One full-body read of an archive shipped inside the Android app package,
- * kept for the session: the packaged asset cannot change while the app runs,
- * and re-reading ~6 MB on every Map mount would be pure waste. Never persisted
- * — Cache Storage stays reserved for the user-managed download flow.
+ * Register the locally stored copy of an archive with the protocol, if there
+ * is one, and return its `pmtiles://` URL.
+ *
+ * The store decides what "locally stored" means on this platform and hands
+ * back either a Blob (a Cache Storage download, or the archive read whole out
+ * of the Android app package) or an asset id whose bytes stay on disk and are
+ * read in slices. Both become a PMTiles `Source`; neither becomes a URL the
+ * network — or Capacitor's asset server — could be asked to range-serve.
  */
-const bundledBlobs = new Map<string, Promise<Blob | null>>();
-
-/**
- * The bundled archive as a Blob, or null when the package does not actually
- * carry a usable copy. A plain GET without a Range header: the in-app asset
- * server serves complete files correctly — it is only its byte-range answers
- * that are broken (measured; see src/map/bundledArchive.mjs).
- */
-function getBundledArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
-  const url = archiveUrl(spec);
-  let pending = bundledBlobs.get(url);
-  if (!pending) {
-    pending = (async () => {
-      const res = await fetch(url);
-      const blob = res.ok ? await res.blob() : null;
-      if (!blob) await res.body?.cancel().catch(() => {});
-      const verdict = classifyBundledArchive(
-        {
-          ok: res.ok,
-          contentType: res.headers.get('Content-Type'),
-          sizeBytes: blob?.size ?? 0,
-        },
-        spec.revision ?? null,
-      );
-      if (!verdict.usable || !blob) {
-        console.error(`[fjällkompis] ${verdict.reason}: ${url}`);
-        return null;
-      }
-      return blob;
-    })().catch(() => null);
-    bundledBlobs.set(url, pending);
-  }
-  return pending;
+async function addLocalSource(spec: ArchiveSpec, key: string): Promise<boolean> {
+  const local = await openLocalArchive(spec);
+  if (!local) return false;
+  const source = local.blob
+    ? new BlobSource(local.blob, key)
+    : nativeArchiveSource(local.nativeAssetId!, key);
+  // Re-adding under the same key replaces the previous instance, which is
+  // exactly what we want after a re-download.
+  ensurePmtilesProtocol().add(new PMTiles(source));
+  return true;
 }
 
 /**
- * Decide where an archive's basemap tiles come from, preferring the offline
- * copy. Called on map mount; cheap (one cache lookup + at most one tiny
- * ranged probe; in the native shell the bundled archive is read once per
- * session). Works for any vector-basemap ArchiveSpec: the Kungsleden
- * default and the temporary Delft pilot archive. A hosted archive that does
- * not exist (e.g. the pilot file before it is built) is detected safely via
- * probeHostedArchive and resolves to 'none' instead of crashing MapLibre.
+ * Decide where an archive's tiles come from, preferring the local copy. Called
+ * on map mount; cheap (one storage probe, and at most one tiny ranged probe for
+ * the basemap; in the native shell a packaged archive is read once per
+ * session).
+ *
+ * THE ONLINE FALLBACK IS FOR THE BASEMAP ONLY, and that asymmetry is the
+ * product rule rather than an implementation detail. An OPTIONAL archive
+ * (terrain, contours, satellite) is usable only once it has been downloaded —
+ * on the PWA exactly as on Android. Streaming one on demand would mean a
+ * 27 MB or 59 MB transfer starting because somebody opened a menu, which is
+ * the opposite of what an offline-first trail companion should do, and it
+ * would give the two platforms different availability states under the same
+ * label. The bundled/hosted basemap keeps its fallback: it is the map you get
+ * before you have chosen anything, it is ~6 MB, and on Android it is in the
+ * app package already.
+ *
+ * A hosted basemap that does not exist (e.g. the Delft pilot archive before it
+ * is built) is detected safely via probeHostedArchive and resolves to 'none'
+ * instead of crashing MapLibre.
  */
 export async function resolveArchiveBasemap(
   spec: ArchiveSpec,
 ): Promise<BasemapResolution> {
-  const proto = ensurePmtilesProtocol();
+  ensurePmtilesProtocol();
   // In-memory protocol key, unique per archive (never persisted).
   const offlineKey = `offline://${spec.cacheName}`;
 
-  const blob = await getArchiveBlob(spec);
-  if (blob) {
-    // Re-adding under the same key replaces the previous instance, which is
-    // exactly what we want after a re-download.
-    proto.add(new PMTiles(new BlobSource(blob, offlineKey)));
+  if (await addLocalSource(spec, offlineKey)) {
     return { mode: 'offline', sourceUrl: `pmtiles://${offlineKey}` };
   }
 
-  // Native shell: the archive ships inside the app package and MUST be read
-  // whole. The ranged 'online' path below would resolve here too — the tiny
-  // probe looks fine — and then hand PMTiles the asset server's broken range
-  // responses, which is exactly the fresh-install blank-basemap regression.
-  if (spec.bundledInApp && isNativeAndroid()) {
-    const bundled = await getBundledArchiveBlob(spec);
-    if (bundled) {
-      proto.add(new PMTiles(new BlobSource(bundled, offlineKey)));
-      return { mode: 'offline', sourceUrl: `pmtiles://${offlineKey}` };
-    }
+  if (spec.asset.distribution === 'optional') {
+    // Downloaded or absent; there is no third state.
+    return { mode: 'none', sourceUrl: null };
   }
 
   try {
@@ -180,7 +164,7 @@ export async function resolveArchiveBasemap(
       return { mode: 'online', sourceUrl: `pmtiles://${archiveUrl(spec)}` };
     }
   } catch {
-    // Network down and no offline copy — fall through to 'none'.
+    // Network down and no local copy — fall through to 'none'.
   }
   return { mode: 'none', sourceUrl: null };
 }
@@ -191,33 +175,22 @@ export function resolveBasemap(): Promise<BasemapResolution> {
 }
 
 /**
- * Resolve the optional satellite raster PMTiles archive, preferring the
- * user-downloaded offline copy and falling back to the hosted file. Returns a
- * null sourceUrl when no satellite archive is available anywhere, so callers
- * can disable the toggle instead of adding a broken layer.
+ * Resolve the optional satellite raster archive from the local copy, or not at
+ * all. Returns a null sourceUrl when the user has not downloaded it, so callers
+ * disable the toggle instead of adding a layer that would pull ~59 MB over
+ * whatever connection the reader happens to be on.
  *
- * The canonical archive lives on a versioned GitHub Release; deploy.yml
- * downloads and verifies it into the Pages build, so production serves it
- * same-origin from maps/ (VITE_SATELLITE_URL is only an optional override for
- * alternative hosting). Once the user downloads it in Settings the offline
- * blob is preferred and no network is touched. The hosted probe is a tiny
- * ranged GET (see probeHostedArchive).
+ * The canonical archive lives on a versioned GitHub Release (pinned in
+ * src/map/mapCatalog.mjs). Deployment injects it into the Pages build for the
+ * PWA's download, and Android downloads the same release asset natively —
+ * same bytes, same revision, and on both platforms it must be downloaded
+ * before Satellite becomes selectable.
  */
 export async function resolveSatellite(): Promise<BasemapResolution> {
-  const proto = ensurePmtilesProtocol();
+  ensurePmtilesProtocol();
 
-  const blob = await getArchiveBlob(SATELLITE_ARCHIVE);
-  if (blob) {
-    proto.add(new PMTiles(new BlobSource(blob, SATELLITE_OFFLINE_KEY)));
+  if (await addLocalSource(SATELLITE_ARCHIVE, SATELLITE_OFFLINE_KEY)) {
     return { mode: 'offline', sourceUrl: `pmtiles://${SATELLITE_OFFLINE_KEY}` };
-  }
-
-  try {
-    if (await probeHostedArchive(satelliteMapUrl())) {
-      return { mode: 'online', sourceUrl: `pmtiles://${satelliteMapUrl()}` };
-    }
-  } catch {
-    // No offline copy and the hosted file is unreachable — no satellite.
   }
   return { mode: 'none', sourceUrl: null };
 }

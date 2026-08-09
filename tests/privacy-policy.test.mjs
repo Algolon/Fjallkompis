@@ -297,8 +297,32 @@ test('the app makes network requests from map code only', () => {
   const callers = walk('src').filter((f) => /(?:^|[^.\w])fetch\(/.test(read(f)));
   assert.deepEqual(
     callers.sort(),
-    ['src/map/offlineMap.ts', 'src/map/pmtilesProtocol.ts'],
+    ['src/map/archiveStore.ts', 'src/map/offlineMap.ts', 'src/map/pmtilesProtocol.ts'],
     'a new network call site appeared outside the map archive code — the privacy policy no longer describes the app',
+  );
+});
+
+test('the only native code that reaches the network is the map-archive download', () => {
+  // `fetch` is not the whole story any more: on Android the optional map
+  // archives are downloaded by MapArchivePlugin.java, which opens its own
+  // connection and never appears in the scan above. The policy's claim is
+  // about what the app connects to, not about which language does it, so the
+  // Java side is fenced the same way — one downloader, in the map plugin.
+  const javaDir = 'android/app/src/main/java/com/algolon/fjallkompis';
+  const networked = walk(javaDir).filter((f) =>
+    /\b(HttpURLConnection|HttpsURLConnection|OkHttpClient|Socket)\b/.test(read(f)),
+  );
+  assert.deepEqual(
+    networked,
+    [`${javaDir}/MapArchivePlugin.java`],
+    'a native network call site appeared outside the map-archive plugin',
+  );
+  // And it fetches only what it is told to, from the catalog — no URL, host
+  // or endpoint is written into the Java at all.
+  assert.equal(
+    /https?:\/\//.test(read(`${javaDir}/MapArchivePlugin.java`)),
+    false,
+    'the plugin must not contain a hardcoded URL',
   );
 });
 
@@ -314,6 +338,31 @@ test('the map style pulls no glyphs, sprites or tiles from a third party', () =>
   const style = read('src/map/mapStyle.ts');
   assert.equal(/glyphs:\s*['"]http/.test(style), false);
   assert.equal(/sprite:\s*['"]http/.test(style), false);
+});
+
+test('every workflow that produces a shippable artifact runs the privacy verifier', () => {
+  // Play requires the policy URL to complete the Data safety form, so a build
+  // that ships without the page is a release defect, not a docs one.
+  //
+  // This exists because the check was missing from exactly the workflow that
+  // matters most: deploy, PR CI and the spike APK all ran the verifier, while
+  // android-internal-release.yml — the one whose bundle is uploaded to Play —
+  // did not. The 2700005 candidate was inspected by hand afterwards instead,
+  // which is a good habit and not a gate. Enumerated rather than spot-checked
+  // so a NEW artifact-producing workflow has to be added here deliberately.
+  const SHIPS_AN_ARTIFACT = [
+    'deploy.yml',
+    'pr-ci.yml',
+    'android-spike.yml',
+    'android-internal-release.yml',
+  ];
+  for (const workflow of SHIPS_AN_ARTIFACT) {
+    assert.match(
+      read(`.github/workflows/${workflow}`),
+      /node scripts\/verify-privacy-build\.mjs/,
+      `${workflow} must run the canonical privacy verifier`,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------
