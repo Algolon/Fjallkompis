@@ -24,6 +24,9 @@ export declare function validateWalletFile(file: {
   size: number;
 }): WalletFileValidation;
 export declare function defaultTitleFromFilename(fileName: string): string;
+export declare function walletDownloadFileName(
+  doc: Pick<WalletDocument, 'fileName' | 'title' | 'mimeType'>,
+): string;
 export declare function newWalletDocumentId(): string;
 export declare function normalizeWalletDocument(raw: unknown): WalletDocument | null;
 export declare function sortWalletDocuments(

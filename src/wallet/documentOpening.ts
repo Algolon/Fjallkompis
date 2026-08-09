@@ -1,20 +1,32 @@
 import type { WalletDocument } from '../types';
-import { downloadBlobFile } from '../utils/exportImport';
+import { saveGeneratedFile } from '../runtime/fileSave';
+import { walletDownloadFileName } from './walletModel.mjs';
 
 /**
  * The ONE offline document-opening behaviour (extracted from TripView so the
  * Today membership quick-access reuses it instead of inventing a viewer):
  *   - PDFs: hand the blob to the platform viewer in a new context; where the
- *     browser refuses a window, download a copy instead — and say so
+ *     runtime refuses a window, fall back to SAVING a copy through the
+ *     platform save boundary — and say which happened
  *     (docs/proposals/trail-wallet.md §4.2);
  *   - images: return an object URL for the shared TripImageViewer sheet
  *     (the CALLER owns the URL and must revoke it on viewer close);
  *   - missing blob: report honestly — never a broken viewer.
+ *
+ * WHY THE FALLBACK GOES THROUGH src/runtime/fileSave.ts. It used to call
+ * `downloadBlobFile` — an `<a download>` on a blob: URL, which the Android
+ * WebView ignores entirely (SaveFilePlugin.java documents the emulator-verified
+ * no-op). In the wrapper, `window.open` on a blob: URL also yields no window,
+ * so the PDF branch reached the fallback and then did NOTHING, while the caller
+ * told the user a copy had been downloaded. The save boundary already solves
+ * this for every file the app generates; a stored document is different only in
+ * where the bytes came from, not in how a platform hands a file to its user.
  */
 export type OpenWalletDocumentResult =
   | { kind: 'image'; url: string }
   | { kind: 'pdf-opened' }
-  | { kind: 'pdf-downloaded' }
+  | { kind: 'pdf-saved' }
+  | { kind: 'pdf-save-cancelled' }
   | { kind: 'missing' };
 
 export async function openWalletDocument(
@@ -37,8 +49,10 @@ export async function openWalletDocument(
       return { kind: 'pdf-opened' };
     }
     URL.revokeObjectURL(url);
-    downloadBlobFile(doc.fileName || `${doc.title}.pdf`, blob);
-    return { kind: 'pdf-downloaded' };
+    // The stored MIME type is passed through, so the Android picker offers the
+    // right handler and the browser names the file correctly.
+    const outcome = await saveGeneratedFile(walletDownloadFileName(doc), blob, doc.mimeType);
+    return outcome === 'saved' ? { kind: 'pdf-saved' } : { kind: 'pdf-save-cancelled' };
   }
   return { kind: 'image', url: URL.createObjectURL(blob) };
 }

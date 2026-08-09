@@ -626,13 +626,18 @@ test('no generated-file export bypasses the platform save boundary', () => {
   // deliberately absent: it IS the boundary, and owns the browser branch.
   //
   // Stored-document delivery (opening/saving a Wallet PDF the user attached
-  // — src/wallet/documentOpening.ts, TripView's exportDocument) is a
-  // DIFFERENT class and deliberately not covered: those hand back bytes the
-  // user supplied, and choosing between a save picker and a share sheet is
-  // its own decision. They are tracked separately, not silently swept in.
+  // — src/wallet/documentOpening.ts, TripView's exportDocument) used to be
+  // excluded here as "a different class", on the reasoning that those bytes
+  // came from the user rather than from the app. The platform does not care
+  // where bytes came from: both were silent no-ops in the wrapper, so
+  // "Download a copy" did nothing on Android and the PDF fallback claimed a
+  // download that never happened. They now go through the same boundary and
+  // are fenced with everything else.
   const GENERATED_FILE_SURFACES = [
     'src/screens/SettingsScreen.tsx',
     'src/components/DayPlanCard.tsx',
+    'src/components/TripView.tsx',
+    'src/wallet/documentOpening.ts',
   ];
   for (const surface of GENERATED_FILE_SURFACES) {
     const source = readFileSync(join(root, surface), 'utf8');
