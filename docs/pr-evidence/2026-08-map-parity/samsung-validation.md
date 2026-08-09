@@ -1,14 +1,55 @@
 # Samsung physical-validation plan — map parity
 
-**Not yet run.** No Android release has been dispatched for this branch; the
-implementation review decides when one is. This is the matrix that release must
-be put through before the branch is considered done.
+## ✅ PASSED — 2026-08-09, versionCode 2700005
+
+Candidate: **0.27.0 / 2700005**, built by run
+[31285046146](https://github.com/Algolon/Fjallkompis/actions/runs/31285046146)
+from PR #128 head `d341d7c231686f3996fb99d449c3f09c73c72d54`, uploaded and
+installed from **Google Play Internal Testing** on the Samsung test device.
+
+**Reported by the device validation:**
+
+- the bundled vector basemap works correctly;
+- optional terrain + contours download and work correctly;
+- optional satellite downloads and performs acceptably;
+- **no blocking `readRange` bridge throughput issue was observed** — see below;
+- downloaded map data survives normal use and relaunch as expected;
+- no blocking map regression was observed.
+
+**The hardware question this candidate existed to answer.** Satellite raster
+tiles are read from app-private storage one slice at a time across the
+Capacitor bridge (`MapArchivePlugin.readRange`), because Capacitor's local
+server cannot byte-serve and a whole-file bridge transfer was not acceptable
+for a ~59 MB archive. That design was correct by construction but its
+throughput was explicitly **unmeasurable at the desk**, and it was carried as
+the one blocking risk into this run. On the device it showed **no blocking
+performance issue**. That closes the risk as a go/no-go item.
+
+Recorded precisely: this was a **judgement of acceptability by the tester**,
+not an instrumented measurement. No frame timings, tile-latency figures or
+throughput numbers were captured, and none should be quoted from this run.
+
+**UX/UI observations** were made during testing and are **deliberately
+deferred to the v1 UX/UI finishing milestone**. They were not treated as
+blocking and were not implemented in PR #128.
+
+**Not separately reported by this run**, so not claimed here: the individual
+outcomes of the device-reboot step (D6), the clear-app-cache step (E3), and
+each individual failure/recovery case in section F. Persistence was reported at
+the level of "survives normal use and relaunch as expected". A future run that
+exercises D6/E3/F case by case should record them individually.
+
+---
+
+## The matrix (as executed)
 
 Device: the Samsung already used for Android validation (the 2026-08-08 runs
-that cleared versionCode 2700002 and 2700003).
+that cleared versionCode 2700002, 2700003 and 2700004).
 Install channel: **Play Internal Testing**, not a sideloaded APK — the sideload
 path bypasses device security and is not how anyone receives this app.
-Next available versionCode: **2700005** (2700004 is recorded consumed).
+versionCode used: **2700005** (now recorded consumed in
+`android/version.properties`; the next deterministic 0.27.0 candidate is
+2700006).
 
 Download sizes involved, so the tester can plan the Wi-Fi:
 
@@ -53,7 +94,7 @@ matrix.
 | C1 | Settings → Satellite imagery → Download (~59 MB, Wi-Fi) | Progress advances to completion |
 | C2 | Map layer menu | Satellite now enabled |
 | C3 | Switch to Satellite | Imagery renders across the corridor; route overlays sit on top and stay legible |
-| C4 | Pan/zoom for ~30 s on Satellite | No stutter attributable to tile reads, no blank tiles, no crash. This exercises the `readRange` bridge under load — the one place the design trades a little throughput for correctness |
+| C4 | Pan/zoom for ~30 s on Satellite | No stutter attributable to tile reads, no blank tiles, no crash. This exercises the `readRange` bridge under load — the one place the design trades a little throughput for correctness. **Result 2026-08-09: acceptable, no blocking issue** (tester judgement, not instrumented) |
 
 ## D. Offline behaviour — the actual product claim
 

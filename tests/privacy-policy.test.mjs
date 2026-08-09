@@ -340,6 +340,31 @@ test('the map style pulls no glyphs, sprites or tiles from a third party', () =>
   assert.equal(/sprite:\s*['"]http/.test(style), false);
 });
 
+test('every workflow that produces a shippable artifact runs the privacy verifier', () => {
+  // Play requires the policy URL to complete the Data safety form, so a build
+  // that ships without the page is a release defect, not a docs one.
+  //
+  // This exists because the check was missing from exactly the workflow that
+  // matters most: deploy, PR CI and the spike APK all ran the verifier, while
+  // android-internal-release.yml — the one whose bundle is uploaded to Play —
+  // did not. The 2700005 candidate was inspected by hand afterwards instead,
+  // which is a good habit and not a gate. Enumerated rather than spot-checked
+  // so a NEW artifact-producing workflow has to be added here deliberately.
+  const SHIPS_AN_ARTIFACT = [
+    'deploy.yml',
+    'pr-ci.yml',
+    'android-spike.yml',
+    'android-internal-release.yml',
+  ];
+  for (const workflow of SHIPS_AN_ARTIFACT) {
+    assert.match(
+      read(`.github/workflows/${workflow}`),
+      /node scripts\/verify-privacy-build\.mjs/,
+      `${workflow} must run the canonical privacy verifier`,
+    );
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 5. Android identity and permissions
 // ---------------------------------------------------------------------------

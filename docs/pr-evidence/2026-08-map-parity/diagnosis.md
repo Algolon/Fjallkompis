@@ -209,6 +209,15 @@ looked fine. Bundling the archives in the AAB is rejected by the milestone's
 own framing and by update cost. A second Android release pipeline is rejected
 outright: Android downloads the same Release bytes Pages is verified against.
 
+**Closed on hardware, 2026-08-09 (versionCode 2700005).** The slice-reading
+design carried exactly one open question into physical validation: whether the
+per-tile bridge round trip would be fast enough for the satellite raster layer.
+It was acceptable on the Samsung, with no blocking performance issue — so the
+correctness-first choice cost nothing that mattered, and the faster
+`shouldInterceptRequest` alternative stays rejected and unneeded. Recorded as a
+tester judgement, not an instrumented measurement; see
+[samsung-validation.md](samsung-validation.md).
+
 ---
 
 ## 5. What changes in behaviour, and what must not

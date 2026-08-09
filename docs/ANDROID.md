@@ -2,14 +2,15 @@
 
 **Status: in production on Google Play Internal Testing.** The wrapper is
 merged and physically validated; versionName **0.27.0** / versionCode
-**2700004** is the current Internal Testing build — uploaded, published,
+**2700005** is the current Internal Testing build — uploaded, published,
 installed from Google Play on the Samsung test device and physically
-validated (2026-08-08): the bundled topo/vector basemap on a cold start in
-airplane mode (2700002), complete backup export + restore including
-Wallet documents (2700003), and the branding-parity launcher icon, the
-`Fjallkompis` launcher label and a clean splash → first-frame handoff
-(2700004). Installs and updates arrive the normal Play way — no
-sideloading, no security bypasses.
+validated: the bundled topo/vector basemap on a cold start in airplane mode
+(2700002), complete backup export + restore including Wallet documents
+(2700003), the branding-parity launcher icon, the `Fjallkompis` launcher
+label and a clean splash → first-frame handoff (2700004), all 2026-08-08;
+and map parity — optional terrain/contours and satellite downloading and
+working alongside the bundled basemap — on 2026-08-09 (2700005). Installs and
+updates arrive the normal Play way — no sideloading, no security bypasses.
 
 Fjallkompis is a web app. This document describes an *additional delivery
 target* for that same app: a thin [Capacitor](https://capacitorjs.com) shell
@@ -615,8 +616,8 @@ Turning it on is a separate change that needs its own evidence.
 | --- | --- |
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
-| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix), **2700003** (build 3 — Complete Backup / Restore v1) and **2700004** (build 4 — branding parity), all 0.27.0, all published to Internal Testing and physically validated 2026-08-08; Play will never accept any of them again |
-| Next upload | **2700005** (0.27.0, build 5 — `androidBuild=5`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+| **Consumed** | **2700001** (build 1), **2700002** (build 2 — the bundled-basemap fix), **2700003** (build 3 — Complete Backup / Restore v1) and **2700004** (build 4 — branding parity), all published to Internal Testing and physically validated 2026-08-08; and **2700005** (build 5 — map parity), published and physically validated 2026-08-09. All 0.27.0; Play will never accept any of them again |
+| Next upload | **2700006** (0.27.0, build 6 — `androidBuild=6`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 
 Neither is written by hand in `build.gradle`; a test fails if either becomes a
 literal. The only number a developer edits is `androidBuild` in

@@ -104,6 +104,16 @@ jobs:
       - name: Verify the native web bundle
         run: npm run verify:native
 
+      # Play is given ONE public privacy-policy URL, and the Data safety form
+      # cannot be completed without it. deploy.yml, pr-ci.yml and
+      # android-spike.yml all run this verifier; the RELEASE workflow — the one
+      # whose artifact actually reaches Play — was the only one that did not.
+      # The 2700005 candidate was checked by hand after the fact instead, which
+      # is not a gate. Same canonical verifier, same invocation as everywhere
+      # else, so a bundle can never be built without the policy again.
+      - name: Verify the privacy policy in the release bundle
+        run: node scripts/verify-privacy-build.mjs
+
       - name: Sync Capacitor Android
         run: npx cap sync android
 
