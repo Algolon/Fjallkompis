@@ -623,8 +623,8 @@ Turning it on is a separate change that needs its own evidence.
 | `versionName` | the app version from `package.json` — currently **0.27.0** |
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
 <!-- release-ledger:begin -->
-| **Consumed** | **0.27.0** — `2700001`, `2700002`, `2700003`, `2700004`, `2700005`. Every one accepted by Play on the `internal` track and burned forever — Play will never accept any of them again. The complete record, with source SHAs and workflow runs, is [`android/release-ledger.json`](../android/release-ledger.json) |
-| Next upload | **2700006** (0.27.0, build 6 — `androidBuild=6`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+| **Consumed** | **0.27.0** — `2700001`, `2700002`, `2700003`, `2700004`, `2700005`, `2700006`. Every one accepted by Play on the `internal` track and burned forever — Play will never accept any of them again. The complete record, with source SHAs and workflow runs, is [`android/release-ledger.json`](../android/release-ledger.json) |
+| Next upload | **2700007** (0.27.0, build 7 — `androidBuild=7`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 <!-- release-ledger:end -->
 
 The two rows above are **generated**. `scripts/close-release-ledger.mjs` rewrites
