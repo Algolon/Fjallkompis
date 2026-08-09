@@ -263,11 +263,19 @@ export function StagesScreen({
         eyebrow={`${stages.length} stages · ${itinerary.orderedStops.length} stops`}
         title="Stages & highlights"
       >
+        {/* Three sentences became one. What went, and why:
+            • "Use the pill in a stage's corner to set the stage you're
+              walking" — an instruction manual for a visible, labelled
+              control ("Set as current"), written in design-system vocabulary
+              ("the pill"). If that control needs prose to be found, the fix
+              is the control, not a paragraph above the fold.
+            • "come from the GPX" — a file format is not trail information.
+              Provenance lives in Settings → Data sources.
+            • the list of what each stage contains — the stage cards show it.
+            The one fact worth keeping up here is that ± times are estimates,
+            because a hiker plans against it. */}
         The route from {startName} to {endName} as {stages.length} fixed
-        stages — each with its day guide, viewpoints, side trips and
-        expeditions. Distances and climbing come from the GPX; ± times are
-        personal estimates. Use the pill in a stage’s corner to set the stage
-        you’re walking.
+        stages. Distances and climbing are measured; ± times are estimates.
       </ScreenHeader>
 
       <div className="card" style={{ marginBottom: 14 }}>

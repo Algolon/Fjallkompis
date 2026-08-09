@@ -33,9 +33,12 @@ import type { ListsDeepLink, NavPayload } from './TodayScreen';
  *
  * Every number restates an EXISTING selector (packingSummary,
  * tripPlanSummary, the wallet document list) — no new derivation layer, no
- * score, and no false zeroes: absent weights say "Weight not set", the
- * essentials warning appears only when essentialNotPacked > 0. Everything
- * behind it is existing local state; no cloud, no account.
+ * score, and no false zeroes: absent weights say "Weight not set", and the
+ * progress column lists only the states that actually have items in them.
+ * The essentials warning needs essentialNotPacked > 0 AND packed > 0: it is
+ * for a pack being closed with essentials left behind, not for an untouched
+ * list, where it merely restated the size of the job in a warning tone.
+ * Everything behind it is existing local state; no cloud, no account.
  */
 
 export function PlanScreen({
@@ -104,7 +107,7 @@ export function PlanScreen({
           (SectionBackdrop) so it persists across Plan's subroutes. */}
       <ScreenHeader eyebrow="Your trip" title="Plan">
         Plan your days, pack your gear and keep travel details and documents
-        close — stored on this device.
+        close.
       </ScreenHeader>
 
       <div className="plan-stack">
@@ -158,9 +161,19 @@ export function PlanScreen({
                 <span className="plan-packing__col">
                   <span className="plan-packing__colhead">Progress</span>
                   <span className="plan-counts tnum">
+                    {/* Only states that actually exist. A list nobody has
+                        started reads "74 Needed" — not "74 Needed / 0 Ready /
+                        0 Packed", which is a database row, not progress. The
+                        full breakdown returns as the user earns it. The
+                        accessible name (packingAria) always states every
+                        count, so nothing is lost to assistive tech. */}
                     <span className="plan-count">{packing.needed} Needed</span>
-                    <span className="plan-count">{packing.ready} Ready</span>
-                    <span className="plan-count">{packing.packed} Packed</span>
+                    {packing.ready > 0 ? (
+                      <span className="plan-count">{packing.ready} Ready</span>
+                    ) : null}
+                    {packing.packed > 0 ? (
+                      <span className="plan-count">{packing.packed} Packed</span>
+                    ) : null}
                     {packing.worn > 0 ? (
                       <span className="plan-count">{packing.worn} Worn</span>
                     ) : null}
@@ -178,7 +191,12 @@ export function PlanScreen({
                   </span>
                 </span>
               </span>
-              {packing.essentialNotPacked > 0 ? (
+              {/* The warning is for a pack being CLOSED with essentials left
+                  behind — not for a list nobody has started, where "32
+                  essentials still to pack" is simply the size of the job and
+                  scolds the user for arriving. It appears once packing is
+                  genuinely under way. */}
+              {packing.essentialNotPacked > 0 && packing.packed > 0 ? (
                 <span className="pill pill-warn plan-card__warn" aria-hidden>
                   <TriangleAlert size={12} strokeWidth={2.2} aria-hidden />
                   {packing.essentialNotPacked} essential
@@ -199,7 +217,7 @@ export function PlanScreen({
             onClick={() => onOpenSection('travel')}
             aria-label={
               trip.total === 0
-                ? 'Travel and stays: none added yet. Organize your stays and transport here. Opens Travel and stays.'
+                ? 'Travel and stays: none added yet. Organise your stays and transport here. Opens Travel and stays.'
                 : `Travel and stays: ${trip.travelCount} travel, ${trip.stayCount} stays; ${trip.needed} needed, ${trip.planned} planned, ${trip.confirmed} confirmed. Opens Travel and stays.`
             }
           >
@@ -208,7 +226,7 @@ export function PlanScreen({
             </span>
             {trip.total === 0 ? (
               <span className="plan-card__empty">
-                Organize your stays and transport here.
+                Organise your stays and transport here.
               </span>
             ) : (
               <>
@@ -236,7 +254,7 @@ export function PlanScreen({
               walletCount === null
                 ? 'Wallet: opens your stored travel documents.'
                 : walletCount === 0
-                  ? 'Wallet: empty. Add and organize your bookings, tickets and other travel documents. Opens Wallet.'
+                  ? 'Wallet: empty. Add and organise your bookings, tickets and other travel documents. Opens Wallet.'
                   : `Wallet: ${walletCount} document${walletCount === 1 ? '' : 's'} stored offline on this device${hasMembership ? ', including your membership card' : ''}. Opens Wallet.`
             }
           >
@@ -249,7 +267,7 @@ export function PlanScreen({
               </span>
             ) : walletCount === 0 ? (
               <span className="plan-card__empty">
-                Add and organize your bookings, tickets and other travel
+                Add and organise your bookings, tickets and other travel
                 documents.
               </span>
             ) : (
@@ -343,10 +361,16 @@ export function PlanTravelScreen({
 export function PlanWalletScreen() {
   return (
     <div className="screen screen--plan-section">
+      {/* This header owns the local-first trust statement for Wallet, and it
+          owns it ALONE: the empty state below used to repeat "bookings,
+          tickets and other travel documents … stored on this device …
+          available offline" immediately underneath, so a hiker read the same
+          two facts twice in ~55 words. The empty state now carries only the
+          action. Nothing was dropped — the deletion caveat is still here,
+          which is the honest place for it. */}
       <ScreenHeader eyebrow="Your trip" title="Wallet">
-        Your tickets, bookings and important documents, available offline.
-        Documents are stored locally on this device; clearing the browser’s or
-        app’s data also removes them.
+        Your tickets, bookings and other travel documents, kept on this device
+        and available offline. Clearing the app’s data also removes them.
       </ScreenHeader>
       <TripView view="wallet" />
     </div>
@@ -358,8 +382,8 @@ export function PlanPackingScreen() {
   return (
     <div className="screen screen--plan-section">
       <ScreenHeader eyebrow="Your trip" title="Packing">
-        Your packing list — one big job before you go. Adapt it to your own
-        gear and tick things off as they land in the pack.
+        Adapt this list to your own gear and tick things off as they land in
+        the pack.
       </ScreenHeader>
       <PackingView />
     </div>

@@ -64,10 +64,11 @@ test('Stages & highlights genuinely reaches the highlights', () => {
   // The tile opens the canonical stage experience…
   assert.match(app, /case 'stages':[\s\S]*?<StagesScreen/);
   const stages = readFileSync(join(root, 'src/screens/StagesScreen.tsx'), 'utf8');
-  // …whose header now carries the same name and names the highlight kinds,
-  // and whose stage cards render the existing per-stage disclosure.
+  // …whose header carries the same name, and whose stage cards render the
+  // existing per-stage disclosure. The header no longer LISTS the highlight
+  // kinds: the intro was three sentences long, and the cards below name what
+  // they contain.
   assert.match(stages, /title="Stages & highlights"/);
-  assert.match(stages, /viewpoints, side trips and\s+expeditions/);
   assert.match(stages, /HighlightsAndDetours/);
 });
 
@@ -88,7 +89,21 @@ test('Guide reads through the content boundary and shows the honest edition', ()
   );
   assert.ok(!guide.includes("from '../data/"), 'no direct data imports');
   assert.match(guide, /trailDossierView\(\)/);
-  assert.match(guide, /\{dossier\.contentVersionLabel\} \{dossier\.contentVersion\}/);
+  // The edition marker is no longer RENDERED on the Guide home: it is
+  // edition metadata a hiker cannot act on, and it sat alone below the grid.
+  // The value is unchanged and still reported through Settings → Data
+  // sources (the diagnostic summary prints Content version).
+  assert.ok(
+    !/contentVersionLabel/.test(guide),
+    'the edition marker is not shown on the dossier home',
+  );
+  assert.ok(!/BookOpen/.test(guide), 'and its book glyph is gone with it');
+  const settings = readFileSync(join(root, 'src/screens/SettingsScreen.tsx'), 'utf8');
+  assert.match(
+    settings,
+    /content: `\$\{dossier\.contentVersion\}/,
+    'the content version is still reported where technical facts belong',
+  );
   assert.ok(!guide.includes('fullyReviewedOn'), 'no reviewed-on rendering');
   assert.ok(!/reviewed on/i.test(guide), 'no textual review claim');
   assert.ok(!/up to date/i.test(guide), 'no freshness claim');

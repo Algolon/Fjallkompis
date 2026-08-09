@@ -188,8 +188,11 @@ test('App forwards the one-shot payloads into the destination screens', () => {
   // Map: focus payload and stop-preview callback.
   assert.match(app, /focus=\{nav\.payload\?\.mapFocus \?\? null\}/);
   assert.match(app, /onOpenStop=\{\(stopId\) => navigate\('huts', \{ stopId \}\)\}/);
-  // Settings: readiness deep link.
-  assert.match(app, /initialSection=\{nav\.payload\?\.settings\?\.section \?\? null\}/);
+  // Settings takes no payload: its only deep-link target was the Trail
+  // readiness panel, removed in the v1 UX finishing pass, and the plumbing
+  // went with it rather than being left dangling.
+  assert.match(app, /return <SettingsScreen \/>;/);
+  assert.ok(!/initialSection/.test(app), 'no dead deep-link prop remains');
 });
 
 test('payloads stay one-shot and in-memory — nothing navigational persists', () => {

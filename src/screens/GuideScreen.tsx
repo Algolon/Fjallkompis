@@ -1,4 +1,4 @@
-import { BookOpen, BusFront, Signpost, ShoppingBasket } from 'lucide-react';
+import { BusFront, Signpost, ShoppingBasket } from 'lucide-react';
 import { ScreenHeader } from '../components/ui';
 import { IconHuts } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
@@ -64,9 +64,10 @@ export function GuideScreen({
     <div className="screen screen--guide guide-screen">
       {/* The glacier contour backdrop is rendered by the app shell
           (SectionBackdrop) so it persists across Guide's subroutes. */}
+      {/* The four tiles below name themselves; the intro used to end by
+          re-listing them ("— stages, places, supplies and transport"). */}
       <ScreenHeader eyebrow="Trail dossier" title="Guide">
-        Trail information for preparing and hiking the {dossier.name} — stages,
-        places, supplies and transport.
+        Trail information for preparing and hiking the {dossier.name}.
       </ScreenHeader>
 
       <nav className="guide-grid" aria-label="Guide sections">
@@ -86,13 +87,14 @@ export function GuideScreen({
         ))}
       </nav>
 
-      {/* An edition marker, not a freshness claim — a whole-dossier review
-          date deliberately does not exist (see trailMetadata.mjs HONESTY
-          NOTE); per-fact verification dates stay on the records themselves. */}
-      <p className="app-version">
-        <BookOpen size={13} strokeWidth={2} aria-hidden />{' '}
-        {dossier.contentVersionLabel} {dossier.contentVersion}
-      </p>
+      {/* The dossier's edition marker is NOT shown here. It is edition
+          metadata, not trail information: it told a hiker nothing they could
+          act on, and it sat alone in the empty space below the grid where it
+          drew the eye. The value itself is unchanged and still reported where
+          it belongs — Settings → Data sources ("Copy technical details",
+          which prints Content version) and trailMetadata.mjs, whose HONESTY
+          NOTE explains why a whole-dossier review date deliberately does not
+          exist; per-fact verification dates stay on the records themselves. */}
     </div>
   );
 }

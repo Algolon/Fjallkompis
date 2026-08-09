@@ -1,9 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import {
   Check,
-  CheckCircle2,
   ChevronDown,
-  Circle,
   Copy,
 } from 'lucide-react';
 import { useStore } from '../store/AppStore';
@@ -37,157 +35,18 @@ import {
   formatBytes,
 } from '../components/OfflineMapCard';
 import { CreditsSheet } from '../components/CreditsSheet';
-import { InstallCard, installStatusText } from '../components/InstallCard';
-import { useTrailReadiness } from '../hooks/useTrailReadiness';
+import { useOfflineDiagnostics } from '../hooks/useOfflineDiagnostics';
 import { TRAIL_CAVEATS, trailDossierView } from '../trail/activeTrailContent';
 import { SCHEMA_VERSION } from '../utils/stateMigration.mjs';
 import { buildDiagnosticSummary } from '../utils/diagnosticSummary.mjs';
 import { PRIVACY_POLICY_URL } from '../privacy/privacyPolicy.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
-type SettingsSection = 'install' | 'maps' | 'backup' | 'sources' | 'privacy';
-/** One-shot deep-link targets (NavPayload.settings) — readiness only for now. */
-export type SettingsDeepLinkSection = 'readiness';
+type SettingsSection = 'maps' | 'backup' | 'sources' | 'privacy';
 
 /** Human label for a direction, sourced from its itinerary (single source). */
 function directionLabel(direction: RouteDirection): string {
   return getActiveItinerary(direction).displayName;
-}
-
-function checkLabel(done: boolean, pending = false): string {
-  if (pending) return 'Checking…';
-  return done ? 'Ready' : 'Needs attention';
-}
-
-function ReadinessRow({
-  label,
-  value,
-  done,
-  optional = false,
-  pending = false,
-}: {
-  label: string;
-  value: string;
-  done: boolean;
-  optional?: boolean;
-  pending?: boolean;
-}) {
-  const Icon = done ? CheckCircle2 : Circle;
-  return (
-    <div className="readiness-row">
-      <Icon size={18} strokeWidth={2.1} aria-hidden />
-      <div className="readiness-row__main">
-        <span>{label}</span>
-        <small>{optional ? 'Optional' : checkLabel(done, pending)}</small>
-      </div>
-      <span className="readiness-row__value">{value}</span>
-    </div>
-  );
-}
-
-function TrailReadinessCard({
-  open,
-  onToggle,
-}: {
-  open: boolean;
-  onToggle: () => void;
-}) {
-  // The shared aggregate (also read by the Today Prepare card) — criteria and
-  // scoring live in useTrailReadiness so the surfaces can never disagree.
-  const {
-    passed,
-    required,
-    ready,
-    pending,
-    installed,
-    swControlled,
-    storageOk,
-    basemap,
-    terrain,
-    satellite,
-  } = useTrailReadiness();
-
-  // The score lives in the collapsed header, so the readiness status stays
-  // visible without expanding the panel — computed once, shown in both places.
-  const score = (
-    <span className="readiness-score">
-      <strong>{passed}/{required}</strong>
-      <span>{pending ? 'Checking' : ready ? 'Ready' : 'Setup'}</span>
-    </span>
-  );
-
-  return (
-    <SettingsAccordion
-      id="readiness"
-      title="Trail readiness"
-      summary="Local checks for beta testing and offline trail preparation."
-      open={open}
-      onToggle={onToggle}
-      aside={score}
-      className={`readiness-card ${ready ? 'is-ready' : ''}`}
-    >
-      <div className="readiness-list">
-        <ReadinessRow
-          label="App installed"
-          value={installed ? 'Yes' : 'No'}
-          done={installed}
-        />
-        <ReadinessRow
-          label="App shell"
-          value={installStatusText(installed, swControlled)}
-          done={swControlled}
-        />
-        <ReadinessRow
-          label="Local storage"
-          value={storageOk ? 'Available' : 'Unavailable'}
-          done={storageOk}
-        />
-        <ReadinessRow
-          label="Offline basemap"
-          // A superseded archive still counts as ready — it works offline —
-          // but the row must not read as up to date; the Offline maps panel
-          // below is where the update itself lives. Unusable stored data is
-          // NOT ready and says so rather than showing its size.
-          value={
-            basemap.needsRepair
-              ? 'Needs repair'
-              : basemap.updateAvailable
-                ? 'Update available'
-                : // Where the basemap ships inside the app package there is
-                  // nothing to store and nothing to check: say so, rather
-                  // than quoting a size that implies a download happened.
-                  basemap.bundled
-                  ? 'Included in app'
-                  : basemap.downloaded
-                    ? formatBytes(basemap.sizeBytes)
-                    : 'Not stored'
-          }
-          done={basemap.downloaded}
-          pending={basemap.checking}
-        />
-        <ReadinessRow
-          label="Terrain relief"
-          value={terrain.downloaded ? formatBytes(terrain.sizeBytes) : 'Not stored'}
-          done={terrain.downloaded}
-          optional
-          pending={terrain.checking}
-        />
-        <ReadinessRow
-          label="Satellite imagery"
-          value={satellite.downloaded ? formatBytes(satellite.sizeBytes) : 'Not stored'}
-          done={satellite.downloaded}
-          optional
-          pending={satellite.checking}
-        />
-        <ReadinessRow
-          label="GPS"
-          value="Manual field test"
-          done={false}
-          optional
-        />
-      </div>
-    </SettingsAccordion>
-  );
 }
 
 function SettingsAccordion({
@@ -324,27 +183,20 @@ function RouteDirectionCard() {
   );
 }
 
-export function SettingsScreen({
-  initialSection = null,
-}: {
-  /** One-shot deep link (e.g. Today Prepare's readiness card): open this
-   *  section on arrival. Plain tab navigation keeps everything collapsed. */
-  initialSection?: SettingsDeepLinkSection | null;
-}) {
+export function SettingsScreen() {
   const { state, replaceState, resetAll, routeDirection } = useStore();
   const [notice, setNotice] = useState<Notice>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  // Shared aggregate (same hook the Trail readiness card reads) — reused by
-  // the diagnostic summary so both surfaces report identical asset states.
-  const readiness = useTrailReadiness();
+  // Offline asset states for the diagnostic summary. The same hook backs the
+  // Offline maps cards, so a copied report can never disagree with what the
+  // panel shows.
+  const diagnostics = useOfflineDiagnostics();
   // Every Settings section starts collapsed for a consistent, scannable list
   // (Route direction is still first; its collapsed summary shows the current
-  // choice). Route direction and Trail readiness each own an independent
-  // boolean; the grouped foldouts below share a single-open group — same
-  // shared SettingsAccordion behaviour, no section is open on load unless a
-  // one-shot deep link asked for it. (The Day plan moved to Plan — vNext.)
+  // choice). Route direction owns an independent boolean; the grouped foldouts
+  // below share a single-open group — same shared SettingsAccordion behaviour,
+  // and no section is open on load. (The Day plan moved to Plan — vNext.)
   const [directionOpen, setDirectionOpen] = useState(false);
-  const [readinessOpen, setReadinessOpen] = useState(initialSection === 'readiness');
   const [openSection, setOpenSection] = useState<SettingsSection | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -578,13 +430,13 @@ export function SettingsScreen({
       displayMode: window.matchMedia?.('(display-mode: standalone)').matches
         ? 'standalone'
         : 'browser',
-      serviceWorker: readiness.swControlled ? 'active' : 'not controlling',
-      storage: readiness.storageOk ? 'available' : 'unavailable',
-      offlineBasemap: readiness.basemap.needsRepair
+      serviceWorker: diagnostics.swControlled ? 'active' : 'not controlling',
+      storage: diagnostics.storageOk ? 'available' : 'unavailable',
+      offlineBasemap: diagnostics.basemap.needsRepair
         ? 'needs repair'
-        : assetStatus(readiness.basemap),
-      terrain: assetStatus(readiness.terrain),
-      satellite: assetStatus(readiness.satellite),
+        : assetStatus(diagnostics.basemap),
+      terrain: assetStatus(diagnostics.terrain),
+      satellite: assetStatus(diagnostics.satellite),
     });
     try {
       await navigator.clipboard.writeText(summary);
@@ -602,9 +454,9 @@ export function SettingsScreen({
 
   return (
     <div className="screen screen--settings">
-      <ScreenHeader eyebrow="Trail readiness" title="Settings">
-        Adjust app settings to tailor Fjallkompis to your trip and how you use
-        it. Tap a section to expand its options.
+      <ScreenHeader eyebrow="This device" title="Settings">
+        Route direction, offline maps, backups and what Fjallkompis stores on
+        this device.
       </ScreenHeader>
 
       {notice ? (
@@ -637,22 +489,7 @@ export function SettingsScreen({
         <RouteDirectionCard />
       </SettingsAccordion>
 
-      <TrailReadinessCard
-        open={readinessOpen}
-        onToggle={() => setReadinessOpen((current) => !current)}
-      />
-
       <div className="settings-grid settings-grid--accordions">
-        <SettingsAccordion
-          id="install"
-          title="Install"
-          summary="App shell, home-screen install and offline app behavior"
-          open={openSection === 'install'}
-          onToggle={() => toggleSection('install')}
-        >
-          <InstallCard embedded />
-        </SettingsAccordion>
-
         <SettingsAccordion
           id="maps"
           title="Offline maps"
@@ -803,6 +640,25 @@ export function SettingsScreen({
           >
             View sources and licences
           </button>
+
+          {/* Support helper, deliberately low-prominence and deliberately
+              HERE: this is the panel that already answers "what is this build
+              made of", so the technical facts a bug report needs belong
+              alongside it rather than as a full-width action under every
+              other setting. One tap copies versions, platform and offline
+              asset states — nothing personal. */}
+          <p className="card-sub" style={{ marginTop: 16 }}>
+            Reporting a problem? Copy the technical details of this build —
+            versions, platform and which map data is downloaded. It contains
+            nothing personal.
+          </p>
+          <button
+            className="btn btn-ghost"
+            style={{ marginTop: 8 }}
+            onClick={() => void doCopyDiagnostics()}
+          >
+            <Copy size={14} strokeWidth={1.8} aria-hidden /> Copy technical details
+          </button>
         </SettingsAccordion>
 
         {/* PRIVACY. One entry, the same accordion as every section above — no
@@ -843,17 +699,7 @@ export function SettingsScreen({
 
       <CreditsSheet open={creditsOpen} onClose={() => setCreditsOpen(false)} />
 
-      {/* Pilot feedback helper: one tap copies the technical facts a report
-          needs (versions, platform, offline asset states) — nothing personal. */}
-      <button
-        className="btn btn-ghost btn-block"
-        style={{ marginTop: 14 }}
-        onClick={() => void doCopyDiagnostics()}
-      >
-        <Copy size={15} strokeWidth={1.8} aria-hidden /> Copy diagnostic summary
-      </button>
-
-      <p className="app-version">Fjallkompis · prototype · v{APP_VERSION}</p>
+      <p className="app-version">Fjallkompis · v{APP_VERSION}</p>
     </div>
   );
 }

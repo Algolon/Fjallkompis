@@ -69,14 +69,21 @@ test('the Wallet intro keeps the offline-storage honesty and deletion caveat', (
   const intro = plan.slice(start, plan.indexOf('<TripView', start));
   assert.ok(start > -1, 'PlanWalletScreen exists');
   assert.match(intro, /available offline/i);
-  assert.match(intro, /stored locally on this device/i);
-  assert.match(intro, /clearing the browser.s or\s+app.s data also removes/i);
+  assert.match(intro, /kept on this device/i);
+  assert.match(intro, /clearing the app.s data also removes them/i);
   assert.ok(!/cloud|sync|backed up/i.test(intro), 'never implies cloud storage');
 });
 
 test('both empty states explain the purpose and offer the right Add action', () => {
-  assert.match(tripView, /Organize your stays and transport here\./);
-  assert.match(tripView, /Add and organize your bookings, tickets and other travel documents\./);
+  assert.match(tripView, /Organise your stays and transport here\./);
+  // The Wallet empty state carries the ACTION only. It used to restate the
+  // screen header's "bookings, tickets and documents … on this device …
+  // offline" immediately below it — the same two facts twice in one viewport.
+  assert.match(tripView, /Add your bookings, tickets and other travel documents\./);
+  assert.ok(
+    !/stay available offline on the\s+trail/.test(tripView),
+    'the duplicated offline claim is gone from the empty state',
+  );
   assert.match(tripView, /Add item/, 'travel CTA');
   assert.match(tripView, /Add document/, 'wallet CTA');
   assert.ok(!/passport/i.test(tripView), 'identity documents are not promoted as examples');

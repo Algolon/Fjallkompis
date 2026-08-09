@@ -207,7 +207,9 @@ test('every existing Map control is still rendered', () => {
     assert.ok(mapScreen.includes(needle), `${what} stays on the Map screen`);
   }
   const stack = readFileSync(join(root, 'src/components/MapControlStack.tsx'), 'utf8');
-  assert.match(stack, /aria-label="Choose map layer"/, 'terrain/satellite choice');
+  // The name gains a clause when optional map data is absent, so match the
+  // stable part rather than the whole string.
+  assert.match(stack, /'Choose map layer/, 'terrain/satellite choice');
 });
 
 test('the header-less workspace keeps an accessible screen name', () => {
