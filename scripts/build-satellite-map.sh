@@ -11,9 +11,10 @@
 # georeferenced image — it never scrapes raster tiles from Google, Bing, Esri,
 # Mapbox or any other commercial tile endpoint.
 #
-# The crop bounding box is read from the GPX-derived route data (mapCutoutBounds
-# in src/generated/kungsleden-route.json = route bounds + ~9 km buffer) — the
-# exact same box used for the vector basemap, never hard-coded here. Run
+# The crop bounding box is derived from GPX-generated mapCutoutBounds and
+# aligned outwards to the lowest raster zoom by the runtime's canonical tile
+# maths. It therefore covers the complete supported terrain/satellite camera
+# envelope without hard-coding or downloading an arbitrary region. Run
 # `npm run generate:route` first if that file is missing.
 #
 # Usage:
@@ -24,7 +25,8 @@
 #   MAXZOOM      Maximum zoom stored in the archive. Default 13
 #                (~10 m/px, the native resolution of Sentinel-2 true colour;
 #                MapLibre over-zooms beyond it up to the map's maxZoom of 17).
-#   MINZOOM      Minimum zoom stored in the archive. Default 6.
+#   MINZOOM      Minimum zoom stored in the archive. Default 7 (the runtime
+#                coverage contract in src/map/overviewEnvelope.mjs).
 #   TILE_FORMAT  WEBP (default; lossy + keeps alpha for no-data edges) or
 #                JPEG (smaller, but no alpha — no-data areas become black).
 #   QUALITY      Lossy tile quality, 1-100. Default 80.
@@ -40,7 +42,7 @@ cd "$(dirname "$0")/.."
 SRC="${1:-${SATELLITE_SRC:-}}"
 MAXZOOM_ARG="${2:-}"
 MAXZOOM="${MAXZOOM_ARG:-${MAXZOOM:-13}}"
-MINZOOM="${MINZOOM:-6}"
+MINZOOM="${MINZOOM:-7}"
 TILE_FORMAT="$(printf '%s' "${TILE_FORMAT:-WEBP}" | tr '[:lower:]' '[:upper:]')"
 QUALITY="${QUALITY:-80}"
 OUT="public/maps/kungsleden-satellite.pmtiles"
@@ -75,11 +77,13 @@ Install from https://github.com/protomaps/go-pmtiles/releases or set PMTILES_BIN
 # ---- 3. Read route bounds (never hard-coded) ------------------------------
 [ -f "$ROUTE_JSON" ] || die "$ROUTE_JSON missing — run 'npm run generate:route' first."
 
-# mapCutoutBounds = [[west,south],[east,north]] in EPSG:4326.
+# Tile-aligned supported raster bounds in EPSG:4326.
 read -r WEST SOUTH EAST NORTH <<EOF
-$(node -p "
-  const b = require('./${ROUTE_JSON}').mapCutoutBounds;
-  [b[0][0], b[0][1], b[1][0], b[1][1]].join(' ');
+$(node --input-type=module -e "
+  import route from './${ROUTE_JSON}' with { type: 'json' };
+  import { tileAlignedFootprint, RASTER_ARCHIVE_MIN_ZOOM } from './src/map/overviewEnvelope.mjs';
+  const b = tileAlignedFootprint(route.mapCutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+  console.log([b.west, b.south, b.east, b.north].join(' '));
 ")
 EOF
 [ -n "$NORTH" ] || die "could not read mapCutoutBounds from $ROUTE_JSON."

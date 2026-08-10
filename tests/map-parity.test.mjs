@@ -591,7 +591,7 @@ test('an optional archive is usable only once downloaded — on BOTH platforms',
   // undownloaded optional archive same-origin while Android could not, so the
   // same UI label meant two different things: on one platform Satellite was
   // selectable, on the other it was not. Streaming was the half to drop —
-  // a 27 MB or 59 MB transfer must not start because someone opened a menu.
+  // a multi-megabyte terrain or satellite transfer must not start because someone opened a menu.
   const resolver = read('src/map/pmtilesProtocol.ts');
   assert.match(
     resolver,

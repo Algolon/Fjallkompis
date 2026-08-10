@@ -43,14 +43,12 @@
  * threshold, the strict user bounds snap back and the camera is herded
  * inside them.
  *
- * KNOWN LIMIT (deferred, Map Refinement II PR 2): `overviewEnvelope` below
- * derives its cap from the z7 tile grid, but is applied at every overview
- * zoom. Viewports from ~1920×1080 upward settle at zooms that render z9
- * tiles, whose real-data footprint is 234.8 km against z7's 313.1 km — so
- * the cap over-claims and a blank western margin becomes reachable there.
- * Measured 0 px on every supported shape through 1512×860. The envelope is
- * also asymmetric about the route (1.736° of margin west, 1.041° east),
- * which pushes wide-viewport compositions east. Neither is touched here.
+ * Raster modes use the z7 ancestor's physical footprint because MapLibre
+ * overzooms that complete real-data tile at overview zooms. The supported
+ * camera envelope is inset 2 km from those pixels, so a reachable maxBounds
+ * edge cannot expose sampling outside the archive. The constrained-fit solver
+ * translates wide compositions west when necessary and raises zoom only when
+ * the viewport cannot fit inside that safe envelope.
  *
  * Plain ESM so tests/camera-bounds.test.mjs can fence the maths in node.
  */
@@ -66,6 +64,8 @@ import {
   overviewCameraFor,
   coverageForMode,
   rasterRenderableCoverage,
+  rasterInteractionCoverage,
+  RASTER_EDGE_SAFETY_METRES,
   vectorSourceCoverage,
 } from './overviewEnvelope.mjs';
 
@@ -75,6 +75,7 @@ import {
 export { MERC_MAX, mercX, mercY, invMercX, invMercY, mercPerPixel };
 export { overviewEnvelopeFor, overviewCameraFor, coverageForMode };
 export { rasterRenderableCoverage, vectorSourceCoverage };
+export { rasterInteractionCoverage };
 
 /**
  * Camera constraints for a viewport, from the coverage contract:
@@ -110,7 +111,7 @@ export const TERRAIN_MIN_ZOOM = 7;
  */
 export function overviewEnvelope(dataBounds) {
   const c = rasterRenderableCoverage(dataBounds, TERRAIN_MIN_ZOOM);
-  const marginM = 2000;
+  const marginM = RASTER_EDGE_SAFETY_METRES;
   return [
     [invMercX(mercX(c.west) + marginM), invMercY(mercY(c.south) + marginM)],
     [invMercX(mercX(c.east) - marginM), invMercY(mercY(c.north) - marginM)],

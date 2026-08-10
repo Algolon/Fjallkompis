@@ -5,6 +5,12 @@ export interface MapAssetRevision {
   bytes: number;
   /** Full-file digest: provenance on the PWA, enforced on the Android download. */
   sha256: string;
+  /** Physical PMTiles header coverage pinned to this exact revision. */
+  coverage: {
+    bounds: readonly [readonly [number, number], readonly [number, number]];
+    minZoom: number;
+    maxZoom: number;
+  };
 }
 
 export interface MapAssetRelease {

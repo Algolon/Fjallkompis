@@ -8,12 +8,12 @@ set -euo pipefail
 # Sentinel-2 cloudless — https://s2maps.eu by EOX IT Services GmbH
 # Contains modified Copernicus Sentinel data 2024.
 #
-# Coverage comes from the route coverage contract — mapCutoutBounds (route +
-# userBufferKm + dataMarginKm) in src/generated/kungsleden-route.json — the
-# exact same extent as the vector and terrain archives. Never hard-coded
-# here (0.15.0 bounded-map iteration; the previous revision froze the old
-# 9 km cutout as literal EPSG:3857 numbers, which silently diverged when
-# the contract changed). Run `npm run generate:route` first if missing.
+# Coverage comes from the route coverage contract: mapCutoutBounds is aligned
+# outwards to the lowest raster zoom by the same pure helper the camera uses.
+# This is the complete supported terrain/satellite overview envelope, not only
+# the high-zoom cutout; downloading precisely this derived rectangle gives the
+# imagery real pixels under every ordinary camera position without pulling an
+# arbitrary regional extract. Run `npm run generate:route` first if missing.
 #
 # The extent is fetched as a dynamic grid of WMS GetMap parts (each at most
 # 2560×3840 px) at ~26.3 Mercator-metres/px — ≈10 m ground resolution at the
@@ -53,9 +53,11 @@ MAX_W=2560
 MAX_H=3840
 
 read -r WEST SOUTH EAST NORTH <<EOF
-$(node -p "
-  const b = require('./${ROUTE_JSON#./}').mapCutoutBounds;
-  [b[0][0], b[0][1], b[1][0], b[1][1]].join(' ');
+$(node --input-type=module -e "
+  import route from './${ROUTE_JSON#./}' with { type: 'json' };
+  import { tileAlignedFootprint, RASTER_ARCHIVE_MIN_ZOOM } from './src/map/overviewEnvelope.mjs';
+  const b = tileAlignedFootprint(route.mapCutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+  console.log([b.west, b.south, b.east, b.north].join(' '));
 ")
 EOF
 
@@ -90,7 +92,7 @@ while IFS='|' read -r name bbox ullr width height; do
   png="${TMP_DIR}/${name}.png"
   tif="${TMP_DIR}/${name}.tif"
   echo "Downloading ${name} (${width}x${height})..."
-  curl --fail --location --retry 4 --retry-delay 3 \
+  curl --fail --location --retry 8 --retry-all-errors --retry-delay 3 \
     "${WMS}?FORMAT=image%2Fpng&TRANSPARENT=FALSE&VERSION=1.1.1&SERVICE=WMS&REQUEST=GetMap&LAYERS=s2cloudless-2024_3857&STYLES=&SRS=EPSG%3A3857&WIDTH=${width}&HEIGHT=${height}&BBOX=${bbox}" \
     --output "$png"
   # Georeference each returned RGB image; select RGB bands explicitly so an

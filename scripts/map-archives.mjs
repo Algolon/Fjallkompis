@@ -41,7 +41,7 @@ const fail = (message) => {
 
 async function sha256(path) {
   const hash = createHash('sha256');
-  // Streamed: the satellite archive is ~59 MB and CI runners are not the place
+  // Streamed: map archives are multi-megabyte binaries and CI runners are not the place
   // to read that into a Buffer for no reason.
   for await (const chunk of createReadStream(path)) hash.update(chunk);
   return hash.digest('hex');

@@ -64,6 +64,7 @@ import type { MapPadding } from '../map/mapPadding.mjs';
 import { shouldShowZoomControl } from '../map/mapZoomControl.mjs';
 import { buildFocusFeatures } from '../map/focusFeatures.mjs';
 import type { FocusRoute } from '../map/focusFeatures.mjs';
+import { startAttributionCompact } from '../map/initialAttribution.mjs';
 
 export interface MapViewHandle {
   /** Move/hide the elevation-scrub marker without re-rendering React. */
@@ -167,6 +168,18 @@ const prefersReducedMotion = () =>
  * through the `padding` prop; see src/map/mapPadding.mjs.
  */
 const DEFAULT_PADDING: MapPadding = BASE_MAP_PADDING;
+const MAPLIBRE_ATTRIBUTION = '<a href="https://maplibre.org/" target="_blank">MapLibre</a>';
+
+/**
+ * MapLibre's compact control starts expanded by design. Override that one
+ * initial-state decision before Map.addControl attaches the returned element;
+ * the native details/summary control remains fully interactive afterwards.
+ */
+class InitiallyCompactAttributionControl extends maplibregl.AttributionControl {
+  override onAdd(map: maplibregl.Map): HTMLElement {
+    return startAttributionCompact(super.onAdd(map));
+  }
+}
 
 /**
  * Hut/cabin marker glyph — the same geometry as the Huts tab icon
@@ -519,7 +532,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         // no fit, then nudge.
         center: [initialCamera.camera.lng, initialCamera.camera.lat],
         zoom: initialCamera.camera.zoom,
-        attributionControl: { compact: true },
+        // The default control paints expanded before `load`; install the
+        // equivalent initially-compact control synchronously below instead.
+        attributionControl: false,
         // Cap zoom to what the offline tileset actually contains (+overzoom).
         maxZoom: 17,
         // maxBounds is the operative floor (it stops zoom-out once the
@@ -541,6 +556,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         pitchWithRotate: false,
         touchPitch: false,
       });
+      map.addControl(
+        new InitiallyCompactAttributionControl({
+          compact: true,
+          // Keep the control non-empty from onAdd. Otherwise the first async
+          // source-attribution update treats it as newly compact and expands
+          // it again even though the detached initial element was collapsed.
+          customAttribution: MAPLIBRE_ATTRIBUTION,
+        }),
+        'bottom-right',
+      );
       /**
        * THE full-route overview path. Every explicit whole-route action goes
        * through here — initial camera, imperative Fit route, and the return
@@ -664,16 +689,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       map.on('load', () => {
         if (!map) return;
-
-        // MapLibre's compact attribution starts EXPANDED on load; collapse
-        // it so the credits don't cover the map. The ⓘ button (a native
-        // <details>/<summary> toggle) re-opens it on demand, and the full
-        // credits remain in Settings → Data sources & credits.
-        const attrib = containerRef.current?.querySelector(
-          'details.maplibregl-ctrl-attrib',
-        );
-        attrib?.removeAttribute('open');
-        attrib?.classList.remove('maplibregl-compact-show');
 
         map.addSource('overview', { type: 'geojson', data: mountedRoute.overviewGeoJson });
         map.addSource('stages', {

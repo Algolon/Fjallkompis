@@ -268,7 +268,7 @@ resolution, visual comparison, contour noise and storage measurements.
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**
 map. Tiles come from a raster PMTiles archive of **EOX Sentinel‑2 cloudless
-2024** imagery, bounded to the route corridor. The archive is **~59 MB and is
+2024** imagery, bounded to the supported raster envelope. The archive is **~27 MB and is
 NOT committed to the repo** — the canonical binary lives on a **versioned
 GitHub Release** and is injected into the Pages build at deploy time:
 
@@ -319,11 +319,11 @@ Imagery is built on a GitHub runner, not committed. Two reproducible scripts
 under `scripts/` do the work:
 
 - `scripts/download-kungsleden-satellite.sh .` — downloads EOX Sentinel‑2
-  cloudless for the route corridor into `data/source-imagery/sentinel2-kungsleden.tif`
+  cloudless for the supported raster envelope into `data/source-imagery/sentinel2-kungsleden.tif`
   (git‑ignored; **never committed**). Requires `curl` + GDAL.
 - `npm run generate:map:satellite -- data/source-imagery/sentinel2-kungsleden.tif` —
-  the pipeline (`scripts/build-satellite-map.sh`): reads the crop box from
-  `mapCutoutBounds` in the generated route JSON (never hard‑coded), reprojects to
+  the pipeline (`scripts/build-satellite-map.sh`): derives the crop box by
+  tile-aligning `mapCutoutBounds` at the canonical raster minzoom (never hard-coded), reprojects to
   EPSG:3857, tiles as 256 px WEBP (matching `SATELLITE_TILE_SIZE`), builds the
   ~z7–13 pyramid, converts to PMTiles, and runs `pmtiles verify`. Options (env):
   `MAXZOOM=13 TILE_FORMAT=WEBP QUALITY=80 DEBUG=1`.
@@ -343,8 +343,9 @@ Sentinel‑2 true colour is ~10 m/px. In Web Mercator, zoom **13** is ≈19 m/px
 the equator and finer at this latitude (~7 m/px near 68° N) — the closest zoom
 to the native resolution. Going higher only upsamples pixels and inflates the
 file, so 13 is the default cap; MapLibre over‑zooms beyond it (up to the map's
-`maxZoom` 17) so you can still pinch in. (For this sub‑tile‑sized corridor GDAL
-clamps the smallest overview, so archives come out ~z7–13.)
+`maxZoom` 17) so you can still pinch in. The archive stores z7–13; the runtime
+keeps a 2 km real-pixel safety inset between its supported camera envelope and
+the physical z7 archive edge.
 
 ### Required tools (local builds)
 

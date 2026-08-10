@@ -54,6 +54,9 @@ export const MAP_ASSET_DIR = 'maps';
  * @property {string} sha256  Full-file digest. Provenance on the PWA (a 60 MB
  *   re-read on every status check would buy nothing); ENFORCED on Android,
  *   where the download is hashed as it streams for free.
+ * @property {{bounds: readonly [readonly [number, number], readonly [number, number]], minZoom: number, maxZoom: number}} coverage
+ *   Physical archive metadata, pinned with the bytes so coverage tests run
+ *   even when optional Release assets have not been injected into CI.
  *
  * @typedef {object} MapAssetRelease
  * @property {string} tag   Pinned GitHub Release tag — the canonical origin.
@@ -97,6 +100,11 @@ export const MAP_ASSETS = Object.freeze({
       id: 'kungsleden-vector-2026-08-overview-corridor',
       bytes: 5_904_598,
       sha256: '17d9894664aca247affa11d0a5b3e5763d0898a920f129d1f25f78a2e3fb1b51',
+      coverage: Object.freeze({
+        bounds: Object.freeze([Object.freeze([17.3799, 67.7081]), Object.freeze([19.8773, 68.4931])]),
+        minZoom: 0,
+        maxZoom: 14,
+      }),
     }),
     supersededBytes: Object.freeze([]),
     cacheName: 'fjallkompis-offline-map-v2',
@@ -106,7 +114,7 @@ export const MAP_ASSETS = Object.freeze({
 
   /**
    * Terrain-RGB raster for hillshade (Copernicus GLO-30, terrarium encoding,
-   * z6–12). Bit-identical between terrain-data-v2 and v3, so v2 leaves no
+   * z7–12). Bit-identical between terrain-data-v2 and v3, so v2 leaves no
    * distinct superseded length; v1 does.
    */
   terrain: Object.freeze({
@@ -117,6 +125,11 @@ export const MAP_ASSETS = Object.freeze({
       id: 'kungsleden-terrain-data-v3',
       bytes: 19_297_735,
       sha256: '89eef71787ceb1f4b827b9eee1906fd799d89c4d4d587be31a4d944efb399aa5',
+      coverage: Object.freeze({
+        bounds: Object.freeze([Object.freeze([17.841797, 67.676085]), Object.freeze([19.423828, 68.49604])]),
+        minZoom: 7,
+        maxZoom: 12,
+      }),
     }),
     supersededBytes: Object.freeze([10_971_079]),
     cacheName: 'fjallkompis-offline-terrain-v1',
@@ -136,6 +149,11 @@ export const MAP_ASSETS = Object.freeze({
       id: 'kungsleden-contours-data-v3',
       bytes: 9_271_029,
       sha256: '3e8fbcfa6ee1ea8df9abaec641d836e11602867c09c83f77173e522826b7d573',
+      coverage: Object.freeze({
+        bounds: Object.freeze([Object.freeze([17.8799, 67.7081]), Object.freeze([19.3773, 68.4931])]),
+        minZoom: 9,
+        maxZoom: 13,
+      }),
     }),
     supersededBytes: Object.freeze([4_618_344, 6_192_959]),
     cacheName: 'fjallkompis-offline-contours-v1',
@@ -149,14 +167,19 @@ export const MAP_ASSETS = Object.freeze({
     file: 'kungsleden-satellite.pmtiles',
     distribution: 'optional',
     revision: Object.freeze({
-      id: 'kungsleden-satellite-data-v3',
-      bytes: 61_704_169,
-      sha256: 'b94714526b48bc07220a851e4cc05684800e5d2967804b6907f72a922258c694',
+      id: 'kungsleden-satellite-data-v4',
+      bytes: 28_292_311,
+      sha256: '4e5d4a90e43f522d2215c4fb46d0702018bf3b6f4bef92963ab9b00d5f5a4d52',
+      coverage: Object.freeze({
+        bounds: Object.freeze([Object.freeze([16.875, 67.609221]), Object.freeze([19.6875, 68.656555])]),
+        minZoom: 7,
+        maxZoom: 13,
+      }),
     }),
-    supersededBytes: Object.freeze([43_610_353, 11_294_208]),
+    supersededBytes: Object.freeze([61_704_169, 43_610_353, 11_294_208]),
     cacheName: 'fjallkompis-offline-satellite-v1',
     legacyCacheNames: Object.freeze([]),
-    release: Object.freeze({ tag: 'satellite-data-v3', asset: 'kungsleden-satellite.pmtiles' }),
+    release: Object.freeze({ tag: 'satellite-data-v4', asset: 'kungsleden-satellite.pmtiles' }),
   }),
 });
 

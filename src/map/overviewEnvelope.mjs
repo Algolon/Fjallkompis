@@ -95,6 +95,14 @@ export const VECTOR_OVERVIEW_BUILD = Object.freeze({
 export const RASTER_ARCHIVE_MIN_ZOOM = 7;
 
 /**
+ * Hidden raster sampling/gesture margin. A maxBounds edge is reachable, so an
+ * envelope equal to the last data pixel lets bilinear sampling and transient
+ * touch movement reveal the physical archive edge. The archive remains wider;
+ * only this inset is offered as supported camera coverage.
+ */
+export const RASTER_EDGE_SAFETY_METRES = 2000;
+
+/**
  * The tile-aligned footprint of a lon/lat box at an integer zoom — the extent
  * an extract for that box actually ends up covering, since tiles are whole.
  *
@@ -148,6 +156,21 @@ export function vectorSourceCoverage(sourceZoom, cutoutBounds, build = VECTOR_OV
  */
 export function rasterRenderableCoverage(cutoutBounds, minZoom = RASTER_ARCHIVE_MIN_ZOOM) {
   return tileAlignedFootprint(cutoutBounds, minZoom);
+}
+
+/** Renderable raster coverage with a real-data margin on all four edges. */
+export function rasterInteractionCoverage(
+  cutoutBounds,
+  minZoom = RASTER_ARCHIVE_MIN_ZOOM,
+  safetyMetres = RASTER_EDGE_SAFETY_METRES,
+) {
+  const physical = rasterRenderableCoverage(cutoutBounds, minZoom);
+  return {
+    west: invMercX(mercX(physical.west) + safetyMetres),
+    east: invMercX(mercX(physical.east) - safetyMetres),
+    south: invMercY(mercY(physical.south) + safetyMetres),
+    north: invMercY(mercY(physical.north) - safetyMetres),
+  };
 }
 
 /**
@@ -313,7 +336,7 @@ export function overviewEnvelopeFor({
  */
 export function coverageForMode(mode, cutoutBounds, build = VECTOR_OVERVIEW_BUILD) {
   if (mode === 'terrain' || mode === 'satellite') {
-    return rasterRenderableCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+    return rasterInteractionCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
   }
   // Vector-only: the widest overview footprint the archive actually carries.
   return vectorSourceCoverage(build.maxZoom, cutoutBounds, build);
