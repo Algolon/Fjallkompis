@@ -857,9 +857,25 @@ test('the current-build line cannot drift from the ledger high-water mark', () =
 });
 
 test('the generator yields the present release now, and the next one later', () => {
-  // Present: applying the generator to the committed ledger describes 2700006.
+  // Present: applying the generator to the committed ledger describes whatever
+  // the committed ledger's high-water mark IS — derived, never named, which is
+  // the same rule the "Later" half below already states in so many words.
+  //
+  // This line was the one place that broke it: it named 2700006, so the very
+  // next closure failed on it — the automatic ledger PR for 2700007 could not
+  // merge until this test was edited, which is precisely the drift these tests
+  // exist to catch rather than to cause. Derived, it needs no edit for 2700008
+  // and everything after it.
+  //
+  // The assertion is unchanged in strength: the sibling test above pins the
+  // fence to the final consumed entry, so "contains the high-water mark" still
+  // means "describes the present release" and cannot be satisfied by a stale
+  // document.
   const ledger = readLedger(ledgerSource);
-  assert.match(currentReleaseLine(ledger), /versionCode `2700006`/);
+  assert.match(
+    currentReleaseLine(ledger),
+    new RegExp(`versionCode \`${ledger.highestConsumedVersionCode}\``),
+  );
 
   // Later: a synthetic NEXT legitimate closure. The expected code is derived,
   // never named — so releases after this one need no edit to this test.
