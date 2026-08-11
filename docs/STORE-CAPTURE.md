@@ -32,6 +32,10 @@ Use `--output <directory>`, `--skip-build`, or `--no-captions` for local iterati
 
 Every output is exact portrait 9:16, stays under 8 MB, and meets the stronger 1080-pixel promotional floor. The two tablets render genuinely different CSS viewports rather than enlarged phone pixels.
 
+### Phone framing
+
+The Phone PNG remains a 360×640 CSS viewport at 3× (1080×1920 output). After the real restore flow, the harness alone composes the app on a 400×711 internal canvas and scales it to 90% inside that same bitmap. Media queries still see the real 360px phone width, so the app keeps its phone layout; the capture simply shows about 11% more vertical surface. This lets the longer sanitized-demo Today state include the title/subtitle, complete hero, Journey card, full TONIGHT card and breathing room above the tab bar. Tablet profiles use no framing transform.
+
 ## Scenes and selection
 
 The canonical clean set is `01-today`, `02-map-terrain`, `03-map-satellite`, `04-stage-guide`, `05-packing`, and `06a-trail-readiness`. `06b-wallet` is an evidence candidate so reviewers can compare the two final-story options. The recommended order is the canonical numeric order above. Trail Readiness is recommended over Wallet for the sixth Store slot: it communicates the complete offline/preparation promise immediately and avoids spending a core slot on document management.
@@ -42,7 +46,7 @@ The harness also generates restrained Phone-only caption comparisons for Today, 
 
 Both tablet profiles use the real responsive rail. Content stays in bounded readable columns, cards keep proportionate controls and typography, Map composition uses the extra canvas rather than stretching phone pixels, and the harness found no horizontal overflow. The 10-inch Today view changes to a genuine split card composition. Portrait document/list screens deliberately leave more empty space below their bounded content; that is honest current behavior, not cosmetically filled by the capture tooling, and it is not a usability blocker for this candidate set.
 
-The final-Map repeatability check on base `eebb86ad9fdf6047f365333f4c9d3220f7ac0899` produced the same 21 clean filenames, dimensions, profile metadata and privacy metadata twice in the same browser version. Sixteen PNGs were byte-identical; five differed at the PNG-byte level from normal browser rasterization variation.
+The Phone-framing repeatability check on base `eebb86ad9fdf6047f365333f4c9d3220f7ac0899` produced the same 21 clean filenames, dimensions, profile metadata and privacy metadata twice in the same browser version. Eleven PNGs were byte-identical; ten differed at the PNG-byte level from normal browser rasterization variation.
 
 ## Privacy and integrity contract
 

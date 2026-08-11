@@ -155,6 +155,35 @@ async function restoreDemo(page) {
   await page.getByText(/Backup restored — trip data and 4 documents replaced/).waitFor();
 }
 
+/**
+ * Play requires a 9:16 bitmap, but the real Android reference frame gives
+ * Today a little more vertical breathing room than a bare 360×640 web
+ * viewport. Render only the Phone capture page on a proportionally larger
+ * internal canvas, then scale that canvas back into the same 9:16 bitmap.
+ * This is injected after the real restore flow; it never participates in a
+ * normal app build or changes responsive breakpoints.
+ */
+async function applyCaptureFraming(page, profile) {
+  if (profile.id !== 'phone') return;
+  await page.addStyleTag({ content: `
+    html, body { overflow: hidden !important; }
+    #root {
+      position: fixed !important;
+      inset: 0 auto auto 0 !important;
+      width: 111.111111% !important;
+      height: 111.111111% !important;
+      overflow: hidden !important;
+    }
+    #root > .app {
+      width: 100% !important;
+      max-width: none !important;
+      height: 100% !important;
+      transform: scale(0.9);
+      transform-origin: top left;
+    }
+  ` });
+}
+
 async function settle(page, { map = false } = {}) {
   const lifecycleToast = page.locator('.pwa-toast').first();
   if (await lifecycleToast.isVisible().catch(() => false)) {
@@ -299,6 +328,7 @@ try {
     });
     page.on('pageerror', (error) => console.error(`[browser:${profile.id}] ${error.message}`));
     await restoreDemo(page);
+    await applyCaptureFraming(page, profile);
     for (const scene of STORE_SCENES) {
       console.log(`[capture] ${profile.id}/${scene.id}`);
       await openScene(page, scene);
@@ -326,6 +356,15 @@ try {
     source: { baseSha, backupSha256: backupAudit.sha256, fixedDate: STORE_CAPTURE_DATE },
     browser: { engine: 'chromium', version: browser.version() },
     profiles: STORE_PROFILES,
+    framing: {
+      phone: {
+        mode: 'capture-only-proportional-scale',
+        internalCanvas: { width: 400, height: 711.111111 },
+        scale: 0.9,
+        outputViewport: { width: 360, height: 640 },
+      },
+      tablets: 'native viewport; no framing transform',
+    },
     privacy: {
       guarantees: ['Pinned audited backup SHA-256', 'JSON metadata and visible DOM pattern checks', 'Output filename and manifest string checks'],
       limitations: ['No OCR is performed on generated screenshots or Wallet image attachments', 'Pattern checks cannot prove the absence of every possible personal name'],

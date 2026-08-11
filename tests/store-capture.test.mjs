@@ -24,6 +24,15 @@ test('Store profiles are exact portrait 9:16 and meet Play dimension floors', ()
   }
 });
 
+test('Phone framing is capture-only and leaves tablet viewports native', () => {
+  const runner = fs.readFileSync(new URL('../scripts/store-capture.mjs', import.meta.url), 'utf8');
+  assert.match(runner, /async function applyCaptureFraming/);
+  assert.match(runner, /if \(profile\.id !== 'phone'\) return/);
+  assert.match(runner, /transform: scale\(0\.9\)/);
+  assert.match(runner, /width: 111\.111111%/);
+  assert.doesNotMatch(runner, /src\/styles\/global\.css/);
+});
+
 test('privacy checks reject personal patterns but permit explicit DEMO references', () => {
   assert.deepEqual(privacyFindings('Passenger: Demo Hiker · Reference: DEMO-0001'), []);
   assert.ok(privacyFindings('booking ref ZX9-PRIVATE').length > 0);
