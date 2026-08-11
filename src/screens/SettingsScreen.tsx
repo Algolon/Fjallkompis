@@ -40,9 +40,10 @@ import { TRAIL_CAVEATS, trailDossierView } from '../trail/activeTrailContent';
 import { SCHEMA_VERSION } from '../utils/stateMigration.mjs';
 import { buildDiagnosticSummary } from '../utils/diagnosticSummary.mjs';
 import { PRIVACY_POLICY_URL } from '../privacy/privacyPolicy.mjs';
+import { packingSummary } from '../utils/packingModel.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
-type SettingsSection = 'maps' | 'backup' | 'sources' | 'privacy';
+type SettingsSection = 'readiness' | 'maps' | 'backup' | 'sources' | 'privacy';
 
 /** Human label for a direction, sourced from its itinerary (single source). */
 function directionLabel(direction: RouteDirection): string {
@@ -191,6 +192,7 @@ export function SettingsScreen() {
   // Offline maps cards, so a copied report can never disagree with what the
   // panel shows.
   const diagnostics = useOfflineDiagnostics();
+  const packing = packingSummary(state.packing);
   // Every Settings section starts collapsed for a consistent, scannable list
   // (Route direction is still first; its collapsed summary shows the current
   // choice). Route direction owns an independent boolean; the grouped foldouts
@@ -404,6 +406,25 @@ export function SettingsScreen() {
     setOpenSection((current) => (current === id ? null : id));
   };
 
+  const mapReadinessStatus = (
+    asset: typeof diagnostics.basemap,
+    optional = false,
+  ): string => {
+    if (asset.checking) return 'Checking…';
+    if (asset.bundled) return 'Included';
+    if (asset.downloaded) return 'Downloaded';
+    return optional ? 'Optional · Not downloaded' : 'Not downloaded';
+  };
+
+  const packingReadiness =
+    packing.total === 0 || !state.packing.some((item) => item.essential)
+      ? 'No essentials marked'
+      : packing.essentialNotPacked === 0
+        ? 'All essentials packed or worn'
+        : `${packing.essentialNotPacked} essential${
+            packing.essentialNotPacked === 1 ? '' : 's'
+          } remaining`;
+
   // "Copy diagnostic summary" — pilot helper. Only whitelisted TECHNICAL
   // facts reach the builder (see diagnosticSummary.mjs): versions, schema,
   // platform, direction and offline asset states. Never notes, trip data,
@@ -491,28 +512,57 @@ export function SettingsScreen() {
 
       <div className="settings-grid settings-grid--accordions">
         <SettingsAccordion
+          id="readiness"
+          title="Trail Readiness"
+          summary="Offline maps, packing and trail preparation"
+          open={openSection === 'readiness'}
+          onToggle={() => toggleSection('readiness')}
+        >
+          <div className="readiness-facts" aria-label="Trail readiness facts">
+            <div className="readiness-fact">
+              <span className="readiness-fact__label">Default basemap</span>
+              <span className="readiness-fact__value">
+                {mapReadinessStatus(diagnostics.basemap)}
+              </span>
+            </div>
+            <div className="readiness-fact">
+              <span className="readiness-fact__label">Terrain relief</span>
+              <span className="readiness-fact__value">
+                {mapReadinessStatus(diagnostics.terrain, true)}
+              </span>
+            </div>
+            <div className="readiness-fact">
+              <span className="readiness-fact__label">Satellite</span>
+              <span className="readiness-fact__value">
+                {mapReadinessStatus(diagnostics.satellite, true)}
+              </span>
+            </div>
+            <div className="readiness-fact">
+              <span className="readiness-fact__label">Packing</span>
+              <span className="readiness-fact__value">{packingReadiness}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-ghost readiness-maps-link"
+            onClick={() => setOpenSection('maps')}
+          >
+            Open Offline maps
+          </button>
+
+          <p className="trail-responsibility-note">
+            {TRAIL_CAVEATS.navigation.full}
+          </p>
+        </SettingsAccordion>
+
+        <SettingsAccordion
           id="maps"
           title="Offline maps"
           summary="Basemap, terrain relief and optional satellite downloads"
           open={openSection === 'maps'}
           onToggle={() => toggleSection('maps')}
         >
-          {/* The extended navigation caveat opens the panel that decides what
-              the map can do offline — the moment a hiker is deliberately
-              preparing to rely on it. The Map cockpit and the stage guide
-              footer carry the one-line version of the same statement; this is
-              the only place with room for why. No new Settings section for it:
-              the honest home is the map the caveat is about.
-
-              Deliberately OUTSIDE .settings-panel-stack. That stack draws its
-              separator with `> * + *`, and the cards' first element is an
-              INLINE .card-title span — as a second child it would take a top
-              border and padding it cannot lay out, and "Offline map" would
-              overlap this text. Kept as a sibling, the cards' own sequence is
-              exactly what it was. */}
-          <p className="card-sub" style={{ margin: '0 0 16px' }}>
-            {TRAIL_CAVEATS.navigation.full}
-          </p>
           <div className="settings-panel-stack">
             <OfflineMapCard embedded />
             <TerrainReliefCard embedded />

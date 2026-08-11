@@ -1,8 +1,8 @@
 /** One standing operational caveat, in the two registers the app renders. */
 export interface TrailCaveat {
-  /** One calm line for operational UI (Map cockpit, stage guide footer). */
+  /** One calm line for operational UI in the active Map cockpit. */
   readonly short: string;
-  /** The same statement with its reasoning, for Settings and context help. */
+  /** The calm preparation wording shown in Settings → Trail Readiness. */
   readonly full: string;
   /** Keys into GUIDE_SOURCES (src/data/stageGuides.mjs). */
   readonly guideSourceIds: readonly string[];

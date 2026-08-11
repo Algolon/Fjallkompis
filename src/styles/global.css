@@ -942,6 +942,44 @@ a.btn {
   padding-top: 16px;
   border-top: 1px solid var(--line);
 }
+.readiness-facts {
+  display: grid;
+  gap: 0;
+}
+.readiness-fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.readiness-fact:first-child {
+  padding-top: 0;
+}
+.readiness-fact__label {
+  font-weight: 650;
+  color: var(--ink);
+}
+.readiness-fact__value {
+  max-width: 58%;
+  color: var(--ink-soft);
+  text-align: right;
+}
+.readiness-maps-link {
+  margin-top: 10px;
+}
+.trail-responsibility-note {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
 
 /* --- Stat grid ----------------------------------------------------------- */
 
@@ -2168,12 +2206,6 @@ button.map-status-pill {
   line-height: 1.5;
   color: var(--ink-soft);
 }
-.stage-guide__verified {
-  margin: 14px 0 0;
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: var(--ink-faint);
-}
 /* Elevation profile inside a disclosure panel (each day guide and the
    full-route summary card). The chart is width:100% and sits at the panel's
    content edge, so it aligns with the written guidance and never overflows
@@ -3066,12 +3098,6 @@ button.stop-fac:focus-visible {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
-}
-.stop-source p {
-  margin: 0 0 10px;
-  font-size: 12.5px;
-  color: var(--ink-faint);
-  line-height: 1.5;
 }
 .stop-source .btn {
   text-decoration: none;

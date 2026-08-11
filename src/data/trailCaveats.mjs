@@ -42,8 +42,8 @@
  * --------------------------
  *   `short` — one calm line for operational UI, where the hiker is doing
  *             something else and the caveat must not take over the screen.
- *   `full`  — the same statement with its reasoning, for the explanatory
- *             surfaces (Settings, context help) that have room for it.
+ *   `full`  — calm preparation copy for a surface with room for the complete
+ *             responsibility note (Settings → Trail Readiness).
  *
  * They are never shown together on one surface, and no component may restate
  * either of them — fenced by tests/trail-caveats.test.mjs.
@@ -81,16 +81,15 @@
  */
 export const TRAIL_CAVEATS = Object.freeze({
   /**
-   * Said wherever the app is used to find the way: the Map cockpit and the
-   * stage guide footer, with the reasoning in Settings → Offline maps.
+   * The short register qualifies active navigation in the Map cockpit. The
+   * full register is the central preparation note in Trail Readiness; it is
+   * deliberately not repeated after every Stage Guide.
    */
   navigation: Object.freeze({
     short: 'Planning and orientation aid — carry a map and compass.',
     full:
-      'Fjallkompis is a planning and orientation aid. The offline map, your GPS ' +
-      'position and the on/off-route feedback help you orient and plan, but they ' +
-      'depend on a device, a battery and a satellite fix. Carry a physical map and ' +
-      'compass, know how to use them, and treat them as your primary navigation.',
+      'Trail, water and weather conditions vary; check locally.\n' +
+      'Plan ahead and carry a map and compass.',
     guideSourceIds: Object.freeze(['stf-kungsleden-abisko', 'naturkartan-bd21']),
     tripInfoSourceNames: Object.freeze([]),
   }),

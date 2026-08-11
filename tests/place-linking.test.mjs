@@ -158,7 +158,8 @@ test('the off-route card carries NO route semantics', () => {
   for (const routeOnly of ['routeKm', 'formatDistanceKm', "'Start'", 'stopDistanceKm', 'Stage']) {
     assert.ok(!card.includes(routeOnly), `off-route card has no ${routeOnly}`);
   }
-  // It shows the verified reference facts and the same accessible accordion.
+  // It shows useful reference facts and the same accessible accordion. Source
+  // metadata stays in data but ordinary Guide UI does not render provenance.
   for (const fact of [
     'tripStayTypeTitle(place.stayType)',
     'place.locationLabel',
@@ -167,7 +168,7 @@ test('the off-route card carries NO route semantics', () => {
     'place.checkInTime',
     'place.checkOutTime',
     'place.source.url',
-    'formatVerifiedDate(place.source.lastVerified)',
+    'officialInformationLabel(place.source.label)',
     'aria-expanded={open}',
     'aria-controls={panelId}',
   ]) {
