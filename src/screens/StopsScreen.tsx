@@ -32,7 +32,8 @@ import {
   transportLinkForStop,
 } from '../trail/activeTrailContent';
 import { tripStayTypeTitle } from '../trip/tripModel.mjs';
-import { formatDistanceKm, formatVerifiedDate, stopTypeLabel } from '../utils/format';
+import { formatDistanceKm, stopTypeLabel } from '../utils/format';
+import { officialInformationLabel } from '../utils/officialInformationLabel.mjs';
 import type { CuratedOffRoutePlace, StopTransportLink } from '../trail/activeTrailContent';
 import type { RouteDirection, ShopCategory, TrailStop } from '../types';
 import type { NavTarget } from '../components/TabBar';
@@ -352,10 +353,6 @@ function StopCard({
         </div>
 
         <div className="stop-source">
-          <p>
-            Source: {stop.source.label} · Information checked{' '}
-            {formatVerifiedDate(stop.source.lastVerified)}
-          </p>
           <a
             className="btn btn-ghost btn-block"
             href={stop.source.url}
@@ -363,7 +360,7 @@ function StopCard({
             rel="noopener noreferrer"
           >
             <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
-            View official information
+            {officialInformationLabel(stop.source.label)}
           </a>
         </div>
 
@@ -508,10 +505,6 @@ function OffRoutePlaceCard({
         </div>
 
         <div className="stop-source">
-          <p>
-            Source: {place.source.label} · Information checked{' '}
-            {formatVerifiedDate(place.source.lastVerified)}
-          </p>
           <a
             className="btn btn-ghost btn-block"
             href={place.source.url}
@@ -519,7 +512,7 @@ function OffRoutePlaceCard({
             rel="noopener noreferrer"
           >
             <ExternalLink size={15} strokeWidth={1.8} aria-hidden />
-            View official information
+            {officialInformationLabel(place.source.label)}
           </a>
         </div>
       </div>

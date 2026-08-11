@@ -14,8 +14,9 @@
  *      read as trail preparation, it counted 4 checks under a list of 7, one
  *      row could never be satisfied ("GPS: Manual field test"), and on the
  *      Android build its basemap row could render "Included in app" and
- *      "Needs attention" at the same time. Settings → Offline maps is now
- *      the single actionable map-readiness surface;
+ *      "Needs attention" at the same time. That implementation stays retired;
+ *      the restored section below uses hiker facts from the same archive
+ *      authority while Offline maps remains the single control surface;
  *   3. the Install foldout — meaningless in the Play-installed app, and
  *      duplicated by the Today install prompt.
  *
@@ -44,12 +45,14 @@ test('the Settings accordion uses button + aria-expanded + aria-controls + a lab
   assert.match(accordion, /aria-labelledby=\{buttonId\}/);
 });
 
-// ---- Trail readiness retired ------------------------------------------------
+// ---- Hiker-facing Trail Readiness restored ----------------------------------
 
-test('the Trail readiness foldout is gone from Settings', () => {
-  assert.ok(!/TrailReadinessCard/.test(settings), 'the component is removed, not hidden');
-  assert.ok(!/ReadinessRow/.test(settings), 'its row component is removed too');
-  assert.ok(!/Trail readiness/.test(settings), 'no orphaned title or eyebrow');
+test('Trail Readiness returns as preparation facts, not software diagnostics', () => {
+  assert.match(settings, /title="Trail Readiness"/);
+  assert.match(settings, /Default basemap/);
+  assert.match(settings, /Terrain relief/);
+  assert.match(settings, /Satellite/);
+  assert.match(settings, /packingSummary\(state\.packing\)/);
 });
 
 test('the misleading readiness score and its rows stay gone', () => {
@@ -81,8 +84,12 @@ test('the readiness deep link is removed end to end, not left dangling', () => {
   );
 });
 
-test('offline map readiness is answered by Offline maps alone', () => {
+test('readiness reuses Offline maps state and links to its controls', () => {
   assert.match(settings, /title="Offline maps"/, 'the panel is still there');
+  assert.match(settings, /mapReadinessStatus\(diagnostics\.basemap\)/);
+  assert.match(settings, /mapReadinessStatus\(diagnostics\.terrain, true\)/);
+  assert.match(settings, /mapReadinessStatus\(diagnostics\.satellite, true\)/);
+  assert.match(settings, /Open Offline maps/);
   // One vocabulary for one state: the readiness rows used to say "Not stored"
   // for exactly what the Offline maps cards call "Not downloaded".
   assert.ok(!/Not stored/.test(settings), 'the competing "Not stored" wording is gone');

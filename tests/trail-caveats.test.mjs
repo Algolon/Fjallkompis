@@ -66,14 +66,9 @@ const PLACEMENTS = [
     why: 'the map is read as an operational navigator',
   },
   {
-    file: 'src/screens/StagesScreen.tsx',
-    expression: 'TRAIL_CAVEATS.navigation.short',
-    why: 'the shared stage-guide footer already qualifies its own guidance',
-  },
-  {
     file: 'src/screens/SettingsScreen.tsx',
     expression: 'TRAIL_CAVEATS.navigation.full',
-    why: 'preparing offline maps is where the reasoning has room',
+    why: 'Trail Readiness is the primary preparation home',
   },
   {
     file: 'src/components/TransportView.tsx',
@@ -157,10 +152,10 @@ test('the authority knows nothing about direction, plan or personal state', () =
 });
 
 // ---------------------------------------------------------------------------
-// The copy — two registers of one statement, and what it may not claim
+// The copy — operational and central-preparation registers
 // ---------------------------------------------------------------------------
 
-test('each caveat has a short operational line and a fuller explanation', () => {
+test('each caveat has a short operational line and a fuller preparation register', () => {
   for (const [kind, caveat] of CAVEATS) {
     for (const register of ['short', 'full']) {
       const text = caveat[register];
@@ -179,17 +174,12 @@ test('each caveat has a short operational line and a fuller explanation', () => 
   }
 });
 
-test('the navigation caveat says the app is an aid and names map and compass', () => {
+test('the navigation caveat separates operational Map copy from central responsibility copy', () => {
   const { short, full } = TRAIL_CAVEATS.navigation;
-  for (const [register, text] of [['short', short], ['full', full]]) {
-    assert.match(text, /aid/i, `${register} frames the app as an aid`);
-    assert.match(text, /\bmap\b/i, `${register} names the map`);
-    assert.match(text, /compass/i, `${register} names the compass`);
-    assert.match(text, /carry/i, `${register} asks the hiker to carry them`);
-  }
-  // The point of finding #1: the physical instruments are the primary ones.
-  assert.match(full, /know how to use them/i, 'carrying them is not enough');
-  assert.match(full, /primary/i, 'and they are the primary navigation');
+  assert.match(short, /aid/i, 'the active Map frames the app as an aid');
+  assert.match(short, /map and compass/i);
+  assert.match(full, /Trail, water and weather conditions vary; check locally\./);
+  assert.match(full, /Plan ahead and carry a map and compass\./);
 });
 
 test('the connectivity caveat hedges, and asks for offline preparation', () => {
@@ -360,12 +350,12 @@ test('every placement reads the caveat through the boundary', () => {
   }
 });
 
-test('the navigation caveat reaches the Map and the stage guide', () => {
+test('the navigation caveat reaches the Map and central Trail Readiness', () => {
   const placed = PLACEMENTS.filter((p) => p.expression.startsWith('TRAIL_CAVEATS.navigation'));
   const files = new Set(placed.map((p) => p.file));
   assert.ok(files.has('src/screens/MapScreen.tsx'), 'finding #1: the map surface');
-  assert.ok(files.has('src/screens/StagesScreen.tsx'), 'finding #1: the stage guide context');
-  assert.ok(files.has('src/screens/SettingsScreen.tsx'), 'finding #1: the fuller explanation');
+  assert.ok(!files.has('src/screens/StagesScreen.tsx'), 'generic copy is removed from each stage');
+  assert.ok(files.has('src/screens/SettingsScreen.tsx'), 'the central responsibility note');
 });
 
 test('the Map caveat is inline in the cockpit, not behind a modal', () => {
@@ -428,10 +418,7 @@ test('the idle Map keeps the overview fit it was tuned for', () => {
 
   // The planning surfaces state it with no condition at all, which is what
   // makes the Map's gate a placement choice rather than a hiding place.
-  for (const [file, register] of [
-    ['src/screens/StagesScreen.tsx', 'short'],
-    ['src/screens/SettingsScreen.tsx', 'full'],
-  ]) {
+  for (const [file, register] of [['src/screens/SettingsScreen.tsx', 'full']]) {
     const src = code(file);
     const before = src.slice(0, src.indexOf(`{TRAIL_CAVEATS.navigation.${register}}`)).trimEnd();
     assert.ok(
@@ -479,23 +466,17 @@ test('the connectivity caveat reaches Transport in both registers', () => {
   );
 });
 
-test('Settings shows the fuller trust context in an existing section', () => {
+test('Settings centralises the responsibility note in Trail Readiness', () => {
   const settings = code('src/screens/SettingsScreen.tsx');
   assert.ok(settings.includes('{TRAIL_CAVEATS.navigation.full}'));
-  // Inside the existing Offline maps accordion — no new Settings section.
-  const maps = settings.match(/id="maps"[\s\S]*?<\/SettingsAccordion>/);
-  assert.ok(maps, 'the Offline maps section exists');
+  const readiness = settings.match(/id="readiness"[\s\S]*?<\/SettingsAccordion>/);
+  assert.ok(readiness, 'the Trail Readiness section exists');
   assert.ok(
-    maps[0].includes('{TRAIL_CAVEATS.navigation.full}'),
-    'the caveat sits with the offline map it is about',
+    readiness[0].includes('{TRAIL_CAVEATS.navigation.full}'),
+    'the generic responsibility note has one primary home',
   );
   const sections = [...settings.matchAll(/<SettingsAccordion\b/g)].length;
-  // Five: direction, maps, backup, sources, privacy. (Seven until the v1 UX
-  // finishing pass removed the Trail readiness and Install foldouts — see
-  // tests/settings-beta-readiness.test.mjs.) The claim this assertion exists
-  // to defend is unchanged and still holds: the navigation caveat did NOT get
-  // a section of its own, it lives inside the Offline maps accordion above.
-  assert.equal(sections, 5, 'no new Settings section for the caveat');
+  assert.equal(sections, 6, 'one compact readiness section joins the five settings');
 });
 
 test('the caveat is not left to credits, a source link or an onboarding', () => {

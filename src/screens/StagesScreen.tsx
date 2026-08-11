@@ -7,7 +7,6 @@ import { HighlightsAndDetours } from '../components/StageExperiences';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import {
   STOPS_BY_ID,
-  TRAIL_CAVEATS,
   experienceCountForStage,
   experienceTrack,
   experienceWaypoint,
@@ -15,11 +14,7 @@ import {
   stopShortName,
 } from '../trail/activeTrailContent';
 import type { StageGuide } from '../trail/activeTrailContent';
-import {
-  formatDistanceKm,
-  formatHoursEstimate,
-  formatVerifiedDate,
-} from '../utils/format';
+import { formatDistanceKm, formatHoursEstimate } from '../utils/format';
 import { formatDateFieldLabel } from '../utils/dateTimeField.mjs';
 import { isReversed } from '../route/direction.mjs';
 import type { ItineraryStage } from '../route/activeItinerary';
@@ -40,7 +35,7 @@ interface StageOccurrence {
  * conditions. The chart uses the ACTIVE itinerary stage's oriented data
  * (stage-local distances 0 → stage length and direction-aware ascent/descent),
  * never a crop of the overview profile. Sources/verification stay auditable in
- * the data module; the panel shows only the verification date.
+ * the data module; normal Guide UI shows only useful trail content.
  */
 function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: StageGuide }) {
   return (
@@ -70,17 +65,6 @@ function StageGuidePanel({ stage, guide }: { stage: ItineraryStage; guide: Stage
           </ul>
         </div>
       ) : null}
-
-      <p className="stage-guide__verified">
-        Route guidance verified {formatVerifiedDate(guide.lastVerified)} —
-        trail, water and weather conditions vary; check locally.
-        {/* The dossier-wide navigation caveat, in the footer that already
-            qualifies this guidance. It belongs to the same sentence as
-            "check locally": both say what this text is NOT. Kept in the one
-            shared guide footer, so the Guide surface being built later
-            inherits it by reusing this panel rather than restating it. */}{' '}
-        {TRAIL_CAVEATS.navigation.short}
-      </p>
     </>
   );
 }
