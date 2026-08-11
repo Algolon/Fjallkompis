@@ -14,6 +14,7 @@
     "android:assemble": "cd android && ./gradlew assembleDebug",
     "preview": "vite preview",
     "capture:store": "node scripts/store-capture.mjs",
+    "generate:store-feature-graphics": "node scripts/generate-store-feature-graphics.mjs",
     "typecheck": "tsc -b --noEmit",
     "check:version": "node scripts/check-version-consistency.mjs",
     "generate": "npm run generate:route && npm run generate:experiences",

@@ -18,6 +18,7 @@ dev-dist
 
 # Generated Google Play capture output and local tooling caches.
 artifacts/store-capture/
+artifacts/store-feature-graphics/
 .npm-cache/
 
 # Satellite archive: canonical copy is the satellite-data-vN GitHub Release
