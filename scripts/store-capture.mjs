@@ -173,7 +173,11 @@ async function settle(page, { map = false } = {}) {
   if (map) {
     await page.waitForFunction(() => {
       const mapHandle = globalThis.__fjallkompisStoreCaptureMap;
-      return Boolean(mapHandle && mapHandle.loaded() && mapHandle.areTilesLoaded() && !mapHandle.isMoving());
+      // Final Map marks the canvas ready after its post-load idle frame. Its
+      // satellite source can retain non-visible background tile bookkeeping,
+      // so `areTilesLoaded()` is no longer the visual-ready contract.
+      const mapView = document.querySelector('.mapview[data-map-ready="true"]');
+      return Boolean(mapView && mapHandle && mapHandle.loaded() && !mapHandle.isMoving());
     }, null, { timeout: 60_000 });
     await page.waitForFunction(() => !document.querySelector('.map-note--warn'), null, { timeout: 10_000 });
   }
@@ -209,7 +213,10 @@ async function openScene(page, scene) {
     await settle(page, { map: true });
     await page.getByRole('button', { name: /Choose map layer/ }).click();
     await page.getByRole('radio', { name: /Satellite/ }).click();
-    await page.getByText('Sat', { exact: true }).waitFor();
+    await page.waitForFunction(() => {
+      const mapHandle = globalThis.__fjallkompisStoreCaptureMap;
+      return mapHandle?.getLayoutProperty('satellite', 'visibility') === 'visible';
+    });
   }
   await settle(page, { map: Boolean(scene.map) });
   if (scene.setup === 'stage-guide') {

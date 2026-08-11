@@ -1,6 +1,6 @@
 # Google Play Store capture
 
-The Store harness regenerates clean, deterministic screenshots of the real responsive Fjallkompis UI. It uses a separate `store-capture` Vite build, imports the externally supplied sanitized complete backup through the product restore flow, loads the catalog-pinned optional map archives into browser storage, navigates to named scenes, waits for fonts and MapLibre readiness, runs privacy/content/overflow assertions, and writes PNGs plus `manifest.json` under the ignored `artifacts/store-capture/` directory.
+The Store harness regenerates clean, deterministic screenshots of the real responsive Fjallkompis UI. It uses a separate `store-capture` Vite build, imports the externally supplied sanitized complete backup through the product restore flow, loads the catalog-pinned optional map archives into browser storage, navigates to named scenes, waits for fonts plus the Map's post-load ready state and a loaded, stationary MapLibre instance, runs privacy/content/overflow assertions, and writes PNGs plus `manifest.json` under the ignored `artifacts/store-capture/` directory.
 
 The backup is deliberately not tracked or copied into `dist`. The harness accepts only the privacy-audited SHA-256 currently pinned in `scripts/lib/store-capture.mjs`; changing demo input is an intentional reviewed tooling change.
 
@@ -42,7 +42,7 @@ The harness also generates restrained Phone-only caption comparisons for Today, 
 
 Both tablet profiles use the real responsive rail. Content stays in bounded readable columns, cards keep proportionate controls and typography, Map composition uses the extra canvas rather than stretching phone pixels, and the harness found no horizontal overflow. The 10-inch Today view changes to a genuine split card composition. Portrait document/list screens deliberately leave more empty space below their bounded content; that is honest current behavior, not cosmetically filled by the capture tooling, and it is not a usability blocker for this candidate set.
 
-The first repeatability check produced the same 21 clean filenames, dimensions, profile metadata and privacy metadata twice in the same browser version. Seventeen PNGs were byte-identical; four non-map images differed only by sub-pixel rasterization noise (worst mean absolute channel difference below 0.008 on a 0–255 scale).
+The final-Map repeatability check on base `eebb86ad9fdf6047f365333f4c9d3220f7ac0899` produced the same 21 clean filenames, dimensions, profile metadata and privacy metadata twice in the same browser version. Sixteen PNGs were byte-identical; five differed at the PNG-byte level from normal browser rasterization variation.
 
 ## Privacy and integrity contract
 
