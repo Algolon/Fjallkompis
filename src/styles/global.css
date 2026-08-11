@@ -1161,6 +1161,9 @@ a.btn {
   position: relative;
   flex: 1;
   min-height: 0;
+  /* Neutral first-entry surface. MapLibre assembles its first usable frame
+     above this colour without exposing intermediate canvas paints. */
+  background: #dce4d8;
 }
 /* --- Trail Cockpit chrome ------------------------------------------------
    In the idle state exactly ONE band floats over the map:
@@ -1412,14 +1415,6 @@ a.btn {
   font-size: 14px;
   font-weight: 700;
 }
-.map-popover__note {
-  font-size: 11.5px;
-  line-height: 1.25;
-  color: var(--ink-soft);
-}
-.map-popover__option[aria-checked='true'] .map-popover__note {
-  color: rgba(244, 248, 245, 0.86);
-}
 .map-popover__foot {
   padding: 6px 6px 2px;
   border-top: 1px solid var(--line);
@@ -1662,6 +1657,13 @@ a.btn {
   width: 100%;
   height: 100%;
   background: #dce4d8;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease-out;
+}
+.mapview.is-ready {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Hut/station markers: local HTML buttons, no glyph/sprite dependencies.

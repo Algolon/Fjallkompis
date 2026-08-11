@@ -20,13 +20,14 @@
  *  4. PHYSICAL VECTOR COVERAGE at the effective source zoom — the hard cap.
  *     Vector is the binding contract: a missing vector tile is genuinely
  *     blank map, with no fallback.
- *  5. RENDERABLE RASTER COVERAGE — where hillshade and satellite can draw:
- *     the WIDEST ANCESTOR footprint, because MapLibre serves raster from a
- *     parent tile when the requested child is missing (measured in the
- *     PR #104 evidence), so it is far wider than the requested-zoom
- *     footprint. In Terrain mode this is a HARD camera constraint: the whole
- *     visible viewport must stay inside it, because an unshaded flank is not
- *     an acceptable price for a perfectly centred route.
+ *  5. PHYSICAL RASTER COVERAGE AT THE EFFECTIVE SOURCE ZOOM — where every
+ *     requested raster child tile actually exists. Terrain hillshade cannot
+ *     rely on a lower-zoom DEM ancestor when MapLibre requests a missing
+ *     child: the vector map survives underneath, but relief stops at that
+ *     child's rectangular edge. Satellite v4 happens to carry the complete
+ *     descendant pyramid; Terrain v4 widens only the source zooms reachable
+ *     while overview expansion is active. In Terrain mode this is a HARD
+ *     camera constraint because an unshaded flank is not acceptable.
  *
  * The route centre is therefore a PREFERENCE, not a guarantee. Raster runs
  * 1.7536° west of the route centre but only 1.0589° east, so a landscape
@@ -88,11 +89,43 @@ export const VECTOR_OVERVIEW_BUILD = Object.freeze({
 });
 
 /**
- * Lowest zoom present in the terrain and satellite archives. Their renderable
- * coverage is this level's footprint, because MapLibre falls back to an
- * ancestor raster tile when the requested child is absent.
+ * Lowest zoom present in the terrain and satellite archives.
  */
 export const RASTER_ARCHIVE_MIN_ZOOM = 7;
+
+/**
+ * Highest Terrain source zoom that a supported expanded overview can request.
+ * The 3440×1440 regression viewport settles at displayed z9.77; MapLibre's
+ * 256 px raster source rounds z+1 and therefore requests z11. At z12 the map
+ * is already back inside normal interaction bounds, so widening z12 would add
+ * hundreds of high-resolution DEM tiles that no supported expanded camera
+ * can see.
+ */
+export const TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM = 11;
+export const TERRAIN_ARCHIVE_MAX_ZOOM = 12;
+export const SATELLITE_ARCHIVE_MAX_ZOOM = 13;
+
+export const RASTER_SOURCE_TILE_SIZE = 256;
+export const MAPLIBRE_WORLD_TILE_SIZE = 512;
+
+/** Exact MapLibre raster source-zoom rule (`roundZoom` is true for raster). */
+export function rasterSourceZoomForDisplayZoom(
+  displayZoom,
+  tileSize = RASTER_SOURCE_TILE_SIZE,
+  maxZoom = Number.POSITIVE_INFINITY,
+) {
+  return Math.min(maxZoom, Math.max(0, Math.round(
+    displayZoom + Math.log2(MAPLIBRE_WORLD_TILE_SIZE / tileSize),
+  )));
+}
+
+export function terrainUsesOverviewCoverage(displayZoom) {
+  return rasterSourceZoomForDisplayZoom(
+    displayZoom,
+    RASTER_SOURCE_TILE_SIZE,
+    TERRAIN_ARCHIVE_MAX_ZOOM,
+  ) <= TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM;
+}
 
 /**
  * Hidden raster sampling/gesture margin. A maxBounds edge is reachable, so an
@@ -150,12 +183,36 @@ export function vectorSourceCoverage(sourceZoom, cutoutBounds, build = VECTOR_OV
   return tileAlignedFootprint(box, Math.max(0, Math.floor(sourceZoom)));
 }
 
-/**
- * Renderable terrain/satellite coverage: the widest ancestor footprint those
- * archives contain. Reported, never used as a cap — see the module header.
- */
+/** The z7 overview footprint shared by the raster archive build contracts. */
 export function rasterRenderableCoverage(cutoutBounds, minZoom = RASTER_ARCHIVE_MIN_ZOOM) {
   return tileAlignedFootprint(cutoutBounds, minZoom);
+}
+
+/**
+ * Physical Terrain v4 footprint at one source zoom. Wide low zooms contain
+ * every descendant of the z7 overview tile; high-resolution z12 returns to
+ * the compact cutout corridor used by normal interaction.
+ */
+export function terrainSourceCoverage(sourceZoom, cutoutBounds) {
+  if (sourceZoom <= TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM) {
+    return rasterRenderableCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+  }
+  return tileAlignedFootprint(cutoutBounds, sourceZoom);
+}
+
+/** Satellite v4 contains every z7 descendant through its maxzoom. */
+export function satelliteSourceCoverage(sourceZoom, cutoutBounds) {
+  void sourceZoom;
+  return rasterRenderableCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+}
+
+function insetRasterCoverage(physical, safetyMetres = RASTER_EDGE_SAFETY_METRES) {
+  return {
+    west: invMercX(mercX(physical.west) + safetyMetres),
+    east: invMercX(mercX(physical.east) - safetyMetres),
+    south: invMercY(mercY(physical.south) + safetyMetres),
+    north: invMercY(mercY(physical.north) - safetyMetres),
+  };
 }
 
 /** Renderable raster coverage with a real-data margin on all four edges. */
@@ -165,12 +222,7 @@ export function rasterInteractionCoverage(
   safetyMetres = RASTER_EDGE_SAFETY_METRES,
 ) {
   const physical = rasterRenderableCoverage(cutoutBounds, minZoom);
-  return {
-    west: invMercX(mercX(physical.west) + safetyMetres),
-    east: invMercX(mercX(physical.east) - safetyMetres),
-    south: invMercY(mercY(physical.south) + safetyMetres),
-    north: invMercY(mercY(physical.north) - safetyMetres),
-  };
+  return insetRasterCoverage(physical, safetyMetres);
 }
 
 /**
@@ -334,9 +386,22 @@ export function overviewEnvelopeFor({
  * (relief genuinely unavailable) — there the vector footprint is the only
  * thing that can go blank, so it is the only thing that binds.
  */
-export function coverageForMode(mode, cutoutBounds, build = VECTOR_OVERVIEW_BUILD) {
-  if (mode === 'terrain' || mode === 'satellite') {
-    return rasterInteractionCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+export function coverageForMode(
+  mode,
+  cutoutBounds,
+  build = VECTOR_OVERVIEW_BUILD,
+  displayZoom = RASTER_ARCHIVE_MIN_ZOOM,
+) {
+  const sourceZoom = rasterSourceZoomForDisplayZoom(
+    displayZoom,
+    RASTER_SOURCE_TILE_SIZE,
+    mode === 'satellite' ? SATELLITE_ARCHIVE_MAX_ZOOM : TERRAIN_ARCHIVE_MAX_ZOOM,
+  );
+  if (mode === 'terrain') {
+    return insetRasterCoverage(terrainSourceCoverage(sourceZoom, cutoutBounds));
+  }
+  if (mode === 'satellite') {
+    return insetRasterCoverage(satelliteSourceCoverage(sourceZoom, cutoutBounds));
   }
   // Vector-only: the widest overview footprint the archive actually carries.
   return vectorSourceCoverage(build.maxZoom, cutoutBounds, build);
@@ -367,7 +432,7 @@ export function overviewCameraFor({
   build = VECTOR_OVERVIEW_BUILD,
 }) {
   const desired = desiredOverviewExtent({ routeBounds, viewportWidth, viewportHeight, padding });
-  const cov = coverageForMode(mode, cutoutBounds, build);
+  const cov = coverageForMode(mode, cutoutBounds, build, desired.mapZoom);
   const [cw, ce] = [mercX(cov.west), mercX(cov.east)];
   const [cs, cn] = [mercY(cov.south), mercY(cov.north)];
 
@@ -426,7 +491,13 @@ export function overviewCameraFor({
     centreDeviationPx: { x: +px(centreX - wantX).toFixed(1), y: +px(centreY - wantY).toFixed(1) },
     zoomRaised,
     zoomDelta: +(zoom - desired.mapZoom).toFixed(4),
-    sourceZoom: Math.floor(zoom),
+    sourceZoom: mode === 'terrain' || mode === 'satellite'
+      ? rasterSourceZoomForDisplayZoom(
+        zoom,
+        RASTER_SOURCE_TILE_SIZE,
+        mode === 'satellite' ? SATELLITE_ARCHIVE_MAX_ZOOM : TERRAIN_ARCHIVE_MAX_ZOOM,
+      )
+      : Math.floor(zoom),
     scale,
     visibleExtent: visible,
     routeClearancePx: {

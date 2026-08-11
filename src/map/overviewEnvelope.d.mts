@@ -31,7 +31,7 @@ export interface DesiredOverview {
 }
 
 export interface OverviewEnvelope {
-  /** floor(mapZoom) — the vector source zoom the overview actually renders. */
+  /** Effective source zoom for the active source type. */
   sourceZoom: number;
   mapZoom: number;
   bindingAxis: 'width' | 'height';
@@ -39,7 +39,7 @@ export interface OverviewEnvelope {
   desiredOverview: Bounds;
   /** Physical vector coverage at `sourceZoom` — the hard cap. */
   vectorCoverage: Extent;
-  /** Renderable terrain/satellite coverage — reported, never a cap. */
+  /** Physical terrain/satellite coverage at the effective source zoom. */
   rasterCoverage: Extent;
   halfWidths: { needed: number; vector: number; raster: number; applied: number };
   /** The composition needs more width than raster can shade. */
@@ -59,7 +59,18 @@ export function mercPerPixel(zoom: number): number;
 
 export const VECTOR_OVERVIEW_BUILD: VectorOverviewBuild;
 export const RASTER_ARCHIVE_MIN_ZOOM: number;
+export const TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM: number;
+export const TERRAIN_ARCHIVE_MAX_ZOOM: number;
+export const SATELLITE_ARCHIVE_MAX_ZOOM: number;
+export const RASTER_SOURCE_TILE_SIZE: number;
+export const MAPLIBRE_WORLD_TILE_SIZE: number;
 export const OVERVIEW_SLACK: number;
+export function rasterSourceZoomForDisplayZoom(
+  displayZoom: number,
+  tileSize?: number,
+  maxZoom?: number,
+): number;
+export function terrainUsesOverviewCoverage(displayZoom: number): boolean;
 
 export function tileAlignedFootprint(bounds: Bounds, z: number): Extent;
 export function vectorSourceCoverage(
@@ -68,6 +79,8 @@ export function vectorSourceCoverage(
   build?: VectorOverviewBuild,
 ): Extent;
 export function rasterRenderableCoverage(cutoutBounds: Bounds, minZoom?: number): Extent;
+export function terrainSourceCoverage(sourceZoom: number, cutoutBounds: Bounds): Extent;
+export function satelliteSourceCoverage(sourceZoom: number, cutoutBounds: Bounds): Extent;
 
 export function desiredOverviewExtent(args: {
   routeBounds: Bounds;
@@ -116,6 +129,7 @@ export declare function coverageForMode(
   mode: CoverageMode,
   cutoutBounds: Bounds,
   build?: VectorOverviewBuild,
+  displayZoom?: number,
 ): Extent;
 
 export declare function overviewCameraFor(args: {

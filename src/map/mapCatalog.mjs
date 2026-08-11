@@ -54,7 +54,7 @@ export const MAP_ASSET_DIR = 'maps';
  * @property {string} sha256  Full-file digest. Provenance on the PWA (a 60 MB
  *   re-read on every status check would buy nothing); ENFORCED on Android,
  *   where the download is hashed as it streams for free.
- * @property {{bounds: readonly [readonly [number, number], readonly [number, number]], minZoom: number, maxZoom: number}} coverage
+ * @property {{bounds: readonly [readonly [number, number], readonly [number, number]], minZoom: number, maxZoom: number, tilesByZoom?: readonly {zoom:number,x:readonly [number,number],y:readonly [number,number],count:number}[]}} coverage
  *   Physical archive metadata, pinned with the bytes so coverage tests run
  *   even when optional Release assets have not been injected into CI.
  *
@@ -114,27 +114,38 @@ export const MAP_ASSETS = Object.freeze({
 
   /**
    * Terrain-RGB raster for hillshade (Copernicus GLO-30, terrarium encoding,
-   * z7–12). Bit-identical between terrain-data-v2 and v3, so v2 leaves no
-   * distinct superseded length; v1 does.
+   * z7–12). v4 supplies every real raster-dem child tile required by expanded
+   * overview cameras through source z11; z12 keeps the compact interaction
+   * corridor. v2/v3 were bit-identical, so only their shared length is listed.
    */
   terrain: Object.freeze({
     id: 'terrain',
     file: 'kungsleden-terrain.pmtiles',
     distribution: 'optional',
     revision: Object.freeze({
-      id: 'kungsleden-terrain-data-v3',
-      bytes: 19_297_735,
-      sha256: '89eef71787ceb1f4b827b9eee1906fd799d89c4d4d587be31a4d944efb399aa5',
+      id: 'kungsleden-terrain-data-v4',
+      bytes: 25_073_452,
+      sha256: 'c90481a568668bfe9cefeebfbf82a2313d38f47b88e1f1b7550fce9fad2bbae9',
       coverage: Object.freeze({
         bounds: Object.freeze([Object.freeze([17.841797, 67.676085]), Object.freeze([19.423828, 68.49604])]),
         minZoom: 7,
         maxZoom: 12,
+        // Physical XYZ inventory, not header inference. Tests enumerate every
+        // declared tile against the release archive when its bytes are present.
+        tilesByZoom: Object.freeze([
+          Object.freeze({ zoom: 7, x: Object.freeze([70, 70]), y: Object.freeze([30, 30]), count: 1 }),
+          Object.freeze({ zoom: 8, x: Object.freeze([140, 141]), y: Object.freeze([60, 61]), count: 4 }),
+          Object.freeze({ zoom: 9, x: Object.freeze([280, 283]), y: Object.freeze([120, 123]), count: 16 }),
+          Object.freeze({ zoom: 10, x: Object.freeze([560, 567]), y: Object.freeze([240, 247]), count: 64 }),
+          Object.freeze({ zoom: 11, x: Object.freeze([1120, 1135]), y: Object.freeze([480, 495]), count: 256 }),
+          Object.freeze({ zoom: 12, x: Object.freeze([2251, 2268]), y: Object.freeze([965, 989]), count: 450 }),
+        ]),
       }),
     }),
-    supersededBytes: Object.freeze([10_971_079]),
+    supersededBytes: Object.freeze([19_297_735, 10_971_079]),
     cacheName: 'fjallkompis-offline-terrain-v1',
     legacyCacheNames: Object.freeze([]),
-    release: Object.freeze({ tag: 'terrain-data-v3', asset: 'kungsleden-terrain.pmtiles' }),
+    release: Object.freeze({ tag: 'terrain-data-v4', asset: 'kungsleden-terrain.pmtiles' }),
   }),
 
   /**

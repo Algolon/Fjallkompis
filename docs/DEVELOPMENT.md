@@ -124,17 +124,11 @@ contract, defined in `scripts/route-configs.mjs` and materialised by
 - **userBounds** = route + `userBufferKm` (12 km) — the **interaction
   bounds**: the area of regular panning/zooming (`maxBounds` in MapView).
   Selected so the full-route "Fit route" view stays inside the bounds on
-  every supported portrait viewport. Viewports wider than the bounds'
-  aspect — the square 1:1 desktop/tablet map card and fullscreen landscape
-  monitors — additionally get temporary, deterministic **overview bounds**
+  every supported portrait viewport. Wider viewport-filling landscape and
+  desktop workspaces additionally get temporary, deterministic **overview bounds**
   (an east/west widening active only below that viewport's overview zoom
-  threshold, clamped per-edge to the physical z7 terrain envelope — see
-  src/map/cameraBounds.mjs for the full three-level model). Recalculated
-  for the square card (2026-07-10): across its supported 300–838px edges
-  the full-route fit spans ~179–220 km east/west against ~150.6 km of
-  user bounds, an exact fit that always sits inside the ~309 km envelope
-  with headroom (pinned by tests/camera-bounds.test.mjs — the smallest
-  300px square is the tightest case);
+  threshold, clamped to physical per-source-zoom coverage — see
+  src/map/cameraBounds.mjs for the full three-level model);
 - **mapCutoutBounds** = user bounds + `dataMarginKm` (3 km hidden margin) —
   what every archive build (vector, terrain, contours, satellite)
   generates data for, before per-zoom outward tile alignment.
@@ -152,9 +146,11 @@ map is permanently north-up — rotation gestures are off and the compass
 control is omitted. Viewports much wider than the bounds' aspect
 (fullscreen on landscape monitors) get a temporary east/west "overview
 expansion" of `maxBounds`, active only below the zoom threshold where the
-viewport already spans the full bounds width; the expanded area renders
-real z7–9 relief because the terrain source download covers the
-tile-aligned footprint of the lowest generated zoom.
+viewport already spans the full bounds width. Terrain v4 contains every real
+DEM child tile across the z7 overview footprint at effective source z7–11;
+when MapLibre selects compact z12 coverage, MapView returns to strict
+interaction bounds. This is deliberate per-source-zoom coverage — raster-dem
+does not promise to substitute a low-zoom ancestor for a missing child.
 
 Viewport proportions (global.css): desktop/tablet-landscape (≥ 900×700)
 `.map-layout` maps are square 1:1 — the map card is exactly the grid
@@ -197,7 +193,8 @@ comparison, contour noise and storage measurements; a 10 m variant was
 built and rejected as noise) when the two relief archives are available:
 
 - `public/maps/kungsleden-terrain.pmtiles` — terrarium‑encoded PNG tiles,
-  z7–12, ~18 MB;
+  z7–12, ~24 MB. Terrain v4 widens z7–11 to the reachable overview footprint
+  and keeps the compact corridor at z12;
 - `public/maps/kungsleden-contours.pmtiles` — contour vectors (layer
   `contours`, property `elev`), z9–13, ~9 MB. Since the 0.17.0
   earlier‑contours iteration (terrain-data-v3), 100 m index lines are tiled

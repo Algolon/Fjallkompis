@@ -4,7 +4,7 @@
 # Copernicus DEM GLO-30 open elevation model:
 #
 #   public/maps/kungsleden-terrain.pmtiles   terrain-RGB raster (terrarium
-#                                            encoding, 256px PNG, z6–12) for
+#                                            encoding, 256px PNG, z7–12) for
 #                                            MapLibre's native hillshade layer
 #   public/maps/kungsleden-contours.pmtiles  contour vectors (layer
 #                                            "contours", property `elev`,
@@ -60,10 +60,12 @@
 #    cutout (route + userBufferKm + dataMarginKm), always outside the
 #    camera's maxBounds;
 #  - terrain spans z7–12: z12 (~14 m/px at 68°N) already out-resolves the
-#    30 m source and overzooms above; z7 sits below the maxBounds-derived
-#    minimum zoom of every supported viewport, and its tile-aligned
-#    footprint (a z7 tile is ~117 km wide) provides real relief for
-#    wide-viewport overview states (fullscreen);
+#    30 m source and overzooms above. MapLibre does NOT substitute a z7 DEM
+#    ancestor when a requested raster-dem child is absent. Generation is
+#    therefore per source zoom: z7 through the highest source zoom reachable
+#    by a supported expanded overview contain every descendant of the z7
+#    footprint; z12 returns to the compact corridor. The shared limit comes
+#    from overviewEnvelope.mjs and is fenced by coverage tests;
 #  - after the build, the ACTUAL physical margin between the camera's user
 #    bounds and each archive edge is measured and reported — the nominal
 #    dataMarginKm is a floor, not the authoritative value.
@@ -93,6 +95,9 @@ cd "$(dirname "$0")/.."
 ROUTE_ID="${1:-kungsleden}"
 TERRAIN_MINZOOM="${TERRAIN_MINZOOM:-7}"
 TERRAIN_MAXZOOM="${TERRAIN_MAXZOOM:-12}"
+TERRAIN_ONLY="${TERRAIN_ONLY:-0}"
+TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM="$(node --input-type=module -e \
+  "import('./src/map/overviewEnvelope.mjs').then(m => process.stdout.write(String(m.TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM)))")"
 CONTOUR_INTERVAL="${CONTOUR_INTERVAL:-20}"
 CONTOUR_INDEX="${CONTOUR_INDEX:-100}"
 CONTOUR_MINZOOM_INDEX="${CONTOUR_MINZOOM_INDEX:-9}"
@@ -134,6 +139,7 @@ echo "── Terrain relief build ───────────────�
 echo "Route    : $ROUTE_ID"
 echo "Bounds   : W $WEST  S $SOUTH  E $EAST  N $NORTH (from $ROUTE_JSON)"
 echo "Terrain  : terrarium PNG z${TERRAIN_MINZOOM}–${TERRAIN_MAXZOOM} → $OUT_TERRAIN"
+echo "Overview : complete z${TERRAIN_MINZOOM} descendants through z${TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM}"
 echo "Contours : ${CONTOUR_INTERVAL} m (index ${CONTOUR_INDEX} m) z${CONTOUR_MINZOOM_INDEX}–13 → $OUT_CONTOURS"
 echo
 
@@ -213,7 +219,10 @@ gdalwarp -overwrite -q -te "$WEST" "$SOUTH" "$EAST" "$NORTH" -r bilinear \
 # ---- 2. Terrain-RGB (terrarium) archive ------------------------------------
 echo "── Terrain-RGB tiles (per-zoom warp → terrarium encode) ─────────────"
 for ((z = TERRAIN_MINZOOM; z <= TERRAIN_MAXZOOM; z++)); do
-  # Tile-aligned extent: whole 256px tiles of this zoom's 3857 grid.
+  # Low source zooms use the exact z7 tile footprint because those zooms are
+  # reachable while overview expansion is active. High source zooms use the
+  # compact cutout corridor. Both are real, tile-aligned DEM coverage — never
+  # an assumption that MapLibre will fill a missing child from an ancestor.
   read -r TE_XMIN TE_YMIN TE_XMAX TE_YMAX RES <<EOF
 $(python3 -c "
 import math
@@ -223,13 +232,22 @@ o = 20037508.342789244
 def merc(lon, lat):
     return lon * o / 180.0, math.log(math.tan((90 + lat) * math.pi / 360.0)) * o / math.pi
 x0, y0 = merc($WEST, $SOUTH); x1, y1 = merc($EAST, $NORTH)
-print(math.floor((x0 + o) / tile) * tile - o,
-      math.floor((y0 + o) / tile) * tile - o,
-      math.ceil((x1 + o) / tile) * tile - o,
-      math.ceil((y1 + o) / tile) * tile - o, res)
+if $z <= $TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM:
+    overview_tile = 2 * o / 2**$TERRAIN_MINZOOM
+    xmin = math.floor((x0 + o) / overview_tile) * overview_tile - o
+    ymin = math.floor((y0 + o) / overview_tile) * overview_tile - o
+    xmax = math.ceil((x1 + o) / overview_tile) * overview_tile - o
+    ymax = math.ceil((y1 + o) / overview_tile) * overview_tile - o
+else:
+    xmin = math.floor((x0 + o) / tile) * tile - o
+    ymin = math.floor((y0 + o) / tile) * tile - o
+    xmax = math.ceil((x1 + o) / tile) * tile - o
+    ymax = math.ceil((y1 + o) / tile) * tile - o
+print(xmin, ymin, xmax, ymax, res)
 ")
 EOF
-  echo "  z$z (${RES} m/px)"
+  if [ "$z" -le "$TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM" ]; then shape="overview"; else shape="corridor"; fi
+  echo "  z$z (${RES} m/px; ${shape})"
   # Warp straight from the merged source footprint: the tile-aligned extent
   # is real DEM at every zoom by construction (see step 1), so there is no
   # no-data to fill and no extrapolation step (0.14.0's streak source).
@@ -276,6 +294,7 @@ rm -f "$OUT_TERRAIN"
 "$PMTILES_BIN" verify "$OUT_TERRAIN"
 
 # ---- 3. Contour archive -----------------------------------------------------
+if [ "$TERRAIN_ONLY" != "1" ]; then
 echo "── Contours (${CONTOUR_INTERVAL} m, index ${CONTOUR_INDEX} m) ───────"
 gdal_contour -q -i "$CONTOUR_INTERVAL" -a elev -f GeoJSONSeq \
   "$WORK/crop.tif" "$WORK/contours.geojsons"
@@ -367,6 +386,10 @@ EOF
 rm -f "$OUT_CONTOURS"
 "$PMTILES_BIN" convert "$WORK/contours.mbtiles" "$OUT_CONTOURS" >/dev/null
 "$PMTILES_BIN" verify "$OUT_CONTOURS"
+else
+  echo "── Contours unchanged (TERRAIN_ONLY=1) ─────────────────────────────"
+  [ -f "$OUT_CONTOURS" ] || die "$OUT_CONTOURS must exist when TERRAIN_ONLY=1"
+fi
 
 # ---- 4. Provenance manifest ---------------------------------------------------
 # Attach this file to the terrain-data release next to the two archives; it
@@ -379,8 +402,10 @@ node scripts/generate-terrain-provenance.mjs \
   --bounds "$WEST,$SOUTH,$EAST,$NORTH" \
   --user-bounds "$UB_W,$UB_S,$UB_E,$UB_N" \
   --terrain-zooms "$TERRAIN_MINZOOM,$TERRAIN_MAXZOOM" \
+  --terrain-overview-max-source-zoom "$TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM" \
   --contour-intervals "$CONTOUR_INTERVAL,$CONTOUR_INDEX" \
   --contour-zooms "$CONTOUR_MINZOOM_INDEX,$CONTOUR_MINZOOM_FULL" \
+  --contours-reused "$TERRAIN_ONLY" \
   --out "$OUT_PROVENANCE"
 
 # ---- 5. Physical safety-margin measurement -----------------------------------

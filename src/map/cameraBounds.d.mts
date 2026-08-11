@@ -18,6 +18,11 @@ export {
   overviewCameraFor,
   coverageForMode,
   rasterRenderableCoverage,
+  rasterSourceZoomForDisplayZoom,
+  RASTER_SOURCE_TILE_SIZE,
+  terrainUsesOverviewCoverage,
+  TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM,
+  TERRAIN_ARCHIVE_MAX_ZOOM,
   vectorSourceCoverage,
 } from './overviewEnvelope.mjs';
 import type { OverviewEnvelope } from './overviewEnvelope.mjs';

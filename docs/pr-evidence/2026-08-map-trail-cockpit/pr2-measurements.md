@@ -9,6 +9,10 @@ dock and its details sheet were rejected in review and removed, the layer
 sheet became an anchored popover, and one-shot locate and live tracking are
 now two separate controls.
 
+The layer-picker copy below reflects the final 2026-08-11 Map-only cleanup:
+the Layers target is always icon-only and both permanent option subtitles are
+removed.
+
 ## Layout, framing and touch targets (idle map)
 
 | Viewport | Map surface | `main` / document overflow | idle bottom band | route clearance: lead / stack | gap below route | smallest control | nav |
@@ -46,10 +50,11 @@ is reflected in both the camera padding and `--map-bottom-h`.
 Behaviour: Enter on the button opens it with focus on the checked option
 (Terrain); ArrowDown moves to Satellite; Escape closes and returns focus to
 `Choose map layer`; choosing Satellite applies the layer (`satellite`
-visibility → `visible`, button caption → `Sat`) and closes; a pointer press
-anywhere else closes it. With the satellite archive blocked, the option stays
-listed, is `disabled`, and reads *Download in Settings first* — with **no**
-permanent note on the map.
+visibility → `visible`) and closes; the button remains the same icon-only
+target. A pointer press anywhere else closes it. With the satellite archive
+blocked, the option stays listed and disabled. The chooser has no per-option
+subtitle; one actionable *Add optional map data in Settings → Offline maps.*
+handoff may appear below the choices, with no permanent note on the map.
 
 ## Location and tracking
 
