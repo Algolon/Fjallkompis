@@ -28,7 +28,7 @@ Use `--output <directory>`, `--skip-build`, or `--no-captions` for local iterati
 | --- | ---: | ---: | ---: | --- |
 | Phone | 360×640 | 3 | 1080×1920 | compact bottom navigation |
 | 7-inch tablet | 810×1440 | 2 | 1620×2880 | responsive tablet rail |
-| 10-inch tablet | 1080×1920 | 2 | 2160×3840 | wide tablet rail/content |
+| 10-inch tablet | 1080×1920 | 1.8 | 1944×3456 | wide tablet rail/content |
 
 Every output is exact portrait 9:16, stays under 8 MB, and meets the stronger 1080-pixel promotional floor. The two tablets render genuinely different CSS viewports rather than enlarged phone pixels.
 

@@ -293,6 +293,7 @@ try {
     page.on('pageerror', (error) => console.error(`[browser:${profile.id}] ${error.message}`));
     await restoreDemo(page);
     for (const scene of STORE_SCENES) {
+      console.log(`[capture] ${profile.id}/${scene.id}`);
       await openScene(page, scene);
       await assertScene(page, scene);
       const relativeFile = `${profile.id}/${scene.id}.png`;

@@ -12,7 +12,7 @@ export const STORE_CAPTURE_DATE = '2027-09-06T10:00:00+02:00';
 export const STORE_PROFILES = Object.freeze([
   Object.freeze({ id: 'phone', viewport: Object.freeze({ width: 360, height: 640 }), deviceScaleFactor: 3, output: Object.freeze({ width: 1080, height: 1920 }) }),
   Object.freeze({ id: 'tablet-7', viewport: Object.freeze({ width: 810, height: 1440 }), deviceScaleFactor: 2, output: Object.freeze({ width: 1620, height: 2880 }) }),
-  Object.freeze({ id: 'tablet-10', viewport: Object.freeze({ width: 1080, height: 1920 }), deviceScaleFactor: 2, output: Object.freeze({ width: 2160, height: 3840 }) }),
+  Object.freeze({ id: 'tablet-10', viewport: Object.freeze({ width: 1080, height: 1920 }), deviceScaleFactor: 1.8, output: Object.freeze({ width: 1944, height: 3456 }) }),
 ]);
 
 export const STORE_SCENES = Object.freeze([
@@ -139,7 +139,8 @@ export function validatePng(buffer, profile, fileName) {
   if (dimensions.width !== profile.output.width || dimensions.height !== profile.output.height) {
     throw new Error(`${fileName}: expected ${profile.output.width}x${profile.output.height}, got ${dimensions.width}x${dimensions.height}.`);
   }
-  if (buffer.byteLength > 8 * 1024 * 1024) throw new Error(`${fileName}: exceeds the Google Play 8 MB limit.`);
+  // Treat Google's “8 MB” as decimal bytes, the stricter interpretation.
+  if (buffer.byteLength > 8_000_000) throw new Error(`${fileName}: exceeds the Google Play 8 MB limit.`);
   if (dimensions.width * 16 !== dimensions.height * 9) throw new Error(`${fileName}: output is not exact portrait 9:16.`);
   return dimensions;
 }
