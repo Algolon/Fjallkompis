@@ -615,15 +615,18 @@ test('an optional archive is usable only once downloaded — on BOTH platforms',
   assert.equal(MAP_ASSETS.vector.distribution, 'bundled');
 });
 
-test('the layer menu explains an unavailable optional layer instead of hiding it', () => {
-  // Same states, same wording, both platforms — and no platform-specific
-  // control: the note is chosen by availability, never by runtime.
+test('the layer menu keeps unavailable Satellite disabled with one actionable handoff', () => {
   const controls = read('src/components/MapControlStack.tsx');
-  assert.match(controls, /satelliteAvailable \? 'Offline Sentinel-2 imagery' : 'Not downloaded'/);
   assert.match(controls, /disabled: !satelliteAvailable/);
   // Where to resolve it is said once for both optional archives, in the same
   // popover, rather than repeated on each option that happens to be missing.
   assert.match(controls, /Add optional map data in Settings → Offline maps\./);
+  for (const removed of [
+    'Offline Sentinel-2 imagery',
+    'Offline Nordic basemap with relief',
+    'relief not downloaded',
+    'map-popover__note',
+  ]) assert.ok(!controls.includes(removed), `${removed} is removed from the chooser`);
   assert.ok(!/isNativeAndroid|Capacitor/.test(controls), 'no platform branch in the map controls');
 });
 

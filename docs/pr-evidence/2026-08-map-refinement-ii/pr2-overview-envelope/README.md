@@ -1,5 +1,11 @@
 # Symmetric, zoom-aware full-route overview envelope — measured evidence
 
+> Coverage conclusion superseded on 2026-08-11 by
+> `../../2026-08-final-map-corrections/README.md`. This PR correctly fixed
+> symmetric framing, but later physical Samsung testing disproved its raster
+> ancestor-substitution assumption. Terrain v4 now supplies every requested
+> overview child through source z11 and tightens to the corridor at z12.
+
 Map Refinement II PR 2. Camera framing only: no archive bytes, revision or
 caches; no Settings, service worker, route data, active-trail architecture,
 scope selector, Map controls, locate or tracking.
@@ -71,8 +77,9 @@ coverage.
   gives up the same amount, so the envelope can shrink but never go lopsided;
 - the source zoom is `floor(mapZoom)` of the **fit**, not the live camera, so
   maxBounds is constant for a viewport shape and cannot move under the camera;
-- raster coverage is modelled as the widest **ancestor** footprint (MapLibre
-  falls back to a parent raster tile), reported, and never used as a cap;
+- this pass modelled raster coverage as the widest ancestor footprint. That
+  assumption was later disproved for raster-dem; current code instead uses
+  physical coverage at the effective source zoom;
 - contours cannot constrain the overview: every overview zoom measured is
   below 9.5, their style activation threshold.
 
@@ -197,9 +204,9 @@ Terrain).
 | Satellite | 375×667, 1024×768, 1366×768, 1512×860, 1920×1080, 2560×1080 | **0** | identical framing; same footprint today, derived separately |
 | vector-only | unit-tested | n/a | wider envelope, sits closer to the route centre |
 
-Toggling imagery issues **no camera command** — the Satellite runs show 2 moves
-(initial mount + the explicit `Fit route` that follows the toggle), never a
-recentre on the toggle itself.
+Toggling imagery issues no explicit fit/recentre command. Current code does
+reapply physical maxBounds immediately, leaving an already-valid camera where
+it is while preventing Terrain from entering uncovered z12 ground.
 
 ### Acceptance
 
@@ -235,7 +242,7 @@ Ultrawide (> ~2:1):
 
 | mode | envelope | verified |
 | --- | --- | --- |
-| Terrain | terrain renderable (z7 ancestor footprint) | ✅ all viewports, 0 unshaded px |
+| Terrain | physical per-source coverage (v4 correction) | ✅ current tests enumerate every required child |
 | Satellite | satellite renderable, derived independently | ✅ camera obeys it (unit) |
 | vector-only fallback | vector overview footprint | ✅ sits closer to the route centre, route complete |
 

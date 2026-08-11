@@ -157,16 +157,10 @@ test('every cockpit control is at least a 44px target with a focus ring', () => 
 });
 
 test('state never rests on colour alone', () => {
-  // Captions are for NON-DEFAULT states only. A caption on every control in
-  // every state is decoration, and it costs geometry: the caption sits inside
-  // the 44px box, so a captioned control's glyph rode ~6px above an
-  // uncaptioned one's and the column lost its optical rhythm.
-  //
-  // Layer: no caption on the default terrain basemap; "Sat" identifies the
-  // non-default one. The checked state is in the popover either way.
-  assert.match(stack, /\{imagery === 'satellite' \? \(\s*<span className="map-ctrl__caption">Sat<\/span>\s*\) : null\}/);
+  // Layers is always icon-only. Imagery state is carried by the selected
+  // radio option (and the actual map), without moving the toolbar glyph.
   assert.match(stack, /aria-checked=\{imagery === o\.mode\}/);
-  assert.ok(!/'Terr'/.test(stack), 'the always-on default-state caption is gone');
+  assert.ok(!/>Sat<\/span>|>Terrain<\/span>/.test(stack), 'no imagery caption in the toolbar');
   // Tracking: idle needs no word (the arrow and the accessible name say
   // "start"), but a RUNNING session has a three-way state, so On vs Hold
   // stays in text — it must never rest on colour.
@@ -247,13 +241,12 @@ test('the popover closes every way it should, and gives focus back', () => {
   assert.match(stack, /\[aria-checked="true"\]/, 'focus starts on the active choice');
 });
 
-test('unavailable satellite stays listed, disabled, and explained in one line', () => {
+test('unavailable satellite stays listed and disabled without permanent subtitles', () => {
   assert.match(stack, /disabled: !satelliteAvailable/);
-  assert.match(stack, /'Not downloaded'/);
-  // Layers stays the place where the user SEES what is missing and learns
-  // where to resolve it — said once for both optional archives, not repeated
-  // per option.
-  assert.match(stack, /relief not downloaded/);
+  for (const removed of ['Not downloaded', 'relief not downloaded', 'Offline Sentinel-2 imagery']) {
+    assert.ok(!stack.includes(removed), `${removed} subtitle is gone`);
+  }
+  assert.ok(!css.includes('.map-popover__note'), 'dead note styling is gone');
   assert.match(stack, /Add optional map data in Settings → Offline maps\./);
   assert.match(block('.map-popover__option'), /min-height: 44px/);
   // …and nothing permanent is reserved on the map for it.
@@ -399,7 +392,7 @@ test('MapView frames the route and operational geometry by different contracts',
   // sharing a padding rectangle — they cannot disagree at all.
   assert.match(
     mapView,
-    /const initialCamera = computeOverviewCamera\(\);[\s\S]{0,600}center: \[initialCamera\.camera\.lng, initialCamera\.camera\.lat\],\s*\n\s*zoom: initialCamera\.camera\.zoom,/,
+    /const initialCamera = computeOverviewCamera\(\);[\s\S]{0,1200}center: \[initialCamera\.camera\.lng, initialCamera\.camera\.lat\],\s*\n\s*zoom: initialCamera\.camera\.zoom,/,
     'the initial camera is the solved overview camera',
   );
   // EVERY full-route path goes through the one solver: initial camera,
@@ -418,6 +411,11 @@ test('MapView frames the route and operational geometry by different contracts',
   // The constraints exist to permit that overview, so they share its rectangle.
   assert.match(mapView, /padding: overviewPaddingRef\.current,\s*\}\);/);
   assert.match(mapView, /applyLayoutConstraintsRef\.current\?\.\(\);/);
+});
+
+test('changing imagery immediately reapplies its physical camera bounds', () => {
+  const toggle = mapView.slice(mapView.indexOf('// ---- Basemap imagery toggle'));
+  assert.match(toggle, /setLayoutProperty\([\s\S]{0,500}applyLayoutConstraintsRef\.current\?\.\(\)/);
 });
 
 test('the fit is single-shot: no measure-then-nudge camera correction', () => {

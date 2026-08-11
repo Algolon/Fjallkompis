@@ -43,12 +43,12 @@
  * threshold, the strict user bounds snap back and the camera is herded
  * inside them.
  *
- * Raster modes use the z7 ancestor's physical footprint because MapLibre
- * overzooms that complete real-data tile at overview zooms. The supported
- * camera envelope is inset 2 km from those pixels, so a reachable maxBounds
- * edge cannot expose sampling outside the archive. The constrained-fit solver
- * translates wide compositions west when necessary and raises zoom only when
- * the viewport cannot fit inside that safe envelope.
+ * Raster modes use the z7 physical footprint as their overview envelope, but
+ * only where the effective source zoom contains every real descendant tile.
+ * Terrain v4 provides that footprint through source z11 and returns to strict
+ * interaction bounds at z12; Satellite v4 carries it through every zoom. The
+ * supported envelope is inset 2 km from the pixels, so a reachable maxBounds
+ * edge cannot expose sampling outside the archive.
  *
  * Plain ESM so tests/camera-bounds.test.mjs can fence the maths in node.
  */
@@ -66,6 +66,11 @@ import {
   rasterRenderableCoverage,
   rasterInteractionCoverage,
   RASTER_EDGE_SAFETY_METRES,
+  RASTER_SOURCE_TILE_SIZE,
+  rasterSourceZoomForDisplayZoom,
+  terrainUsesOverviewCoverage,
+  TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM,
+  TERRAIN_ARCHIVE_MAX_ZOOM,
   vectorSourceCoverage,
 } from './overviewEnvelope.mjs';
 
@@ -76,6 +81,13 @@ export { MERC_MAX, mercX, mercY, invMercX, invMercY, mercPerPixel };
 export { overviewEnvelopeFor, overviewCameraFor, coverageForMode };
 export { rasterRenderableCoverage, vectorSourceCoverage };
 export { rasterInteractionCoverage };
+export {
+  rasterSourceZoomForDisplayZoom,
+  RASTER_SOURCE_TILE_SIZE,
+  TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM,
+  TERRAIN_ARCHIVE_MAX_ZOOM,
+};
+export { terrainUsesOverviewCoverage };
 
 /**
  * Camera constraints for a viewport, from the coverage contract:
@@ -96,9 +108,8 @@ export { rasterInteractionCoverage };
  */
 /**
  * Lowest generated terrain zoom (kept in sync with build-terrain-map.sh).
- * Terrain and satellite share it; it is the level whose footprint bounds
- * their RENDERABLE extent, because MapLibre falls back to an ancestor raster
- * tile when the requested child is missing.
+ * The z7 footprint is the overview envelope; every effective Terrain source
+ * zoom that can use expanded bounds must contain its real descendants.
  */
 export const TERRAIN_MIN_ZOOM = 7;
 
@@ -130,8 +141,8 @@ export function overviewEnvelope(dataBounds) {
  *    tall) as the user bounds; below it the viewport cannot avoid spanning
  *    them, so the overview envelope applies.
  *  - `envelope`: the full reasoning behind `overviewBounds` — desired
- *    extent, vector coverage at the effective source zoom, renderable raster
- *    coverage, and which of them bound the result. Carried so the framing
+ *    extent, vector coverage at its effective source zoom, physical raster
+ *    coverage at its effective source zoom, and which bound the result. Carried so the framing
  *    evidence and tests can inspect the decision, not just its outcome.
  *
  * Pure function of (contract, viewport, padding).

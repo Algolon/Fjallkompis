@@ -1,5 +1,12 @@
 # Map field-test coverage evidence
 
+> Superseded on 2026-08-11 by
+> `../2026-08-final-map-corrections/README.md`. Physical Samsung testing and
+> direct PMTiles request inspection disproved this note's assumption that a
+> missing raster-dem child is safely rendered from the z7 ancestor. Terrain
+> v4 now supplies every physically requested overview child through source
+> z11; the measurements below are retained only as historical PR evidence.
+
 Base: `141c64cc39cebcddf5d8e20ca1bb3404056596f9` (remote `main`, fetched
 2026-08-10 after the 2700007 ledger closure).
 
@@ -23,10 +30,11 @@ that physical edge.
 
 ## Terrain and contours
 
-No archive regeneration was needed. The shipped terrain pyramid already has
-real Copernicus GLO-30 pixels across the full z7 ancestor tile, and contours
-contain `userBounds` with the existing hidden margin. Only the runtime's
-overclaimed zero-margin raster camera envelope changed.
+This pass concluded that no archive regeneration was needed because the
+terrain pyramid had real Copernicus GLO-30 pixels across its z7 tile. That
+conclusion was later disproved: the renderer requested missing child tiles at
+the effective source zoom. Contours did contain `userBounds` with the existing
+hidden margin and remain unchanged.
 
 | Archive | Revision | Bounds | Bytes | SHA256 |
 |---|---|---|---:|---|

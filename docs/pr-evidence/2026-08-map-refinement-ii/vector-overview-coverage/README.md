@@ -129,13 +129,19 @@ change: at zoom 9.063 the vector source requests z9, which now reaches 16.8750.
 
 ## Why raster and contour archives were not touched
 
-Terrain, contours and satellite are **not** the binding layer. Measured at
-1512×860: the terrain source requests z10, whose footprint stops at 17.5781
-(screen x 130.7), yet hillshade renders continuously to the map's west edge —
-MapLibre serves raster from an ancestor tile when the child is absent. Vector
-shows no such fallback, which is why it alone produced a visible blank. Those
-archives are also release-pinned assets whose rebuild is explicitly out of
-scope here.
+> Historical conclusion, superseded by
+> `../../2026-08-final-map-corrections/README.md`: physical Samsung testing
+> showed that raster-dem relief does stop when the effective source-zoom child
+> is absent. Terrain v4 corrects that coverage gap. The paragraph below is
+> preserved as the earlier PR's evidence, not as a current runtime contract.
+
+The earlier pass treated terrain, contours and satellite as non-binding. Its
+1512×860 screenshot appeared to show continuous hillshade west of the z10
+footprint, but later physical testing and direct requests established that the
+visible result was not proof of an ancestor-substitution contract. Missing
+raster-dem children do create a relief edge. Terrain v4 therefore widens the
+physically present z7–11 children; contours remain a corridor overlay and
+Satellite v4 already has a complete descendant pyramid.
 
 ## Provenance — verified intact
 

@@ -13,19 +13,17 @@
  *
  * Rules these controls follow:
  *  - every target is at least 44×44 px;
- *  - state reads from icon, caption and the accessible name — never colour;
+ *  - state reads from the icon, accessible name and selected radio option —
+ *    never colour or a toolbar abbreviation;
  *  - the paper-glass surface keeps contrast independent of the imagery
  *    underneath, with solid fallbacks;
  *  - no permanent zoom buttons on touch: pinch is the gesture, and MapLibre's
  *    own navigation control is added only for fine pointers (see MapView).
  *
- * CAPTIONS ARE FOR NON-DEFAULT STATES ONLY. A caption that is always present
- * is not state, it is decoration — and it costs real geometry: the caption
- * sits inside the 44px box, so a captioned control's glyph rides ~6px above
- * an uncaptioned one's and the column loses its optical rhythm. So: no
- * caption on the default terrain basemap ("Sat" only when satellite is on),
- * and no caption on idle tracking ("On"/"Hold" only while a session runs,
- * where the text is the only non-colour carrier of a three-way state).
+ * The Layers control is always icon-only: the map itself and the selected
+ * radio option communicate imagery mode without moving the glyph inside its
+ * 44px target. Tracking keeps its state caption because On/Hold is the only
+ * non-colour carrier of that three-way state.
  */
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { Crosshair, Layers, Maximize, Navigation } from 'lucide-react';
@@ -114,9 +112,6 @@ export function MapControlStack({
           onClick={() => setLayersOpen((o) => !o)}
         >
           <Layers size={20} strokeWidth={1.9} aria-hidden />
-          {imagery === 'satellite' ? (
-            <span className="map-ctrl__caption">Sat</span>
-          ) : null}
           {optionalMissing ? <span className="map-ctrl__dot" aria-hidden /> : null}
         </button>
         {layersOpen ? (
@@ -197,9 +192,8 @@ function LayerPopover({
 }: {
   imagery: ImageryMode;
   satelliteAvailable: boolean;
-  /** Terrain relief (hillshade + contours) — an optional enhancement to the
-   *  terrain basemap, not a separate mode. Its absence is worth saying here
-   *  because this popover is where the dot on the control sends the user. */
+  /** Terrain relief availability controls the one actionable Settings handoff;
+   *  the normal radio choices stay intentionally free of explanatory notes. */
   reliefDownloaded: boolean;
   anchorRef: RefObject<HTMLButtonElement>;
   onChoose: (mode: ImageryMode) => void;
@@ -207,24 +201,15 @@ function LayerPopover({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const options: { mode: ImageryMode; name: string; note: string; disabled: boolean }[] = [
+  const options: { mode: ImageryMode; name: string; disabled: boolean }[] = [
     {
       mode: 'terrain',
-      // The basemap itself is always there; only the relief on top is
-      // optional, so the note says which of the two is missing rather than
-      // implying the map does not work.
       name: 'Terrain',
-      note: reliefDownloaded
-        ? 'Offline Nordic basemap with relief'
-        : 'Offline Nordic basemap · relief not downloaded',
       disabled: false,
     },
     {
       mode: 'satellite',
       name: 'Satellite',
-      // Unavailable satellite is explained right here, in one line — no
-      // second surface, and no permanent banner on the map.
-      note: satelliteAvailable ? 'Offline Sentinel-2 imagery' : 'Not downloaded',
       disabled: !satelliteAvailable,
     },
   ];
@@ -295,7 +280,6 @@ function LayerPopover({
           onClick={() => onChoose(o.mode)}
         >
           <span className="map-popover__name">{o.name}</span>
-          <span className="map-popover__note">{o.note}</span>
         </button>
       ))}
       {/* One resolution pointer for both optional archives, instead of

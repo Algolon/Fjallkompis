@@ -30,6 +30,8 @@ import {
   tileAlignedFootprint,
   vectorSourceCoverage,
   rasterRenderableCoverage,
+  rasterSourceZoomForDisplayZoom,
+  terrainSourceCoverage,
   desiredOverviewExtent,
   overviewEnvelopeFor,
   mercX,
@@ -138,16 +140,16 @@ test('the widened overview box applies through z9 and stops above it', () => {
   assert.deepEqual(strict, tileAlignedFootprint(CUTOUT, 10));
 });
 
-test('raster renderable coverage is the widest ANCESTOR footprint, not the requested zoom', () => {
-  const raster = rasterRenderableCoverage(CUTOUT);
-  assert.deepEqual(raster, tileAlignedFootprint(CUTOUT, RASTER_ARCHIVE_MIN_ZOOM));
-  // A 256px raster source at overview zoom ~8.6 requests round(8.6)+1 = z10,
-  // whose footprint is far narrower. Modelling THAT as the limit would be
-  // wrong: MapLibre falls back to an ancestor tile (proven in the PR #104
-  // evidence), so the renderable extent is the z7 one.
-  const requested = tileAlignedFootprint(CUTOUT, 10);
-  assert.ok(raster.west < requested.west, 'renderable reaches further west than requested-zoom');
-  assert.ok(raster.east >= requested.east, 'and no less far east');
+test('Terrain coverage is physical at the effective source zoom, never ancestor fallback', () => {
+  assert.equal(rasterSourceZoomForDisplayZoom(8.6173908163), 10);
+  const overview = rasterRenderableCoverage(CUTOUT);
+  assert.deepEqual(overview, tileAlignedFootprint(CUTOUT, RASTER_ARCHIVE_MIN_ZOOM));
+  assert.deepEqual(terrainSourceCoverage(10, CUTOUT), overview, 'v4 carries real z10 children');
+  assert.deepEqual(
+    terrainSourceCoverage(12, CUTOUT),
+    tileAlignedFootprint(CUTOUT, 12),
+    'high-resolution interaction returns to the compact corridor',
+  );
 });
 
 // ---- symmetry: the defect this PR exists for --------------------------------
@@ -494,9 +496,9 @@ test('growing the bottom band widens the view but never past the data', () => {
   }
 });
 
-// ---- what this PR must NOT change -------------------------------------------
+// ---- stable route and interaction inputs -----------------------------------
 
-test('archive coverage, camera bounds and route data are untouched', () => {
+test('route, cutout and interaction bounds remain unchanged', () => {
   assert.deepEqual(route.mapCutoutBounds, [[17.8799, 67.7081], [19.3773, 68.4931]]);
   assert.deepEqual(route.userBounds, [[17.9521, 67.735], [19.3051, 68.4661]]);
   assert.deepEqual(route.bounds, [[18.241127, 67.842819], [19.016074, 68.35831]]);
@@ -540,9 +542,9 @@ test('MapView solves against the SELECTED imagery mode, not resolution order', (
   assert.match(mapViewSrc, /mode: activeCoverageMode\(\),/);
 });
 
-test('imagery is read at solve time, so toggling never recenters the map', () => {
-  // imageryRef is refreshed every render but nothing reacts to it: the new
-  // mode becomes authoritative on the NEXT explicit full-route overview.
+test('imagery is read at solve time and toggling issues no explicit recenter', () => {
+  // The ref is refreshed every render. The toggle reapplies physical
+  // maxBounds but must not invoke an overview fit or camera animation.
   assert.match(mapViewSrc, /imageryRef\.current = imagery;/, 'kept current every render');
   const imageryEffect = mapViewSrc.slice(mapViewSrc.indexOf('// ---- Basemap imagery toggle'));
   const body = imageryEffect.slice(0, imageryEffect.indexOf('}, [imagery, loaded]);'));

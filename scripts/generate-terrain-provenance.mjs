@@ -26,6 +26,7 @@
  */
 import { execSync } from 'node:child_process';
 import { readFileSync, statSync, writeFileSync } from 'node:fs';
+import { terrainSourceCoverage } from '../src/map/overviewEnvelope.mjs';
 
 const DEM_BUCKET = 'https://copernicus-dem-30m.s3.amazonaws.com';
 
@@ -64,6 +65,11 @@ const parseBounds = (csv) => {
 };
 const userBounds = args['user-bounds'] ? parseBounds(args['user-bounds']) : undefined;
 const [terrainMinzoom, terrainMaxzoom] = args['terrain-zooms'].split(',').map(Number);
+const terrainOverviewMaxSourceZoom = Number(args['terrain-overview-max-source-zoom']);
+if (!Number.isInteger(terrainOverviewMaxSourceZoom)) {
+  console.error('Missing or invalid --terrain-overview-max-source-zoom');
+  process.exit(1);
+}
 const [contourInterval, contourIndex] = args['contour-intervals'].split(',').map(Number);
 const [contourMinzoomIndex, contourMinzoomFull] = (args['contour-zooms'] ?? '9,12')
   .split(',')
@@ -86,6 +92,26 @@ const outputs = [
   sha256: sha256(file),
 }));
 
+const cutoutBounds = [[west, south], [east, north]];
+const tileEdgeX = (lon, z) => Math.round(((lon + 180) / 360) * 2 ** z);
+const tileEdgeY = (lat, z) => {
+  const r = (lat * Math.PI) / 180;
+  return Math.round(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z);
+};
+const terrainCoverageByZoom = [];
+for (let z = terrainMinzoom; z <= terrainMaxzoom; z += 1) {
+  const c = terrainSourceCoverage(z, cutoutBounds);
+  const x = [tileEdgeX(c.west, z), tileEdgeX(c.east, z) - 1];
+  const y = [tileEdgeY(c.north, z), tileEdgeY(c.south, z) - 1];
+  terrainCoverageByZoom.push({
+    zoom: z,
+    tileCount: (x[1] - x[0] + 1) * (y[1] - y[0] + 1),
+    x,
+    y,
+    bounds: { west: c.west, south: c.south, east: c.east, north: c.north },
+  });
+}
+
 const manifest = {
   dataset: 'Copernicus DEM GLO-30 Public — AWS Open Data mirror, 2021 release',
   registry: 'https://registry.opendata.aws/copernicus-dem/',
@@ -97,7 +123,14 @@ const manifest = {
   dataBounds: { west, south, east, north },
   ...(userBounds ? { userBounds } : {}),
   sourceTiles,
-  terrain: { encoding: 'terrarium', tileSize: 256, minzoom: terrainMinzoom, maxzoom: terrainMaxzoom },
+  terrain: {
+    encoding: 'terrarium',
+    tileSize: 256,
+    minzoom: terrainMinzoom,
+    maxzoom: terrainMaxzoom,
+    overviewMaxSourceZoom: terrainOverviewMaxSourceZoom,
+    coverageByZoom: terrainCoverageByZoom,
+  },
   contours: {
     intervalMetres: contourInterval,
     indexMetres: contourIndex,
@@ -105,6 +138,7 @@ const manifest = {
     fullSetMinzoom: contourMinzoomFull,
     maxzoom: 13,
     layer: 'contours',
+    reusedUnchanged: args['contours-reused'] === '1',
   },
   tools: {
     gdal: toolVersion('gdalinfo --version'),

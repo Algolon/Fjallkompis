@@ -10,6 +10,13 @@ export interface MapAssetRevision {
     bounds: readonly [readonly [number, number], readonly [number, number]];
     minZoom: number;
     maxZoom: number;
+    /** Exact physical XYZ inventory when per-zoom coverage is part of the contract. */
+    tilesByZoom?: readonly {
+      zoom: number;
+      x: readonly [number, number];
+      y: readonly [number, number];
+      count: number;
+    }[];
   };
 }
 

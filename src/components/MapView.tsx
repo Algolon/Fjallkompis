@@ -54,6 +54,10 @@ import {
   activeBoundsForZoom,
   overviewCameraFor,
   MIN_ZOOM_BACKSTOP,
+  rasterSourceZoomForDisplayZoom,
+  RASTER_SOURCE_TILE_SIZE,
+  TERRAIN_ARCHIVE_MAX_ZOOM,
+  terrainUsesOverviewCoverage,
   type CameraConstraints,
   type CoverageMode,
   type OverviewCamera,
@@ -239,6 +243,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [ready, setReady] = useState(false);
 
   // Relief availability resolved at mount (recorded for parity with the
   // other archive resolutions; the style is built once with it).
@@ -298,9 +303,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const satelliteAvailableRef = useRef(false);
   /**
    * The imagery mode the user is looking at, read at solve time rather than
-   * captured when the style resolved. Toggling imagery must not move a map the
-   * user is operating, so the new mode becomes authoritative on the NEXT
-   * explicit full-route overview — not the moment the toggle flips.
+   * captured when the style resolved. A toggle immediately recomputes safe
+   * maxBounds for the new mode; it leaves an already-valid camera untouched.
    */
   const imageryRef = useRef<ImageryMode>('terrain');
   /** Applies the solved full-route overview camera. THE only overview path. */
@@ -442,18 +446,45 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     let map: maplibregl.Map | null = null;
     const markers: maplibregl.Marker[] = [];
     let resizeObs: ResizeObserver | null = null;
+    const lifecycleStarted = performance.now();
+    const lifecycle: Array<{ event: string; ms: number; detail?: unknown }> = [];
+    const trace = (event: string, detail?: unknown) => {
+      lifecycle.push({ event, ms: +(performance.now() - lifecycleStarted).toFixed(1), detail });
+      if (import.meta.env.DEV && containerRef.current) {
+        containerRef.current.dataset.mapLifecycle = JSON.stringify(lifecycle);
+      }
+    };
 
     const mountedRoute = routeRef.current;
+    trace('mount');
 
     (async () => {
       const none: BasemapResolution = { mode: 'none', sourceUrl: null };
+      trace('archive-resolution-start');
+      const resolved = async (name: string, pending: Promise<BasemapResolution>) => {
+        const value = await pending;
+        trace(`${name}-resolved`, { mode: value.mode });
+        return value;
+      };
       const [basemap, satellite, terrain, contours] = await Promise.all([
-        resolveArchiveBasemap(archive),
-        enableSatellite ? resolveSatellite() : Promise.resolve(none),
-        enableRelief ? resolveArchiveBasemap(TERRAIN_ARCHIVE) : Promise.resolve(none),
-        enableRelief ? resolveArchiveBasemap(CONTOURS_ARCHIVE) : Promise.resolve(none),
+        resolved('basemap', resolveArchiveBasemap(archive)),
+        resolved('satellite', enableSatellite ? resolveSatellite() : Promise.resolve(none)),
+        resolved(
+          'terrain',
+          enableRelief ? resolveArchiveBasemap(TERRAIN_ARCHIVE) : Promise.resolve(none),
+        ),
+        resolved(
+          'contours',
+          enableRelief ? resolveArchiveBasemap(CONTOURS_ARCHIVE) : Promise.resolve(none),
+        ),
       ]);
       if (cancelled || !containerRef.current) return;
+      trace('archives-resolved', {
+        basemap: basemap.mode,
+        satellite: satellite.mode,
+        terrain: terrain.mode,
+        contours: contours.mode,
+      });
       onBasemapMode?.(basemap.mode);
       onSatelliteAvailable?.(satellite.sourceUrl != null);
       reliefRef.current = {
@@ -521,6 +552,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       constraintsRef.current = computeConstraints();
       boundsExpandedRef.current = constraintsRef.current.overviewBounds != null;
       const initialCamera = computeOverviewCamera();
+      trace('constructor-start', {
+        zoom: initialCamera.camera.zoom,
+        sourceZoom: initialCamera.sourceZoom,
+      });
       map = new maplibregl.Map({
         container: containerRef.current,
         style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, reliefRef.current),
@@ -556,6 +591,18 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         pitchWithRotate: false,
         touchPitch: false,
       });
+      trace('constructor-end');
+      map.once('render', () => trace('first-render'));
+      map.once('styledata', () => trace('first-styledata'));
+      map.once('sourcedataloading', (event) => trace('first-source-loading', {
+        sourceId: event.sourceId,
+        sourceDataType: event.sourceDataType,
+      }));
+      map.once('sourcedata', (event) => trace('first-source-data', {
+        sourceId: event.sourceId,
+        sourceDataType: event.sourceDataType,
+        isSourceLoaded: event.isSourceLoaded,
+      }));
       map.addControl(
         new InitiallyCompactAttributionControl({
           compact: true,
@@ -620,6 +667,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         map.on('moveend', () => {
           dev.__fjallkompisCameraMoves = (dev.__fjallkompisCameraMoves as number) + 1;
         });
+        const publishCamera = () => {
+          if (!containerRef.current || !map) return;
+          const center = map.getCenter();
+          containerRef.current.dataset.mapCamera = JSON.stringify({
+            center: { lng: center.lng, lat: center.lat },
+            displayZoom: map.getZoom(),
+            terrainSourceZoom: rasterSourceZoomForDisplayZoom(
+              map.getZoom(),
+              RASTER_SOURCE_TILE_SIZE,
+              TERRAIN_ARCHIVE_MAX_ZOOM,
+            ),
+            bounds: map.getBounds().toArray(),
+          });
+        };
+        publishCamera();
+        map.on('moveend', publishCamera);
       }
 
       // Swap between the strict user bounds and the overview expansion as
@@ -628,7 +691,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       const applyCameraBounds = () => {
         const c = constraintsRef.current;
         if (!map || !c) return;
-        const next = activeBoundsForZoom(c, map.getZoom(), boundsExpandedRef.current);
+        // Terrain z12 deliberately returns to the compact corridor: no
+        // expanded overview can remain active once MapLibre's 256px DEM
+        // source selects that zoom. Satellite v4 has a complete descendant
+        // pyramid and does not need this terrain-specific tightening.
+        const terrainNeedsInteractionBounds =
+          activeCoverageMode() === 'terrain' &&
+          !terrainUsesOverviewCoverage(map.getZoom());
+        const next = terrainNeedsInteractionBounds
+          ? { bounds: c.interactionBounds, expanded: false }
+          : activeBoundsForZoom(c, map.getZoom(), boundsExpandedRef.current);
         if (next.expanded !== boundsExpandedRef.current) {
           boundsExpandedRef.current = next.expanded;
           map.setMaxBounds(next.bounds as maplibregl.LngLatBoundsLike);
@@ -646,7 +718,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       const applyLayoutConstraints = () => {
         if (!map) return;
         constraintsRef.current = computeConstraints();
-        const next = activeBoundsForZoom(constraintsRef.current, map.getZoom(), true);
+        const terrainNeedsInteractionBounds =
+          activeCoverageMode() === 'terrain' &&
+          !terrainUsesOverviewCoverage(map.getZoom());
+        const next = terrainNeedsInteractionBounds
+          ? { bounds: constraintsRef.current.interactionBounds, expanded: false }
+          : activeBoundsForZoom(constraintsRef.current, map.getZoom(), true);
         boundsExpandedRef.current = next.expanded;
         map.setMaxBounds(next.bounds as maplibregl.LngLatBoundsLike);
       };
@@ -689,6 +766,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       map.on('load', () => {
         if (!map) return;
+        trace('load');
 
         map.addSource('overview', { type: 'geojson', data: mountedRoute.overviewGeoJson });
         map.addSource('stages', {
@@ -792,9 +870,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         }).setDOMContent(popupContentRef.current!);
 
         setLoaded(true);
+        // `load` only proves that the style is usable; the route sources and
+        // layers above were added during this handler and still need a frame.
+        // The first subsequent `idle` proves that those additions and every
+        // requested source tile have rendered with no pending transition.
+        // Only then may the real canvas replace the neutral workspace.
+        map.once('idle', () => {
+          if (cancelled) return;
+          trace('ready-idle');
+          setReady(true);
+        });
       });
 
-      resizeObs = new ResizeObserver(() => map?.resize());
+      resizeObs = new ResizeObserver(() => {
+        trace('resize-observer');
+        map?.resize();
+      });
       resizeObs.observe(containerRef.current);
     })();
 
@@ -811,6 +902,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       mapRef.current = null;
       applyLayoutConstraintsRef.current = null;
       setLoaded(false);
+      setReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -921,6 +1013,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       'visibility',
       imagery === 'satellite' ? 'visible' : 'none',
     );
+    // Satellite has a complete descendant pyramid; Terrain becomes compact
+    // at source z12. Apply that physical coverage contract as soon as the
+    // selected imagery changes, without re-fitting an already-valid camera.
+    applyLayoutConstraintsRef.current?.();
   }, [imagery, loaded]);
 
   // ---- GPS dot -------------------------------------------------------------
@@ -994,7 +1090,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // cockpit chrome is composed by MapScreen OUTSIDE the map container, over
   // the same positioning context.
   return (
-    <div ref={containerRef} className="mapview">
+    <div
+      ref={containerRef}
+      className={`mapview${ready ? ' is-ready' : ''}`}
+      data-map-ready={ready ? 'true' : 'false'}
+      aria-hidden={!ready}
+    >
       {/* Anchored-popup content: portalled into the MapLibre popup element
           so it tracks the coordinate and still renders in THIS React tree
           (shared context, no extra roots). */}
