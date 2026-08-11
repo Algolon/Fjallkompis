@@ -22,6 +22,14 @@ import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { PMTiles } from 'pmtiles';
 import { KUNGSLEDEN_CONFIG } from '../scripts/route-configs.mjs';
+import { MAP_ASSETS } from '../src/map/mapCatalog.mjs';
+import {
+  RASTER_EDGE_SAFETY_METRES,
+  coverageForMode,
+  mercX,
+  mercY,
+  rasterRenderableCoverage,
+} from '../src/map/overviewEnvelope.mjs';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -74,18 +82,18 @@ class FileSource {
 }
 
 const ARCHIVES = [
-  { file: 'public/maps/kungsleden.pmtiles', name: 'vector basemap', alwaysPresent: true, zooms: [0, 14] },
+  { id: 'vector', file: 'public/maps/kungsleden.pmtiles', name: 'vector basemap', alwaysPresent: true, zooms: [0, 14] },
   // Expected zoom ranges double as a STALE-VERSION GUARD: a v1 relief file
   // (terrain minzoom 6) or v1 satellite (old 9 km bounds) mixed into a v2
   // runtime fails here or in the bounds assertions above.
-  { file: 'public/maps/kungsleden-terrain.pmtiles', name: 'terrain', zooms: [7, 12] },
+  { id: 'terrain', file: 'public/maps/kungsleden-terrain.pmtiles', name: 'terrain', zooms: [7, 12] },
   // Contours v3 (0.17.0): index lines tiled from z9 (earlier-contours
   // iteration), full 20 m set joins at z12, tiles stop at z13.
-  { file: 'public/maps/kungsleden-contours.pmtiles', name: 'contours', zooms: [9, 13] },
-  { file: 'public/maps/kungsleden-satellite.pmtiles', name: 'satellite', zooms: [7, 13] },
+  { id: 'contours', file: 'public/maps/kungsleden-contours.pmtiles', name: 'contours', zooms: [9, 13] },
+  { id: 'satellite', file: 'public/maps/kungsleden-satellite.pmtiles', name: 'satellite', zooms: [7, 13] },
 ];
 
-for (const { file, name, alwaysPresent, zooms } of ARCHIVES) {
+for (const { id, file, name, alwaysPresent, zooms } of ARCHIVES) {
   test(`${name} archive fully covers the camera's user bounds`, async (t) => {
     const path = join(root, file);
     if (!existsSync(path)) {
@@ -94,6 +102,17 @@ for (const { file, name, alwaysPresent, zooms } of ARCHIVES) {
       return;
     }
     const header = await new PMTiles(new FileSource(path)).getHeader();
+    const catalogCoverage = MAP_ASSETS[id].revision.coverage;
+    const flatCatalog = catalogCoverage.bounds.flat();
+    const flatHeader = [header.minLon, header.minLat, header.maxLon, header.maxLat];
+    flatHeader.forEach((actual, index) => {
+      assert.ok(
+        Math.abs(actual - flatCatalog[index]) <= 1e-6,
+        `${name}: archive header edge ${actual} matches catalog ${flatCatalog[index]}`,
+      );
+    });
+    assert.equal(header.minZoom, catalogCoverage.minZoom, `${name}: catalog minzoom matches bytes`);
+    assert.equal(header.maxZoom, catalogCoverage.maxZoom, `${name}: catalog maxzoom matches bytes`);
     const [[uw, us], [ue, un]] = route.userBounds;
     assert.ok(header.minLon <= uw, `${name}: west edge ${header.minLon} covers ${uw}`);
     assert.ok(header.maxLon >= ue, `${name}: east edge ${header.maxLon} covers ${ue}`);
@@ -114,6 +133,37 @@ for (const { file, name, alwaysPresent, zooms } of ARCHIVES) {
     assert.equal(header.maxZoom, zooms[1], `${name}: maxzoom matches the runtime contract`);
   });
 }
+
+test('terrain coverage contains the supported camera envelope with a real-data safety margin', () => {
+  const physical = rasterRenderableCoverage(route.mapCutoutBounds);
+  const supported = coverageForMode('terrain', route.mapCutoutBounds);
+  assert.ok(supported.west > physical.west && supported.east < physical.east);
+  assert.ok(supported.south > physical.south && supported.north < physical.north);
+  assert.ok(Math.abs((mercX(supported.west) - mercX(physical.west)) - RASTER_EDGE_SAFETY_METRES) < 0.01);
+  assert.ok(Math.abs((mercX(physical.east) - mercX(supported.east)) - RASTER_EDGE_SAFETY_METRES) < 0.01);
+  assert.ok(Math.abs((mercY(supported.south) - mercY(physical.south)) - RASTER_EDGE_SAFETY_METRES) < 0.01);
+  assert.ok(Math.abs((mercY(physical.north) - mercY(supported.north)) - RASTER_EDGE_SAFETY_METRES) < 0.01);
+
+  const [[uw, us], [ue, un]] = route.userBounds;
+  assert.ok(supported.west <= uw && supported.east >= ue, 'east/west interaction bounds remain covered');
+  assert.ok(supported.south <= us && supported.north >= un, 'north/south interaction bounds remain covered');
+});
+
+test('satellite pixels contain the same supported envelope instead of only the cutout', () => {
+  const physical = rasterRenderableCoverage(route.mapCutoutBounds);
+  const catalog = MAP_ASSETS.satellite.revision.coverage.bounds;
+  const expected = [physical.west, physical.south, physical.east, physical.north];
+  catalog.flat().forEach((actual, index) => {
+    assert.ok(Math.abs(actual - expected[index]) <= 1e-6, `satellite physical edge ${index}`);
+  });
+  assert.deepEqual(coverageForMode('satellite', route.mapCutoutBounds), coverageForMode('terrain', route.mapCutoutBounds));
+});
+
+test('contour coverage contains the strict interaction envelope', () => {
+  const [[cw, cs], [ce, cn]] = MAP_ASSETS.contours.revision.coverage.bounds;
+  const [[uw, us], [ue, un]] = route.userBounds;
+  assert.ok(cw <= uw && ce >= ue && cs <= us && cn >= un);
+});
 
 test('runtime terrain/contour zoom configuration matches the archive contract', () => {
   // The style layer thresholds are TS/mjs constants; assert their literals

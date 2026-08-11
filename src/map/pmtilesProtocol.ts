@@ -132,7 +132,7 @@ async function addLocalSource(spec: ArchiveSpec, key: string): Promise<boolean> 
  * product rule rather than an implementation detail. An OPTIONAL archive
  * (terrain, contours, satellite) is usable only once it has been downloaded —
  * on the PWA exactly as on Android. Streaming one on demand would mean a
- * 27 MB or 59 MB transfer starting because somebody opened a menu, which is
+ * multi-megabyte terrain or satellite transfer starting because somebody opened a menu, which is
  * the opposite of what an offline-first trail companion should do, and it
  * would give the two platforms different availability states under the same
  * label. The bundled/hosted basemap keeps its fallback: it is the map you get
@@ -177,7 +177,7 @@ export function resolveBasemap(): Promise<BasemapResolution> {
 /**
  * Resolve the optional satellite raster archive from the local copy, or not at
  * all. Returns a null sourceUrl when the user has not downloaded it, so callers
- * disable the toggle instead of adding a layer that would pull ~59 MB over
+ * disable the toggle instead of adding a layer that would pull ~27 MB over
  * whatever connection the reader happens to be on.
  *
  * The canonical archive lives on a versioned GitHub Release (pinned in
