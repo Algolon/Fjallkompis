@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700007,
+  "highestConsumedVersionCode": 2700008,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -88,6 +88,16 @@
       "sourceSha": "b39b2941d02eaac122a6e17be4354e55e7c727b9",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31327415188",
       "note": "UX finishing: improved navigation, Day-plan activation, Settings, map controls and Trail Wallet delivery."
+    },
+    {
+      "versionCode": 2700008,
+      "versionName": "0.27.0",
+      "androidBuild": 8,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-11",
+      "sourceSha": "cdc7253371c2ff4d21f699255d88b6714cafdf07",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31506468610",
+      "note": "Field-test refinements: improved Map startup and offline coverage, expanded Satellite imagery, restored Trail Readiness, and cleaner Guide information."
     }
   ]
 }
