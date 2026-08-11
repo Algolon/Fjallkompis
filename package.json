@@ -13,6 +13,7 @@
     "android:open": "cap open android",
     "android:assemble": "cd android && ./gradlew assembleDebug",
     "preview": "vite preview",
+    "capture:store": "node scripts/store-capture.mjs",
     "typecheck": "tsc -b --noEmit",
     "check:version": "node scripts/check-version-consistency.mjs",
     "generate": "npm run generate:route && npm run generate:experiences",
@@ -41,6 +42,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "fake-indexeddb": "^6.2.5",
+    "playwright": "^1.55.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vite-plugin-pwa": "^0.21.1"

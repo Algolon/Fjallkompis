@@ -16,6 +16,10 @@ dev-dist
 .claude/
 *.tsbuildinfo
 
+# Generated Google Play capture output and local tooling caches.
+artifacts/store-capture/
+.npm-cache/
+
 # Satellite archive: canonical copy is the satellite-data-vN GitHub Release
 # asset, injected into the Pages build by deploy.yml — never committed.
 public/maps/kungsleden-satellite.pmtiles
