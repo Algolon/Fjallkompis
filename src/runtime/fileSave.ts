@@ -51,6 +51,21 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+/**
+ * Stream a blob across the bridge in base64 chunks — the one wire format both
+ * file boundaries speak (this save boundary and the view boundary in
+ * fileView.ts, whose plugin mirrors SaveFilePlugin's begin/writeChunk shape).
+ */
+export async function streamBlobInChunks(
+  blob: Blob,
+  write: (data: string) => Promise<void>,
+): Promise<void> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  for (let offset = 0; offset < bytes.length; offset += CHUNK_BYTES) {
+    await write(toBase64(bytes.subarray(offset, offset + CHUNK_BYTES)));
+  }
+}
+
 export async function saveGeneratedFile(
   fileName: string,
   blob: Blob,
@@ -69,10 +84,7 @@ export async function saveGeneratedFile(
   }
 
   try {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    for (let offset = 0; offset < bytes.length; offset += CHUNK_BYTES) {
-      await SaveFile.writeChunk({ data: toBase64(bytes.subarray(offset, offset + CHUNK_BYTES)) });
-    }
+    await streamBlobInChunks(blob, (data) => SaveFile.writeChunk({ data }));
     await SaveFile.finish();
     return 'saved';
   } catch (err) {
