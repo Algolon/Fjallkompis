@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700009,
+  "highestConsumedVersionCode": 2700010,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -108,6 +108,16 @@
       "sourceSha": "cb9ee628d491e73fc6c77ba3ac1c254b306813bf",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31537233777",
       "note": "Final map refinements: smoother Map startup, corrected offline Terrain relief coverage across zoom levels, and cleaner layer controls."
+    },
+    {
+      "versionCode": 2700010,
+      "versionName": "0.27.0",
+      "androidBuild": 10,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-14",
+      "sourceSha": "4eff3fdca050e2d06b4112e02d6e061a49350d97",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31800585921",
+      "note": "Fixed PDF viewing on Android so tickets and documents can be opened reliably from Today, Travel & stays, and Trail Wallet."
     }
   ]
 }
