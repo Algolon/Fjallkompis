@@ -1,22 +1,25 @@
 /**
- * Android document viewing — the native half of the file-VIEW boundary.
+ * Android document viewing — IN-APP, with the external hand-off retired.
  *
- * The behavioural contract of the shared opener is exercised for real in
- * tests/wallet-document-delivery.test.mjs; the filename policy runs as JUnit
- * (SharedDocumentNameTest). What remains are cross-language wiring facts —
- * Java and XML that node cannot execute — each of which failing silently
- * would resurrect the dead PDF button or widen a security boundary:
+ * #146 fixed the dead PDF button by staging Wallet bytes into app-private
+ * cache and firing a read-only ACTION_VIEW at an external viewer app. That
+ * worked, but it was the wrong product: tapping a document in Fjallkompis
+ * handed the user to Adobe. Viewing now happens inside the app on every
+ * platform (src/components/WalletPdfViewer.tsx, pdf.js underneath), so the
+ * native ViewFile bridge is GONE — and this file pins both directions:
  *
- *   - the plugin must be REGISTERED before the bridge loads the page, or
- *     every call rejects and every PDF quietly falls back to the save picker;
- *   - the staged file must be exposed through the FileProvider path actually
- *     declared, or FileProvider.getUriForFile throws at runtime only;
- *   - the viewing flow must stay inside app-private cache with a temporary
- *     read grant — no new permissions, no raw file:// paths.
+ *   - the retired infrastructure must not linger half-removed (a registered
+ *     plugin with no JS caller, a FileProvider path with no writer — dead
+ *     surface area that reads as live), and
+ *   - the pieces that legitimately remain (the SAF save bridge, the
+ *     FileProvider itself) must stay exactly as they were.
+ *
+ * These are cross-language wiring facts — Java and XML that node cannot
+ * execute — so they are stated as source contracts.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -24,75 +27,59 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
 
 const mainActivity = read('android/app/src/main/java/com/algolon/fjallkompis/MainActivity.java');
-const plugin = read('android/app/src/main/java/com/algolon/fjallkompis/ViewFilePlugin.java');
-const naming = read('android/app/src/main/java/com/algolon/fjallkompis/SharedDocumentName.java');
 const manifest = read('android/app/src/main/AndroidManifest.xml');
 const filePaths = read('android/app/src/main/res/xml/file_paths.xml');
-const fileView = read('src/runtime/fileView.ts');
 
 /** Strip comments so prose cannot satisfy — or fail — a check. */
 const codeOf = (source) =>
   source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*(\/\/|\*).*$/gm, '');
 
-test('the ViewFile bridge is registered before the first page load', () => {
-  const code = codeOf(mainActivity);
-  const register = code.indexOf('registerPlugin(ViewFilePlugin.class)');
-  const superCreate = code.indexOf('super.onCreate(savedInstanceState)');
-  assert.ok(register >= 0, 'MainActivity registers ViewFilePlugin');
-  assert.ok(register < superCreate,
-    'registration precedes super.onCreate() — the bridge only sees plugins registered before it builds');
+test('the external-viewer bridge is fully removed, not just unplugged', () => {
+  const javaDir = 'android/app/src/main/java/com/algolon/fjallkompis';
+  assert.ok(!existsSync(join(root, javaDir, 'ViewFilePlugin.java')),
+    'ViewFilePlugin.java (the ACTION_VIEW hand-off) must stay deleted');
+  assert.ok(!existsSync(join(root, javaDir, 'SharedDocumentName.java')),
+    'SharedDocumentName existed only to sanitize the staged filename');
+  assert.ok(
+    !existsSync(join(root, 'android/app/src/test/java/com/algolon/fjallkompis/SharedDocumentNameTest.java')),
+    'its JUnit test goes with it — dead tests read as live coverage',
+  );
+  assert.ok(!/ViewFilePlugin/.test(codeOf(mainActivity)),
+    'MainActivity must not register a plugin that no longer exists');
 });
 
-test('the JS boundary and the native plugin agree on the bridge name and methods', () => {
-  assert.match(plugin, /@CapacitorPlugin\(name = "ViewFile"\)/);
-  assert.match(fileView, /registerPlugin<ViewFileBridge>\('ViewFile'\)/);
-  for (const method of ['begin', 'writeChunk', 'view', 'abort']) {
-    assert.match(plugin, new RegExp(`public void ${method}\\(PluginCall call\\)`),
-      `the plugin implements ${method}`);
-    assert.match(fileView, new RegExp(`${method}\\(`), `the JS boundary calls ${method}`);
+test('no ACTION_VIEW remains anywhere in the Android sources', () => {
+  // The normal viewing flow must never launch an external app again. Whole-
+  // directory sweep so a re-introduction under a new file name still trips.
+  for (const file of [
+    'MainActivity.java',
+    'BootPlugin.java',
+    'SaveFilePlugin.java',
+    'MapArchivePlugin.java',
+    'MapArchiveUrlPolicy.java',
+  ]) {
+    const source = read(`android/app/src/main/java/com/algolon/fjallkompis/${file}`);
+    assert.ok(!/ACTION_VIEW/.test(codeOf(source)), `${file} must not fire ACTION_VIEW`);
   }
 });
 
-test('the staged document is app-private cache exposed via the declared FileProvider path', () => {
-  const code = codeOf(plugin);
-  assert.match(code, /getCacheDir\(\), STAGING_DIR/);
-  assert.match(plugin, /STAGING_DIR = "shared-documents"/);
-  assert.match(filePaths, /<cache-path name="shared_documents" path="shared-documents\/"/,
-    'file_paths.xml exposes exactly the staging directory');
-  assert.match(code, /FileProvider\.getUriForFile\(/);
-  assert.match(code, /getPackageName\(\) \+ "\.fileprovider"/,
-    'the authority matches the manifest declaration');
+test('the FileProvider no longer exposes a document-staging path', () => {
+  assert.ok(!/shared_documents|shared-documents/.test(filePaths),
+    'the staging cache-path entry leaves with the plugin that wrote there');
+  // The provider itself remains — other app features use it — and its
+  // authority is unchanged.
   assert.match(manifest, /android:authorities="\$\{applicationId\}\.fileprovider"/);
-  assert.ok(!/Uri\.fromFile|file:\/\//.test(code),
-    'no raw file:// URI ever leaves the app');
 });
 
-test('viewing is a temporary read grant on ACTION_VIEW — nothing broader', () => {
-  const code = codeOf(plugin);
-  assert.match(code, /Intent\.ACTION_VIEW/);
-  assert.match(code, /setDataAndType\(uri, mimeType\)/,
-    'the stored MIME type decides the handler, not the filename');
-  assert.match(code, /FLAG_GRANT_READ_URI_PERMISSION/);
-  assert.ok(!/FLAG_GRANT_WRITE_URI_PERMISSION/.test(code), 'read-only — the viewer never writes back');
+test('the SAF save bridge stays — saving a copy is a real, separate action', () => {
+  const code = codeOf(mainActivity);
+  assert.match(code, /registerPlugin\(SaveFilePlugin\.class\)/,
+    'ACTION_CREATE_DOCUMENT export (Download a copy, backups) is untouched');
+  const savePlugin = read('android/app/src/main/java/com/algolon/fjallkompis/SaveFilePlugin.java');
+  assert.match(codeOf(savePlugin), /ACTION_CREATE_DOCUMENT/);
 });
 
-test('a device with no viewer app is a state the JS side can answer, not a crash', () => {
-  const code = codeOf(plugin);
-  assert.match(code, /ActivityNotFoundException/);
-  assert.match(code, /"NO_VIEWER"/);
-  assert.match(codeOf(fileView), /NO_VIEWER/, 'the JS boundary recognises the code and falls back');
-});
-
-test('the filename reaching the filesystem passes the sanitizer', () => {
-  assert.match(codeOf(plugin), /new File\(dir, SharedDocumentName\.sanitize\(fileName\)\)/,
-    'the web-supplied name never reaches File() raw');
-  assert.ok(!/import android/.test(naming),
-    'SharedDocumentName stays JVM-pure so JUnit can run it (SharedDocumentNameTest)');
-});
-
-test('document viewing added no permissions and no manifest surface', () => {
-  // The entire flow is cache + FileProvider + intent: any new <uses-permission>
-  // here would mean the approach drifted from its design.
+test('retiring the external viewer added no permissions and no manifest surface', () => {
   const permissions = [...manifest.matchAll(/<uses-permission android:name="([^"]+)"/g)]
     .map((m) => m[1])
     .sort();
@@ -102,5 +89,5 @@ test('document viewing added no permissions and no manifest surface', () => {
     'android.permission.INTERNET',
   ]);
   assert.ok(!/<queries/.test(manifest),
-    'no package-visibility queries: startActivity does not need them, and resolving handlers is not attempted');
+    'no package-visibility queries: the app no longer resolves external viewers at all');
 });

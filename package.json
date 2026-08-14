@@ -30,6 +30,7 @@
     "fflate": "^0.8.3",
     "lucide-react": "^1.23.0",
     "maplibre-gl": "^5.24.0",
+    "pdfjs-dist": "6.2.108",
     "pmtiles": "^4.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

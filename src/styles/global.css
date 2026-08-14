@@ -4325,6 +4325,114 @@ button.stop-fac:focus-visible {
   border: 1px solid var(--line);
 }
 
+/* --- In-app PDF viewer (WalletPdfViewer) -----------------------------------
+   The app's own full-screen document surface: Wallet, Travel & stays and the
+   Today quick access all open stored PDFs HERE — no browser tab, no external
+   viewer app. A native <dialog> like every other overlay, but full-bleed:
+   a document is a destination, not a form, so it gets the whole screen.
+   The header wears the paper surface with the document title; pages stack
+   on the deeper stone tone so their white sheets read as pages, with quiet
+   gaps. Safe-area padding keeps the chrome out of the status bar / gesture
+   areas on the phones (both the installed PWA and the native shell resolve
+   --safe-top/--safe-bottom). */
+.pdf-viewer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--stone-bg);
+  color: var(--ink);
+}
+.pdf-viewer::backdrop {
+  /* Full-bleed surface: the backdrop is never visible, keep it inert. */
+  background: transparent;
+}
+.pdf-viewer__chrome {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.pdf-viewer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(10px + var(--safe-top)) 16px 10px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.pdf-viewer__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdf-viewer__scroller {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  /* Native one-finger panning in both axes; pinch is tracked by the app
+     (the viewport meta disables browser zoom throughout the app). */
+  touch-action: pan-x pan-y;
+  padding: 14px 12px calc(14px + var(--safe-bottom));
+}
+.pdf-viewer__column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  min-width: 100%;
+}
+.pdf-viewer__page {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(27, 42, 39, 0.12);
+}
+.pdf-viewer__canvas {
+  display: block;
+}
+/* Quiet shimmer-free placeholder while a page's canvas is being drawn. */
+.pdf-viewer__page-loading {
+  position: absolute;
+  inset: 0;
+  background: #fdfdfc;
+}
+.pdf-viewer__state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+}
+.pdf-viewer__state p {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--ink-soft);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.pdf-viewer__save-note {
+  font-size: 13.5px;
+}
+
 /* --- Trip plan (Lists → Trip) ---------------------------------------------- */
 /* Travel/Stay item cards reuse the .wallet-card structure (one large open
    region). Status is carried by TEXT in a compact badge; the tint variants

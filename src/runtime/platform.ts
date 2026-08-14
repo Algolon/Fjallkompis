@@ -215,6 +215,43 @@ function canGoBackWithinApp(): boolean {
 }
 
 /**
+ * FULL-SCREEN OVERLAYS AND ANDROID BACK. The app's sheets and dialogs do not
+ * close on hardware Back (a tracked follow-up — see docs/ANDROID.md), and for
+ * a half-height form that is a tolerable seam. A FULL-SCREEN surface is not:
+ * when a document covers the whole shell, Back navigating the invisible app
+ * underneath would be a trap. So a full-screen overlay may register an
+ * interceptor here; the back subscription consults the most recent one FIRST
+ * and only falls through to history when no interceptor claims the press.
+ * This is deliberately a narrow runtime hook, not a second navigation system:
+ * the overlay answers "did you consume Back?", nothing more, and off Android
+ * the registration is a no-op (browsers route hardware/gesture Back to modal
+ * dialogs natively via their own close semantics).
+ */
+type BackInterceptor = () => boolean;
+const backInterceptors: BackInterceptor[] = [];
+
+export function interceptAndroidBack(handler: BackInterceptor): () => void {
+  if (!isNativeAndroid()) return () => {};
+  backInterceptors.push(handler);
+  return () => {
+    const at = backInterceptors.lastIndexOf(handler);
+    if (at >= 0) backInterceptors.splice(at, 1);
+  };
+}
+
+/** The newest interceptor wins — overlays stack, the top one owns Back. */
+function consumeBackViaInterceptor(): boolean {
+  for (let i = backInterceptors.length - 1; i >= 0; i -= 1) {
+    try {
+      if (backInterceptors[i]()) return true;
+    } catch (error) {
+      console.error('[fjällkompis] back interceptor failed', error);
+    }
+  }
+  return false;
+}
+
+/**
  * Wire the Android hardware/gesture Back button to the app's existing hash
  * history. Returns an unsubscribe function; a no-op off-Android.
  *
@@ -239,12 +276,17 @@ function canGoBackWithinApp(): boolean {
  * Back — it navigates the shell underneath instead. The app's overlays are a
  * mix of native <dialog> elements and role="dialog" containers with their own
  * Escape handling, and unifying them is a product change, not wrapper
- * plumbing. Tracked as follow-up in docs/ANDROID.md.
+ * plumbing. Tracked as follow-up in docs/ANDROID.md. The one exception is
+ * full-screen overlays, which register through interceptAndroidBack above —
+ * a covered shell must never navigate invisibly.
  */
 export function subscribeAndroidBackButton(): () => void {
   if (!isNativeAndroid()) return () => {};
 
   const handle = App.addListener('backButton', () => {
+    // A full-screen overlay (the in-app PDF viewer) claims Back before the
+    // history fallback — closing the surface IS the navigation.
+    if (consumeBackViaInterceptor()) return;
     if (canGoBackWithinApp()) {
       window.history.back();
       return;

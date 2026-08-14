@@ -1,4 +1,4 @@
-import { existsSync, rmSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -157,6 +157,58 @@ function nativeBuildMarker(): Plugin {
   };
 }
 
+/**
+ * Ships pdf.js' auxiliary decode assets INSIDE the app, on both targets.
+ *
+ * The in-app PDF viewer (src/pdf/pdfEngine.ts) renders Wallet documents with
+ * pdfjs-dist; the library and its worker are ordinary lazy chunks, but three
+ * asset families are fetched by pdf.js ON DEMAND per document: the wasm image
+ * codecs (JPEG 2000 / JBIG2 / colour management), the ICC profiles, and the
+ * 14 standard Type1 fonts a PDF may reference without embedding. They must be
+ * same-origin static files — a CDN would break the app's offline-first
+ * guarantee and leak that a user opened a document. So they are copied from
+ * the SAME npm package the code comes from (version lockstep for free) into
+ * `pdfjs/` in the bundle, and the dev server serves them from node_modules.
+ *
+ * Deliberately NOT shipped: the CJK cMaps (~1.7 MB for character encodings a
+ * Kungsleden ticket wallet is very unlikely to meet — such a PDF still opens,
+ * with its CJK-encoded text missing and a console warning) and the quickjs
+ * sandbox (embedded-JavaScript execution, which the viewer never enables).
+ */
+function pdfjsAuxAssets(): Plugin {
+  const families = ['wasm', 'iccs', 'standard_fonts'] as const;
+  const packageRoot = resolve(process.cwd(), 'node_modules', 'pdfjs-dist');
+  const excluded = (name: string) => name.startsWith('quickjs-');
+  return {
+    name: 'fjallkompis:pdfjs-aux-assets',
+    generateBundle() {
+      for (const family of families) {
+        for (const name of readdirSync(join(packageRoot, family))) {
+          if (excluded(name)) continue;
+          this.emitFile({
+            type: 'asset',
+            fileName: `pdfjs/${family}/${name}`,
+            source: readFileSync(join(packageRoot, family, name)),
+          });
+        }
+      }
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const match = req.url?.match(/\/pdfjs\/(wasm|iccs|standard_fonts)\/([\w.-]+)$/);
+        if (!match || excluded(match[2])) return next();
+        const file = join(packageRoot, match[1], match[2]);
+        if (!existsSync(file)) return next();
+        res.setHeader(
+          'Content-Type',
+          match[2].endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream',
+        );
+        createReadStream(file).pipe(res);
+      });
+    },
+  };
+}
+
 // NOTE: the web `base` matches the GitHub Pages project subpath
 // (https://algolon.github.io/Fjallkompis/). If you later move to Netlify or a
 // custom domain served from the root, change this to '/'.
@@ -167,6 +219,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    pdfjsAuxAssets(),
     ...(mode === 'native'
       ? [inertPwaRegister(), nativeBuildMarker(), stripOptionalMapArchives()]
       : []),
@@ -220,7 +273,13 @@ export default defineConfig(({ mode }) => ({
         // .gpx are deliberately NOT precached: the map is an explicit
         // download managed in Settings (separate cache), and the GPX is
         // already baked into the bundle as JSON.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webp}'],
+        //
+        // mjs/wasm/pfb/icc: the in-app PDF viewer. The pdf.js worker ships as
+        // an .mjs asset, and the on-demand decode assets under pdfjs/ (wasm
+        // codecs, standard fonts, ICC profiles) must be in the precache or a
+        // stored ticket could fail to render exactly where it matters — on a
+        // trail with no signal.
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,woff2,webp,wasm,pfb,ttf,icc}'],
         navigateFallback: 'index.html',
         // The public privacy policy (public/privacy/index.html) is a STATIC
         // page that must not be shadowed by the React app shell. Without this,
