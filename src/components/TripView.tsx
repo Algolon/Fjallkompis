@@ -188,6 +188,11 @@ export function TripView({
         'This device could not open the PDF viewer directly. Saving a copy was cancelled, ' +
           'so the document is still stored here and nothing was written.',
       );
+    } else if (result.kind === 'failed') {
+      setNotice(
+        `“${doc.title}” could not be opened or saved on this device. The document itself ` +
+          'is still stored here.',
+      );
     } else if (result.kind === 'image') {
       setViewer({ doc, url: result.url });
     }

@@ -65,6 +65,24 @@ export function MembershipQuickAccess() {
   const [choosingTickets, setChoosingTickets] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
+  // Transient outcome feedback for the non-viewer results (PDF saved instead,
+  // save cancelled, delivery failed, file vanished): Today has no notice
+  // banner of its own, so the shared toast treatment carries the message —
+  // a tap on a quick-access button must never end in silence.
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<number | null>(null);
+  const showNotice = (text: string) => {
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    setNotice(text);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 6000);
+  };
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
+
   // Verify every candidate blob on THIS device before offering an action.
   useEffect(() => {
     let live = true;
@@ -108,9 +126,23 @@ export function MembershipQuickAccess() {
 
   const open = async (doc: WalletDocument, heading: string) => {
     const result = await openWalletDocument(doc, wallet.getFile);
-    if (result.kind === 'image') setViewer({ doc, url: result.url, heading });
-    // A race where the file vanished between verification and tap: hide it.
-    if (result.kind === 'missing') hideMissing(doc.id);
+    if (result.kind === 'image') {
+      setViewer({ doc, url: result.url, heading });
+    } else if (result.kind === 'missing') {
+      // A race where the file vanished between verification and tap: hide it,
+      // and say why the button the user just pressed is gone.
+      hideMissing(doc.id);
+      showNotice(
+        `The file for “${doc.title}” is no longer stored on this device. ` +
+          'Manage the document in Lists → Trip.',
+      );
+    } else if (result.kind === 'pdf-saved') {
+      showNotice('This device could not open the PDF viewer directly, so a copy was saved instead.');
+    } else if (result.kind === 'pdf-save-cancelled') {
+      showNotice('Saving a copy was cancelled — the document is still stored here.');
+    } else if (result.kind === 'failed') {
+      showNotice(`“${doc.title}” could not be opened on this device. It is still stored here.`);
+    }
   };
 
   const openTickets = () => {
@@ -184,6 +216,14 @@ export function MembershipQuickAccess() {
           }}
           onClose={() => setChoosingTickets(false)}
         />
+      ) : null}
+
+      {notice ? (
+        <div className="pwa-toast-region" role="status" aria-live="polite" style={{ position: 'fixed' }}>
+          <div className="pwa-toast">
+            <p className="pwa-toast__msg">{notice}</p>
+          </div>
+        </div>
       ) : null}
 
       {viewer ? (

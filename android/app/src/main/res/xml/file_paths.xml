@@ -2,4 +2,8 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <external-path name="my_images" path="." />
     <cache-path name="my_cache_images" path="." />
+    <!-- Wallet documents staged for an external viewer (ViewFilePlugin):
+         app-private cache only, exposed one file at a time through a
+         temporary ACTION_VIEW read grant. -->
+    <cache-path name="shared_documents" path="shared-documents/" />
 </paths>

@@ -302,19 +302,20 @@ test('the document editor offers the six categories plus a record’s own legacy
 // ---- Object URL hygiene -------------------------------------------------------
 
 test('every created object URL has a matching revoke path', () => {
-  // URL creation moved to the shared opener (also used by the Today
-  // membership quick access); TripView keeps the viewer-close revoke.
-  const opener = readFileSync(join(root, 'src/wallet/documentOpening.ts'), 'utf8');
-  const creates = (opener.match(/URL\.createObjectURL/g) ?? []).length;
-  assert.ok(creates >= 2, 'PDF open and image viewer both create URLs');
-  assert.ok(
-    (opener.match(/URL\.revokeObjectURL/g) ?? []).length >= creates - 1,
-    'revocation paths exist in the opener (PDF revokes delayed/failed)',
-  );
+  // URL creation lives in the shared opener (image sheet URLs — the caller
+  // owns the revoke) and in the browser branch of the view boundary (both
+  // its outcomes revoke); TripView keeps the viewer-close revoke.
+  const opener = readFileSync(join(root, 'src/wallet/documentDelivery.mjs'), 'utf8');
+  assert.match(opener, /URL\.createObjectURL/, 'the image sheet URL is created in the opener');
+  const openerTypes = readFileSync(join(root, 'src/wallet/documentDelivery.d.mts'), 'utf8');
+  assert.match(openerTypes, /kind: 'image'; url: string/,
+    'image URLs are handed to the caller, which owns the revoke');
   assert.match(tripView, /URL\.revokeObjectURL\(viewer\.url\)/,
     'the image viewer URL is revoked on close');
-  assert.match(opener, /kind: 'image'; url: string/,
-    'image URLs are handed to the caller, which owns the revoke');
+  const fileView = readFileSync(join(root, 'src/runtime/fileView.ts'), 'utf8');
+  assert.equal((fileView.match(/URL\.createObjectURL/g) ?? []).length, 1);
+  assert.equal((fileView.match(/URL\.revokeObjectURL/g) ?? []).length, 2,
+    'the browser viewer URL is revoked whether the window opened or not');
 });
 
 // ---- Settings integration -----------------------------------------------------

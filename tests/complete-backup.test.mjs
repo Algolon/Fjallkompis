@@ -638,6 +638,7 @@ test('no generated-file export bypasses the platform save boundary', () => {
     'src/components/DayPlanCard.tsx',
     'src/components/TripView.tsx',
     'src/wallet/documentOpening.ts',
+    'src/wallet/documentDelivery.mjs',
   ];
   for (const surface of GENERATED_FILE_SURFACES) {
     const source = readFileSync(join(root, surface), 'utf8');
@@ -654,12 +655,27 @@ test('no generated-file export bypasses the platform save boundary', () => {
         `${surface} imports ${helper} — it must use saveGeneratedFile`,
       );
     }
+  }
+  // The screens call the boundary directly; the shared opener delegates to it
+  // through the platform binding in documentOpening.ts (its .mjs core is
+  // platform-ignorant on purpose — tests/wallet-document-delivery.test.mjs).
+  for (const surface of [
+    'src/screens/SettingsScreen.tsx',
+    'src/components/DayPlanCard.tsx',
+    'src/components/TripView.tsx',
+  ]) {
+    const code = readFileSync(join(root, surface), 'utf8');
     assert.match(
       code,
       /saveGeneratedFile\(/,
       `${surface} produces a file, so it must go through the save boundary`,
     );
   }
+  assert.match(
+    readFileSync(join(root, 'src/wallet/documentOpening.ts'), 'utf8'),
+    /saveFile: saveGeneratedFile/,
+    'the shared opener binds its save fallback to the boundary',
+  );
 
   // The Day plan recovery export specifically: same filename and payload it
   // has always written, now via the boundary — and a failure is SHOWN,
