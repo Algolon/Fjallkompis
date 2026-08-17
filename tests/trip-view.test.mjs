@@ -302,20 +302,20 @@ test('the document editor offers the six categories plus a record’s own legacy
 // ---- Object URL hygiene -------------------------------------------------------
 
 test('every created object URL has a matching revoke path', () => {
-  // URL creation lives in the shared opener (image sheet URLs — the caller
-  // owns the revoke) and in the browser branch of the view boundary (both
-  // its outcomes revoke); TripView keeps the viewer-close revoke.
+  // URL creation lives ONLY in the shared opener (image sheet URLs — the
+  // caller owns the revoke); TripView keeps the viewer-close revoke. PDFs
+  // create no object URLs at all: the stored blob's bytes go straight to
+  // the in-app renderer (WalletPdfViewer), so there is nothing to leak.
   const opener = readFileSync(join(root, 'src/wallet/documentDelivery.mjs'), 'utf8');
-  assert.match(opener, /URL\.createObjectURL/, 'the image sheet URL is created in the opener');
+  assert.equal((opener.match(/URL\.createObjectURL/g) ?? []).length, 1,
+    'the image sheet URL is the opener’s only object URL');
   const openerTypes = readFileSync(join(root, 'src/wallet/documentDelivery.d.mts'), 'utf8');
   assert.match(openerTypes, /kind: 'image'; url: string/,
     'image URLs are handed to the caller, which owns the revoke');
+  assert.match(openerTypes, /kind: 'pdf'; blob: Blob/,
+    'PDFs are handed over as bytes, never as a URL');
   assert.match(tripView, /URL\.revokeObjectURL\(viewer\.url\)/,
     'the image viewer URL is revoked on close');
-  const fileView = readFileSync(join(root, 'src/runtime/fileView.ts'), 'utf8');
-  assert.equal((fileView.match(/URL\.createObjectURL/g) ?? []).length, 1);
-  assert.equal((fileView.match(/URL\.revokeObjectURL/g) ?? []).length, 2,
-    'the browser viewer URL is revoked whether the window opened or not');
 });
 
 // ---- Settings integration -----------------------------------------------------

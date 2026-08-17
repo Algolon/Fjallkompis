@@ -282,6 +282,13 @@ test('the runtime dependency set stays free of network/collection SDKs', () => {
       'fflate',
       'lucide-react',
       'maplibre-gl',
+      // pdfjs-dist (audited 2026-08, v6.2.108): Mozilla's PDF renderer for
+      // the in-app Wallet document viewer. No analytics or beacons in the
+      // library; the only URLs it ever fetches are the ones the app hands it
+      // (src/pdf/pdfEngine.ts), all same-origin bundle assets — worker, wasm
+      // codecs, fonts. Document bytes are passed in memory and never leave
+      // the device; tests/wallet-pdf-viewer.test.mjs pins the no-CDN wiring.
+      'pdfjs-dist',
       'pmtiles',
       'react',
       'react-dom',

@@ -2,19 +2,14 @@ import type { WalletDocument } from '../types';
 
 export type OpenWalletDocumentResult =
   | { kind: 'image'; url: string }
-  | { kind: 'pdf-opened' }
-  | { kind: 'pdf-saved' }
-  | { kind: 'pdf-save-cancelled' }
+  | { kind: 'pdf'; blob: Blob; fileName: string }
+  | { kind: 'saved-copy' }
+  | { kind: 'save-cancelled' }
   | { kind: 'missing' }
   | { kind: 'failed' };
 
-/** The two runtime boundaries the opener delegates platform facts to. */
+/** The one runtime boundary the opener still delegates a platform fact to. */
 export interface DocumentOpeningPlatform {
-  openInViewer(
-    fileName: string,
-    blob: Blob,
-    mimeType: string,
-  ): Promise<'opened' | 'unavailable'>;
   saveFile(fileName: string, blob: Blob, mimeType: string): Promise<'saved' | 'cancelled'>;
 }
 

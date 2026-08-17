@@ -1,0 +1,32 @@
+{
+  "native-dist": {
+    "pdfPageCount": 2,
+    "viewerTitle": "Train ticket",
+    "canvasPainted": {
+      "width": 776,
+      "height": 1098,
+      "darkPixels": 2020
+    },
+    "backOnWallet": true,
+    "errorText": "This document could not be displayed — the stored file does not open as a PDF on this devi",
+    "offersSave": true,
+    "imageInSheet": true,
+    "windowOpenCalls": [],
+    "popups": 0
+  },
+  "pwa-offline": {
+    "pdfPageCount": 2,
+    "viewerTitle": "Train ticket",
+    "canvasPainted": {
+      "width": 776,
+      "height": 1098,
+      "darkPixels": 2020
+    },
+    "backOnWallet": true,
+    "errorText": "This document could not be displayed — the stored file does not open as a PDF on this devi",
+    "offersSave": true,
+    "imageInSheet": true,
+    "popups": 0,
+    "offline": true
+  }
+}

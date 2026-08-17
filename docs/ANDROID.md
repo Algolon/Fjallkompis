@@ -376,6 +376,14 @@ navigates underneath it instead. The app's overlays are a mix of native
 handling; unifying them is a product change, not wrapper plumbing. Deliberately
 out of scope for this spike.
 
+**Exception: full-screen overlays.** The in-app PDF viewer covers the whole
+shell, so Back navigating the invisible app underneath would be a trap. Such a
+surface registers through `interceptAndroidBack` (src/runtime/platform.ts) and
+the back subscription consults the most recent interceptor before falling
+through to history — closing the document IS the navigation. This is a narrow
+hook for surfaces that occupy the entire screen, not the overlay unification
+above.
+
 ---
 
 ## Storage — read this before testing

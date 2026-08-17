@@ -40,6 +40,7 @@ import {
 import { useWalletDocuments } from '../hooks/useWalletDocuments';
 import { enforceMembershipQuickAccess } from '../wallet/walletStore.mjs';
 import { openWalletDocument } from '../wallet/documentOpening';
+import { WalletPdfViewer } from './WalletPdfViewer';
 import { useStore } from '../store/AppStore';
 import { WalletEditorSheet, type WalletEditorFields } from './WalletEditorSheet';
 import {
@@ -122,6 +123,7 @@ export function TripView({
     initialEditorFor(launch ?? undefined, state.trip),
   );
   const [viewer, setViewer] = useState<{ doc: WalletDocument; url: string } | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ doc: WalletDocument; blob: Blob } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const today = useMemo(() => todayIso(), []);
@@ -170,7 +172,11 @@ export function TripView({
 
   // PDF/image/missing behaviour lives in the shared openWalletDocument helper
   // (also used by the Today membership quick-access) — only the notices and
-  // the viewer state are view-local here.
+  // the viewer state are view-local here. Images open the in-app image sheet;
+  // PDFs open the app's own full-screen viewer (WalletPdfViewer) on every
+  // platform. The save outcomes below are the DEFENSIVE branch for a stored
+  // type the app has no viewer for — the wallet model only admits images and
+  // PDFs today.
   const openDocument = async (doc: WalletDocument) => {
     setNotice(null);
     const result = await openWalletDocument(doc, wallet.getFile);
@@ -179,13 +185,15 @@ export function TripView({
         `The file for “${doc.title}” is missing from local storage on this device. ` +
           'It may have been removed by the browser — delete the entry and add the document again.',
       );
-    } else if (result.kind === 'pdf-saved') {
+    } else if (result.kind === 'pdf') {
+      setPdfViewer({ doc, blob: result.blob });
+    } else if (result.kind === 'saved-copy') {
       setNotice(
-        'This device could not open the PDF viewer directly, so a copy was saved instead.',
+        'This document cannot be shown in the app, so a copy was saved instead.',
       );
-    } else if (result.kind === 'pdf-save-cancelled') {
+    } else if (result.kind === 'save-cancelled') {
       setNotice(
-        'This device could not open the PDF viewer directly. Saving a copy was cancelled, ' +
+        'This document cannot be shown in the app. Saving a copy was cancelled, ' +
           'so the document is still stored here and nothing was written.',
       );
     } else if (result.kind === 'failed') {
@@ -701,6 +709,15 @@ export function TripView({
             URL.revokeObjectURL(viewer.url);
             setViewer(null);
           }}
+        />
+      ) : null}
+
+      {pdfViewer ? (
+        <WalletPdfViewer
+          key={pdfViewer.doc.id}
+          doc={pdfViewer.doc}
+          blob={pdfViewer.blob}
+          onClose={() => setPdfViewer(null)}
         />
       ) : null}
     </>

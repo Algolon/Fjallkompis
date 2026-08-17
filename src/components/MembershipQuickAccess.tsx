@@ -6,6 +6,7 @@ import { quickAccessMembership } from '../wallet/walletModel.mjs';
 import { linkedTravelDocuments } from '../wallet/todayQuickAccess.mjs';
 import { openWalletDocument } from '../wallet/documentOpening';
 import { MembershipCardViewer } from './MembershipCardViewer';
+import { WalletPdfViewer } from './WalletPdfViewer';
 import { useOverlayScrollLock } from '../hooks/useOverlayScrollLock';
 import type { WalletDocument } from '../types';
 
@@ -21,8 +22,9 @@ import type { WalletDocument } from '../types';
  * available. Metadata can outlive a browser-evicted file, so an unavailable
  * document remains honestly managed in Lists → Trip rather than becoming a
  * broken Today button. One ticket opens immediately; several open a compact
- * chooser first. PDFs use the platform viewer/download fallback and images use
- * the same centred quick viewer as the STF membership card.
+ * chooser first. PDFs open in the app's own full-screen viewer (the same
+ * WalletPdfViewer as Wallet and Travel & stays) and images use the same
+ * centred quick viewer as the STF membership card.
  *
  * The membership button is the STF roundel itself: the same asset this screen
  * shipped before the imagery cleanup, restored on purpose because the mark is
@@ -62,6 +64,9 @@ export function MembershipQuickAccess() {
     url: string;
     heading: string;
   } | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ doc: WalletDocument; blob: Blob } | null>(
+    null,
+  );
   const [choosingTickets, setChoosingTickets] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
@@ -128,6 +133,10 @@ export function MembershipQuickAccess() {
     const result = await openWalletDocument(doc, wallet.getFile);
     if (result.kind === 'image') {
       setViewer({ doc, url: result.url, heading });
+    } else if (result.kind === 'pdf') {
+      // The app's own full-screen PDF viewer — the same surface Wallet and
+      // Travel & stays open, so a ticket looks identical from every door.
+      setPdfViewer({ doc, blob: result.blob });
     } else if (result.kind === 'missing') {
       // A race where the file vanished between verification and tap: hide it,
       // and say why the button the user just pressed is gone.
@@ -136,9 +145,9 @@ export function MembershipQuickAccess() {
         `The file for “${doc.title}” is no longer stored on this device. ` +
           'Manage the document in Lists → Trip.',
       );
-    } else if (result.kind === 'pdf-saved') {
-      showNotice('This device could not open the PDF viewer directly, so a copy was saved instead.');
-    } else if (result.kind === 'pdf-save-cancelled') {
+    } else if (result.kind === 'saved-copy') {
+      showNotice('This document cannot be shown in the app, so a copy was saved instead.');
+    } else if (result.kind === 'save-cancelled') {
       showNotice('Saving a copy was cancelled — the document is still stored here.');
     } else if (result.kind === 'failed') {
       showNotice(`“${doc.title}” could not be opened on this device. It is still stored here.`);
@@ -235,6 +244,15 @@ export function MembershipQuickAccess() {
             URL.revokeObjectURL(viewer.url);
             setViewer(null);
           }}
+        />
+      ) : null}
+
+      {pdfViewer ? (
+        <WalletPdfViewer
+          key={pdfViewer.doc.id}
+          doc={pdfViewer.doc}
+          blob={pdfViewer.blob}
+          onClose={() => setPdfViewer(null)}
         />
       ) : null}
     </>

@@ -201,10 +201,15 @@ test('platform knowledge stays in the adapter — screens and stores never ask',
     .filter((f) => typeof f === 'string' && /\.(tsx?|mjs)$/.test(f))
     .filter((f) => !f.startsWith('runtime/'))
     .filter((f) => /from '\.{1,2}\/(\.\.\/)*runtime\/platform'/.test(read(join('src', f))));
+  // components/WalletPdfViewer.tsx is on the list for ONE narrow hook:
+  // interceptAndroidBack, the adapter's own full-screen-overlay Back
+  // registration. The viewer never learns which platform it is on (the hook
+  // is a no-op off Android) and renders identically everywhere — this is an
+  // event subscription like App.tsx's back wiring, not a platform branch.
   assert.deepEqual(
     callers.sort(),
-    ['App.tsx', 'main.tsx', 'map/archiveStore.ts'],
-    'only the app shell and the map-archive store may import the platform adapter',
+    ['App.tsx', 'components/WalletPdfViewer.tsx', 'main.tsx', 'map/archiveStore.ts'],
+    'only the app shell, the full-screen viewer’s Back hook and the map-archive store may import the platform adapter',
   );
   assert.ok(
     !/Capacitor|@capacitor/.test(read('src/store/AppStore.tsx')),
