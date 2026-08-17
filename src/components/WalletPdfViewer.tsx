@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -15,9 +16,13 @@ import { walletDownloadFileName } from '../wallet/walletModel.mjs';
 import {
   clampZoom,
   fitToWidthScale,
+  pageGap,
+  pinchState,
   renderGeometry,
   renderWindow,
+  zoomCommitScroll,
 } from '../pdf/pdfViewerCore.mjs';
+import type { PinchStateResult } from '../pdf/pdfViewerCore.mjs';
 import type { OpenPdfResult } from '../pdf/pdfEngine';
 
 /**
@@ -26,34 +31,44 @@ import type { OpenPdfResult } from '../pdf/pdfEngine';
  * attachments, Today quick access). A stored PDF opens HERE, inside the app
  * shell: never a browser tab, never a hand-off to an external viewer app.
  *
- * Presentation: a full-screen native <dialog> (same modal contract as every
- * other overlay — showModal focus trap, Escape → close, focus returns to the
- * opener) wearing the app's own surfaces: a paper header with the document
- * title and a close control, pages stacked on a quiet deeper backdrop.
- * Deliberately NO toolbar — scrolling and pinching are the interface, like
- * the image viewers.
+ * PRESENTATION: a modal LIGHTBOX, not a screen. The originating surface
+ * stays visible behind a dimmed backdrop; the document sits above it on a
+ * rounded Fjallkompis surface — nearly full-screen on phones (a small
+ * visible margin keeps the "layered over" reading), a centred modal with
+ * generous backdrop on wider viewports. Opening a document must feel like
+ * "I'm looking at this from the page I was on", never like navigating to a
+ * new section. Native <dialog> carries the modal contract: focus trap,
+ * Escape → close, backdrop click → close (with a guard so the tail of a
+ * pinch can never close it), Android hardware Back → close
+ * (interceptAndroidBack), background inert and scroll-locked, focus back to
+ * the opener afterwards. No history entries — no navigation traps.
  *
- * Rendering: pdf.js, loaded LAZILY through src/pdf/pdfEngine.ts the first
- * time a PDF is actually opened. Pages render fit-to-width into bounded
- * canvases and only a small window of pages around the viewport holds live
- * pixels (src/pdf/pdfViewerCore.mjs owns those numbers) — a several-MB,
- * many-page Wallet PDF must scroll without freezing a phone.
+ * RENDERING: pdf.js, loaded LAZILY through src/pdf/pdfEngine.ts on first
+ * open. Pages render fit-to-width into bounded canvases and only a small
+ * window of pages around the viewport holds live pixels
+ * (src/pdf/pdfViewerCore.mjs owns those numbers). Re-renders draw into an
+ * OFFSCREEN canvas and swap in one frame — the visible bitmap is never
+ * cleared while its replacement is still rasterising.
  *
- * Zoom: a self-tracked two-pointer pinch (1×–3×), because the app's viewport
- * meta disables browser page zoom everywhere. During the gesture the page
- * column scales visually (cheap CSS transform); on release the committed
- * zoom re-renders the visible pages at the sharper scale. Horizontal panning
- * while zoomed is native scrolling. This is deliberately the smallest
- * reliable zoom: no double-tap heuristics, no zoom buttons.
- *
- * Android hardware Back closes the viewer (interceptAndroidBack) instead of
- * navigating the shell underneath it — for a full-screen surface, Back must
- * mean "put the document away".
+ * ZOOM: fit-to-width is the floor; pinch up to MAX_ZOOM. The gesture is
+ * modelled with explicit state (src/pdf/pdfViewerCore.mjs — pinchState /
+ * zoomCommitScroll), not implicit browser layout: while the fingers move,
+ * the column wears a cheap CSS transform whose origin is the CONTENT point
+ * under the fingers' midpoint, so that point stays anchored; on release the
+ * layout commits at the new zoom and the scroller is repositioned in the
+ * SAME frame to keep that point exactly where the fingers left it — the
+ * sharp pdf.js re-render then replaces bitmaps in place, so there is no
+ * visible snap in either scale or position. Panning while zoomed is native
+ * one-finger scrolling (real physics, naturally bounded); at fit-width the
+ * same finger scrolls the document. Two-finger moves are preventDefault-ed
+ * so native panning never fights the pinch. Double-tap zoom was evaluated
+ * and left out: without an animated transition it reads as a hard cut, and
+ * animating it would add a second transform pipeline for a secondary
+ * gesture — pinch remains the one zoom input.
  *
  * Failure is honest: bytes that do not open as a PDF show an error state
- * that says so and offers the existing SAVE path (the same SAF/download
- * boundary as "Download a copy") — never a silent external hand-off. The
- * blob is owned by the CALLER; this component never creates object URLs.
+ * that says so and offers the existing SAVE path — never a silent external
+ * hand-off. The blob is owned by the CALLER; no object URLs here.
  */
 
 type PdfPageHandle = {
@@ -72,12 +87,26 @@ type Phase =
   | { kind: 'ready'; pageCount: number }
   | { kind: 'unreadable' };
 
-/** Pinch state lives outside React — pointer events arrive too fast for state. */
+/** Everything a live pinch needs, captured once at gesture start. */
 interface PinchTracking {
   pointers: Map<number, { x: number; y: number }>;
   startDistance: number;
-  startZoom: number;
-  pending: number;
+  startMidClient: { x: number; y: number };
+  /** Frozen at start: the column's client origin (transform target frame). */
+  columnOrigin: { x: number; y: number };
+  /** Frozen at start: the scroller's padding-box client origin. */
+  scrollerOrigin: { x: number; y: number };
+  /** Column offset from the scroller's content origin (padding + centring). */
+  columnOffset: { left: number; top: number };
+  zoomAtStart: number;
+  live: PinchStateResult | null;
+  lastMidClient: { x: number; y: number };
+}
+
+/** A zoom commit staged for the layout effect that runs before paint. */
+interface PendingCommit {
+  scrollLeft: number;
+  scrollTop: number;
 }
 
 export function WalletPdfViewer({
@@ -108,7 +137,7 @@ export function WalletPdfViewer({
     () => new Map(),
   );
 
-  // ---- Modal contract (same as every other overlay) -------------------------
+  // ---- Modal contract ---------------------------------------------------------
   useEffect(() => {
     const opener =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -117,8 +146,8 @@ export function WalletPdfViewer({
   }, []);
 
   // Android hardware Back puts the document away instead of navigating the
-  // shell underneath this full-screen surface. A no-op off Android (the
-  // installed PWA's own back handling closes modal dialogs natively).
+  // shell underneath this overlay. A no-op off Android (the installed PWA's
+  // own back handling closes modal dialogs natively).
   useEffect(
     () =>
       interceptAndroidBack(() => {
@@ -128,7 +157,7 @@ export function WalletPdfViewer({
     [onClose],
   );
 
-  // ---- Open the document (lazy engine) ---------------------------------------
+  // ---- Open the document (lazy engine) ----------------------------------------
   useEffect(() => {
     let live = true;
     setPhase({ kind: 'loading' });
@@ -160,7 +189,7 @@ export function WalletPdfViewer({
     };
   }, [blob]);
 
-  // ---- Fit-to-width geometry --------------------------------------------------
+  // ---- Fit-to-width geometry ----------------------------------------------------
   // The scroller's content width is what pages fit to; rotation and window
   // resizes re-measure it and the pages re-render at the new width. The
   // scroller only exists once the document is READY (loading/error states
@@ -184,7 +213,7 @@ export function WalletPdfViewer({
     return () => observer.disconnect();
   }, [phase.kind]);
 
-  // ---- Which pages hold live canvases ------------------------------------------
+  // ---- Which pages hold live canvases --------------------------------------------
   const pageCount = phase.kind === 'ready' ? phase.pageCount : 0;
   const visibleRef = useRef<Set<number>>(new Set());
   const applyWindow = useCallback(() => {
@@ -244,56 +273,159 @@ export function WalletPdfViewer({
     });
   }, []);
 
-  // ---- Pinch zoom ---------------------------------------------------------------
+  // ---- Pinch zoom -------------------------------------------------------------
+  // Explicit transform state (pinchState / zoomCommitScroll), never implicit
+  // layout. The commit is staged here and applied in the layout effect below,
+  // in the same frame as the new layout — which is what makes it snap-free.
   const pinchRef = useRef<PinchTracking | null>(null);
+  const commitRef = useRef<PendingCommit | null>(null);
+  const lastPinchEndRef = useRef(0);
+
+  // Native panning must not fight a live pinch: two-finger touchmoves are
+  // consumed (the listener is registered non-passively — React's synthetic
+  // handlers cannot preventDefault a passive touchmove). One finger keeps
+  // native scrolling untouched, physics and bounds included.
+  useEffect(() => {
+    if (phase.kind !== 'ready') return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length >= 2) event.preventDefault();
+    };
+    scroller.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => scroller.removeEventListener('touchmove', onTouchMove);
+  }, [phase.kind]);
+
+  const applyLiveTransform = (live: PinchStateResult | null) => {
+    const column = columnRef.current;
+    if (!column) return;
+    if (!live || (live.scale === 1 && live.translateX === 0 && live.translateY === 0)) {
+      column.style.transform = '';
+      column.style.transformOrigin = '';
+      return;
+    }
+    column.style.transformOrigin = `${live.originX}px ${live.originY}px`;
+    column.style.transform =
+      `translate(${live.translateX}px, ${live.translateY}px) scale(${live.scale})`;
+  };
+
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'touch') return;
+    const scroller = scrollerRef.current;
+    const column = columnRef.current;
+    if (!scroller || !column) return;
     const current = pinchRef.current ?? {
       pointers: new Map(),
       startDistance: 0,
-      startZoom: zoom,
-      pending: zoom,
+      startMidClient: { x: 0, y: 0 },
+      columnOrigin: { x: 0, y: 0 },
+      scrollerOrigin: { x: 0, y: 0 },
+      columnOffset: { left: 0, top: 0 },
+      zoomAtStart: zoom,
+      live: null,
+      lastMidClient: { x: 0, y: 0 },
     };
     current.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (current.pointers.size === 2) {
-      current.startDistance = pointerDistance(current.pointers);
-      current.startZoom = zoom;
-      current.pending = zoom;
+      const [a, b] = [...current.pointers.values()];
+      const columnRect = column.getBoundingClientRect();
+      const scrollerRect = scroller.getBoundingClientRect();
+      current.startDistance = Math.hypot(a.x - b.x, a.y - b.y);
+      current.startMidClient = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      current.lastMidClient = current.startMidClient;
+      current.columnOrigin = { x: columnRect.left, y: columnRect.top };
+      current.scrollerOrigin = {
+        x: scrollerRect.left + scroller.clientLeft,
+        y: scrollerRect.top + scroller.clientTop,
+      };
+      current.columnOffset = {
+        left: columnRect.left - current.scrollerOrigin.x + scroller.scrollLeft,
+        top: columnRect.top - current.scrollerOrigin.y + scroller.scrollTop,
+      };
+      current.zoomAtStart = zoom;
+      current.live = null;
     }
     pinchRef.current = current;
   };
+
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const pinch = pinchRef.current;
     if (!pinch || !pinch.pointers.has(event.pointerId)) return;
     pinch.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pinch.pointers.size !== 2 || pinch.startDistance <= 0) return;
-    pinch.pending = clampZoom(
-      pinch.startZoom * (pointerDistance(pinch.pointers) / pinch.startDistance),
-    );
-    // Cheap live feedback: scale the whole column visually; the sharp
-    // re-render happens once, on release.
-    const column = columnRef.current;
-    if (column) {
-      column.style.transformOrigin = 'top center';
-      column.style.transform =
-        pinch.pending === pinch.startZoom
-          ? ''
-          : `scale(${pinch.pending / pinch.startZoom})`;
-    }
+    const [a, b] = [...pinch.pointers.values()];
+    pinch.lastMidClient = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    pinch.live = pinchState({
+      zoom: pinch.zoomAtStart,
+      startDistance: pinch.startDistance,
+      currentDistance: Math.hypot(a.x - b.x, a.y - b.y),
+      // Column coordinates: the transform-origin frame is the column's own
+      // (untransformed) box, frozen at gesture start.
+      startMid: {
+        x: pinch.startMidClient.x - pinch.columnOrigin.x,
+        y: pinch.startMidClient.y - pinch.columnOrigin.y,
+      },
+      currentMid: {
+        x: pinch.lastMidClient.x - pinch.columnOrigin.x,
+        y: pinch.lastMidClient.y - pinch.columnOrigin.y,
+      },
+    });
+    applyLiveTransform(pinch.live);
   };
+
   const endPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const pinch = pinchRef.current;
     if (!pinch || !pinch.pointers.delete(event.pointerId)) return;
-    if (pinch.pointers.size < 2) {
-      const column = columnRef.current;
-      if (column) column.style.transform = '';
-      if (pinch.startDistance > 0 && pinch.pending !== pinch.startZoom) {
-        setZoom(pinch.pending);
+    if (pinch.pointers.size >= 2) return;
+    if (pinch.live) {
+      lastPinchEndRef.current = Date.now();
+      const live = pinch.live;
+      const target = zoomCommitScroll({
+        zoom: pinch.zoomAtStart,
+        pendingZoom: live.pendingZoom,
+        focalContent: { x: live.originX, y: live.originY },
+        focalViewport: {
+          x: pinch.lastMidClient.x - pinch.scrollerOrigin.x,
+          y: pinch.lastMidClient.y - pinch.scrollerOrigin.y,
+        },
+        columnOffset: pinch.columnOffset,
+      });
+      commitRef.current = target;
+      if (live.pendingZoom !== pinch.zoomAtStart) {
+        // The layout effect below clears the transform and repositions the
+        // scroller in the SAME pre-paint frame as the new layout.
+        setZoom(live.pendingZoom);
+      } else {
+        // Pure two-finger pan: fold the translate into scroll right now.
+        const scroller = scrollerRef.current;
+        applyLiveTransform(null);
+        if (scroller) {
+          scroller.scrollLeft = target.scrollLeft;
+          scroller.scrollTop = target.scrollTop;
+        }
+        commitRef.current = null;
       }
+      pinch.live = null;
       pinch.startDistance = 0;
-      if (pinch.pointers.size === 0) pinchRef.current = null;
     }
+    if (pinch.pointers.size === 0) pinchRef.current = null;
   };
+
+  // The snap-free commit: runs after React applied the new zoom to the DOM
+  // (page widths, heights and the scaled gap) and BEFORE the browser paints.
+  // Clearing the live transform and setting the derived scroll offsets here
+  // means no frame ever shows the old position at the new layout.
+  useLayoutEffect(() => {
+    const commit = commitRef.current;
+    if (!commit) return;
+    commitRef.current = null;
+    applyLiveTransform(null);
+    const scroller = scrollerRef.current;
+    if (scroller) {
+      scroller.scrollLeft = commit.scrollLeft;
+      scroller.scrollTop = commit.scrollTop;
+    }
+  }, [zoom]);
 
   // ---- Error-state save (the honest fallback — never an external viewer) -------
   const saveCopy = async () => {
@@ -330,6 +462,19 @@ export function WalletPdfViewer({
       onCancel={(event) => {
         event.preventDefault();
         onClose();
+      }}
+      onClick={(event) => {
+        // Backdrop close: a click that TARGETS the dialog element itself hit
+        // the ::backdrop (all children fill the surface). The time guard
+        // keeps the tail of a pinch near the modal edge from ever closing —
+        // backdrop tap is a convenience exit; ×, Escape and Android Back are
+        // the primary ones.
+        if (
+          event.target === dialogRef.current &&
+          Date.now() - lastPinchEndRef.current > 400
+        ) {
+          onClose();
+        }
       }}
     >
       <div className="pdf-viewer__chrome">
@@ -378,7 +523,11 @@ export function WalletPdfViewer({
             onPointerUp={endPointer}
             onPointerCancel={endPointer}
           >
-            <div ref={columnRef} className="pdf-viewer__column">
+            <div
+              ref={columnRef}
+              className="pdf-viewer__column"
+              style={{ gap: pageGap(zoom) }}
+            >
               {Array.from({ length: phase.pageCount }, (_, i) => i + 1).map(
                 (page) => (
                   <PdfViewerPage
@@ -403,16 +552,14 @@ export function WalletPdfViewer({
   );
 }
 
-function pointerDistance(pointers: Map<number, { x: number; y: number }>) {
-  const [a, b] = [...pointers.values()];
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
 /**
- * One page slot. While inside the live window it holds a rendered canvas at
- * the bounded scale pdfViewerCore computes; outside it, the canvas is
- * released to a fixed-size placeholder (the browser reclaims the pixels) and
- * pdf.js page resources are cleaned up.
+ * One page slot. The WRAPPER always has the exact layout size for the
+ * current zoom (React-driven, so a zoom commit re-lays-out synchronously);
+ * the canvas fills it, which stretches the existing bitmap to the new size
+ * until the sharp re-render lands. Re-renders draw into an offscreen canvas
+ * and swap in one frame — the visible bitmap is never cleared first, so
+ * zooming never flashes a blank page. Outside the live window the canvas
+ * releases its pixels and pdf.js page resources are cleaned up.
  */
 function PdfViewerPage({
   page,
@@ -451,25 +598,31 @@ function PdfViewerPage({
       pageHandle = pdfPage;
       const base = pdfPage.getViewport({ scale: 1 });
       onMeasured(page, base.width, base.height);
-      const cssScale = fitToWidthScale(base.width, columnWidth) * zoom;
+      const cssScale = fitToWidthScale(base.width, columnWidth) * clampZoom(zoom);
       const geometry = renderGeometry({
         pageWidth: base.width,
         pageHeight: base.height,
         cssScale,
         devicePixelRatio: window.devicePixelRatio || 1,
       });
+      // Offscreen first: the canvas on screen keeps showing its current
+      // bitmap (CSS-stretched to the new layout) until the replacement is
+      // COMPLETE, then the swap is one synchronous draw — no blank interval,
+      // no half-rendered page, no visible re-render step.
+      const offscreen = document.createElement('canvas');
+      offscreen.width = geometry.canvasWidth;
+      offscreen.height = geometry.canvasHeight;
+      renderTask = pdfPage.render({
+        canvas: offscreen,
+        viewport: pdfPage.getViewport({ scale: geometry.renderScale }),
+      });
+      await renderTask.promise;
       const canvas = canvasRef.current;
       if (!canvas || cancelled) return;
       canvas.width = geometry.canvasWidth;
       canvas.height = geometry.canvasHeight;
-      canvas.style.width = `${Math.round(base.width * cssScale)}px`;
-      canvas.style.height = `${Math.round(base.height * cssScale)}px`;
-      renderTask = pdfPage.render({
-        canvas,
-        viewport: pdfPage.getViewport({ scale: geometry.renderScale }),
-      });
-      await renderTask.promise;
-      if (!cancelled) setRendered(true);
+      canvas.getContext('2d')?.drawImage(offscreen, 0, 0);
+      setRendered(true);
     })().catch((err: unknown) => {
       // A cancelled render (scroll moved on, zoom changed) is routine.
       if (!cancelled && (err as { name?: string })?.name !== 'RenderingCancelledException') {
@@ -491,13 +644,11 @@ function PdfViewerPage({
     if (canvas) {
       canvas.width = 0;
       canvas.height = 0;
-      canvas.style.width = '';
-      canvas.style.height = '';
     }
     setRendered(false);
   }, [live]);
 
-  const cssScale = fitToWidthScale(dims.w, columnWidth || dims.w) * zoom;
+  const cssScale = fitToWidthScale(dims.w, columnWidth || dims.w) * clampZoom(zoom);
   const width = Math.round(dims.w * cssScale);
   const height = Math.round(dims.h * cssScale);
 
@@ -506,7 +657,7 @@ function PdfViewerPage({
       ref={observe}
       data-page={page}
       className="pdf-viewer__page"
-      style={{ width, minHeight: height }}
+      style={{ width, height }}
       aria-label={`Page ${page}${measured ? '' : ' (loading)'}`}
     >
       <canvas ref={canvasRef} className="pdf-viewer__canvas" aria-hidden />

@@ -29,13 +29,17 @@ import { dirname, join } from 'node:path';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { openPdfDocument } from '../src/pdf/pdfDocumentSource.mjs';
 import {
+  BASE_PAGE_GAP,
   MAX_ZOOM,
   MIN_ZOOM,
   PAGE_PIXEL_BUDGET,
   clampZoom,
   fitToWidthScale,
+  pageGap,
+  pinchState,
   renderGeometry,
   renderWindow,
+  zoomCommitScroll,
 } from '../src/pdf/pdfViewerCore.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -148,6 +152,122 @@ test('the lazy window keeps visible pages plus one neighbour each side — nothi
   assert.deepEqual([...renderWindow([1], 0, 1)], [], 'an empty document renders nothing');
 });
 
+// ---- Pinch-zoom gesture arithmetic ----------------------------------------------
+// The zoom contract as pure math: the content point under the fingers'
+// midpoint stays anchored while the pinch is live AND across the commit,
+// when the layout re-flows and the scroller is repositioned. These tests
+// drive whole gestures as numbers — the DOM only executes this arithmetic.
+
+test('a live pinch anchors the content point under the starting midpoint', () => {
+  const live = pinchState({
+    zoom: 1,
+    startDistance: 100,
+    currentDistance: 180,
+    startMid: { x: 220, y: 340 },
+    currentMid: { x: 220, y: 340 },
+  });
+  assert.equal(live.pendingZoom, 1.8);
+  assert.equal(live.scale, 1.8, 'live scale is pending/committed');
+  assert.equal(live.originX, 220, 'transform-origin IS the focal content point…');
+  assert.equal(live.originY, 340, '…so scaling cannot move it');
+  assert.equal(live.translateX, 0);
+  assert.equal(live.translateY, 0, 'a stationary midpoint adds no drift');
+});
+
+test('midpoint drift during the pinch becomes translation — fingers stay glued', () => {
+  const live = pinchState({
+    zoom: 1.5,
+    startDistance: 120,
+    currentDistance: 120,
+    startMid: { x: 200, y: 300 },
+    currentMid: { x: 160, y: 260 },
+  });
+  assert.equal(live.pendingZoom, 1.5, 'no distance change → no zoom change');
+  assert.equal(live.scale, 1);
+  assert.equal(live.translateX, -40);
+  assert.equal(live.translateY, -40, 'two-finger pan rides along as pure translate');
+});
+
+test('the live pinch clamps at the zoom limits instead of overshooting', () => {
+  const over = pinchState({
+    zoom: 2.5, startDistance: 100, currentDistance: 300,
+    startMid: { x: 0, y: 0 }, currentMid: { x: 0, y: 0 },
+  });
+  assert.equal(over.pendingZoom, MAX_ZOOM);
+  assert.ok(Math.abs(over.scale - MAX_ZOOM / 2.5) < 1e-12,
+    'once clamped, the visual scale stops growing too — no rubber-band lie');
+  const under = pinchState({
+    zoom: 1.2, startDistance: 200, currentDistance: 50,
+    startMid: { x: 0, y: 0 }, currentMid: { x: 0, y: 0 },
+  });
+  assert.equal(under.pendingZoom, MIN_ZOOM, 'fit-to-width is the floor');
+  const broken = pinchState({
+    zoom: 1, startDistance: 0, currentDistance: 100,
+    startMid: { x: 0, y: 0 }, currentMid: { x: 0, y: 0 },
+  });
+  assert.ok(Number.isFinite(broken.pendingZoom), 'degenerate input never yields NaN');
+});
+
+test('the commit places the scaled focal point exactly under the fingers — no snap', () => {
+  // Pinch from zoom 1 to 2 about a point mid-document, fingers drifting a
+  // little: after commit, clientPos(focal × ratio) must equal the fingers'
+  // final midpoint. That equality IS the "no visible jump" guarantee.
+  const zoom = 1;
+  const live = pinchState({
+    zoom,
+    startDistance: 100,
+    currentDistance: 200,
+    startMid: { x: 180, y: 900 },   // column coords (already scrolled down)
+    currentMid: { x: 168, y: 880 }, // slight drift while pinching
+  });
+  const columnOffset = { left: 12, top: 14 };
+  const focalViewport = { x: 150, y: 420 }; // final midpoint in the scroller viewport
+  const commit = zoomCommitScroll({
+    zoom,
+    pendingZoom: live.pendingZoom,
+    focalContent: { x: live.originX, y: live.originY },
+    focalViewport,
+    columnOffset,
+  });
+  const ratio = live.pendingZoom / zoom;
+  // Re-derive the on-screen position of the scaled focal point.
+  const screenX = columnOffset.left + live.originX * ratio - commit.scrollLeft;
+  const screenY = columnOffset.top + live.originY * ratio - commit.scrollTop;
+  assert.equal(screenX, focalViewport.x, 'horizontal anchor preserved across the re-layout');
+  assert.equal(screenY, focalViewport.y, 'vertical anchor preserved across the re-layout');
+});
+
+test('a no-op pinch (ratio 1) commits the drift as scroll — pan, not snap-back', () => {
+  const commit = zoomCommitScroll({
+    zoom: 2,
+    pendingZoom: 2,
+    focalContent: { x: 400, y: 600 },
+    focalViewport: { x: 230, y: 350 },
+    columnOffset: { left: 12, top: 14 },
+  });
+  assert.equal(commit.scrollLeft, 12 + 400 - 230);
+  assert.equal(commit.scrollTop, 14 + 600 - 350);
+});
+
+test('commit scroll is bounded below — the document can never be lost off-screen', () => {
+  const commit = zoomCommitScroll({
+    zoom: 2,
+    pendingZoom: 1,
+    focalContent: { x: 30, y: 40 },
+    focalViewport: { x: 300, y: 500 },
+    columnOffset: { left: 12, top: 14 },
+  });
+  assert.equal(commit.scrollLeft, 0);
+  assert.equal(commit.scrollTop, 0,
+    'negative targets clamp to the origin; the scroller clamps its own maximum');
+});
+
+test('the page gap scales with zoom, keeping the uniform-scaling model exact', () => {
+  assert.equal(pageGap(1), BASE_PAGE_GAP);
+  assert.equal(pageGap(2), BASE_PAGE_GAP * 2);
+  assert.equal(pageGap(99), BASE_PAGE_GAP * MAX_ZOOM, 'gap input is clamped like zoom');
+});
+
 // ---- Architecture guards (source contracts) ------------------------------------
 
 const engine = read('src/pdf/pdfEngine.ts');
@@ -224,6 +344,55 @@ test('the viewer keeps the app-shell contract: title, close, honest error, no ha
   assert.match(viewer, /role="status"/, 'so is loading');
   assert.ok(!/URL\.createObjectURL/.test(codeOf(viewer)),
     'bytes reach pdf.js directly — no object-URL detour to leak');
+});
+
+test('the viewer is a modal LIGHTBOX layered over the originating screen', () => {
+  const css = read('src/styles/global.css');
+  const block = css.slice(css.indexOf('.pdf-viewer {'), css.indexOf('.pdf-viewer__save-note'));
+  assert.match(block, /\.pdf-viewer::backdrop\s*{[^}]*rgba\(/,
+    'the backdrop DIMS the originating screen — it is visible behind, never covered');
+  assert.ok(!/::backdrop\s*{[^}]*transparent/.test(block),
+    'the old full-bleed transparent backdrop must not come back');
+  assert.match(block, /border-radius: var\(--r-lg\)/, 'rounded Fjallkompis surface');
+  assert.match(block, /calc\(100vw - 24px\)/,
+    'phones keep a small but VISIBLE outer margin — near full-screen, not a tiny card');
+  assert.match(block, /margin: calc\(var\(--safe-top\)[^;]*auto/,
+    'the modal sits inside the safe areas via its margins');
+  assert.match(block, /@media \(min-width: 760px\)/,
+    'wider viewports get a clearly centred modal with more backdrop');
+  assert.ok(!/100vw;\s*\n\s*height: 100vh/.test(block), 'no full-bleed sizing remains');
+});
+
+test('backdrop tap closes — with a guard so a pinch can never close it', () => {
+  assert.match(viewer, /event\.target === dialogRef\.current/,
+    'only a click that reached the dialog element itself (the ::backdrop) closes');
+  assert.match(viewer, /lastPinchEndRef/,
+    'the tail of a pinch near the modal edge is not a backdrop tap');
+  assert.match(viewer, /onCancel=/, 'Escape still closes');
+  assert.match(viewer, /interceptAndroidBack/, 'Android hardware Back still closes');
+});
+
+test('pinch zoom runs on explicit transform state, committed without a snap', () => {
+  assert.match(viewer, /pinchState\(/, 'the live gesture is the shared arithmetic…');
+  assert.match(viewer, /zoomCommitScroll\(/, '…and so is the commit scroll position');
+  assert.match(viewer, /useLayoutEffect/,
+    'the transform clears and the scroller repositions BEFORE paint — same frame as the new layout');
+  assert.match(viewer, /transformOrigin = `\$\{live\.originX\}px \$\{live\.originY\}px`/,
+    'the transform origin is the focal content point, so it stays anchored while scaling');
+  assert.match(viewer, /pageGap\(zoom\)/, 'the page gap scales with zoom (uniform-scaling model)');
+  assert.match(viewer, /addEventListener\('touchmove', onTouchMove, \{ passive: false \}\)/,
+    'two-finger moves are consumed non-passively so native panning never fights the pinch');
+  assert.match(viewer, /touches\.length >= 2\) event\.preventDefault\(\)/);
+});
+
+test('re-renders draw offscreen and swap in one frame — no blank flash, no visible step', () => {
+  assert.match(viewer, /document\.createElement\('canvas'\)/,
+    'the sharp render happens on an offscreen canvas');
+  assert.match(viewer, /drawImage\(offscreen, 0, 0\)/,
+    'the visible bitmap is replaced in one synchronous draw');
+  const renderIdx = viewer.indexOf("document.createElement('canvas')");
+  const swapIdx = viewer.indexOf('drawImage(offscreen');
+  assert.ok(renderIdx >= 0 && renderIdx < swapIdx);
 });
 
 test('pages render lazily into bounded canvases and release when far away', () => {

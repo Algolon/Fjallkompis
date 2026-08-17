@@ -1,0 +1,63 @@
+{
+  "modal": {
+    "dialog": {
+      "left": 12,
+      "top": 12,
+      "width": 388,
+      "height": 891
+    },
+    "viewport": {
+      "w": 412,
+      "h": 915
+    },
+    "hasVisibleMargin": true,
+    "rounded": "22px",
+    "backdropDim": "rgba(27, 42, 39, 0.45)"
+  },
+  "pinch": {
+    "scaleApplied": 2.4806629834254146,
+    "focalDriftPx": {
+      "x": -0.08,
+      "y": 0.5
+    },
+    "rerenderShiftPx": {
+      "x": 0,
+      "y": 0,
+      "layoutDelta": 0
+    },
+    "canvasSharpened": true,
+    "canvasWidths": {
+      "before": 723,
+      "after": 1681
+    }
+  },
+  "pan": {
+    "moved": {
+      "x": 90,
+      "y": 140
+    },
+    "boundedAtOrigin": true
+  },
+  "fitReturn": {
+    "widthRatioVsOriginal": 1,
+    "scrollLeft": 0
+  },
+  "multiPage": true,
+  "backdropClose": {
+    "closed": true,
+    "walletIntact": true
+  },
+  "buttonAndEscapeClose": true,
+  "corrupt": {
+    "offersSave": true
+  },
+  "imageRegression": true,
+  "popups": 0,
+  "desktopModal": {
+    "width": 680,
+    "left": 172,
+    "right": 172,
+    "centred": true,
+    "backdropEachSide": 172
+  }
+}

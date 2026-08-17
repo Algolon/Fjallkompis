@@ -14,13 +14,16 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 - **PDFs now open inside Fjallkompis.** Tapping a stored PDF — from the
   Wallet, a Travel & stays attachment, or the Today quick-access ticket
-  button — now shows the document in the app's own full-screen viewer:
-  the document title on top, pages stacked below, scroll and pinch to
-  zoom, close (or Android Back) to return exactly where you were. No
-  external PDF app opens and no browser tab is involved, on Android or in
-  the browser/installed app, and everything works fully offline. A file
-  that turns out not to be a readable PDF says so honestly and offers to
-  save a copy instead. Images keep their existing quick viewers.
+  button — shows the document in the app's own viewer, layered over the
+  screen you were on: the page behind stays visible around a dimmed edge,
+  the document title sits on top, pages stack below, and closing (the ×,
+  tapping outside, or Android Back) puts you back exactly where you were.
+  Pinch zooms around your fingers and stays put when you let go; one
+  finger scrolls, and pans when zoomed in. No external PDF app opens and
+  no browser tab is involved, on Android or in the browser/installed app,
+  and everything works fully offline. A file that turns out not to be a
+  readable PDF says so honestly and offers to save a copy instead. Images
+  keep their existing quick viewers.
 - **Terrain relief and satellite imagery now work on Android.** They were
   web-only: the Android app shipped the vector basemap inside the package and
   had no way to reach the other archives at all. Both are now the same
