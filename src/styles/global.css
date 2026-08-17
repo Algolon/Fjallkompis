@@ -4326,33 +4326,55 @@ button.stop-fac:focus-visible {
 }
 
 /* --- In-app PDF viewer (WalletPdfViewer) -----------------------------------
-   The app's own full-screen document surface: Wallet, Travel & stays and the
-   Today quick access all open stored PDFs HERE — no browser tab, no external
-   viewer app. A native <dialog> like every other overlay, but full-bleed:
-   a document is a destination, not a form, so it gets the whole screen.
-   The header wears the paper surface with the document title; pages stack
-   on the deeper stone tone so their white sheets read as pages, with quiet
-   gaps. Safe-area padding keeps the chrome out of the status bar / gesture
-   areas on the phones (both the installed PWA and the native shell resolve
-   --safe-top/--safe-bottom). */
+   The app's own document LIGHTBOX: Wallet, Travel & stays and the Today
+   quick access all open stored PDFs HERE — no browser tab, no external
+   viewer app, and no "new screen" feeling. The originating surface stays
+   visible behind a dimmed backdrop; the document sits above it on a rounded
+   Fjallkompis surface — nearly full-screen on phones (a small but visible
+   outer margin keeps the layered-over reading; the document, not the
+   backdrop, dominates), a clearly centred modal with generous backdrop on
+   tablet/desktop widths. The header wears the paper surface with the
+   document title; pages stack on the deeper stone tone so their white
+   sheets read as pages, with quiet gaps. The dialog is kept INSIDE the safe
+   areas by its margins, so the modal chrome never needs inset padding of
+   its own. Backdrop clicks land on the <dialog> element itself (the chrome
+   fills the surface), which is what the component's close-on-backdrop
+   handler keys on; the ::backdrop pseudo-element carries no semantics for
+   assistive tech. */
 .pdf-viewer {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  width: min(680px, calc(100vw - 24px));
+  height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px);
   max-width: none;
   max-height: none;
-  margin: 0;
+  margin: calc(var(--safe-top) + 12px) auto calc(var(--safe-bottom) + 12px);
   padding: 0;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
   background: var(--stone-bg);
   color: var(--ink);
+  box-shadow: 0 16px 48px rgba(27, 42, 39, 0.32);
+  overflow: hidden;
 }
 .pdf-viewer::backdrop {
-  /* Full-bleed surface: the backdrop is never visible, keep it inert. */
-  background: transparent;
+  /* The originating screen stays recognisable through the dim — same
+     neutral spruce scrim as the credential viewer. */
+  background: rgba(27, 42, 39, 0.45);
+}
+/* Same centre-pop entrance as the credential viewer (a lightbox appears,
+   it does not slide in like a form); the global prefers-reduced-motion
+   rule disables it wholesale. */
+.pdf-viewer[open] {
+  animation: credential-pop 0.16s ease;
+}
+/* Wider viewports: a clearly centred modal with real backdrop around it. */
+@media (min-width: 760px) {
+  .pdf-viewer {
+    width: min(680px, calc(100vw - 96px));
+    height: min(calc(100dvh - 80px), 920px);
+    margin: auto;
+  }
 }
 .pdf-viewer__chrome {
   display: flex;
@@ -4364,7 +4386,7 @@ button.stop-fac:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(10px + var(--safe-top)) 16px 10px;
+  padding: 10px 14px;
   background: var(--paper);
   border-bottom: 1px solid var(--line);
   flex: none;
@@ -4383,18 +4405,25 @@ button.stop-fac:focus-visible {
   flex: 1;
   overflow: auto;
   overscroll-behavior: contain;
-  /* Native one-finger panning in both axes; pinch is tracked by the app
-     (the viewport meta disables browser zoom throughout the app). */
+  /* Native one-finger panning in both axes — real scroll physics, bounded
+     by the scroller itself. Pinch is tracked by the app (the viewport meta
+     disables browser zoom throughout); two-finger moves are consumed by a
+     non-passive touchmove listener in the component so native panning
+     never fights a live pinch. */
   touch-action: pan-x pan-y;
-  padding: 14px 12px calc(14px + var(--safe-bottom));
+  padding: 14px 12px;
 }
 .pdf-viewer__column {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  /* The page gap is set inline, SCALED with zoom (pdfViewerCore.pageGap):
+     the zoom-commit arithmetic assumes the whole column scales uniformly,
+     and a fixed gap would put the anchored point off by pagesAbove × gap ×
+     (ratio − 1). */
   width: max-content;
   min-width: 100%;
+  will-change: transform;
 }
 .pdf-viewer__page {
   position: relative;
@@ -4403,8 +4432,14 @@ button.stop-fac:focus-visible {
   border-radius: 2px;
   box-shadow: 0 1px 4px rgba(27, 42, 39, 0.12);
 }
+/* The canvas FILLS its wrapper: the wrapper carries the exact layout size
+   for the current zoom (React-driven), so on a zoom commit the existing
+   bitmap stretches to the new size instantly and the sharp offscreen
+   re-render swaps in without moving anything. */
 .pdf-viewer__canvas {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 /* Quiet shimmer-free placeholder while a page's canvas is being drawn. */
 .pdf-viewer__page-loading {

@@ -95,3 +95,99 @@ function range(from, to) {
   for (let i = from; i <= to; i += 1) out.push(i);
   return out;
 }
+
+/* ---- Pinch-zoom gesture arithmetic -----------------------------------------
+ *
+ * The viewer's zoom contract: the CONTENT POINT under the fingers' midpoint
+ * stays visually anchored — while the pinch is live (a cheap CSS transform)
+ * AND across the commit, when the layout re-flows at the new zoom and the
+ * scroller is repositioned in the same frame. Both halves read from the same
+ * numbers, so they cannot disagree:
+ *
+ *   live:    transform-origin at the focal CONTENT point, scale by
+ *            pending/committed zoom, translate by the midpoint's own drift
+ *            (two fingers panning while pinching);
+ *   commit:  the focal content point scales with the layout (×ratio); the
+ *            scroll offset that puts it back under the fingers' final
+ *            midpoint is derived, not discovered.
+ *
+ * Everything here is column-relative: `focalContent` is measured against the
+ * page column's untransformed box (the element the transform applies to),
+ * and the commit result is an absolute scroller offset. Pure functions —
+ * `node --test` drives the whole gesture as arithmetic.
+ */
+
+/**
+ * Live state for an in-progress pinch.
+ *
+ * @param {object} g
+ * @param {number} g.zoom - the committed zoom when the pinch started.
+ * @param {number} g.startDistance - finger distance at pinch start (px > 0).
+ * @param {number} g.currentDistance - finger distance now.
+ * @param {{x: number, y: number}} g.startMid - midpoint at start, in COLUMN
+ *   coordinates (client point minus the column's client rect origin).
+ * @param {{x: number, y: number}} g.currentMid - midpoint now, in the same
+ *   frame of reference as startMid was CAPTURED (client-relative drift is
+ *   what matters, so both are simply client coordinates in practice).
+ * @returns {{ pendingZoom: number, scale: number,
+ *             originX: number, originY: number,
+ *             translateX: number, translateY: number }}
+ *   scale/origin/translate describe the live CSS transform:
+ *   translate(tx,ty) scale(s) with transform-origin at (originX, originY).
+ */
+export function pinchState(g) {
+  const safeStart = g.startDistance > 0 ? g.startDistance : 1;
+  const pendingZoom = clampZoom(g.zoom * (g.currentDistance / safeStart));
+  return {
+    pendingZoom,
+    scale: pendingZoom / g.zoom,
+    originX: g.startMid.x,
+    originY: g.startMid.y,
+    translateX: g.currentMid.x - g.startMid.x,
+    translateY: g.currentMid.y - g.startMid.y,
+  };
+}
+
+/**
+ * The scroller offsets that keep the focal point anchored across the commit.
+ *
+ * At commit the live transform is cleared and the column re-lays-out at
+ * `pendingZoom` — every content coordinate scales by `ratio`. The one scroll
+ * position that makes this invisible places the SCALED focal content point
+ * exactly where the live transform last showed it.
+ *
+ * @param {object} c
+ * @param {number} c.zoom - committed zoom before the pinch.
+ * @param {number} c.pendingZoom - the zoom being committed.
+ * @param {{x: number, y: number}} c.focalContent - the anchored point in
+ *   column coordinates of the OLD layout (== pinchState's origin).
+ * @param {{x: number, y: number}} c.focalViewport - where that point sits in
+ *   the scroller's content-box viewport at release (start midpoint plus the
+ *   gesture's translate), relative to the scroller's padding-box origin.
+ * @param {{left: number, top: number}} c.columnOffset - the column's offset
+ *   from the scroller's content origin (scroller padding; horizontal
+ *   centering slack is 0 whenever the column fills the viewport).
+ * @returns {{ scrollLeft: number, scrollTop: number }} clamped at 0; the
+ *   scroller clamps its own maximum.
+ */
+export function zoomCommitScroll(c) {
+  const ratio = c.pendingZoom / c.zoom;
+  return {
+    scrollLeft: Math.max(0, c.columnOffset.left + c.focalContent.x * ratio - c.focalViewport.x),
+    scrollTop: Math.max(0, c.columnOffset.top + c.focalContent.y * ratio - c.focalViewport.y),
+  };
+}
+
+/**
+ * The vertical gap between pages, SCALED with zoom. The commit arithmetic
+ * assumes the whole column scales uniformly by `pendingZoom / zoom`; a fixed
+ * pixel gap would break that for every page after the first (the anchored
+ * point would land short by pagesAbove × gap × (ratio − 1)). Scaling the gap
+ * keeps the model exact — and reads naturally, like zooming one continuous
+ * document.
+ */
+export const BASE_PAGE_GAP = 10;
+
+export function pageGap(zoom) {
+  return Math.round(BASE_PAGE_GAP * clampZoom(zoom));
+}
