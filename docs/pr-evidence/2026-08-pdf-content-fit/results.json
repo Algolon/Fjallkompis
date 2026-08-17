@@ -1,0 +1,91 @@
+{
+  "onePage": {
+    "viewportH": 915,
+    "dialog": {
+      "top": 164,
+      "height": 587,
+      "bottom": 751
+    },
+    "backdropBelow": 164,
+    "backdropAbove": 164,
+    "scroller": {
+      "height": 540,
+      "scrollHeight": 540,
+      "clientHeight": 540,
+      "scrollTop": 0
+    },
+    "pageCount": 1,
+    "firstPageH": 512,
+    "gapBelowLastPage": 14,
+    "scrolls": false
+  },
+  "onePageZoomed": {
+    "dialogHeightBefore": 587,
+    "dialogHeightAfter": 587,
+    "dialogTopBefore": 164,
+    "dialogTopAfter": 164,
+    "outerModalStable": true,
+    "zoomedContentScrolls": true
+  },
+  "twoPage": {
+    "viewportH": 915,
+    "dialog": {
+      "top": 16,
+      "height": 883,
+      "bottom": 899
+    },
+    "backdropBelow": 16,
+    "backdropAbove": 16,
+    "scroller": {
+      "height": 836,
+      "scrollHeight": 1062,
+      "clientHeight": 836,
+      "scrollTop": 0
+    },
+    "pageCount": 2,
+    "firstPageH": 512,
+    "gapBelowLastPage": -212,
+    "capped": true,
+    "scrollsInside": true
+  },
+  "twoPageEnd": {
+    "headerVisible": true,
+    "gapBelowLastPage": 14
+  },
+  "fivePage": {
+    "viewportH": 915,
+    "dialog": {
+      "top": 16,
+      "height": 883,
+      "bottom": 899
+    },
+    "backdropBelow": 16,
+    "backdropAbove": 16,
+    "scroller": {
+      "height": 836,
+      "scrollHeight": 2628,
+      "clientHeight": 836,
+      "scrollTop": 0
+    },
+    "pageCount": 5,
+    "firstPageH": 512,
+    "gapBelowLastPage": -1778,
+    "capEqualsTwoPageCap": true,
+    "lastPageRendered": true
+  },
+  "corrupt": {
+    "offersSave": true,
+    "compactCard": true,
+    "dialogHeight": 267
+  },
+  "imageRegression": true,
+  "backdropClose": true,
+  "desktop": {
+    "height": 688,
+    "top": 40,
+    "bottomBackdrop": 40,
+    "horizontallyCentred": true,
+    "verticallyCentred": true,
+    "cappedBelowViewport": true
+  }
+}

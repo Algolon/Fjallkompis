@@ -4341,14 +4341,25 @@ button.stop-fac:focus-visible {
    fills the surface), which is what the component's close-on-backdrop
    handler keys on; the ::backdrop pseudo-element carries no semantics for
    assistive tech. */
+/* CONTENT-FIT SIZING. The modal WRAPS the document: `height: fit-content`
+   sizes it to header + fit-width pages + padding (the component pins the
+   document viewport to its fit-layout height, so committing a zoom never
+   resizes this frame), and the max-height caps a tall or multi-page
+   document at the viewport, at which point only the document area scrolls
+   under the fixed header. A one-page ticket therefore reads as a compact
+   document card — no flexible spacer below the page — vertically centred
+   between the safe areas (the inset carries them; margin: auto centres
+   the shrink-wrapped box inside). The 16px breathing margins mean a
+   capped modal uses (100dvh − insets − 32px): on inset-less emulation
+   ~96dvh, and on real phones (status bar + gesture inset) ~89–93dvh. */
 .pdf-viewer {
   position: fixed;
-  inset: 0;
+  inset: calc(var(--safe-top) + 16px) 0 calc(var(--safe-bottom) + 16px);
   width: min(680px, calc(100vw - 24px));
-  height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px);
+  height: fit-content;
   max-width: none;
-  max-height: none;
-  margin: calc(var(--safe-top) + 12px) auto calc(var(--safe-bottom) + 12px);
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px);
+  margin: auto;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -4356,6 +4367,14 @@ button.stop-fac:focus-visible {
   color: var(--ink);
   box-shadow: 0 16px 48px rgba(27, 42, 39, 0.32);
   overflow: hidden;
+  /* The dialog is ITSELF the flex column for header/state/scroller. Its
+     used height (fit-content capped by max-height) is definite for its own
+     flex children, so the document viewport truly shrinks under the cap —
+     an intermediate `height: 100%` wrapper cannot deliver that: percentage
+     heights against a content-sized parent compute as auto, leaving the
+     scroller at natural height, clipped, its tail unreachable. */
+  display: flex;
+  flex-direction: column;
 }
 .pdf-viewer::backdrop {
   /* The originating screen stays recognisable through the dim — same
@@ -4368,18 +4387,14 @@ button.stop-fac:focus-visible {
 .pdf-viewer[open] {
   animation: credential-pop 0.16s ease;
 }
-/* Wider viewports: a clearly centred modal with real backdrop around it. */
+/* Wider viewports: a clearly centred modal with real backdrop around it —
+   still content-fit, with the same treatment capped a little tighter. */
 @media (min-width: 760px) {
   .pdf-viewer {
+    inset: 40px 0;
     width: min(680px, calc(100vw - 96px));
-    height: min(calc(100dvh - 80px), 920px);
-    margin: auto;
+    max-height: min(calc(100dvh - 80px), 920px);
   }
-}
-.pdf-viewer__chrome {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 .pdf-viewer__head {
   display: flex;
@@ -4402,7 +4417,12 @@ button.stop-fac:focus-visible {
   white-space: nowrap;
 }
 .pdf-viewer__scroller {
-  flex: 1;
+  /* The component sets an explicit height — the document's FIT-WIDTH
+     height — so the modal wraps short documents exactly. Shrink (never
+     grow) inside the capped dialog; min-height 0 is what lets a flex
+     child actually shrink below its content. */
+  flex: 0 1 auto;
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   /* Native one-finger panning in both axes — real scroll physics, bounded
@@ -4449,6 +4469,10 @@ button.stop-fac:focus-visible {
 }
 .pdf-viewer__state {
   flex: 1;
+  /* In a content-fit dialog the loading/error states have no document to
+     size against — a modest minimum keeps them reading as a card, not a
+     strip. */
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -34,6 +34,7 @@ import {
   MIN_ZOOM,
   PAGE_PIXEL_BUDGET,
   clampZoom,
+  fitDocumentHeight,
   fitToWidthScale,
   pageGap,
   pinchState,
@@ -268,6 +269,25 @@ test('the page gap scales with zoom, keeping the uniform-scaling model exact', (
   assert.equal(pageGap(99), BASE_PAGE_GAP * MAX_ZOOM, 'gap input is clamped like zoom');
 });
 
+test('fitDocumentHeight wraps a one-page document exactly — no trailing spacer', () => {
+  // A4 fit to a 364px column: round(842 × 364/595) = 515, plus 28px padding.
+  assert.equal(fitDocumentHeight([{ w: 595, h: 842 }], 364, 28), 515 + 28);
+  // The same rounding and 2× upscale cap as the page slots themselves.
+  assert.equal(
+    fitDocumentHeight([{ w: 100, h: 50 }], 1000, 28),
+    Math.round(50 * 2) + 28,
+    'a tiny page contributes its capped 2× height, exactly like its slot renders',
+  );
+});
+
+test('fitDocumentHeight stacks multi-page documents with base gaps', () => {
+  const a4 = { w: 595, h: 842 };
+  const one = fitDocumentHeight([a4], 364, 28);
+  const three = fitDocumentHeight([a4, a4, a4], 364, 28);
+  assert.equal(three, one + 2 * (515 + BASE_PAGE_GAP),
+    'each extra page adds its fit height plus ONE base gap — nothing more');
+});
+
 // ---- Architecture guards (source contracts) ------------------------------------
 
 const engine = read('src/pdf/pdfEngine.ts');
@@ -348,19 +368,48 @@ test('the viewer keeps the app-shell contract: title, close, honest error, no ha
 
 test('the viewer is a modal LIGHTBOX layered over the originating screen', () => {
   const css = read('src/styles/global.css');
-  const block = css.slice(css.indexOf('.pdf-viewer {'), css.indexOf('.pdf-viewer__save-note'));
+  const block = css.slice(css.indexOf('/* CONTENT-FIT SIZING'), css.indexOf('.pdf-viewer__save-note'));
   assert.match(block, /\.pdf-viewer::backdrop\s*{[^}]*rgba\(/,
     'the backdrop DIMS the originating screen — it is visible behind, never covered');
   assert.ok(!/::backdrop\s*{[^}]*transparent/.test(block),
     'the old full-bleed transparent backdrop must not come back');
   assert.match(block, /border-radius: var\(--r-lg\)/, 'rounded Fjallkompis surface');
   assert.match(block, /calc\(100vw - 24px\)/,
-    'phones keep a small but VISIBLE outer margin — near full-screen, not a tiny card');
-  assert.match(block, /margin: calc\(var\(--safe-top\)[^;]*auto/,
-    'the modal sits inside the safe areas via its margins');
+    'phones keep the near-full-WIDTH treatment — the page is never shrunk to expose backdrop');
+  assert.match(block, /inset: calc\(var\(--safe-top\)[^;]*calc\(var\(--safe-bottom\)/,
+    'the modal sits inside the safe areas via its inset');
   assert.match(block, /@media \(min-width: 760px\)/,
     'wider viewports get a clearly centred modal with more backdrop');
   assert.ok(!/100vw;\s*\n\s*height: 100vh/.test(block), 'no full-bleed sizing remains');
+});
+
+test('the modal is CONTENT-FIT: it wraps short documents and caps tall ones', () => {
+  const css = read('src/styles/global.css');
+  const block = css.slice(css.indexOf('/* CONTENT-FIT SIZING'), css.indexOf('.pdf-viewer__save-note'));
+  assert.match(block, /height: fit-content/,
+    'the dialog is sized by its content — a one-page ticket wraps, no fixed viewport height');
+  assert.ok(!/^\s*height: calc\(100dvh/m.test(block),
+    'the old fixed viewport height (the giant blank area under short PDFs) must not return');
+  assert.match(block, /max-height: calc\(100dvh - var\(--safe-top\) - var\(--safe-bottom\) - 32px\)/,
+    'tall documents cap at the viewport and scroll inside');
+  assert.match(block, /margin: auto/,
+    'the shrink-wrapped modal is vertically centred in the safe area');
+  assert.match(block, /flex: 0 1 auto/,
+    'the document viewport SHRINKS inside the cap but never grows past its content');
+  assert.match(block, /min-height: 0/,
+    'without min-height 0 a flex child cannot shrink below its content — the cap would not bite');
+  // The component pins the scroller to the fit-layout document height, so
+  // the modal wraps the document and a zoom commit cannot resize it.
+  assert.match(viewer, /fitDocumentHeight\(/,
+    'the scroller height is the shared fit-layout arithmetic');
+  assert.match(viewer, /style=\{\{ height: documentHeight \}\}/,
+    'and it is applied as an explicit height, independent of the current zoom');
+  const docHeightBlock = viewer.slice(
+    viewer.indexOf('const documentHeight'),
+    viewer.indexOf('return fitDocumentHeight'),
+  );
+  assert.ok(!/\bzoom\b/.test(docHeightBlock),
+    'the modal frame is computed from the FIT layout only — never from the zoom state');
 });
 
 test('backdrop tap closes — with a guard so a pinch can never close it', () => {

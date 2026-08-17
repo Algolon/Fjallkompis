@@ -191,3 +191,33 @@ export const BASE_PAGE_GAP = 10;
 export function pageGap(zoom) {
   return Math.round(BASE_PAGE_GAP * clampZoom(zoom));
 }
+
+/**
+ * The document viewport's natural height at FIT-WIDTH — what the modal
+ * wraps. The lightbox is content-sized: a one-page ticket gets
+ * `header + page + padding` of modal and nothing more, while a document
+ * taller than the viewport cap scrolls INSIDE a capped modal. This number
+ * is computed from the fit layout (zoom 1) exclusively, and the viewer
+ * pins its scroller to it, so committing a zoom or a live pinch transform
+ * can never resize the outer modal — the document moves inside a stable
+ * frame.
+ *
+ * Mirrors the page slots' own arithmetic exactly: each page's CSS height
+ * is round(pageHeight × fitToWidthScale) — same rounding, same 2× upscale
+ * cap — plus the base (unzoomed) gap between pages and the scroller's
+ * vertical padding.
+ *
+ * @param {Array<{w: number, h: number}>} pages - per-page dims at pdf
+ *   scale 1, in order (unmeasured pages pass the shared estimate).
+ * @param {number} columnWidth - the scroller's content width.
+ * @param {number} verticalPadding - the scroller's top+bottom padding.
+ * @returns {number} the scroller height that exactly wraps the document.
+ */
+export function fitDocumentHeight(pages, columnWidth, verticalPadding) {
+  let height = verticalPadding;
+  for (const page of pages) {
+    height += Math.round(page.h * fitToWidthScale(page.w, columnWidth));
+  }
+  if (pages.length > 1) height += (pages.length - 1) * BASE_PAGE_GAP;
+  return height;
+}

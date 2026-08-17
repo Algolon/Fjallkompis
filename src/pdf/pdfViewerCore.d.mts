@@ -44,3 +44,9 @@ export declare function zoomCommitScroll(c: {
 
 export declare const BASE_PAGE_GAP: number;
 export declare function pageGap(zoom: number): number;
+
+export declare function fitDocumentHeight(
+  pages: Array<{ w: number; h: number }>,
+  columnWidth: number,
+  verticalPadding: number,
+): number;

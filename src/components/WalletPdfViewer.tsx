@@ -15,6 +15,7 @@ import { saveGeneratedFile } from '../runtime/fileSave';
 import { walletDownloadFileName } from '../wallet/walletModel.mjs';
 import {
   clampZoom,
+  fitDocumentHeight,
   fitToWidthScale,
   pageGap,
   pinchState,
@@ -453,6 +454,22 @@ export function WalletPdfViewer({
     return pageDims.get(1) ?? { w: 595, h: 842 };
   }, [pageDims]);
 
+  // ---- Content-fit modal sizing ------------------------------------------------
+  // The scroller is pinned to the document's FIT-WIDTH height: the dialog is
+  // `height: fit-content` with a viewport max-height, so a one-page ticket
+  // gets a modal that wraps `header + page + padding` and a long document
+  // caps out and scrolls inside. Computed from zoom 1 ONLY — committing a
+  // pinch grows the column INSIDE this stable frame, never the modal itself.
+  // (14px top + 14px bottom scroller padding — keep in step with the CSS.)
+  const documentHeight = useMemo(() => {
+    if (pageCount === 0 || columnWidth <= 0) return undefined;
+    const pages = Array.from(
+      { length: pageCount },
+      (_, i) => pageDims.get(i + 1) ?? estimate,
+    );
+    return fitDocumentHeight(pages, columnWidth, 28);
+  }, [pageCount, columnWidth, pageDims, estimate]);
+
   return (
     <dialog
       ref={dialogRef}
@@ -477,8 +494,15 @@ export function WalletPdfViewer({
         }
       }}
     >
-      <div className="pdf-viewer__chrome">
-        <header className="pdf-viewer__head">
+      {/* The header/state/scroller are DIRECT flex children of the dialog:
+          the dialog's used height (fit-content, capped by max-height) is
+          definite for laying out its own flex children, so the scroller
+          genuinely shrinks under the cap. An intermediate wrapper with
+          `height: 100%` cannot do this — a percentage against a
+          content-sized parent computes as auto, and the scroller would
+          keep its natural height and be clipped, with the pages below the
+          fold unreachable. */}
+      <header className="pdf-viewer__head">
           <h2 id={headingId} className="pdf-viewer__title">
             {doc.title}
           </h2>
@@ -518,6 +542,7 @@ export function WalletPdfViewer({
           <div
             ref={scrollerRef}
             className="pdf-viewer__scroller"
+            style={{ height: documentHeight }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={endPointer}
@@ -547,7 +572,6 @@ export function WalletPdfViewer({
             </div>
           </div>
         ) : null}
-      </div>
     </dialog>
   );
 }
