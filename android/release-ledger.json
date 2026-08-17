@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700011,
+  "highestConsumedVersionCode": 2700012,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -128,6 +128,16 @@
       "sourceSha": "b0c0e417d5769ff6db0d910d404c870ea8636a31",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32015242333",
       "note": "PDF tickets and documents now open directly inside Fjallkompis, with offline viewing, scrolling and zoom support."
+    },
+    {
+      "versionCode": 2700012,
+      "versionName": "0.27.0",
+      "androidBuild": 12,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-17",
+      "sourceSha": "c8f8b2ad81ef3b573db784a4d0ddcc7773029697",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32034713832",
+      "note": "Refined the in-app PDF viewer with a modal lightbox, smoother pinch zoom, and more natural document navigation."
     }
   ]
 }
