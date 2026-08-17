@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700010,
+  "highestConsumedVersionCode": 2700011,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -118,6 +118,16 @@
       "sourceSha": "4eff3fdca050e2d06b4112e02d6e061a49350d97",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/31800585921",
       "note": "Fixed PDF viewing on Android so tickets and documents can be opened reliably from Today, Travel & stays, and Trail Wallet."
+    },
+    {
+      "versionCode": 2700011,
+      "versionName": "0.27.0",
+      "androidBuild": 11,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-17",
+      "sourceSha": "b0c0e417d5769ff6db0d910d404c870ea8636a31",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32015242333",
+      "note": "PDF tickets and documents now open directly inside Fjallkompis, with offline viewing, scrolling and zoom support."
     }
   ]
 }
