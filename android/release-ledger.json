@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700012,
+  "highestConsumedVersionCode": 2700013,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -138,6 +138,16 @@
       "sourceSha": "c8f8b2ad81ef3b573db784a4d0ddcc7773029697",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32034713832",
       "note": "Refined the in-app PDF viewer with a modal lightbox, smoother pinch zoom, and more natural document navigation."
+    },
+    {
+      "versionCode": 2700013,
+      "versionName": "0.27.0",
+      "androidBuild": 13,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-17",
+      "sourceSha": "2310206825cd12602ebe1e82b987691777f9420a",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32057725032",
+      "note": "Refined the in-app PDF viewer so short documents fit their content while longer PDFs scroll naturally inside the modal."
     }
   ]
 }
