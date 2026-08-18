@@ -234,13 +234,29 @@ h3 {
   }
 }
 
+/* The workspace slot: everything between the navigation edges. It exists so
+   TWO surfaces can share exactly the same box — the keyed <main> that content
+   destinations remount into, and the persistent Map workspace stacked over it
+   (position:absolute; inset:0 resolves to precisely this slot in both the
+   compact column and the ≥760px rail row, with no duplicated arithmetic
+   about rail widths or tab-bar heights). Flexbox stays the single authority
+   on where the slot is. */
+.app-workspaces {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 /* The single scroll region. flex:1 + min-height:0 lets it fill the space the
    tab bar leaves and shrink correctly inside the flex column; overflow-y:auto
    means it only scrolls when its screen overflows. Because the tab bar is an
    in-flow sibling (not fixed), its height is subtracted from this region once
    — the old design reserved that height as bottom padding *inside* the scroll
    area, which is what let a fitting page drag into empty space. */
-.app > main {
+.app-workspaces > main {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -248,15 +264,33 @@ h3 {
   -webkit-overflow-scrolling: touch;
 }
 
-/* The Map destination is a WORKSPACE, not a document: it fills the exact
-   height <main> offers between the top safe area and the in-flow tab bar,
-   and it never scrolls — panning the map, not the page, is how you move
-   around. Everything the screen shows is either the map itself or an
-   element positioned inside that fixed frame (its own scroll regions
-   where a panel genuinely overflows). The tab bar / rail is untouched and
-   stays visible, and no browser Fullscreen API is involved. */
-.app > main:has(.screen--map) {
+/* The persistent Map WORKSPACE, stacked over <main> in the same slot. It
+   mounts once (deferred, after the initial destination has rendered) and is
+   never unmounted by navigation — leaving the Map hides it, it does not
+   destroy the MapLibre instance.
+
+   Inactive state is `visibility: hidden`, deliberately NOT display:none:
+   hidden-but-laid-out keeps the container at its real viewport size, so
+   MapLibre can initialize, render and stay correctly sized in the
+   background (display:none would zero the canvas and force a resize/reveal
+   dance on every activation). visibility:hidden also removes the subtree
+   from hit-testing, keyboard focus and the accessibility tree; the shell
+   adds aria-hidden and the inert attribute on top as explicit, testable
+   semantics. The map never scrolls the shell — panning the map is how you
+   move — so the workspace clips its own overflow (the rule that used to
+   live on main:has(.screen--map) when the Map still mounted inside main). */
+.map-workspace {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+.map-workspace.is-active {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .screen {

@@ -42,6 +42,16 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Changed
 
+- **The Map is ready the moment you open it.** The map is now prepared
+  quietly in the background right after the app starts (never delaying
+  startup) and then kept running while you use the other tabs — so the
+  first deliberate Map open, and every one after it, shows an
+  already-drawn map instead of building one on the spot. Your view also
+  stays where you left it: the camera position, the stage you were
+  browsing, the terrain/satellite choice and an open hut preview all
+  survive switching tabs. Leaving the Map still stops any live-tracking
+  session (nothing tracks your location in the background), and changing
+  walking direction still resets the map to the new route as before.
 - **The Map appears sooner on the first open.** On the Android app, the
   first visit to the Map in a session used to show its controls over a
   blank surface for several seconds. Two things changed: the map data

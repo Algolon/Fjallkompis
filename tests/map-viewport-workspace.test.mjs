@@ -37,11 +37,14 @@ function block(selector) {
 
 // ---- No scrolling on the Map destination -----------------------------------
 
-test('the Map destination turns off <main> scrolling entirely', () => {
-  const main = block('.app > main:has(.screen--map)');
-  assert.match(main, /overflow: hidden/);
-  // …while every other screen keeps the single scroll region.
-  assert.match(block('.app > main'), /overflow-y: auto/);
+test('the Map workspace never scrolls the shell', () => {
+  // The Map lives in the persistent workspace layer stacked over <main>
+  // (P1 — see MapWorkspace.tsx), which clips its own overflow; the old
+  // main:has(.screen--map) rule moved there with it.
+  const workspace = block('.map-workspace');
+  assert.match(workspace, /overflow: hidden/);
+  // …while the content destinations keep the single scroll region.
+  assert.match(block('.app-workspaces > main'), /overflow-y: auto/);
 });
 
 test('the Map root fills <main> exactly and clips its own overflow', () => {

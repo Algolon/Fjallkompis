@@ -51,6 +51,7 @@ import {
   type ArchiveSpec,
 } from '../map/offlineMap';
 import { isBundledArchiveWarm } from '../map/archiveStore';
+import { recordMapConstructor, recordMapReady } from '../map/workspaceEvidence';
 import {
   cameraConstraintsFor,
   activeBoundsForZoom,
@@ -75,6 +76,13 @@ import { startAttributionCompact } from '../map/initialAttribution.mjs';
 export interface MapViewHandle {
   /** Move/hide the elevation-scrub marker without re-rendering React. */
   setScrubPoint: (p: { lat: number; lon: number } | null) => void;
+  /**
+   * Re-read the container's size (map.resize()). The persistent workspace
+   * calls this on activation: the map may have lived through layout changes
+   * while hidden, and an explicit resize on reveal is the cheap guarantee
+   * that the canvas matches the viewport the user is about to see.
+   */
+  resize: () => void;
   fitRoute: () => void;
   fitStage: (stageId: string) => void;
   resetBearing: () => void;
@@ -392,6 +400,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   };
 
   useImperativeHandle(ref, () => ({
+    resize: () => mapRef.current?.resize(),
     setScrubPoint(p) {
       const src = mapRef.current?.getSource('scrub') as GeoJSONSource | undefined;
       src?.setData(
@@ -565,6 +574,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         zoom: initialCamera.camera.zoom,
         sourceZoom: initialCamera.sourceZoom,
       });
+      // Session-level persistence evidence: this counter staying at 1 across
+      // tab switches IS the P1 claim (src/map/workspaceEvidence.ts).
+      recordMapConstructor();
       map = new maplibregl.Map({
         container: containerRef.current,
         style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, reliefRef.current),
@@ -917,6 +929,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           if (revealed || cancelled) return;
           revealed = true;
           trace('ready-first-useful-render', { evidence });
+          recordMapReady();
           setReady(true);
         };
         const revealWhenUseful = () => {

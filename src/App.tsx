@@ -25,7 +25,7 @@ import {
   type SectionThemeId,
 } from './components/SectionBackdrop';
 import { TodayScreen, type NavPayload } from './screens/TodayScreen';
-import { MapScreen } from './screens/MapScreen';
+import { MapWorkspace } from './components/MapWorkspace';
 import { StagesScreen } from './screens/StagesScreen';
 import { StopsScreen } from './screens/StopsScreen';
 import {
@@ -48,6 +48,7 @@ import {
 } from './runtime/platform';
 import { INITIAL_MAP_VIEW_STAGE_ID } from './map/mapDefaults.mjs';
 import { prewarmMapAssets } from './map/mapWarmup';
+import { scheduleWarmup } from './map/warmupScheduling.mjs';
 
 interface Nav {
   tab: TabId;
@@ -74,31 +75,23 @@ function Screens({
   nav,
   navigate,
   openSection,
-  mapViewStageId,
-  setMapViewStageId,
 }: {
   nav: Nav;
   navigate: (t: NavTarget, payload?: NavPayload) => void;
   /** Guide/Plan internal navigation: home ↔ section (null = back home). */
   openSection: (tab: 'guide' | 'plan', section: SectionId | null) => void;
-  mapViewStageId: string | null;
-  setMapViewStageId: (stageId: string | null) => void;
 }) {
   switch (nav.tab) {
     case 'today':
       return <TodayScreen onNavigate={navigate} />;
     case 'map':
-      // Focused callback (not the whole router): the map's anchored stop
-      // preview opens the stop's full detail in Guide → Stops & places via
-      // the existing destination + one-shot payload pattern.
-      return (
-        <MapScreen
-          viewStageId={mapViewStageId}
-          onViewStageChange={setMapViewStageId}
-          onOpenStop={(stopId) => navigate('huts', { stopId })}
-          focus={nav.payload?.mapFocus ?? null}
-        />
-      );
+      // The Map is NOT a content destination any more: it lives in the
+      // persistent MapWorkspace layer the shell stacks over <main> (see the
+      // AppShell composition), pre-initialized in the background and merely
+      // ACTIVATED here. Rendering a second MapScreen from this switch would
+      // construct a second MapLibre instance, which is exactly what the
+      // workspace architecture forbids.
+      return null;
     case 'guide':
       switch (nav.section) {
         case 'stages':
@@ -254,6 +247,28 @@ function AppShell() {
     prewarmMapAssets();
   }, []);
 
+  // ---- Persistent Map workspace: deferred background initialization -------
+  // The Map is pre-initialized as a persistent workspace (MapWorkspace.tsx)
+  // rather than constructed on tab entry. Mounting starts on the SAME
+  // deferred-startup policy as the basemap warm-up — after the initial
+  // destination has rendered and the main thread goes idle (bounded timeout,
+  // setTimeout fallback; src/map/warmupScheduling.mjs) — so Today keeps boot
+  // priority and startup can never block on the map. Once true this never
+  // goes back to false: navigation toggles the workspace's `active` flag,
+  // it does not unmount the map.
+  const [mapWorkspaceMounted, setMapWorkspaceMounted] = useState(
+    // A session that OPENS on #/map mounts immediately: there is no earlier
+    // destination to prioritize, and deferring would just delay the map.
+    () => nav.tab === 'map',
+  );
+  useEffect(() => scheduleWarmup(() => setMapWorkspaceMounted(true)), []);
+  // The user beat the idle callback to the Map tab: mount NOW. The workspace
+  // in flight is the same one the schedule would have mounted — there is one
+  // mounted-flag and one workspace element, so a second map cannot exist.
+  useEffect(() => {
+    if (nav.tab === 'map') setMapWorkspaceMounted(true);
+  }, [nav.tab]);
+
   // Android's Back button drives the SAME hash history the browser's Back
   // button drives — the adapter delegates to history.back() rather than
   // introducing a second navigation model, and minimizes the app once there
@@ -401,22 +416,48 @@ function AppShell() {
             remount so it persists across home ↔ subroute navigation — no
             flicker, no re-request, no first-frame resize. */}
         {sectionTheme ? <SectionBackdrop section={sectionTheme} /> : null}
-        {/* key forces the fade-in animation per destination change; a
-            cross-tab arrival mounts COMPOSED instead (no content fade), so
-            the instantly-swapped backdrop is never exposed behind
-            near-transparent UI — see Nav.freshTab. */}
-        <main
-          key={`${nav.tab}${nav.section ? `-${nav.section}` : ''}`}
-          className={nav.freshTab ? 'main-tab-switch' : undefined}
-        >
-          <Screens
-            nav={nav}
-            navigate={navigate}
-            openSection={(tab, section) => navigateToDestination(tab, section)}
-            mapViewStageId={mapViewStageId}
-            setMapViewStageId={setMapViewStageId}
-          />
-        </main>
+        {/* The workspace slot: the keyed <main> for content destinations and
+            the persistent Map workspace stacked over the SAME box (see
+            .app-workspaces in global.css). */}
+        <div className="app-workspaces">
+          {/* key forces the fade-in animation per destination change; a
+              cross-tab arrival mounts COMPOSED instead (no content fade), so
+              the instantly-swapped backdrop is never exposed behind
+              near-transparent UI — see Nav.freshTab. */}
+          <main
+            key={`${nav.tab}${nav.section ? `-${nav.section}` : ''}`}
+            className={nav.freshTab ? 'main-tab-switch' : undefined}
+          >
+            <Screens
+              nav={nav}
+              navigate={navigate}
+              openSection={(tab, section) => navigateToDestination(tab, section)}
+            />
+          </main>
+          {/* THE Map. Mounted once — deferred to the idle phase after the
+              initial destination rendered, or immediately if the user gets
+              to the Map tab first — and never unmounted by navigation:
+              leaving the Map only deactivates (hides + inerts) it, so every
+              Map tap reveals the same already-initialized MapLibre instance.
+              Focused callback (not the whole router): the map's anchored
+              stop preview opens the stop's full detail in Guide → Stops &
+              places via the existing destination + one-shot payload
+              pattern. */}
+          {mapWorkspaceMounted ? (
+            <MapWorkspace
+              active={nav.tab === 'map'}
+              direction={routeDirection}
+              viewStageId={mapViewStageId}
+              onViewStageChange={setMapViewStageId}
+              onOpenStop={(stopId) => navigate('huts', { stopId })}
+              // A mapFocus payload only ever rides a navigation TO the Map,
+              // and every other navigation replaces the payload — so this is
+              // non-null exactly while the focus is current, and the screen's
+              // null transition is what clears the one-shot highlight.
+              focus={nav.payload?.mapFocus ?? null}
+            />
+          ) : null}
+        </div>
         <TabBar active={nav.tab} onChange={navigate} variant="bar" />
         {/* Install / offline-ready / service-worker-update prompts belong to
             the browser and installed-PWA runtimes only. Inside the Android
