@@ -95,6 +95,7 @@ function StopPreview({ stop, onOpen }: { stop: TrailStop; onOpen: () => void }) 
 }
 
 export function MapScreen({
+  active = true,
   viewStageId,
   onViewStageChange,
   onOpenStop,
@@ -102,6 +103,19 @@ export function MapScreen({
 }: {
   viewStageId: string | null;
   onViewStageChange: (stageId: string | null) => void;
+  /**
+   * Whether this screen is the visible destination right now. The persistent
+   * workspace keeps MapScreen mounted across tab switches (MapWorkspace.tsx),
+   * so "the user left the Map" is a prop transition here rather than an
+   * unmount. Three things hang off it:
+   *  - activation re-syncs the canvas size (map.resize());
+   *  - deactivation releases GPS exactly like the old unmount did — the
+   *    tracking hook's documented guarantee ("leaving the Map tab always
+   *    releases GPS") must survive the architecture change;
+   *  - nothing else: browsed scope, camera, imagery and popup state survive
+   *    tab switches on purpose.
+   */
+  active?: boolean;
   /** Focused navigation: open this stop's full detail in Huts & Stations. */
   onOpenStop?: (stopId: string) => void;
   /** One-shot "View on map": geometry-aware temporary highlight (verified only). */
@@ -320,6 +334,29 @@ export function MapScreen({
     setFollow(false);
   };
 
+  // ---- Persistent-workspace activation contract ---------------------------
+  // Leaving the Map used to unmount this screen; now it only deactivates it.
+  // Deactivation therefore takes over the one lifecycle job unmounting did:
+  // releasing GPS. A live session is foreground-AND-on-the-Map work — the
+  // hiker who switches to Plan gets exactly what they always got, a stopped
+  // watcher — while the one-shot marker, camera, scope and imagery survive
+  // as ordinary screen state. Activation re-syncs the canvas: the map may
+  // have lived through viewport changes while hidden, and one explicit
+  // resize() on reveal is cheaper than reasoning about which of them the
+  // hidden-but-laid-out container already absorbed.
+  const wasActiveRef = useRef(active);
+  useEffect(() => {
+    if (wasActiveRef.current === active) return;
+    wasActiveRef.current = active;
+    if (active) {
+      mapRef.current?.resize();
+      return;
+    }
+    if (tracking.active) tracking.stop();
+    setFollow(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
   // A one-shot Locate is a deliberate "show me where I am": ONE fix, the
   // marker updated, the camera centred once — no session, no follow mode.
   useEffect(() => {
@@ -340,11 +377,18 @@ export function MapScreen({
   }, [tracking.error, tracking.active, say]);
 
   // One-shot "View on map": highlight the experience's verified geometry — a
-  // point, an owner GPX route, or the whole Stage (route-wide). MapView remounts
-  // on tab switch / direction change, so the highlight never persists.
+  // point, an owner GPX route, or the whole Stage (route-wide). The screen is
+  // persistent now, so the one-shot contract is enforced HERE instead of by
+  // the old unmount-on-tab-switch: when the payload goes away (any navigation
+  // that doesn't carry one — returning to the Map, re-selecting the tab), the
+  // transient highlight is cleared from the focus source. Only the highlight:
+  // scope, camera and the rest of the screen state deliberately survive.
   useEffect(() => {
-    if (!focus) return;
     const m = mapRef.current;
+    if (!focus) {
+      m?.focusPoint(null);
+      return;
+    }
     if (!m) return;
     if (focus.kind === 'stage') {
       m.focusPoint(null);

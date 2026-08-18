@@ -50,7 +50,7 @@ test('a cross-tab arrival suppresses the destination content fade entirely', () 
   assert.match(app, /className=\{nav\.freshTab \? 'main-tab-switch' : undefined\}/);
   // …and the CSS kills the whole animation for that mount: no rule fades
   // only the content while the already-settled backdrop stays opaque.
-  assert.match(themes, /\.app > main\.main-tab-switch \.screen \{\s*\n\s*animation: none;/);
+  assert.match(themes, /\.app-workspaces > main\.main-tab-switch \.screen \{\s*\n\s*animation: none;/);
 });
 
 test('the flag is stable per destination — no in-place animation restarts', () => {

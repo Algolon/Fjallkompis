@@ -1,0 +1,498 @@
+{
+  "capturedAt": "2026-08-18T11:18:33.299Z",
+  "base": "http://localhost:4750/Fjallkompis/",
+  "scenarioBackgroundThenTour": {
+    "readyWallMs": 5055,
+    "afterBackgroundInit": {
+      "evidence": {
+        "workspaceMounts": 1,
+        "mapConstructors": 1,
+        "activations": 0,
+        "deactivations": 0,
+        "activationsWhileReady": 0,
+        "activationsWhileInitializing": 0,
+        "ready": true,
+        "readyAtMs": 5036.3
+      },
+      "workspaceState": "inactive",
+      "ariaHidden": "true",
+      "inert": true,
+      "mapReadyAttr": "true",
+      "lifecycle": [
+        {
+          "event": "mount",
+          "ms": 0
+        },
+        {
+          "event": "archive-resolution-start",
+          "ms": 0,
+          "detail": {
+            "bundledBasemapWarm": false
+          }
+        },
+        {
+          "event": "satellite-resolved",
+          "ms": 5.1,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "terrain-resolved",
+          "ms": 5.1,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "contours-resolved",
+          "ms": 5.2,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "basemap-resolved",
+          "ms": 16.2,
+          "detail": {
+            "mode": "online"
+          }
+        },
+        {
+          "event": "archives-resolved",
+          "ms": 16.2,
+          "detail": {
+            "basemap": "online",
+            "satellite": "none",
+            "terrain": "none",
+            "contours": "none"
+          }
+        },
+        {
+          "event": "constructor-start",
+          "ms": 17.7,
+          "detail": {
+            "zoom": 8.059355890765644,
+            "sourceZoom": 8
+          }
+        },
+        {
+          "event": "constructor-end",
+          "ms": 48.3
+        },
+        {
+          "event": "first-source-loading",
+          "ms": 77,
+          "detail": {
+            "sourceId": "protomaps"
+          }
+        },
+        {
+          "event": "first-styledata",
+          "ms": 84.6
+        },
+        {
+          "event": "resize-observer",
+          "ms": 87.9
+        },
+        {
+          "event": "first-source-data",
+          "ms": 101.3,
+          "detail": {
+            "sourceId": "protomaps",
+            "sourceDataType": "visibility",
+            "isSourceLoaded": false
+          }
+        },
+        {
+          "event": "first-render",
+          "ms": 144.5
+        },
+        {
+          "event": "load",
+          "ms": 542.5
+        },
+        {
+          "event": "route-content-ready",
+          "ms": 552.1
+        },
+        {
+          "event": "ready-first-useful-render",
+          "ms": 624.8,
+          "detail": {
+            "evidence": "required-sources-rendered"
+          }
+        }
+      ]
+    },
+    "activationLatencies": [
+      880,
+      138,
+      163,
+      195,
+      210
+    ],
+    "afterTour": {
+      "evidence": {
+        "workspaceMounts": 1,
+        "mapConstructors": 1,
+        "activations": 5,
+        "deactivations": 4,
+        "activationsWhileReady": 5,
+        "activationsWhileInitializing": 0,
+        "ready": true,
+        "readyAtMs": 5036.3
+      },
+      "workspaceState": "active",
+      "ariaHidden": "false",
+      "inert": false,
+      "mapReadyAttr": "true",
+      "lifecycle": [
+        {
+          "event": "mount",
+          "ms": 0
+        },
+        {
+          "event": "archive-resolution-start",
+          "ms": 0,
+          "detail": {
+            "bundledBasemapWarm": false
+          }
+        },
+        {
+          "event": "satellite-resolved",
+          "ms": 5.1,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "terrain-resolved",
+          "ms": 5.1,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "contours-resolved",
+          "ms": 5.2,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "basemap-resolved",
+          "ms": 16.2,
+          "detail": {
+            "mode": "online"
+          }
+        },
+        {
+          "event": "archives-resolved",
+          "ms": 16.2,
+          "detail": {
+            "basemap": "online",
+            "satellite": "none",
+            "terrain": "none",
+            "contours": "none"
+          }
+        },
+        {
+          "event": "constructor-start",
+          "ms": 17.7,
+          "detail": {
+            "zoom": 8.059355890765644,
+            "sourceZoom": 8
+          }
+        },
+        {
+          "event": "constructor-end",
+          "ms": 48.3
+        },
+        {
+          "event": "first-source-loading",
+          "ms": 77,
+          "detail": {
+            "sourceId": "protomaps"
+          }
+        },
+        {
+          "event": "first-styledata",
+          "ms": 84.6
+        },
+        {
+          "event": "resize-observer",
+          "ms": 87.9
+        },
+        {
+          "event": "first-source-data",
+          "ms": 101.3,
+          "detail": {
+            "sourceId": "protomaps",
+            "sourceDataType": "visibility",
+            "isSourceLoaded": false
+          }
+        },
+        {
+          "event": "first-render",
+          "ms": 144.5
+        },
+        {
+          "event": "load",
+          "ms": 542.5
+        },
+        {
+          "event": "route-content-ready",
+          "ms": 552.1
+        },
+        {
+          "event": "ready-first-useful-render",
+          "ms": 624.8,
+          "detail": {
+            "evidence": "required-sources-rendered"
+          }
+        },
+        {
+          "event": "idle-settled",
+          "ms": 1453.6
+        }
+      ]
+    },
+    "consoleErrors": []
+  },
+  "scenarioTapBeforeReady": {
+    "duringInit": {
+      "evidence": {
+        "workspaceMounts": 1,
+        "mapConstructors": 1,
+        "activations": 1,
+        "deactivations": 0,
+        "activationsWhileReady": 0,
+        "activationsWhileInitializing": 1,
+        "ready": false,
+        "readyAtMs": null
+      },
+      "workspaceState": "active",
+      "ariaHidden": "false",
+      "inert": false,
+      "mapReadyAttr": "false",
+      "lifecycle": [
+        {
+          "event": "mount",
+          "ms": 0
+        },
+        {
+          "event": "archive-resolution-start",
+          "ms": 0,
+          "detail": {
+            "bundledBasemapWarm": false
+          }
+        },
+        {
+          "event": "satellite-resolved",
+          "ms": 18.7,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "terrain-resolved",
+          "ms": 18.7,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "contours-resolved",
+          "ms": 18.8,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "basemap-resolved",
+          "ms": 27.2,
+          "detail": {
+            "mode": "online"
+          }
+        },
+        {
+          "event": "archives-resolved",
+          "ms": 27.2,
+          "detail": {
+            "basemap": "online",
+            "satellite": "none",
+            "terrain": "none",
+            "contours": "none"
+          }
+        },
+        {
+          "event": "constructor-start",
+          "ms": 28.5,
+          "detail": {
+            "zoom": 8.059355890765644,
+            "sourceZoom": 8
+          }
+        },
+        {
+          "event": "constructor-end",
+          "ms": 56.1
+        },
+        {
+          "event": "first-source-loading",
+          "ms": 72,
+          "detail": {
+            "sourceId": "protomaps"
+          }
+        },
+        {
+          "event": "first-styledata",
+          "ms": 79.1
+        },
+        {
+          "event": "resize-observer",
+          "ms": 81.2
+        },
+        {
+          "event": "first-source-data",
+          "ms": 85.8,
+          "detail": {
+            "sourceId": "protomaps",
+            "sourceDataType": "visibility",
+            "isSourceLoaded": false
+          }
+        },
+        {
+          "event": "first-render",
+          "ms": 106.4
+        }
+      ]
+    },
+    "final": {
+      "evidence": {
+        "workspaceMounts": 1,
+        "mapConstructors": 1,
+        "activations": 2,
+        "deactivations": 1,
+        "activationsWhileReady": 1,
+        "activationsWhileInitializing": 1,
+        "ready": true,
+        "readyAtMs": 1651.2
+      },
+      "workspaceState": "active",
+      "ariaHidden": "false",
+      "inert": false,
+      "mapReadyAttr": "true",
+      "lifecycle": [
+        {
+          "event": "mount",
+          "ms": 0
+        },
+        {
+          "event": "archive-resolution-start",
+          "ms": 0,
+          "detail": {
+            "bundledBasemapWarm": false
+          }
+        },
+        {
+          "event": "satellite-resolved",
+          "ms": 18.7,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "terrain-resolved",
+          "ms": 18.7,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "contours-resolved",
+          "ms": 18.8,
+          "detail": {
+            "mode": "none"
+          }
+        },
+        {
+          "event": "basemap-resolved",
+          "ms": 27.2,
+          "detail": {
+            "mode": "online"
+          }
+        },
+        {
+          "event": "archives-resolved",
+          "ms": 27.2,
+          "detail": {
+            "basemap": "online",
+            "satellite": "none",
+            "terrain": "none",
+            "contours": "none"
+          }
+        },
+        {
+          "event": "constructor-start",
+          "ms": 28.5,
+          "detail": {
+            "zoom": 8.059355890765644,
+            "sourceZoom": 8
+          }
+        },
+        {
+          "event": "constructor-end",
+          "ms": 56.1
+        },
+        {
+          "event": "first-source-loading",
+          "ms": 72,
+          "detail": {
+            "sourceId": "protomaps"
+          }
+        },
+        {
+          "event": "first-styledata",
+          "ms": 79.1
+        },
+        {
+          "event": "resize-observer",
+          "ms": 81.2
+        },
+        {
+          "event": "first-source-data",
+          "ms": 85.8,
+          "detail": {
+            "sourceId": "protomaps",
+            "sourceDataType": "visibility",
+            "isSourceLoaded": false
+          }
+        },
+        {
+          "event": "first-render",
+          "ms": 106.4
+        },
+        {
+          "event": "load",
+          "ms": 473
+        },
+        {
+          "event": "route-content-ready",
+          "ms": 485.5
+        },
+        {
+          "event": "ready-first-useful-render",
+          "ms": 558,
+          "detail": {
+            "evidence": "required-sources-rendered"
+          }
+        },
+        {
+          "event": "idle-settled",
+          "ms": 1205
+        }
+      ]
+    }
+  }
+}

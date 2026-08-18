@@ -291,6 +291,6 @@
    navigation keeps the restrained fade above: there the backdrop is the
    same familiar surface throughout, so the fade reads as one page.
    App.tsx sets .main-tab-switch from Nav.freshTab. */
-.app > main.main-tab-switch .screen {
+.app-workspaces > main.main-tab-switch .screen {
   animation: none;
 }
