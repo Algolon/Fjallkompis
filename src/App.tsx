@@ -47,6 +47,7 @@ import {
   subscribeAndroidBackButton,
 } from './runtime/platform';
 import { INITIAL_MAP_VIEW_STAGE_ID } from './map/mapDefaults.mjs';
+import { prewarmMapAssets } from './map/mapWarmup';
 
 interface Nav {
   tab: TabId;
@@ -242,6 +243,16 @@ function AppShell() {
   // band below the tab bar). See viewportHeight.mjs for the per-platform
   // authority and the WebKit bug reference.
   useEffect(() => startViewportHeightSync(), []);
+
+  // Android only: warm the packaged vector basemap's session read once the
+  // initial destination has rendered and the main thread goes idle, so the
+  // first deliberate Map open no longer pays that ~6 MB read on its critical
+  // path. Never blocks startup, warms nothing optional, downloads nothing;
+  // a failure leaves normal Map resolution as the fallback. A no-op in the
+  // browser and installed PWA. See src/map/mapWarmup.ts.
+  useEffect(() => {
+    prewarmMapAssets();
+  }, []);
 
   // Android's Back button drives the SAME hash history the browser's Back
   // button drives — the adapter delegates to history.back() rather than

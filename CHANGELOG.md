@@ -42,6 +42,15 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Changed
 
+- **The Map appears sooner on the first open.** On the Android app, the
+  first visit to the Map in a session used to show its controls over a
+  blank surface for several seconds. Two things changed: the map data
+  included with the app is now prepared quietly in the background right
+  after the app starts (never delaying startup itself, and never
+  downloading anything), and the map now appears as soon as the terrain
+  and your route are actually drawn, instead of also waiting for every
+  optional layer and animation to settle. Later Map opens in the same
+  session were already fast and stay that way.
 - **Terrain relief and satellite imagery are now used only from your own
   device.** Previously the browser version could quietly stream them over the
   network when you switched layer, which meant tens of megabytes could start

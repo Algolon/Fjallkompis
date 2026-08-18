@@ -160,6 +160,43 @@ export function getBundledArchiveBlob(spec: ArchiveSpec): Promise<Blob | null> {
   return pending;
 }
 
+/**
+ * True when the bundled archive's session read has already been started (or
+ * finished) — i.e. a Map mount would hit the `bundledBlobs` cache instead of
+ * paying the full-body read. Instrumentation-grade truth for the MapView
+ * lifecycle trace; false anywhere the archive is not served from the package.
+ */
+export function isBundledArchiveWarm(spec: ArchiveSpec): boolean {
+  return isBundledHere(spec) && bundledBlobs.has(archiveUrl(spec));
+}
+
+/**
+ * Warm the session cache for an archive bundled in the Android app package,
+ * so the first Map mount finds the ~6 MB read already done (or in flight)
+ * instead of paying it on the user-visible critical path.
+ *
+ * Deliberately THE SAME read as Map resolution — `getBundledArchiveBlob`'s
+ * session Promise cache — so a Map opened mid-warm-up joins the in-flight
+ * read and a warm-up after a Map open is a cache hit; there is no second
+ * archive-loading mechanism and never a duplicate full read.
+ *
+ * Failure is non-fatal AND non-sticky: a read that did not produce a usable
+ * blob evicts its own cache entry (identity-checked, so a newer retry is
+ * never deleted), which keeps normal Map resolution as a genuine fresh
+ * fallback rather than pre-poisoning it with a cached null. Resolves false
+ * off-Android and for non-bundled archives — warming those is not this
+ * function's job.
+ */
+export async function prewarmBundledArchive(spec: ArchiveSpec): Promise<boolean> {
+  if (!isBundledHere(spec)) return false;
+  const url = archiveUrl(spec);
+  const pending = getBundledArchiveBlob(spec);
+  const blob = await pending.catch(() => null);
+  if (blob) return true;
+  if (bundledBlobs.get(url) === pending) bundledBlobs.delete(url);
+  return false;
+}
+
 /** A local copy of an archive: the Blob to read, or null when there is none. */
 export interface LocalArchive {
   blob: Blob | null;

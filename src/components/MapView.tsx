@@ -32,6 +32,7 @@ import {
 } from '../map/stopMarkers.mjs';
 import type { ParsedRoute } from '../route/types';
 import {
+  BASEMAP_SOURCE,
   buildMapStyle,
   routeLayers,
   SATELLITE_LAYER,
@@ -49,6 +50,7 @@ import {
   VECTOR_ARCHIVE,
   type ArchiveSpec,
 } from '../map/offlineMap';
+import { isBundledArchiveWarm } from '../map/archiveStore';
 import {
   cameraConstraintsFor,
   activeBoundsForZoom,
@@ -460,7 +462,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     (async () => {
       const none: BasemapResolution = { mode: 'none', sourceUrl: null };
-      trace('archive-resolution-start');
+      // `bundledBasemapWarm` distinguishes a genuine cold open (the packaged
+      // ~6 MB read starts HERE, on the critical path) from a warmed/second
+      // open (the session cache answers) — the whole point of the deferred
+      // warm-up in src/map/mapWarmup.ts is to make this read `true` before
+      // the user's first deliberate Map open. Always false off Android.
+      trace('archive-resolution-start', {
+        bundledBasemapWarm: isBundledArchiveWarm(archive),
+      });
       const resolved = async (name: string, pending: Promise<BasemapResolution>) => {
         const value = await pending;
         trace(`${name}-resolved`, { mode: value.mode });
@@ -870,15 +879,65 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         }).setDOMContent(popupContentRef.current!);
 
         setLoaded(true);
-        // `load` only proves that the style is usable; the route sources and
-        // layers above were added during this handler and still need a frame.
-        // The first subsequent `idle` proves that those additions and every
-        // requested source tile have rendered with no pending transition.
-        // Only then may the real canvas replace the neutral workspace.
+        trace('route-content-ready');
+
+        // ---- Reveal contract: FIRST USEFUL RENDER -------------------------
+        // The canvas is revealed at the earliest visually coherent frame:
+        // the route sources/layers above are installed (they were added in
+        // this handler), and every source the first view NEEDS reports
+        // loaded — the basemap's tiles for the current viewport plus the
+        // route GeoJSON. The check runs per 'render' tick, so the reveal
+        // lands on the frame that actually paints that content; anything
+        // still pending at that point (optional relief/contour tiles, a
+        // raster fade) sharpens progressively on the already-visible map.
+        //
+        // Why not the old once-idle gate alone: global idle additionally
+        // waits for EVERY requested tile of every source and for all
+        // transitions to settle, which on a cold Android open kept an
+        // already-usable basemap + route hidden for seconds. Why not a plain
+        // first 'render': that frame can precede any decoded basemap tile,
+        // and revealing it would flash route lines over the empty
+        // placeholder background. `isSourceLoaded` per required source is
+        // the narrowest condition that proves the frame is coherent.
+        //
+        // A style with NO basemap source ('none' resolution) is exempt from
+        // the basemap condition on purpose: the plain-background placeholder
+        // with route layers IS the honest presentation there, and MapScreen
+        // shows the "basemap missing" notice alongside it.
+        const routeRevealSources = ['overview', 'stages'];
+        const requiredSourcesLoaded = () => {
+          if (!map) return false;
+          if (map.getSource(BASEMAP_SOURCE) && !map.isSourceLoaded(BASEMAP_SOURCE)) {
+            return false;
+          }
+          return routeRevealSources.every((id) => map!.isSourceLoaded(id));
+        };
+        let revealed = false;
+        const reveal = (evidence: string) => {
+          if (revealed || cancelled) return;
+          revealed = true;
+          trace('ready-first-useful-render', { evidence });
+          setReady(true);
+        };
+        const revealWhenUseful = () => {
+          if (revealed || cancelled || !map) {
+            map?.off('render', revealWhenUseful);
+            return;
+          }
+          if (requiredSourcesLoaded()) {
+            map.off('render', revealWhenUseful);
+            reveal('required-sources-rendered');
+          }
+        };
+        map.on('render', revealWhenUseful);
+        // 'idle' stays separately observable as "fully settled" lifecycle
+        // evidence — and doubles as the reveal's backstop, so readiness can
+        // never arrive LATER than the old contract (e.g. a tile erroring out
+        // of the loaded check still ends in a revealed map at idle).
         map.once('idle', () => {
           if (cancelled) return;
-          trace('ready-idle');
-          setReady(true);
+          trace('idle-settled');
+          reveal('idle');
         });
       });
 
