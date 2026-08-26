@@ -44,7 +44,10 @@ test('default destination is Today', () => {
 });
 
 test('Guide and Plan own exactly the vNext sections, in index order', () => {
-  assert.deepEqual(GUIDE_SECTIONS, ['stages', 'stops', 'shops', 'transport']);
+  // Weather is the fifth dossier section (prototype —
+  // docs/proposals/weather-section.md): read-only trail reference with a
+  // refreshable, on-device SMHI forecast snapshot behind it.
+  assert.deepEqual(GUIDE_SECTIONS, ['stages', 'stops', 'shops', 'transport', 'weather']);
   // Plan's dashboard order: Day plan, Packing, then the Travel & stays and
   // Wallet tiles — Travel and Wallet are SEPARATE destinations over the
   // same local stores (trip items vs stored documents).
@@ -64,6 +67,7 @@ test('every capability has exactly ONE canonical hash', () => {
     '#/guide/stops',
     '#/guide/shops',
     '#/guide/transport',
+    '#/guide/weather',
     '#/plan/day',
     '#/plan/packing',
     '#/plan/travel',

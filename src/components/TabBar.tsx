@@ -11,7 +11,7 @@ import { TAB_ROUTES } from '../navigation/routes.mjs';
 export type TabId = 'today' | 'map' | 'guide' | 'plan' | 'settings';
 
 /** Guide's dossier sections (see navigation/routes.mjs GUIDE_SECTIONS). */
-export type GuideSection = 'stages' | 'stops' | 'shops' | 'transport';
+export type GuideSection = 'stages' | 'stops' | 'shops' | 'transport' | 'weather';
 /** Plan's personal sections (see navigation/routes.mjs PLAN_SECTIONS). */
 export type PlanSection = 'day' | 'packing' | 'travel' | 'wallet';
 export type SectionId = GuideSection | PlanSection;

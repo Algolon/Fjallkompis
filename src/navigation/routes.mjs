@@ -45,7 +45,7 @@ export const TAB_ROUTES = [
 export const DEFAULT_TAB = 'today';
 
 /** Guide's dossier sections, in index order. */
-export const GUIDE_SECTIONS = ['stages', 'stops', 'shops', 'transport'];
+export const GUIDE_SECTIONS = ['stages', 'stops', 'shops', 'transport', 'weather'];
 
 /** Plan's personal sections, in dashboard order. */
 export const PLAN_SECTIONS = ['day', 'packing', 'travel', 'wallet'];

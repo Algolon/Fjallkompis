@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Check,
   ChevronDown,
@@ -41,6 +41,8 @@ import { SCHEMA_VERSION } from '../utils/stateMigration.mjs';
 import { buildDiagnosticSummary } from '../utils/diagnosticSummary.mjs';
 import { PRIVACY_POLICY_URL } from '../privacy/privacyPolicy.mjs';
 import { packingSummary } from '../utils/packingModel.mjs';
+import { readWeatherSnapshot } from '../weather/weatherStore.mjs';
+import { shortDateLabel, stockholmDateOf } from '../weather/weatherModel.mjs';
 
 type Notice = { kind: 'ok' | 'err'; text: string } | null;
 type SettingsSection = 'readiness' | 'maps' | 'backup' | 'sources' | 'privacy';
@@ -416,6 +418,27 @@ export function SettingsScreen() {
     return optional ? 'Optional · Not downloaded' : 'Not downloaded';
   };
 
+  // ONE compact weather readiness fact (the full update UI and detailed
+  // freshness live in Guide → Weather, deliberately not duplicated here).
+  // Re-read whenever the readiness panel opens so an update made on the
+  // Weather screen is reflected without a reload.
+  const [weatherReadiness, setWeatherReadiness] = useState('Checking…');
+  useEffect(() => {
+    if (openSection !== 'readiness') return;
+    let cancelled = false;
+    void readWeatherSnapshot().then((snapshot) => {
+      if (cancelled) return;
+      setWeatherReadiness(
+        snapshot
+          ? `Saved through ${shortDateLabel(stockholmDateOf(snapshot.validThrough))}`
+          : 'Not saved',
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [openSection]);
+
   const packingReadiness =
     packing.total === 0 || !state.packing.some((item) => item.essential)
       ? 'No essentials marked'
@@ -540,6 +563,10 @@ export function SettingsScreen() {
             <div className="readiness-fact">
               <span className="readiness-fact__label">Packing</span>
               <span className="readiness-fact__value">{packingReadiness}</span>
+            </div>
+            <div className="readiness-fact">
+              <span className="readiness-fact__label">Weather</span>
+              <span className="readiness-fact__value">{weatherReadiness}</span>
             </div>
           </div>
 
