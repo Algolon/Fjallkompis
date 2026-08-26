@@ -15,8 +15,10 @@
  *               probability_of_precipitation, precipitation_amount_mean,
  *               predominant_precipitation_type_at_surface, symbol_code, … } }] }
  *
- * Temporal resolution is the provider's own (1 h to +48 h, then 2 h / 6 h /
- * 12 h out to ~10 days) and is preserved as-is. Missing values are 9999
+ * Temporal resolution is the provider's own (hourly at first, then
+ * increasing steps — per SMHI's docs "e.g. 3, 6 and 12 h" — out to ~10
+ * days) and is preserved as-is: the app never assumes a cadence, it reads
+ * each entry's own timestamps. Missing values are 9999
  * sentinels, normalised to null in weatherModel. Data are open data
  * (CC BY 4.0) — the Weather screen credits SMHI.
  *
@@ -43,10 +45,26 @@ export const SMHI_ATTRIBUTION = 'Forecast data: SMHI (CC BY 4.0)';
 const BASE_URL =
   'https://opendata-download-metfcst.smhi.se/api/category/snow1g/version/1/geotype/point';
 
+/**
+ * The only snow1g parameters the app consumes — requested explicitly via
+ * the officially supported `?parameters=` filter (comma-separated; see
+ * SMHI's snow1gv1 Get Point Forecast docs), so a full-parameter payload is
+ * never downloaded just to be discarded by normalization.
+ */
+export const SMHI_POINT_PARAMETERS = [
+  'air_temperature',
+  'wind_speed',
+  'wind_speed_of_gust',
+  'probability_of_precipitation',
+  'precipitation_amount_mean',
+  'predominant_precipitation_type_at_surface',
+  'symbol_code',
+];
+
 /** Point-forecast URL for a coordinate (SMHI accepts at most 6 decimals). */
 export function smhiPointUrl(lat, lon) {
   const r = (n) => String(Math.round(n * 1e6) / 1e6);
-  return `${BASE_URL}/lon/${r(lon)}/lat/${r(lat)}/data.json`;
+  return `${BASE_URL}/lon/${r(lon)}/lat/${r(lat)}/data.json?parameters=${SMHI_POINT_PARAMETERS.join(',')}`;
 }
 
 /** One normalized slot from a snow1g timeSeries entry, or null if unusable. */

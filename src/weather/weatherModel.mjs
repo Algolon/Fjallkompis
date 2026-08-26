@@ -397,7 +397,7 @@ export function snapshotAgeDays(downloadedAtIso, nowIso) {
 
 /**
  * The quiet age notice for a saved snapshot: null while saved today (the
- * status line already says "Updated today HH:mm"), then wording that never
+ * status line already says "Saved today HH:mm"), then wording that never
  * presents old weather as current but stays informative, not alarmist.
  */
 export function freshnessNotice(downloadedAtIso, nowIso) {

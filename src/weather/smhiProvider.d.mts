@@ -2,6 +2,7 @@ import type { WeatherLocationForecast, WeatherSnapshot } from './weatherModel.mj
 
 export declare const SMHI_PROVIDER_ID: string;
 export declare const SMHI_ATTRIBUTION: string;
+export declare const SMHI_POINT_PARAMETERS: string[];
 
 export interface WeatherProviderLocation {
   id: string;

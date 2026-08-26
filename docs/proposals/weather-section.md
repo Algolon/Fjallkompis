@@ -33,7 +33,9 @@ UTC.
 
 The screen owns its data status. A compact status block at the top
 always answers "how old is my saved forecast and how far does it
-reach": Updated <time> · Forecast through <date>, with an
+reach": Saved <time> · Forecast through <date> ("Saved", because the
+timestamp is downloadedAt — when this device stored the snapshot — not
+SMHI's issue time, which is kept separately as forecastIssuedAt), with an
 offline-ready/offline/stale secondary line. One explicit action —
 "Update forecast" — fetches all eight points, validates and normalises
 them, and only then atomically replaces the stored snapshot.
@@ -71,8 +73,10 @@ parameters), flat `data` objects with `air_temperature`, `wind_speed`,
 `wind_speed_of_gust`, `probability_of_precipitation`,
 `precipitation_amount_mean` (interval amount, mm),
 `predominant_precipitation_type_at_surface` (0–6) and `symbol_code`
-(1–27, the Wsymb2 scale). Steps: 1 h to +48 h, 2 h to +72 h, 6 h to
-+132 h, 12 h beyond — roughly a 10-day horizon. Kungsleden is inside the
+(1–27, the Wsymb2 scale). Steps: hourly at the start of the forecast,
+then increasing intervals (per SMHI's documentation "e.g. 3, 6 and
+12 h") — roughly a 10-day horizon; the implementation reads each entry's
+own timestamps rather than assuming a cadence. Kungsleden is inside the
 model domain. Attribution (SMHI open data, CC BY 4.0) is shown on the
 screen.
 

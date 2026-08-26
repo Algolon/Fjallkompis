@@ -260,8 +260,11 @@ export function GuideWeatherScreen() {
                 </span>
               )}
             </div>
+            {/* "Saved", not "Updated": this timestamp is downloadedAt — when
+                THIS DEVICE saved the snapshot — not SMHI's issue time (which
+                is stored separately as forecastIssuedAt). */}
             <p className="weather-status__meta">
-              Updated {notice === null ? 'today' : shortDateLabel(stockholmDateOf(snapshot.downloadedAt))}{' '}
+              Saved {notice === null ? 'today' : shortDateLabel(stockholmDateOf(snapshot.downloadedAt))}{' '}
               {savedTime} · Forecast through{' '}
               {shortDateLabel(stockholmDateOf(snapshot.validThrough))}
             </p>

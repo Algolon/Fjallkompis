@@ -61,10 +61,23 @@ test('the point URL targets the current snow1g product with capped precision', (
   const url = smhiPointUrl(68.35807112345, 18.784580098765);
   assert.equal(
     url,
-    'https://opendata-download-metfcst.smhi.se/api/category/snow1g/version/1/geotype/point/lon/18.78458/lat/68.358071/data.json',
+    'https://opendata-download-metfcst.smhi.se/api/category/snow1g/version/1/geotype/point/lon/18.78458/lat/68.358071/data.json' +
+      '?parameters=air_temperature,wind_speed,wind_speed_of_gust,probability_of_precipitation,precipitation_amount_mean,predominant_precipitation_type_at_surface,symbol_code',
   );
   // The retired pmp3g product (404 since 31 Mar 2026) must never come back.
   assert.ok(!url.includes('pmp3g'));
+  // The `?parameters=` filter must request exactly the fields normalization
+  // reads (officially supported; keeps the download minimal).
+  for (const field of [
+    'air_temperature',
+    'wind_speed_of_gust',
+    'probability_of_precipitation',
+    'precipitation_amount_mean',
+    'predominant_precipitation_type_at_surface',
+    'symbol_code',
+  ]) {
+    assert.ok(url.includes(field), `requests ${field}`);
+  }
 });
 
 test('a snow1g response normalises to the app model, sentinels → null', () => {
