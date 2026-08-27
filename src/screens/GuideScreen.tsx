@@ -1,4 +1,4 @@
-import { BusFront, Signpost, ShoppingBasket } from 'lucide-react';
+import { BusFront, CloudSun, Signpost, ShoppingBasket } from 'lucide-react';
 import { ScreenHeader } from '../components/ui';
 import { IconHuts } from '../components/Icons';
 import { ShopInfoView, ShopInfoHelp } from '../components/ShopInfoView';
@@ -10,7 +10,11 @@ import type { ShopCategory, TransportContext } from '../types';
 
 /**
  * Guide — the read-only trail dossier's home: a 2×2 grid of the four
- * dossier categories, every fact behind them served by ACTIVE_TRAIL_CONTENT.
+ * dossier categories plus the full-width Weather tile (prototype), every
+ * curated fact behind them served by ACTIVE_TRAIL_CONTENT. Weather is the
+ * one dossier section whose FACTS are external and refreshable (saved SMHI
+ * forecasts, src/weather/) — its locations still come from the verified
+ * trail stops.
  *
  * Read-only by design: browsing the dossier never writes personal state.
  * The personal actions that live INSIDE its sections (Add to trip, stop
@@ -24,6 +28,8 @@ interface GuideTile {
   title: string;
   sub: string;
   icon: JSX.Element;
+  /** Spans the full grid width (the odd fifth tile) instead of one column. */
+  wide?: boolean;
 }
 
 const TILES: GuideTile[] = [
@@ -51,6 +57,17 @@ const TILES: GuideTile[] = [
     sub: 'Buses, boats and trains to and from the trail',
     icon: <BusFront size={22} strokeWidth={1.9} aria-hidden />,
   },
+  // Fifth tile, full-width below the 2×2 grid (prototype — see
+  // docs/proposals/weather-section.md): weather is read-only trail
+  // reference, so it belongs in the dossier, not in Today and not as a
+  // sixth primary tab.
+  {
+    section: 'weather',
+    title: 'Weather',
+    sub: 'Saved route forecast for offline use',
+    icon: <CloudSun size={22} strokeWidth={1.9} aria-hidden />,
+    wide: true,
+  },
 ];
 
 export function GuideScreen({
@@ -75,7 +92,9 @@ export function GuideScreen({
           <button
             key={tile.section}
             type="button"
-            className="card today-glass today-glass--light guide-tile"
+            className={`card today-glass today-glass--light guide-tile${
+              tile.wide ? ' guide-tile--wide' : ''
+            }`}
             onClick={() => onOpenSection(tile.section)}
           >
             <span className="guide-tile__icon" aria-hidden>

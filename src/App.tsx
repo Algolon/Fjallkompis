@@ -33,6 +33,7 @@ import {
   GuideShopsScreen,
   GuideTransportScreen,
 } from './screens/GuideScreen';
+import { GuideWeatherScreen } from './screens/WeatherScreen';
 import {
   PlanScreen,
   PlanDayScreen,
@@ -135,6 +136,12 @@ function Screens({
                 initialContext={nav.payload?.lists?.transportContext}
                 onNavigate={navigate}
               />
+            </SectionShell>
+          );
+        case 'weather':
+          return (
+            <SectionShell label="Guide" onBack={() => openSection('guide', null)}>
+              <GuideWeatherScreen />
             </SectionShell>
           );
         default:

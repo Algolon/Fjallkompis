@@ -12,6 +12,20 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ### Added
 
+- **Weather is a new Guide section (prototype).** Guide → Weather shows a
+  saved SMHI forecast for the eight named stops along the route, in
+  walking order for your chosen direction. Pick a day on the compact date
+  strip and scan conditions, temperatures, precipitation and wind for
+  every location at once; tap a location for its morning/afternoon/evening
+  detail. One deliberate *Update forecast* tap while online saves the
+  whole route forecast on the device — it then stays fully readable in
+  airplane mode, and the screen always says when it was saved and how far
+  it reaches. A failed update never touches the forecast you already
+  saved, an old forecast is labelled as old rather than shown as current,
+  and days beyond the saved horizon say so instead of guessing. Today is
+  deliberately unchanged; Settings → Trail Readiness gains a single
+  "Weather — saved through …" fact.
+
 - **PDFs now open inside Fjallkompis.** Tapping a stored PDF — from the
   Wallet, a Travel & stays attachment, or the Today quick-access ticket
   button — shows the document in the app's own viewer, layered over the
