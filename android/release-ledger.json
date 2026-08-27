@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700014,
+  "highestConsumedVersionCode": 2700015,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -158,6 +158,16 @@
       "sourceSha": "b0bdaf5559845e293624e7469c9e2822858510c0",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32137590659",
       "note": "Map performance test: persistent pre-initialized Map workspace for faster first and repeated Map opens."
+    },
+    {
+      "versionCode": 2700015,
+      "versionName": "0.27.0",
+      "androidBuild": 15,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-27",
+      "sourceSha": "e2985b4bd76b858a4e93e2cd9cb16fa1c308095b",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33046849155",
+      "note": "New: Guide → Weather — save the SMHI route forecast on your device before going offline. Pick a day, scan conditions for all eight stops Abisko–Nikkaluokta, and read it all in airplane mode. Please test: Update forecast online, then force-stop + airplane mode and check the saved forecast."
     }
   ]
 }
