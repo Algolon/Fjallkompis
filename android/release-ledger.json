@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700013,
+  "highestConsumedVersionCode": 2700014,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -148,6 +148,16 @@
       "sourceSha": "2310206825cd12602ebe1e82b987691777f9420a",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32057725032",
       "note": "Refined the in-app PDF viewer so short documents fit their content while longer PDFs scroll naturally inside the modal."
+    },
+    {
+      "versionCode": 2700014,
+      "versionName": "0.27.0",
+      "androidBuild": 14,
+      "playTrack": "internal",
+      "acceptedOn": "2026-08-18",
+      "sourceSha": "b0bdaf5559845e293624e7469c9e2822858510c0",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/32137590659",
+      "note": "Map performance test: persistent pre-initialized Map workspace for faster first and repeated Map opens."
     }
   ]
 }
