@@ -46,14 +46,17 @@ test('weather locations are the itinerary stops — verified data, walking order
 
 test('the screen owns every honest data state the brief demands', () => {
   for (const copy of [
-    'Saved trail forecast',
-    'Update forecast',
-    'Updating forecast…',
+    'Offline forecast',
+    'Update',
+    'Updating…',
+    'Updated',
     'Forecast updated',
+    'Download forecast',
+    'Downloading forecast…',
     'No forecast saved yet',
     'No offline forecast saved',
     'No saved forecast for this date',
-    'Available offline',
+    'No connection — the saved forecast still works.',
     'Your previously saved forecast is still available',
   ]) {
     assert.ok(weather.includes(copy), `state copy present: ${copy}`);
@@ -61,13 +64,53 @@ test('the screen owns every honest data state the brief demands', () => {
   // The stale wording lives in the tested model, not ad hoc in the screen.
   assert.match(weather, /freshnessNotice/);
   // False precision is named, quietly, on the screen itself.
-  assert.match(weather, /Forecast locations along the route/);
+  assert.match(weather, /Route forecasts, saved for offline use\./);
   assert.match(
     weather,
     /Mountain\s+weather can vary quickly between forecast locations and with\s+elevation/,
   );
   // Provider credit (SMHI open data) is visible.
   assert.match(weather, /SMHI/);
+});
+
+test('sync status stays compact: secondary Update with a saved forecast, primary CTA only when empty', () => {
+  // With a snapshot the action is the compact secondary button (primary
+  // fill only once the snapshot is genuinely stale)…
+  assert.match(
+    weather,
+    /className=\{`btn weather-sync__btn\$\{\s*level === 'stale' \? ' btn-primary' : ''\s*\}`\}/,
+  );
+  // …and the full-width primary CTA exists ONLY in the no-snapshot branch.
+  const ctas = weather.match(/btn btn-primary btn-block/g) ?? [];
+  assert.equal(ctas.length, 1, 'exactly one full-width primary CTA');
+  assert.match(weather, /btn btn-primary btn-block weather-sync__cta/);
+  // The transient success confirmation clears itself — no permanent
+  // "Forecast updated" sentence; the announcement is screen-reader-only.
+  assert.match(weather, /setTimeout\(\(\) => setPhase\(\{ kind: 'idle' \}\), 4000\)/);
+  assert.match(weather, /className="sr-only" role="status"/);
+  // A duplicate refresh is impossible while one runs.
+  assert.match(weather, /disabled=\{updating \|\| !online\}/);
+});
+
+test('the date strip is sticky, safe-area aware, and keeps the selected day in view', () => {
+  const dates = css.slice(css.indexOf('.weather-dates {'), css.indexOf('.weather-date-chip {'));
+  assert.match(dates, /position: sticky/);
+  assert.match(dates, /top: var\(--safe-top\)/);
+  // Legible over scrolling cards: an opaque fallback always, translucency
+  // only where backdrop blur is actually supported.
+  assert.match(dates, /background: var\(--section-surface, var\(--stone-bg\)\)/);
+  assert.match(dates, /@supports \(\(-webkit-backdrop-filter: blur\(1px\)\) or \(backdrop-filter: blur\(1px\)\)\)/);
+  // The selected chip is brought into view when the active day changes.
+  assert.match(weather, /scrollIntoView\(\{ block: 'nearest', inline: 'nearest' \}\)/);
+  assert.match(weather, /\[activeDate\]\);/);
+});
+
+test('location rows carry a rotating disclosure affordance', () => {
+  assert.match(weather, /className="weather-row__chev"/);
+  assert.match(
+    css,
+    /\.weather-row__head\[aria-expanded='true'\] \.weather-row__chev \{\s*transform: rotate\(180deg\);/,
+  );
 });
 
 test('a failed update keeps rendering the previous snapshot', () => {

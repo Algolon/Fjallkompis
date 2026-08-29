@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Check,
+  ChevronDown,
   CloudDrizzle,
   CloudFog,
   CloudHail,
@@ -54,11 +56,14 @@ import { dateForDayIndex } from '../plan/dayPlan.mjs';
  * Date-first: one compact date strip selects a Swedish calendar day, the
  * eight named route locations below re-render for it in walking order (the
  * SAME verified stops the whole app uses — never separate weather
- * coordinates). The screen owns its data status: the strip at the top
- * always answers "when was this saved and how far does it reach", offline
- * or not. The one action is a deliberate, manual "Update forecast" —
+ * coordinates). The forecast itself is the protagonist: sync status is one
+ * compact line near the top that always answers "when was this saved and
+ * how far does it reach", offline or not, and the strip stays sticky while
+ * scrolling the list. The one action is a deliberate, manual update —
  * fetch, validate, then atomically replace; a failed update NEVER touches
- * the saved snapshot.
+ * the saved snapshot. It renders as a compact secondary action while a
+ * saved forecast exists (primary fill once stale), and only grows to a
+ * full-width primary CTA when nothing is saved yet.
  */
 
 /** Condition icon per group (local Lucide set — no remote weather assets). */
@@ -146,6 +151,7 @@ export function GuideWeatherScreen() {
   const [phase, setPhase] = useState<UpdatePhase>({ kind: 'idle' });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const datesRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,6 +162,16 @@ export function GuideWeatherScreen() {
       cancelled = true;
     };
   }, []);
+
+  // The post-update confirmation is transient by design: the refreshed
+  // "Saved today HH:mm" line IS the durable status, so the check clears
+  // itself instead of a success sentence lingering forever.
+  useEffect(() => {
+    if (phase.kind !== 'updated') return;
+    const t = window.setTimeout(() => setPhase({ kind: 'idle' }), 4000);
+    return () => window.clearTimeout(t);
+  }, [phase]);
+
 
   // The weather locations ARE the verified route stops, in walking order
   // for the active direction. Elevation rides along from the same GPX
@@ -190,6 +206,18 @@ export function GuideWeatherScreen() {
       : todayIso && futureDates.includes(todayIso)
         ? todayIso
         : futureDates[0] ?? null;
+
+  // Keep the selected day's chip visible in the (sticky, horizontally
+  // scrolling) strip — the fallback selection can land mid-list when the
+  // previously chosen date ages out of the saved range. Runs only when the
+  // active day changes, never on unrelated re-renders, so a manually
+  // scrolled strip is left alone.
+  useEffect(() => {
+    const chip = datesRef.current?.querySelector<HTMLElement>(
+      '[aria-pressed="true"]',
+    );
+    chip?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeDate]);
 
   // Subtle trip context: dates covered by the personal Day plan get a quiet
   // marker. Weather never depends on a plan existing.
@@ -238,51 +266,83 @@ export function GuideWeatherScreen() {
   return (
     <div className="screen screen--guide-section weather-screen">
       <ScreenHeader eyebrow="Trail dossier" title="Weather" action={<WeatherHelp />}>
-        Forecast locations along the route — saved on this device so you can
-        check them without coverage.
+        Route forecasts, saved for offline use.
       </ScreenHeader>
 
-      {/* Data status — the screen's own, always-visible answer to "how old
-          is this and how far does it reach". Compact by design: one card,
-          no hero. */}
-      <section className="card weather-status" aria-label="Saved forecast status">
+      {/* Sync status — one compact card, not a hero: title + compact Update
+          in a single row, one meta line beneath. Updating is an occasional
+          management action; the forecast below is the primary content.
+          "Saved", not "Updated", in copy: the timestamp is downloadedAt —
+          when THIS DEVICE saved the snapshot — never SMHI's issue time. */}
+      <section className="card weather-sync" aria-label="Saved forecast status">
         {snapshot ? (
           <>
-            <div className="weather-status__row">
-              <span className="weather-status__title">Saved trail forecast</span>
-              {online ? (
-                notice === null ? (
-                  <span className="pill pill-good">Available offline</span>
-                ) : null
-              ) : (
-                <span className="pill pill-glacier">
-                  <WifiOff size={12} strokeWidth={2.2} aria-hidden /> Offline
-                </span>
-              )}
-            </div>
-            {/* "Saved", not "Updated": this timestamp is downloadedAt — when
-                THIS DEVICE saved the snapshot — not SMHI's issue time (which
-                is stored separately as forecastIssuedAt). */}
-            <p className="weather-status__meta">
-              Saved {notice === null ? 'today' : shortDateLabel(stockholmDateOf(snapshot.downloadedAt))}{' '}
-              {savedTime} · Forecast through{' '}
-              {shortDateLabel(stockholmDateOf(snapshot.validThrough))}
-            </p>
-            {notice ? (
-              <p
-                className={`weather-status__notice${
-                  level === 'stale' ? ' weather-status__notice--stale' : ''
+            <div className="weather-sync__row">
+              <span className="weather-sync__title">Offline forecast</span>
+              <button
+                type="button"
+                className={`btn weather-sync__btn${
+                  level === 'stale' ? ' btn-primary' : ''
                 }`}
+                onClick={() => void doUpdate()}
+                disabled={updating || !online}
               >
-                {notice}
-                {!online ? ' · saved on this device' : ''}
+                {phase.kind === 'updated' ? (
+                  <Check
+                    size={16}
+                    strokeWidth={2.4}
+                    aria-hidden
+                    className="weather-sync__done"
+                  />
+                ) : (
+                  <RefreshCw
+                    size={15}
+                    strokeWidth={2.1}
+                    aria-hidden
+                    className={updating ? 'weather-sync__spin' : undefined}
+                  />
+                )}
+                {updating
+                  ? 'Updating…'
+                  : phase.kind === 'updated'
+                    ? 'Updated'
+                    : 'Update'}
+              </button>
+            </div>
+            {/* One line carries the whole story — age (model wording, never
+                ad hoc), coverage, and the tertiary location count — so age
+                is never stated twice. The clock time rides along while it
+                still means something (today/yesterday). */}
+            <p className="weather-sync__meta">
+              <span
+                className={
+                  level === 'stale' ? 'weather-sync__notice--stale' : undefined
+                }
+              >
+                {notice === null
+                  ? `Saved today ${savedTime}`
+                  : level === 'aging'
+                    ? `${notice} ${savedTime}`
+                    : notice}
+              </span>
+              {' · through '}
+              {shortDateLabel(stockholmDateOf(snapshot.validThrough))}
+              <span className="weather-sync__count">
+                {' '}
+                · {snapshot.locations.length} locations
+              </span>
+            </p>
+            {!online ? (
+              <p className="weather-sync__offline">
+                <WifiOff size={13} strokeWidth={2.2} aria-hidden />
+                No connection — the saved forecast still works.
               </p>
             ) : null}
           </>
         ) : snapshot === null ? (
           <>
-            <div className="weather-status__row">
-              <span className="weather-status__title">
+            <div className="weather-sync__row">
+              <span className="weather-sync__title">
                 {online ? 'No forecast saved yet' : 'No offline forecast saved'}
               </span>
               {!online ? (
@@ -291,44 +351,45 @@ export function GuideWeatherScreen() {
                 </span>
               ) : null}
             </div>
-            <p className="weather-status__meta">
+            <p className="weather-sync__meta">
               {online
-                ? 'Update once while online to keep the route forecast on this device.'
+                ? 'Download once while online to keep the route forecast on this device.'
                 : 'Connect once before the trail to save the route forecast for offline use.'}
             </p>
             {!weatherStorageSupported() ? (
-              <p className="weather-status__notice weather-status__notice--stale">
+              <p className="weather-sync__notice weather-sync__notice--stale">
                 This browser mode cannot store data — the forecast will not
                 survive a restart.
               </p>
             ) : null}
+            {/* State E is the one place a full-width primary CTA is right:
+                there is nothing to read yet, downloading IS the task. */}
+            <button
+              type="button"
+              className="btn btn-primary btn-block weather-sync__cta"
+              onClick={() => void doUpdate()}
+              disabled={updating || !online}
+            >
+              <RefreshCw
+                size={16}
+                strokeWidth={2.1}
+                aria-hidden
+                className={updating ? 'weather-sync__spin' : undefined}
+              />
+              {updating ? 'Downloading forecast…' : 'Download forecast'}
+            </button>
           </>
         ) : (
-          <p className="weather-status__meta">Loading saved forecast…</p>
+          <p className="weather-sync__meta">Loading saved forecast…</p>
         )}
 
-        <button
-          type="button"
-          className="btn btn-primary btn-block weather-update"
-          onClick={() => void doUpdate()}
-          disabled={updating || snapshot === undefined}
-        >
-          <RefreshCw
-            size={16}
-            strokeWidth={2.1}
-            aria-hidden
-            className={updating ? 'weather-update__spin' : undefined}
-          />
-          {updating ? 'Updating forecast…' : 'Update forecast'}
-        </button>
-
         {phase.kind === 'updated' ? (
-          <p className="weather-status__result" role="status">
+          <p className="sr-only" role="status">
             Forecast updated · {phase.savedLocations} route locations saved
           </p>
         ) : null}
         {phase.kind === 'failed' ? (
-          <div className="banner-warn weather-status__failed" role="status">
+          <div className="banner-warn weather-sync__failed" role="status">
             <span aria-hidden>⚠️</span>
             <span>
               Couldn&apos;t update the forecast.{' '}
@@ -346,8 +407,9 @@ export function GuideWeatherScreen() {
         <>
           {/* Date strip — the day under comparison. Selecting a date
               re-renders the whole location list; locations are never picked
-              first. */}
-          <nav className="weather-dates" aria-label="Forecast dates">
+              first. Sticky below the safe area while the list scrolls, so
+              the day stays switchable from anywhere in the list. */}
+          <nav className="weather-dates" aria-label="Forecast dates" ref={datesRef}>
             {futureDates.map((date) => (
               <button
                 key={date}
@@ -425,6 +487,14 @@ export function GuideWeatherScreen() {
                           </span>
                         )}
                       </span>
+                      {summary ? (
+                        <ChevronDown
+                          size={17}
+                          strokeWidth={2}
+                          aria-hidden
+                          className="weather-row__chev"
+                        />
+                      ) : null}
                     </button>
                     {expanded && forecast ? (
                       <div className="weather-row__detail">
@@ -462,7 +532,7 @@ export function GuideWeatherScreen() {
             </ul>
           ) : (
             <div className="card weather-empty-date">
-              <p className="weather-status__meta">
+              <p className="weather-sync__meta">
                 No saved forecast for today or later — the saved forecast has
                 aged past its final date. Update closer to your trip.
               </p>
