@@ -264,10 +264,27 @@ resolution, visual comparison, contour noise and storage measurements.
 ## Satellite imagery layer
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**
-map. Tiles come from a raster PMTiles archive of **EOX Sentinel‑2 cloudless
-2024** imagery, bounded to the supported raster envelope. The archive is **~27 MB and is
-NOT committed to the repo** — the canonical binary lives on a **versioned
-GitHub Release** and is injected into the Pages build at deploy time:
+map. Tiles come from ONE raster PMTiles archive with a hybrid pyramid:
+
+- **z7–13** — **EOX Sentinel‑2 cloudless 2024** imagery over the complete
+  supported raster envelope (every descendant of the z7 overview tile);
+- **z14–15** (hybrid builds) — the compact detail corridor
+  (`mapCutoutBounds` tile‑aligned at z14 — the same shape terrain relief
+  takes at z12), **composited at raster‑production time**: Sentinel‑2
+  resampled to the exact detail grid as the complete underlying fallback,
+  with **Lantmäteriet Ortofoto** 0.4 m aerial orthophotos (RGB only)
+  warped above it wherever valid orthophoto pixels exist. Source priority
+  is the orthophoto validity mask (cataloged‑coverage cutline + declared
+  0,0,0 no‑data), applied as a hard per‑pixel decision — no feathering; a
+  visible quality seam at the flight‑area boundary is correct. Orthophotos
+  are sourced by streaming COG overview range‑reads through a `/vsicurl/`
+  VRT; the ~94 GB native dataset is never downloaded. Measured coverage
+  (2026‑09‑01): 93.3 % of z14 corridor tiles fully orthophoto, 451 tiles
+  (6.7 %) carry Sentinel‑fallback pixels at the flight‑area boundary.
+
+The archive is **NOT committed to the repo** — the canonical binary lives on
+a **versioned GitHub Release** and is injected into the Pages build at deploy
+time:
 
 ```
 Release asset (tag satellite-data-v1, kungsleden-satellite.pmtiles)
@@ -310,20 +327,45 @@ New imagery ⇒ **new versioned release** (never mutate an existing tag):
 3. Merge; the next Pages deploy serves the new file. Users who downloaded the
    old archive re‑download from Settings when they choose to.
 
-### Regenerating the archive (new imagery → satellite-data-v4, …)
+### Regenerating the archive (new imagery → satellite-data-v5, …)
 
-Imagery is built on a GitHub runner, not committed. Two reproducible scripts
+Imagery is built on a GitHub runner, not committed. Three reproducible scripts
 under `scripts/` do the work:
 
 - `scripts/download-kungsleden-satellite.sh .` — downloads EOX Sentinel‑2
   cloudless for the supported raster envelope into `data/source-imagery/sentinel2-kungsleden.tif`
   (git‑ignored; **never committed**). Requires `curl` + GDAL.
+- `scripts/prepare-lantmateriet-orthophoto.sh` — Lantmäteriet source
+  acquisition (hybrid builds only). Queries the pinned STAC collection for
+  the canonical detail corridor (anonymous, metadata only), follows
+  pagination, de‑duplicates by item id, validates the source contract
+  (0.4 m / EPSG:3006 / rgbi / COG), reports the per‑z14‑tile
+  orthophoto/fallback coverage split (orthophoto gaps are NOT fatal —
+  Sentinel fills them at build time; contract violations and an empty item
+  set remain hard stops), and synthesizes an RGB‑only `/vsicurl/` VRT, a
+  WGS84 coverage cutline, composition probe points and an acquisition
+  manifest into `data/source-imagery/lantmateriet-j6/`
+  (git‑ignored). Credentials `LM_USERNAME`/`LM_PASSWORD` (HTTP Basic,
+  **environment variables only — never in files, logs, git or CI values**)
+  are needed only for the final one‑COG probe and the build itself.
 - `npm run generate:map:satellite -- data/source-imagery/sentinel2-kungsleden.tif` —
-  the pipeline (`scripts/build-satellite-map.sh`): derives the crop box by
-  tile-aligning `mapCutoutBounds` at the canonical raster minzoom (never hard-coded), reprojects to
-  EPSG:3857, tiles as 256 px WEBP (matching `SATELLITE_TILE_SIZE`), builds the
-  ~z7–13 pyramid, converts to PMTiles, and runs `pmtiles verify`. Options (env):
-  `MAXZOOM=13 TILE_FORMAT=WEBP QUALITY=80 DEBUG=1`.
+  the pipeline (`scripts/build-satellite-map.sh`): derives every extent from
+  `mapCutoutBounds` through the canonical tile maths (never hard-coded),
+  builds Sentinel z7–13 over the overview footprint, composites the z14–15
+  corridor (Sentinel fallback warped to the exact detail grid first, then
+  Lantmäteriet streamed from COG overviews with cubic resampling and warped
+  above it under the coverage cutline + declared no‑data — proven by
+  before/after probe points: gap pixels stay Sentinel, orthophoto pixels
+  take priority, nothing is black), merges the mixed pyramid at the MBTiles
+  stage, converts to ONE PMTiles archive, runs `pmtiles verify`, verifies
+  the physical per-zoom tile inventory against the contract, and enforces
+  the **1.9 GiB
+  release-asset size gate** (detail quality steps 80 → 75 → 70 before it
+  ever fails; max zoom is never downgraded silently). It ends by printing
+  the measured `mapCatalog.mjs` revision values and writing
+  `public/maps/kungsleden-satellite-provenance.json`. Options (env):
+  `MAXZOOM=15 TILE_FORMAT=WEBP QUALITY=80 SIZE_LIMIT_GIB=1.9 DEBUG=1`
+  (`MAXZOOM=13` builds a legacy all-Sentinel archive).
 
 The easiest path is the **manual maintenance workflow**
 `.github/workflows/satellite-data-maintenance.yml` (Actions → *Satellite map
@@ -334,15 +376,23 @@ it as a downloadable artifact, and — with `publish_release: true` and a
 `deploy.yml` consumes. Then update the pinned tag + SHA‑256 + size in
 `deploy.yml` (see *Updating the satellite data* above).
 
-### Why max zoom 13
+### Why the z13/z14 zoom split
 
 Sentinel‑2 true colour is ~10 m/px. In Web Mercator, zoom **13** is ≈19 m/px at
 the equator and finer at this latitude (~7 m/px near 68° N) — the closest zoom
-to the native resolution. Going higher only upsamples pixels and inflates the
-file, so 13 is the default cap; MapLibre over‑zooms beyond it (up to the map's
-`maxZoom` 17) so you can still pinch in. The archive stores z7–13; the runtime
-keeps a 2 km real-pixel safety inset between its supported camera envelope and
-the physical z7 archive edge.
+to the native resolution, so the Sentinel pyramid stops there
+(`SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM`). Lantmäteriet orthophotos are 0.4 m
+native, so the corridor continues to **z15** (~1.8 m/px ground at 68° N,
+served from the COGs' ~1.6 m internal overview level) — about 30× the area
+detail of over‑zoomed Sentinel, exactly where a hiker actually zooms in.
+Building z15 over the whole overview footprint instead of the corridor would
+multiply the archive far past the single-release-asset limit, which is why
+the detail zooms keep to the corridor. MapLibre over‑zooms beyond the archive
+max (up to the map's `maxZoom` 17) so you can still pinch in. The runtime
+keeps a 2 km real-pixel safety inset between its supported camera envelope
+and the physical archive edges at every zoom (corridor included, mirroring
+terrain's z12 behaviour — `satelliteSourceCoverage` in
+`src/map/overviewEnvelope.mjs`).
 
 ### Required tools (local builds)
 

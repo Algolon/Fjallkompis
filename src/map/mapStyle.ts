@@ -15,7 +15,7 @@
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 import {
   BASEMAP_SOURCE_INFO,
-  SATELLITE_SOURCE_INFO,
+  SATELLITE_LAYER_ATTRIBUTION_HTML,
   TERRAIN_SOURCE_INFO,
 } from '../data/attribution';
 import { libertyTopoLayers, NORDIC_TOPO_PALETTE } from './libertyTopoLayers.mjs';
@@ -55,9 +55,11 @@ export const CONTOURS_SOURCE = 'contours';
 /** Terrarium encoding, 256px tiles, z6–12 (kept in sync with the build script). */
 export const TERRAIN_TILE_SIZE = 256;
 export const TERRAIN_MAX_ZOOM = 12;
-// EOX Sentinel-2 cloudless is the shipped source (see README). If you build the
-// archive from a different provider, update the registry entry accordingly.
-export const SATELLITE_ATTRIBUTION = SATELLITE_SOURCE_INFO.mapAttributionHtml!;
+// The satellite layer's credit covers every source that ships inside its ONE
+// archive (Sentinel-2 overview zooms; Lantmäteriet orthophoto detail zooms
+// once the hybrid archive lands) — derived from the registry's `present`
+// flags, so a rebuild that adds a source cannot leave the map credit stale.
+export const SATELLITE_ATTRIBUTION = SATELLITE_LAYER_ATTRIBUTION_HTML;
 /**
  * Pixel size of the raster tiles in the archive. Standard slippy-map tiles are
  * 256; set to 512 here if the supplied archive uses 512px tiles.

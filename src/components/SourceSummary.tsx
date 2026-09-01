@@ -12,11 +12,19 @@ import type { DataSourceAttribution } from '../data/attribution';
 export function SourceSummary({
   heading,
   source,
+  extraSources = [],
   assetUrls,
 }: {
   /** Card-specific heading, e.g. "Map data" or "Imagery". */
   heading: string;
   source: DataSourceAttribution;
+  /**
+   * Additional sources shipping inside the SAME archive (the hybrid
+   * satellite archive carries Sentinel overview zooms and Lantmäteriet
+   * orthophoto detail zooms in one file). Each gets its own label, notice
+   * and licence block — one download, every credit.
+   */
+  extraSources?: DataSourceAttribution[];
   /**
    * Raw archive URLs, shown only inside the disclosure — ALL files a card
    * manages (the Terrain relief card manages two archives; both must be
@@ -26,6 +34,7 @@ export function SourceSummary({
 }) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
+  const sources = [source, ...extraSources];
 
   return (
     <div className="source-block">
@@ -40,34 +49,40 @@ export function SourceSummary({
           Source &amp; licence
         </button>
       </div>
-      <p className="source-attr">{source.label}</p>
-      {source.modifiedNotice ? (
-        <p className="source-attr">{source.modifiedNotice}</p>
-      ) : null}
+      {sources.map((s) => (
+        <div key={s.id}>
+          <p className="source-attr">{s.label}</p>
+          {s.modifiedNotice ? <p className="source-attr">{s.modifiedNotice}</p> : null}
+        </div>
+      ))}
 
       {open ? (
         <div className="source-details" id={detailsId}>
-          <p>{source.attribution}</p>
-          <p className="source-links">
-            {source.licenseName ? (
-              <>
-                Licence:{' '}
-                {source.licenseUrl ? (
-                  <a href={source.licenseUrl} target="_blank" rel="noopener noreferrer">
-                    {source.licenseName}
+          {sources.map((s) => (
+            <div key={s.id}>
+              <p>{s.attribution}</p>
+              <p className="source-links">
+                {s.licenseName ? (
+                  <>
+                    Licence:{' '}
+                    {s.licenseUrl ? (
+                      <a href={s.licenseUrl} target="_blank" rel="noopener noreferrer">
+                        {s.licenseName}
+                      </a>
+                    ) : (
+                      s.licenseName
+                    )}
+                  </>
+                ) : null}
+                {s.licenseName && s.sourceUrl ? ' · ' : null}
+                {s.sourceUrl ? (
+                  <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer">
+                    {s.provider}
                   </a>
-                ) : (
-                  source.licenseName
-                )}
-              </>
-            ) : null}
-            {source.licenseName && source.sourceUrl ? ' · ' : null}
-            {source.sourceUrl ? (
-              <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">
-                {source.provider}
-              </a>
-            ) : null}
-          </p>
+                ) : null}
+              </p>
+            </div>
+          ))}
           {assetUrls?.map((url) => (
             <p key={url} className="source-url">
               Archive: {url}
