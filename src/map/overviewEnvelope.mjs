@@ -117,6 +117,16 @@ export const SATELLITE_ARCHIVE_MAX_ZOOM = 15;
 export const SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM = 13;
 
 /**
+ * Physical max zoom of the OPTIONAL Satellite HD detail add-on — a separate
+ * z16-only archive set (native-only distribution) layered above the Basic
+ * satellite archive at runtime. Basic's own physical contract stays
+ * SATELLITE_ARCHIVE_MAX_ZOOM; this constant exists so the effective
+ * satellite zoom capability with HD installed is derived, never conflated
+ * with Basic's archive metadata.
+ */
+export const SATELLITE_HD_MAX_ZOOM = 16;
+
+/**
  * First zoom of the orthophoto detail corridor. The hybrid build tile-aligns
  * the corridor at THIS zoom, so every detail zoom (this one and its
  * children) is the same fully data-covered rectangle — which is why the

@@ -141,7 +141,7 @@ jobs:
         run: |
           set -euo pipefail
           apk=android/app/build/outputs/apk/debug/app-debug.apk
-          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles; do
+          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles kungsleden-satellite-hd-north.pmtiles kungsleden-satellite-hd-south.pmtiles; do
             if unzip -l "$apk" "assets/public/maps/$f" > /dev/null 2>&1; then
               echo "::error::$f is an optional download and must not be packaged in the APK"
               exit 1

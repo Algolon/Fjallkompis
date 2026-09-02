@@ -29,10 +29,19 @@ export interface MapAssetRelease {
 
 export type MapAssetDistribution = 'bundled' | 'optional';
 
+export interface MapAssetPlatforms {
+  /** Downloadable by the browser/PWA (served same-origin from Pages). */
+  web: boolean;
+  /** Downloadable by the Android app (straight from the pinned Release). */
+  native: boolean;
+}
+
 export interface MapAsset {
   id: string;
   file: string;
   distribution: MapAssetDistribution;
+  /** Which platforms may obtain this asset (see mapCatalog.mjs). */
+  platforms: MapAssetPlatforms;
   revision: MapAssetRevision;
   /** Shipped earlier revisions this archive's own cache may legitimately hold. */
   supersededBytes: readonly number[];
@@ -53,6 +62,8 @@ export declare const MAP_ASSETS: Readonly<Record<string, MapAsset>>;
 export declare const MAP_ASSET_IDS: readonly string[];
 export declare const BUNDLED_MAP_ASSETS: readonly string[];
 export declare const OPTIONAL_MAP_ASSETS: readonly string[];
+export declare const WEB_OPTIONAL_MAP_ASSETS: readonly string[];
+export declare const NATIVE_OPTIONAL_MAP_ASSETS: readonly string[];
 export declare const MAP_DOWNLOAD_GROUPS: readonly MapDownloadGroup[];
 
 export declare function mapAsset(id: string): MapAsset;

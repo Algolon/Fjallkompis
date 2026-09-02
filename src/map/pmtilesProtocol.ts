@@ -26,6 +26,7 @@ import type { Source, RangeResponse } from 'pmtiles';
 import {
   archiveUrl,
   SATELLITE_ARCHIVE,
+  SATELLITE_HD_ARCHIVES,
   VECTOR_ARCHIVE,
   type ArchiveSpec,
 } from './offlineMap';
@@ -193,4 +194,25 @@ export async function resolveSatellite(): Promise<BasemapResolution> {
     return { mode: 'offline', sourceUrl: `pmtiles://${SATELLITE_OFFLINE_KEY}` };
   }
   return { mode: 'none', sourceUrl: null };
+}
+
+/**
+ * Resolve the optional Satellite HD detail shards (native z16 orthophoto,
+ * Android-only download) from local storage, or not at all. ALL shards must
+ * be present — the corridor is one continuous layer split purely for
+ * release-asset size, so half of it would render as an arbitrary horizontal
+ * seam in coverage. Like every optional archive there is no streaming
+ * fallback; on the web the shards are not even downloadable
+ * (catalog `platforms.web: false`), so this resolves to null there by
+ * construction and Basic behaves exactly as before.
+ */
+export async function resolveSatelliteHd(): Promise<{ sourceUrls: string[] | null }> {
+  ensurePmtilesProtocol();
+  const urls: string[] = [];
+  for (const spec of SATELLITE_HD_ARCHIVES) {
+    const key = `offline://${spec.cacheName}`;
+    if (!(await addLocalSource(spec, key))) return { sourceUrls: null };
+    urls.push(`pmtiles://${key}`);
+  }
+  return { sourceUrls: urls };
 }

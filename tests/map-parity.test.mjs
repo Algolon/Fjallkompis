@@ -74,7 +74,10 @@ const verifyNative = read('scripts/verify-native-build.mjs');
 // ---------------------------------------------------------------------------
 
 test('every archive declares a complete, well-formed identity', () => {
-  assert.deepEqual([...MAP_ASSET_IDS], ['vector', 'terrain', 'contours', 'satellite']);
+  assert.deepEqual(
+    [...MAP_ASSET_IDS],
+    ['vector', 'terrain', 'contours', 'satellite', 'satelliteHdNorth', 'satelliteHdSouth'],
+  );
   for (const id of MAP_ASSET_IDS) {
     const asset = mapAsset(id);
     assert.equal(asset.id, id);
