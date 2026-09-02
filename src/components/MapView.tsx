@@ -803,6 +803,23 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         map.addSource('focus', { type: 'geojson', data: EMPTY_FC });
         for (const layer of routeLayers()) map.addLayer(layer);
 
+        // TEMPORARY dev-only Satellite A/B benchmark (canonical v5 vs the
+        // local v6 candidate): active ONLY in dev builds AND with
+        // ?satBenchmark=1 in the URL. The dynamic import keeps every byte of
+        // it out of production bundles, and the module touches no catalog,
+        // storage or attribution contract (src/map/satBenchmark.ts).
+        if (
+          import.meta.env.DEV &&
+          new URLSearchParams(window.location.search).has('satBenchmark')
+        ) {
+          const benchMap = map;
+          void import('../map/satBenchmark').then(({ installSatBenchmark }) => {
+            if (mapRef.current === benchMap) {
+              void installSatBenchmark(benchMap, mountedRoute.waypoints);
+            }
+          });
+        }
+
         // Apply a focus requested before load ("View on map" arrives with the map).
         if (pendingFocusRef.current) {
           pendingFocusRef.current(map);
