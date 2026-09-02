@@ -70,8 +70,9 @@ Fjallkompis does not have a backend.
    browser's *Add to Home Screen* / *Install*. It then opens full-screen like a
    native app. Fjallkompis also works in a regular browser tab.
 3. **Download the offline map**: Settings → *Offline maps* → Download
-   (~5.3 MB). Optionally add Terrain relief (~25 MB) for hillshade and
-   contours, and Satellite imagery (~59 MB) for a second map layer.
+   (~5.6 MB). Optionally add Terrain relief (~33 MB) for hillshade and
+   contours, and Satellite imagery (~280 MB) for a second map layer with
+   high-detail aerial orthophotos along the trail corridor.
 4. **Set your stage**: on the Stages tab, mark the day you're walking with
    *Set as current*.
 5. **Check it works offline**: enable airplane mode and reopen Fjallkompis —
@@ -111,6 +112,7 @@ APK — a technical spike, not a release, and not on Google Play. It adds a
 second build mode and leaves the PWA untouched; see
 [docs/ANDROID.md](docs/ANDROID.md).
 
-Map data © OpenStreetMap contributors · Protomaps. Satellite imagery:
-Sentinel-2 cloudless by EOX. Full credits in Fjallkompis under Settings →
-*Data sources*.
+Map data © OpenStreetMap contributors · Protomaps. Imagery layer:
+Sentinel-2 cloudless by EOX (overview zooms and fallback) with detailed
+aerial orthophotos © Lantmäteriet (CC BY 4.0) along the trail corridor.
+Full credits in Fjallkompis under Settings → *Data sources*.

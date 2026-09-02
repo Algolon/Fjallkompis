@@ -62,6 +62,8 @@ export const RASTER_ARCHIVE_MIN_ZOOM: number;
 export const TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM: number;
 export const TERRAIN_ARCHIVE_MAX_ZOOM: number;
 export const SATELLITE_ARCHIVE_MAX_ZOOM: number;
+export const SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM: number;
+export const SATELLITE_DETAIL_MIN_ZOOM: number;
 export const RASTER_SOURCE_TILE_SIZE: number;
 export const MAPLIBRE_WORLD_TILE_SIZE: number;
 export const OVERVIEW_SLACK: number;

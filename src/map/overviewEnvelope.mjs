@@ -103,7 +103,27 @@ export const RASTER_ARCHIVE_MIN_ZOOM = 7;
  */
 export const TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM = 11;
 export const TERRAIN_ARCHIVE_MAX_ZOOM = 12;
-export const SATELLITE_ARCHIVE_MAX_ZOOM = 13;
+/** Hybrid satellite v5: z14–15 is the orthophoto detail corridor. */
+export const SATELLITE_ARCHIVE_MAX_ZOOM = 15;
+
+/**
+ * Highest satellite source zoom that carries the COMPLETE z7 overview
+ * footprint (the Sentinel-2 pyramid). Zooms above it — the Lantmäteriet
+ * orthophoto detail corridor of the hybrid archive — cover only the compact
+ * tile-aligned cutout, exactly like terrain's z12. Shipped as a flag-day
+ * set with the satellite-data-v5 catalog revision and the aerial-orthophoto
+ * attribution (fenced by tests/satellite-hybrid-contract.test.mjs).
+ */
+export const SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM = 13;
+
+/**
+ * First zoom of the orthophoto detail corridor. The hybrid build tile-aligns
+ * the corridor at THIS zoom, so every detail zoom (this one and its
+ * children) is the same fully data-covered rectangle — which is why the
+ * coverage claim below uses this alignment for every detail source zoom
+ * rather than re-aligning per zoom.
+ */
+export const SATELLITE_DETAIL_MIN_ZOOM = SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM + 1;
 
 export const RASTER_SOURCE_TILE_SIZE = 256;
 export const MAPLIBRE_WORLD_TILE_SIZE = 512;
@@ -200,10 +220,17 @@ export function terrainSourceCoverage(sourceZoom, cutoutBounds) {
   return tileAlignedFootprint(cutoutBounds, sourceZoom);
 }
 
-/** Satellite v4 contains every z7 descendant through its maxzoom. */
+/**
+ * Physical satellite footprint at one source zoom. The Sentinel-2 zooms
+ * (through SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM) contain every descendant of
+ * the z7 overview tile; the orthophoto detail zooms above them return to the
+ * compact tile-aligned cutout corridor — the same shape terrain takes at z12.
+ */
 export function satelliteSourceCoverage(sourceZoom, cutoutBounds) {
-  void sourceZoom;
-  return rasterRenderableCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+  if (sourceZoom <= SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM) {
+    return rasterRenderableCoverage(cutoutBounds, RASTER_ARCHIVE_MIN_ZOOM);
+  }
+  return tileAlignedFootprint(cutoutBounds, SATELLITE_DETAIL_MIN_ZOOM);
 }
 
 function insetRasterCoverage(physical, safetyMetres = RASTER_EDGE_SAFETY_METRES) {

@@ -1,13 +1,19 @@
 # Satellite map-data maintenance — MANUAL only.
 #
-# Regenerates the bounded satellite PMTiles archive from EOX Sentinel-2 cloudless
-# imagery on a GitHub-hosted runner (which, unlike the Claude session, can reach
-# tiles.maps.eox.at), verifies it, uploads it as an artifact, and can OPTIONALLY
-# publish it as a versioned GitHub Release asset consumed by the app
-# (VITE_SATELLITE_URL).
+# Regenerates the bounded HYBRID satellite PMTiles archive on a GitHub-hosted
+# runner: Sentinel-2 cloudless (EOX) for the z7–13 overview pyramid plus
+# Lantmäteriet Ortofoto J6 streamed COG detail for z14–15 over the trail
+# corridor (maxzoom 13 builds a legacy all-Sentinel archive). It verifies the
+# result, uploads it as an artifact, and can OPTIONALLY publish it as a
+# versioned GitHub Release asset consumed by the app.
 #
-# It commits nothing — neither the source GeoTIFF nor the PMTiles archive ever
-# enters git. Use it to cut a NEW imagery version (e.g. satellite-data-v4). The
+# Lantmäteriet access needs the LM_USERNAME / LM_PASSWORD repository SECRETS
+# (HTTP Basic). Only the secret references may appear in this file — never a
+# value — and the build scripts pass them to GDAL through its environment
+# variables without ever writing them to logs or artifacts.
+#
+# It commits nothing — neither source imagery nor the PMTiles archive ever
+# enters git. Use it to cut a NEW imagery version (e.g. satellite-data-v5). The
 # v1 asset was published from the originally verified build artifact.
 name: Satellite map data (maintenance)
 
@@ -15,12 +21,12 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag for the archive (e.g. satellite-data-v4)'
-        default: 'satellite-data-v4'
+        description: 'Release tag for the archive (e.g. satellite-data-v5)'
+        default: 'satellite-data-v5'
         required: true
       maxzoom:
-        description: 'Max zoom stored in the archive'
-        default: '13'
+        description: 'Max zoom stored in the archive (15 = hybrid; 13 = legacy all-Sentinel)'
+        default: '15'
         required: true
       tile_format:
         description: 'Tile format: WEBP or JPEG'
@@ -146,11 +152,25 @@ jobs:
       - name: Generate route data (pipeline reads mapCutoutBounds)
         run: npm run generate:route
 
+      # Metadata-only STAC acquisition (anonymous): pagination, validation,
+      # orthophoto/fallback coverage statistics, RGB /vsicurl/ VRT + coverage
+      # cutline + probe synthesis; ends with a one-COG credential probe.
+      # Orthophoto gaps are NOT fatal — the build composites Sentinel-2
+      # underneath, and proves the composited corridor is complete.
+      - name: Prepare Lantmäteriet orthophoto sources (hybrid only)
+        if: ${{ inputs.maxzoom != '13' }}
+        env:
+          LM_USERNAME: ${{ secrets.LM_USERNAME }}
+          LM_PASSWORD: ${{ secrets.LM_PASSWORD }}
+        run: bash scripts/prepare-lantmateriet-orthophoto.sh
+
       - name: Build the satellite PMTiles archive
         env:
           MAXZOOM: ${{ inputs.maxzoom }}
           TILE_FORMAT: ${{ inputs.tile_format }}
           QUALITY: ${{ inputs.quality }}
+          LM_USERNAME: ${{ secrets.LM_USERNAME }}
+          LM_PASSWORD: ${{ secrets.LM_PASSWORD }}
         run: npm run generate:map:satellite -- data/source-imagery/sentinel2-kungsleden.tif
 
       - name: Assert the PMTiles archive exists
@@ -194,7 +214,9 @@ jobs:
           retention-days: 14
           path: |
             data/source-imagery/sentinel2-kungsleden.tif
+            data/source-imagery/lantmateriet-j6/items.json
             public/maps/kungsleden-satellite.pmtiles
+            public/maps/kungsleden-satellite-provenance.json
             satellite-build-report/gdalinfo.txt
             satellite-build-report/pmtiles-show.txt
             satellite-build-report/checksums.txt
@@ -209,9 +231,11 @@ jobs:
           set -euo pipefail
           version="${TAG#satellite-data-}"
           {
-            echo "Bounded satellite basemap for the Kungsleden route (Abisko–Nikkaluokta), consumed by the app's Satellite layer (VITE_SATELLITE_URL)."
+            echo "Bounded hybrid satellite basemap for the Kungsleden route (Abisko–Nikkaluokta), consumed by the app's Satellite layer: Sentinel-2 overview zooms plus Lantmäteriet aerial-orthophoto detail zooms along the trail corridor in one archive."
             echo
-            echo "**Attribution:** Sentinel-2 cloudless — s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)"
+            echo "**Attribution (overview zooms):** Sentinel-2 cloudless — s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)"
+            echo
+            echo "**Attribution (detail zooms):** Ortofoto © Lantmäteriet, licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), processed/modified for Fjallkompis"
             echo
             echo '### Archive metadata'
             echo '```'
@@ -227,7 +251,7 @@ jobs:
           else
             gh release create "$TAG" "$asset" \
               --repo "$GITHUB_REPOSITORY" --target main \
-              --title "Fjällkompis satellite map data $version" \
+              --title "Fjallkompis satellite map data $version" \
               --notes-file satellite-build-report/release-notes.md
           fi
 

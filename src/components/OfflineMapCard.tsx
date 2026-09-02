@@ -33,7 +33,7 @@ import { mapAssetGroupBytes } from '../map/mapCatalog.mjs';
 import { ARCHIVE_CANCELLED_ERROR } from '../map/nativeArchiveStore';
 import {
   BASEMAP_SOURCE_INFO,
-  SATELLITE_SOURCE_INFO,
+  SATELLITE_LAYER_SOURCE_INFOS,
   TERRAIN_SOURCE_INFO,
   type DataSourceAttribution,
 } from '../data/attribution';
@@ -120,6 +120,12 @@ interface ArchiveCardProps {
   sourceHeading: string;
   /** Attribution entry from the central registry (src/data/attribution.ts). */
   source: DataSourceAttribution;
+  /**
+   * Further registry entries shipping inside the SAME download (the hybrid
+   * satellite archive carries Sentinel and Lantmäteriet imagery in one
+   * file). Every source of a download is credited on its card.
+   */
+  extraSources?: DataSourceAttribution[];
   /** Render only the card contents when nested inside another framed control. */
   embedded?: boolean;
 }
@@ -160,6 +166,7 @@ function ArchiveCard({
   removeConfirm,
   sourceHeading,
   source,
+  extraSources,
   embedded = false,
 }: ArchiveCardProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
@@ -425,7 +432,12 @@ function ArchiveCard({
         </>
       )}
 
-      <SourceSummary heading={sourceHeading} source={source} assetUrls={specs.map(archiveUrl)} />
+      <SourceSummary
+        heading={sourceHeading}
+        source={source}
+        extraSources={extraSources}
+        assetUrls={specs.map(archiveUrl)}
+      />
     </>
   );
 
@@ -464,14 +476,24 @@ export function TerrainReliefCard({ embedded = false }: { embedded?: boolean }) 
 }
 
 export function SatelliteMapCard({ embedded = false }: { embedded?: boolean }) {
+  // One archive, every imagery source inside it: while the archive is
+  // all-Sentinel this renders exactly the previous card; when the hybrid
+  // archive lands (Lantmäteriet's `present` flag flips with the catalog
+  // revision) the description and credits pick up the second source here.
+  const [primarySource, ...extraSources] = SATELLITE_LAYER_SOURCE_INFOS;
+  const hybrid = extraSources.length > 0;
+  const imagery = hybrid
+    ? 'Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, with detailed Lantmäteriet aerial orthophotos along the trail corridor'
+    : 'Sentinel-2 cloudless imagery (EOX) of the Kungsleden area';
   return (
     <ArchiveCard
       specs={[SATELLITE_ARCHIVE]}
       title="Satellite imagery"
-      description={`Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, an optional second map layer (${formatBytes(mapAssetGroupBytes(['satellite']))}). Download it while you have a connection — the Satellite layer stays switched off until it is on your device, so this much data is never fetched unexpectedly.`}
+      description={`${imagery}, an optional second map layer (${formatBytes(mapAssetGroupBytes(['satellite']))}). Download it while you have a connection — the Satellite layer stays switched off until it is on your device, so this much data is never fetched unexpectedly.`}
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
       sourceHeading="Imagery"
-      source={SATELLITE_SOURCE_INFO}
+      source={primarySource}
+      extraSources={extraSources}
       embedded={embedded}
     />
   );

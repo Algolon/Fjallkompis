@@ -525,7 +525,7 @@ verbatim once storage sits behind `src/map/archiveStore.ts`.
 
 | | A. Bundle archives in a "full trail" AAB | B. Download into native storage after install |
 | --- | --- | --- |
-| Size | +~59 MB satellite, +~29 MB terrain/contours → a **~100 MB** app | app stays ~11 MB |
+| Size | +~280 MB satellite (hybrid v5), +~33 MB terrain/contours → a **~320 MB** app | app stays ~11 MB |
 | Offline | Works the moment it is installed | Needs one deliberate Wi-Fi step before departure |
 | Updating imagery | Requires a new app release | Independent of the app version |
 | Play Store | Every update is a full re-download | Fine |
@@ -571,7 +571,7 @@ The mechanics, and why each is not the obvious thing:
 **Optional layers are download-only on both platforms.** Terrain and Satellite
 become selectable once their archive is on the device, and not before — the
 browser's old ability to stream an undownloaded archive was removed rather than
-copied to Android. Two reasons: a 27 MB or 59 MB transfer must not start
+copied to Android. Two reasons: a 33 MB or 280 MB transfer must not start
 because someone opened the layer menu, and the same control must not mean
 "works" on one platform and "disabled" on the other with identical stored data.
 The basemap keeps its hosted fallback; on Android it is in the package anyway.

@@ -134,18 +134,29 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
       'Produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA; all rights reserved',
   },
   // ---- Not yet shipped — flip `present` when the archive actually exists ----
+  // The hybrid satellite archive's z14–15 detail corridor. NOT satellite
+  // imagery: these are aerial orthophotos, and the legal attribution says so
+  // even though the map's short mode toggle stays "Sat". `present` flips in
+  // the same change as the satellite catalog revision that first carries
+  // Lantmäteriet zooms (fenced by tests/satellite-hybrid-contract.test.mjs).
   {
     id: 'lantmateriet-ortofoto',
     scope: 'app',
-    present: false,
-    name: 'Aerial imagery',
-    label: 'Ortofoto Nedladdning · © Lantmäteriet',
-    attribution: 'Ortofoto Nedladdning · © Lantmäteriet.',
+    // Shipped with the hybrid satellite-data-v5 archive (z14–15 orthophoto
+    // corridor) — flag-day fence: tests/satellite-hybrid-contract.test.mjs.
+    present: true,
+    name: 'Aerial orthophotos',
+    label: 'Ortofoto © Lantmäteriet (CC BY 4.0)',
+    attribution:
+      'Detailed aerial orthophotos along the trail corridor (the high-detail zooms of the satellite layer, wherever orthophoto flight coverage exists — Sentinel-2 imagery fills the remainder), from Lantmäteriet Ortofoto (2024 flight, 0.4 m), reprojected and retiled into the bounded offline archive.',
+    mapAttributionHtml:
+      'Ortofoto © <a href="https://www.lantmateriet.se" target="_blank" rel="noopener">Lantmäteriet</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>)',
     provider: 'Lantmäteriet',
     sourceUrl: 'https://www.lantmateriet.se',
     licenseName: 'CC BY 4.0',
     licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
-    modifiedNotice: 'Processed imagery',
+    modifiedNotice:
+      'Contains modified Lantmäteriet Ortofoto data (2024), © Lantmäteriet, processed for Fjallkompis',
   },
 ];
 
@@ -170,6 +181,24 @@ export const APP_DATA_SOURCES = PRESENT_DATA_SOURCES.filter(
 export const BASEMAP_SOURCE_INFO = DATA_SOURCE_BY_ID['osm-protomaps-basemap'];
 export const SATELLITE_SOURCE_INFO = DATA_SOURCE_BY_ID['sentinel2-eox'];
 export const TERRAIN_SOURCE_INFO = DATA_SOURCE_BY_ID['copernicus-dem'];
+
+/**
+ * The sources composing the ONE optional satellite raster layer, in zoom
+ * order (Sentinel-2 overview zooms first, orthophoto detail zooms above
+ * them), filtered to what actually ships. Today that is Sentinel alone; when
+ * the hybrid archive lands, flipping `present` on lantmateriet-ortofoto adds
+ * the second credit HERE, on the map control, on the Settings card and in
+ * the credits sheet in one move — the four can never disagree.
+ */
+export const SATELLITE_LAYER_SOURCE_INFOS = [
+  DATA_SOURCE_BY_ID['sentinel2-eox'],
+  DATA_SOURCE_BY_ID['lantmateriet-ortofoto'],
+].filter((s) => s.present);
+
+/** Combined MapLibre attribution HTML for the satellite raster source. */
+export const SATELLITE_LAYER_ATTRIBUTION_HTML = SATELLITE_LAYER_SOURCE_INFOS.map(
+  (s) => s.mapAttributionHtml!,
+).join(' · ');
 
 /**
  * External sources behind the Lists → Shop info & Transport reference data
