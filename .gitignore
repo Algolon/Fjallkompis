@@ -18,7 +18,12 @@ dev-dist
 
 # Satellite archive: canonical copy is the satellite-data-vN GitHub Release
 # asset, injected into the Pages build by deploy.yml — never committed.
+# The wildcard also covers experimental/benchmark candidates written via
+# SATELLITE_OUT (e.g. kungsleden-satellite-v6-z16-q95-candidate.pmtiles)
+# and their -provenance.json siblings.
 public/maps/kungsleden-satellite.pmtiles
+public/maps/kungsleden-satellite-*.pmtiles
+public/maps/kungsleden-satellite-*-provenance.json
 
 # Terrain relief archives: same model — canonical copies live on the
 # terrain-data-vN GitHub Release, injected by deploy.yml, never committed.

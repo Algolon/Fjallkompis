@@ -24,12 +24,13 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   MAP_ASSETS,
   MAP_ASSET_REPO,
   OPTIONAL_MAP_ASSETS,
+  WEB_OPTIONAL_MAP_ASSETS,
 } from '../src/map/mapCatalog.mjs';
 
 const [, , command, targetDir] = process.argv;
@@ -47,10 +48,17 @@ async function sha256(path) {
   return hash.digest('hex');
 }
 
-/** Every optional archive, grouped by the release tag that carries it. */
+/**
+ * The WEB-available optional archives, grouped by the release tag that
+ * carries them. This script is the Pages deployment's half of the pipeline,
+ * so it deals exclusively in `platforms.web` assets: GitHub Pages caps a
+ * published site at ~1 GB, and the native-only Satellite HD shards (~2.1 GB
+ * together) must never enter the artifact. Android fetches its archives
+ * straight from their pinned Releases and never goes through this script.
+ */
 function releaseGroups() {
   const groups = new Map();
-  for (const id of OPTIONAL_MAP_ASSETS) {
+  for (const id of WEB_OPTIONAL_MAP_ASSETS) {
     const asset = MAP_ASSETS[id];
     const existing = groups.get(asset.release.tag) ?? [];
     existing.push(asset);
@@ -76,7 +84,7 @@ function fetchArchives(dir) {
 
 async function verifyArchives(dir) {
   let checked = 0;
-  for (const id of OPTIONAL_MAP_ASSETS) {
+  for (const id of WEB_OPTIONAL_MAP_ASSETS) {
     const asset = MAP_ASSETS[id];
     const path = join(dir, asset.file);
     let size;
@@ -95,10 +103,21 @@ async function verifyArchives(dir) {
     console.log(`✓ ${asset.file}  ${size} bytes  ${digest}`);
     checked += 1;
   }
-  if (checked !== OPTIONAL_MAP_ASSETS.length) {
-    fail('not every optional archive was checked');
+  if (checked !== WEB_OPTIONAL_MAP_ASSETS.length) {
+    fail('not every web optional archive was checked');
   }
-  console.log(`✓ ${checked} optional map archives verified against the catalog`);
+  // The other direction of the same contract: a native-only archive INSIDE
+  // the web artifact would blow the ~1 GB Pages site cap and violate the
+  // platform model — its presence fails the deploy outright.
+  for (const id of OPTIONAL_MAP_ASSETS) {
+    const asset = MAP_ASSETS[id];
+    if (asset.platforms.web) continue;
+    if (existsSync(join(dir, asset.file))) {
+      fail(`${join(dir, asset.file)} is native-only (${asset.id}) and must NOT enter the web artifact`);
+    }
+    console.log(`✓ ${asset.file}  correctly absent (native-only)`);
+  }
+  console.log(`✓ ${checked} web optional map archives verified against the catalog`);
 }
 
 function listArchives() {

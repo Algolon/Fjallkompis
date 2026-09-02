@@ -261,6 +261,29 @@ and rejected: from a 30 m DSM they mostly add noise and 3–4× the archive
 weight. The shipped 20 m/100 m intervals were selected from the DEM
 resolution, visual comparison, contour noise and storage measurements.
 
+## Satellite HD detail add-on (Android-only)
+
+The SAT layer has an optional **HD detail** add-on: native z16 (WebP q95,
+~0.9 m/px ground) aerial-orthophoto tiles for the trail corridor, layered
+automatically above Satellite Basic from display zoom 15.5 — one map mode,
+no extra toggle. It ships as TWO shards
+(`kungsleden-satellite-hd-{north,south}.pmtiles`, release
+`satellite-hd-data-v1`) split on an exact z16 tile-row boundary because the
+corridor's ~2.04 GiB exceeds GitHub's 2 GiB per-Release-asset cap; the
+catalog groups them as one download (`satelliteHd`).
+
+HD is **native-only** (`platforms: { web: false, native: true }` in
+`src/map/mapCatalog.mjs`): GitHub Pages caps a published site at ~1 GB, so
+the shards can never ride the same-origin Pages injection — the deploy
+pipeline fetches only web-available assets and FAILS if a native-only
+archive appears in the artifact, and the web build prunes them from `dist`.
+Android downloads both shards straight from the pinned Release with the
+same verify-bytes-and-SHA download used by every optional archive. The
+shards are derived deterministically from the accepted z16/q95 benchmark
+build by `scripts/extract-satellite-hd.sh` (payloads copied verbatim, per-
+coordinate completeness proof, provenance JSON) — never rebuilt from source
+imagery just to package them.
+
 ## Satellite imagery layer
 
 The map has an optional **Satellite** basemap alongside the vector **Terrain**

@@ -134,6 +134,33 @@ function stripOptionalMapArchives(): Plugin {
 }
 
 /**
+ * The web-build counterpart: keeps NATIVE-ONLY optional archives out of the
+ * Pages artifact. The Satellite HD shards (~2.1 GB together) live in
+ * `public/maps/` on any machine that has run the HD extraction; a Pages
+ * artifact that swallowed them would blow GitHub Pages' ~1 GB published-site
+ * cap. Deployment's `map-archives.mjs verify` asserts their absence again —
+ * this hook is the fix, that check is the proof.
+ */
+function stripNativeOnlyMapArchives(): Plugin {
+  return {
+    name: 'fjallkompis:strip-native-only-map-archives',
+    apply: 'build',
+    closeBundle() {
+      const outDir = resolve(process.cwd(), 'dist', 'maps');
+      for (const id of OPTIONAL_MAP_ASSETS) {
+        const asset = MAP_ASSETS[id];
+        if (asset.platforms.web) continue;
+        const file = join(outDir, asset.file);
+        if (existsSync(file)) {
+          rmSync(file);
+          this.warn(`web build: removed native-only map archive ${asset.file}`);
+        }
+      }
+    },
+  };
+}
+
+/**
  * Stamps the native build's output so the wrong bundle can never be synced.
  *
  * Both targets write to the SAME `dist` directory (Capacitor's webDir), so
@@ -222,7 +249,7 @@ export default defineConfig(({ mode }) => ({
     pdfjsAuxAssets(),
     ...(mode === 'native'
       ? [inertPwaRegister(), nativeBuildMarker(), stripOptionalMapArchives()]
-      : []),
+      : [stripNativeOnlyMapArchives()]),
     ...(mode === 'native' ? [] : [VitePWA({
       // Prompt-style updates: a new service worker waits until the user taps
       // "Update now" in the in-app toast, so we never reload out from under an

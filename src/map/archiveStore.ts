@@ -98,6 +98,20 @@ function isBundledHere(spec: ArchiveSpec): boolean {
  * first launch, so a card reading "Not downloaded" — which is what a Cache
  * Storage probe reports there — was describing the platform, not the device.
  */
+/**
+ * Whether THIS device's platform can obtain the archive at all — the
+ * catalog's `platforms` declaration answered for the running platform. This
+ * is the one sanctioned place that question is asked (the module doc above
+ * explains why): the Settings cards use it to offer, hide or explain a
+ * download (Satellite HD is native-only), and never touch the platform
+ * adapter themselves. Bundled archives are present everywhere by
+ * construction, whatever their download declaration says.
+ */
+export function archiveAvailableOnThisPlatform(spec: ArchiveSpec): boolean {
+  if (spec.asset.distribution === 'bundled') return true;
+  return isNativeAndroid() ? spec.asset.platforms.native : spec.asset.platforms.web;
+}
+
 export async function archiveStatus(spec: ArchiveSpec): Promise<StoredArchiveStatus> {
   if (isBundledHere(spec)) return BUNDLED_STATUS(spec.revision.bytes);
 

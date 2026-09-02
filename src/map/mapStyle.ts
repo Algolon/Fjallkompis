@@ -42,6 +42,26 @@ export const SATELLITE_SOURCE = 'satellite';
 export const SATELLITE_LAYER = 'satellite';
 
 /**
+ * Satellite HD detail (native-only add-on): one raster source + layer per
+ * z16 shard, drawn directly above the Basic satellite layer and below every
+ * route/marker overlay. The user never toggles HD separately — the layers
+ * follow the one SAT mode, and MapLibre composes them into a single
+ * continuous z16 layer (the shards are disjoint by construction).
+ */
+export const SATELLITE_HD_SOURCE_PREFIX = 'satellite-hd-';
+export const SATELLITE_HD_LAYER_PREFIX = 'satellite-hd-';
+/**
+ * Display zoom where HD takes over. z15.5 is exactly where Basic runs out of
+ * native data (its 256 px source selects z15 through display 15.49 and only
+ * overzooms beyond): below this boundary Basic renders precisely as it does
+ * without HD; above it, native z16 replaces Basic's overzoom, with Basic
+ * still underneath so tile loading never flashes background. This is a
+ * rendering boundary, not archive metadata — Basic physically stays z15 and
+ * the HD shards z16 (their own PMTiles headers say so).
+ */
+export const SATELLITE_HD_MIN_DISPLAY_ZOOM = 15.5;
+
+/**
  * Optional terrain relief: a terrain-RGB raster-dem archive (hillshade) and
  * a contour-line vector archive, both built from the Copernicus GLO-30 DEM
  * by scripts/build-terrain-map.sh and downloaded like the other archives
@@ -107,6 +127,7 @@ export function buildMapStyle(
   basemapSourceUrl: string | null,
   satelliteSourceUrl: string | null = null,
   relief: ReliefUrls | null = null,
+  satelliteHdSourceUrls: readonly string[] | null = null,
 ): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,
@@ -176,6 +197,29 @@ export function buildMapStyle(
       layout: { visibility: 'none' },
       paint: { 'raster-fade-duration': 200 },
     });
+    // HD detail shards, only when Basic itself resolved: HD is an overlay
+    // on the Basic imagery, never a standalone layer (its z16 tiles cover
+    // only the trail corridor — Basic is the fallback beneath and around
+    // them). Each shard's own PMTiles header supplies its min/max zoom, so
+    // Basic's z15 metadata is never falsified. No attribution string here:
+    // the HD imagery is the same two sources the Basic layer already
+    // credits, and repeating them would duplicate the map credit.
+    for (const [index, url] of (satelliteHdSourceUrls ?? []).entries()) {
+      const id = `${SATELLITE_HD_LAYER_PREFIX}${index}`;
+      style.sources[id] = {
+        type: 'raster',
+        url,
+        tileSize: SATELLITE_TILE_SIZE,
+      };
+      style.layers.push({
+        id,
+        type: 'raster',
+        source: id,
+        minzoom: SATELLITE_HD_MIN_DISPLAY_ZOOM,
+        layout: { visibility: 'none' },
+        paint: { 'raster-fade-duration': 200 },
+      });
+    }
   }
 
   return style;

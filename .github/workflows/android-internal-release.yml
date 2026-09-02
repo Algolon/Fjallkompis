@@ -623,7 +623,7 @@ jobs:
         run: |
           set -euo pipefail
           aab=android/app/build/outputs/bundle/release/app-release.aab
-          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles; do
+          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles kungsleden-satellite-hd-north.pmtiles kungsleden-satellite-hd-south.pmtiles; do
             if unzip -l "$aab" "base/assets/public/maps/$f" > /dev/null 2>&1; then
               echo "::error::$f is an optional download and must not be packaged in the AAB"
               exit 1
@@ -795,7 +795,7 @@ jobs:
 
           unzip -l "$aab" base/assets/public/maps/kungsleden.pmtiles > /dev/null || {
             echo "::error::the artifact has no bundled vector basemap"; exit 1; }
-          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles; do
+          for f in kungsleden-terrain.pmtiles kungsleden-contours.pmtiles kungsleden-satellite.pmtiles kungsleden-satellite-hd-north.pmtiles kungsleden-satellite-hd-south.pmtiles; do
             if unzip -l "$aab" "base/assets/public/maps/$f" > /dev/null 2>&1; then
               echo "::error::optional archive $f is packaged in the artifact"; exit 1
             fi

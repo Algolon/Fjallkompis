@@ -130,6 +130,22 @@ export const SATELLITE_ARCHIVE: ArchiveSpec = specFor('satellite', () => {
   return configured ? configured : sameOriginUrl(mapAssetPath(mapAsset('satellite')));
 });
 
+/**
+ * Satellite HD detail — the native-only add-on above Satellite Basic: two
+ * z16 orthophoto shards managed as ONE download (catalog group
+ * 'satelliteHd'), split only because GitHub caps a Release asset at 2 GiB.
+ * `platforms.web` is false, so the browser never offers them and their
+ * same-origin path never resolves to a real file; Android downloads both
+ * straight from the pinned satellite-hd-data release like every other
+ * optional archive.
+ */
+export const SATELLITE_HD_NORTH_ARCHIVE: ArchiveSpec = specFor('satelliteHdNorth');
+export const SATELLITE_HD_SOUTH_ARCHIVE: ArchiveSpec = specFor('satelliteHdSouth');
+export const SATELLITE_HD_ARCHIVES: readonly ArchiveSpec[] = [
+  SATELLITE_HD_NORTH_ARCHIVE,
+  SATELLITE_HD_SOUTH_ARCHIVE,
+];
+
 /** @deprecated kept for existing imports; prefer VECTOR_ARCHIVE.cacheName. */
 export const OFFLINE_MAP_CACHE = VECTOR_ARCHIVE.cacheName;
 

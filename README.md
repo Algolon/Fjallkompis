@@ -72,7 +72,9 @@ Fjallkompis does not have a backend.
 3. **Download the offline map**: Settings → *Offline maps* → Download
    (~5.6 MB). Optionally add Terrain relief (~33 MB) for hillshade and
    contours, and Satellite imagery (~280 MB) for a second map layer with
-   high-detail aerial orthophotos along the trail corridor.
+   high-detail aerial orthophotos along the trail corridor. In the Android
+   app an optional **HD detail** add-on (~2.1 GB, two files) sharpens the
+   Satellite layer to ~0.9 m/px at maximum zoom.
 4. **Set your stage**: on the Stages tab, mark the day you're walking with
    *Set as current*.
 5. **Check it works offline**: enable airplane mode and reopen Fjallkompis —

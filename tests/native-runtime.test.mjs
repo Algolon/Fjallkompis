@@ -98,10 +98,12 @@ test('both builds are reachable through explicit, separate npm scripts', () => {
 test('the PWA plugin runs for the web build and never for the native build', () => {
   assert.match(vite, /mode === 'native' \? \[\] : \[VitePWA\(\{/, 'VitePWA is web-only');
   // The native-only plugin trio: the inert PWA stub, the build marker, and the
-  // hook that keeps the optional map archives out of the app package.
+  // hook that keeps the optional map archives out of the app package. The web
+  // branch carries its own single counterpart — the hook that keeps
+  // NATIVE-ONLY archives (Satellite HD) out of the Pages artifact.
   assert.match(
     vite,
-    /\[inertPwaRegister\(\), nativeBuildMarker\(\), stripOptionalMapArchives\(\)\]\s*:\s*\[\]/,
+    /\[inertPwaRegister\(\), nativeBuildMarker\(\), stripOptionalMapArchives\(\)\]\s*:\s*\[stripNativeOnlyMapArchives\(\)\]/,
   );
   // The web manifest, its theme colours and the precache sweep are untouched.
   assert.match(vite, /theme_color: '#2f4a3d'/);

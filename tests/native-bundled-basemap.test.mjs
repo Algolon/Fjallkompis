@@ -160,7 +160,10 @@ test('the bundled copy is read once per session and never persisted', () => {
 
 test('exactly the vector basemap is declared bundled, and the catalog says so', () => {
   assert.deepEqual([...BUNDLED_MAP_ASSETS], ['vector']);
-  assert.deepEqual([...OPTIONAL_MAP_ASSETS], ['terrain', 'contours', 'satellite']);
+  assert.deepEqual(
+    [...OPTIONAL_MAP_ASSETS],
+    ['terrain', 'contours', 'satellite', 'satelliteHdNorth', 'satelliteHdSouth'],
+  );
   assert.equal(MAP_ASSETS.vector.file, 'kungsleden.pmtiles');
   // The runtime flag is DERIVED from the catalog, so the two cannot disagree.
   assert.match(offlineMap, /bundledInApp: asset\.distribution === 'bundled'/);

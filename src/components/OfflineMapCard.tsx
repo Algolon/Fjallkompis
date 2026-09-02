@@ -12,6 +12,7 @@
  */
 import { useEffect, useState } from 'react';
 import {
+  archiveAvailableOnThisPlatform,
   archiveStatus,
   cancelArchiveDownload,
   downloadArchiveToDevice,
@@ -25,6 +26,7 @@ import {
   formatBytes,
   CONTOURS_ARCHIVE,
   SATELLITE_ARCHIVE,
+  SATELLITE_HD_ARCHIVES,
   TERRAIN_ARCHIVE,
   VECTOR_ARCHIVE,
   type ArchiveSpec,
@@ -128,6 +130,23 @@ interface ArchiveCardProps {
   extraSources?: DataSourceAttribution[];
   /** Render only the card contents when nested inside another framed control. */
   embedded?: boolean;
+  /**
+   * When set, every download action is disabled and the primary button says
+   * why. HD detail uses this while Satellite Basic is not on the device: an
+   * orphaned HD install would be z16 tiles with no imagery beneath them.
+   */
+  downloadDisabledReason?: string | null;
+  /**
+   * Archives that DEPEND on this card's download (HD detail depends on
+   * Satellite Basic). When any of them is stored, removing this card asks
+   * `confirm` instead of the plain removeConfirm and removes the dependents
+   * too — never silently, never leaving an orphaned add-on behind.
+   */
+  dependents?: { specs: ArchiveSpec[]; confirm: string };
+  /** Reports the combined downloaded state after every status change. */
+  onStatusChange?: (downloaded: boolean) => void;
+  /** Change to force a fresh status read (a related card altered storage). */
+  refreshToken?: number;
 }
 
 export function useCombinedArchiveStatus(specs: ArchiveSpec[]): ArchiveCombinedStatus {
@@ -168,6 +187,10 @@ function ArchiveCard({
   source,
   extraSources,
   embedded = false,
+  downloadDisabledReason = null,
+  dependents,
+  onStatusChange,
+  refreshToken = 0,
 }: ArchiveCardProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
   // Held apart from `phase` on purpose: a failed download must not erase what
@@ -184,12 +207,13 @@ function ArchiveCard({
     const status = combineStatuses(statuses);
     setCancellable(status.cancellable);
     setPhase({ kind: 'idle', status });
+    onStatusChange?.(status.downloaded);
   };
 
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [specs.map((s) => s.cacheName).join('|')]);
+  }, [specs.map((s) => s.cacheName).join('|'), refreshToken]);
 
   const download = async () => {
     setError(null);
@@ -213,6 +237,7 @@ function ArchiveCard({
         size += fileSize;
       }
       setPhase({ kind: 'done', sizeBytes: size });
+      onStatusChange?.(true);
     } catch (e) {
       setError(
         // Stopping the download yourself is not a failure to report.
@@ -241,11 +266,20 @@ function ArchiveCard({
   };
 
   const remove = async () => {
-    if (confirm(removeConfirm)) {
-      for (const spec of specs) await removeArchiveFromDevice(spec);
-      setError(null);
-      await refresh();
+    // A stored dependent changes the question being asked: removing Basic
+    // with HD detail on the device removes both, and the confirmation says
+    // exactly that — never a silent cascade, never an orphaned add-on.
+    const dependentStatuses = dependents
+      ? await Promise.all(dependents.specs.map((s) => archiveStatus(s)))
+      : [];
+    const dependentsStored = dependentStatuses.some((s) => s.downloaded);
+    if (!confirm(dependentsStored && dependents ? dependents.confirm : removeConfirm)) return;
+    if (dependentsStored && dependents) {
+      for (const spec of dependents.specs) await removeArchiveFromDevice(spec);
     }
+    for (const spec of specs) await removeArchiveFromDevice(spec);
+    setError(null);
+    await refresh();
   };
 
   const downloaded =
@@ -417,9 +451,15 @@ function ArchiveCard({
             className="btn btn-primary btn-block"
             style={{ marginTop: 12 }}
             onClick={download}
-            disabled={phase.kind === 'downloading' || phase.kind === 'checking'}
+            disabled={
+              phase.kind === 'downloading' ||
+              phase.kind === 'checking' ||
+              downloadDisabledReason != null
+            }
           >
-            {phase.kind === 'downloading' ? 'Downloading…' : 'Download for offline use'}
+            {phase.kind === 'downloading'
+              ? 'Downloading…'
+              : downloadDisabledReason ?? 'Download for offline use'}
           </button>
           {/* Only where the store can actually interrupt the transfer. A
               browser download assembles one Blob and either completes or
@@ -475,6 +515,48 @@ export function TerrainReliefCard({ embedded = false }: { embedded?: boolean }) 
   );
 }
 
+/**
+ * The Android-only HD detail add-on card: two z16 orthophoto shards managed
+ * as ONE download beneath the Satellite imagery card. Never rendered where
+ * the platform cannot obtain the shards (the web today) — the parent card
+ * simply omits it there, which keeps the PWA exactly as it was.
+ */
+function SatelliteHdCard({
+  embedded,
+  basicDownloaded,
+  onStatusChange,
+  refreshToken,
+}: {
+  embedded: boolean;
+  /** null while the Basic card is still probing storage. */
+  basicDownloaded: boolean | null;
+  onStatusChange: (downloaded: boolean) => void;
+  refreshToken: number;
+}) {
+  // Same two imagery sources as Basic, led by the orthophoto: HD IS the
+  // high-resolution aerial-orthophoto detail (Sentinel appears only where
+  // flight coverage ends).
+  const hdSources = [...SATELLITE_LAYER_SOURCE_INFOS].reverse();
+  const [primarySource, ...extraSources] = hdSources;
+  return (
+    <ArchiveCard
+      specs={[...SATELLITE_HD_ARCHIVES]}
+      title="HD detail"
+      description={`Adds extra-sharp aerial orthophoto detail at maximum zoom along the trail — about 0.9 m per pixel (${formatBytes(mapAssetGroupBytes(['satelliteHdNorth', 'satelliteHdSouth']))}, two files downloaded together). Requires Satellite imagery: the HD tiles cover the trail corridor and render above the base imagery.`}
+      removeConfirm="Remove the HD detail? Satellite imagery keeps working with standard detail."
+      sourceHeading="Imagery"
+      source={primarySource}
+      extraSources={extraSources}
+      embedded={embedded}
+      downloadDisabledReason={
+        basicDownloaded === false ? 'Download Satellite imagery first' : null
+      }
+      onStatusChange={onStatusChange}
+      refreshToken={refreshToken}
+    />
+  );
+}
+
 export function SatelliteMapCard({ embedded = false }: { embedded?: boolean }) {
   // One archive, every imagery source inside it: while the archive is
   // all-Sentinel this renders exactly the previous card; when the hybrid
@@ -485,17 +567,50 @@ export function SatelliteMapCard({ embedded = false }: { embedded?: boolean }) {
   const imagery = hybrid
     ? 'Sentinel-2 cloudless imagery (EOX) of the Kungsleden area, with detailed Lantmäteriet aerial orthophotos along the trail corridor'
     : 'Sentinel-2 cloudless imagery (EOX) of the Kungsleden area';
-  return (
+  // HD detail is offered only where every shard is obtainable (Android; the
+  // catalog's platform declaration, asked through the store boundary). The
+  // two cards coordinate through plain state: Basic's downloaded flag gates
+  // the HD download, and any change on either side bumps the other's
+  // status read — including the remove-Basic-removes-HD cascade.
+  const hdOffered = SATELLITE_HD_ARCHIVES.every((s) => archiveAvailableOnThisPlatform(s));
+  const [basicDownloaded, setBasicDownloaded] = useState<boolean | null>(null);
+  const [hdRefresh, setHdRefresh] = useState(0);
+  const basicCard = (
     <ArchiveCard
       specs={[SATELLITE_ARCHIVE]}
       title="Satellite imagery"
-      description={`${imagery}, an optional second map layer (${formatBytes(mapAssetGroupBytes(['satellite']))}). Download it while you have a connection — the Satellite layer stays switched off until it is on your device, so this much data is never fetched unexpectedly.`}
+      description={`${imagery}, an optional second map layer (${formatBytes(mapAssetGroupBytes(['satellite']))}, detail through zoom 15 — plenty for overview and normal close-up use). Download it while you have a connection — the Satellite layer stays switched off until it is on your device, so this much data is never fetched unexpectedly.`}
       removeConfirm="Remove the satellite imagery? The Satellite map layer will be disabled."
       sourceHeading="Imagery"
       source={primarySource}
       extraSources={extraSources}
       embedded={embedded}
+      dependents={
+        hdOffered
+          ? {
+              specs: [...SATELLITE_HD_ARCHIVES],
+              confirm:
+                'Remove the satellite imagery? The HD detail on this device needs it and will be removed as well. The Satellite map layer will be disabled.',
+            }
+          : undefined
+      }
+      onStatusChange={(downloaded) => {
+        setBasicDownloaded(downloaded);
+        setHdRefresh((n) => n + 1);
+      }}
     />
+  );
+  if (!hdOffered) return basicCard;
+  return (
+    <>
+      {basicCard}
+      <SatelliteHdCard
+        embedded={embedded}
+        basicDownloaded={basicDownloaded}
+        onStatusChange={() => {}}
+        refreshToken={hdRefresh}
+      />
+    </>
   );
 }
 

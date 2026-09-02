@@ -36,11 +36,13 @@ import {
   buildMapStyle,
   routeLayers,
   SATELLITE_LAYER,
+  SATELLITE_HD_LAYER_PREFIX,
   type ReliefUrls,
 } from '../map/mapStyle';
 import {
   resolveArchiveBasemap,
   resolveSatellite,
+  resolveSatelliteHd,
   type BasemapMode,
   type BasemapResolution,
 } from '../map/pmtilesProtocol';
@@ -484,7 +486,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         trace(`${name}-resolved`, { mode: value.mode });
         return value;
       };
-      const [basemap, satellite, terrain, contours] = await Promise.all([
+      const [basemap, satellite, terrain, contours, satelliteHd] = await Promise.all([
         resolved('basemap', resolveArchiveBasemap(archive)),
         resolved('satellite', enableSatellite ? resolveSatellite() : Promise.resolve(none)),
         resolved(
@@ -495,6 +497,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           'contours',
           enableRelief ? resolveArchiveBasemap(CONTOURS_ARCHIVE) : Promise.resolve(none),
         ),
+        // HD detail rides the same resolution pass: local shards or nothing
+        // (Android-only download — on the web this is null by construction).
+        enableSatellite ? resolveSatelliteHd() : Promise.resolve({ sourceUrls: null }),
       ]);
       if (cancelled || !containerRef.current) return;
       trace('archives-resolved', {
@@ -579,7 +584,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       recordMapConstructor();
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildMapStyle(basemap.sourceUrl, satellite.sourceUrl, reliefRef.current),
+        style: buildMapStyle(
+          basemap.sourceUrl,
+          satellite.sourceUrl,
+          reliefRef.current,
+          satelliteHd.sourceUrls,
+        ),
         // The initial view IS the full-route overview, and it is applied as a
         // SOLVED camera rather than a bounds-fit: the composition is a
         // constrained fit (route-centred, then translated back inside the
@@ -1085,6 +1095,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       'visibility',
       imagery === 'satellite' ? 'visible' : 'none',
     );
+    // The HD detail shards follow the ONE SAT mode — there is no separate
+    // toggle. They only exist in the style when both Basic and every HD
+    // shard resolved locally (buildMapStyle), so this loop is a no-op
+    // everywhere else, the web included.
+    for (let i = 0; map.getLayer(`${SATELLITE_HD_LAYER_PREFIX}${i}`); i++) {
+      map.setLayoutProperty(
+        `${SATELLITE_HD_LAYER_PREFIX}${i}`,
+        'visibility',
+        imagery === 'satellite' ? 'visible' : 'none',
+      );
+    }
     // Satellite has a complete descendant pyramid; Terrain becomes compact
     // at source z12. Apply that physical coverage contract as soon as the
     // selected imagery changes, without re-fitting an already-valid camera.

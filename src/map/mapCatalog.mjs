@@ -62,10 +62,24 @@ export const MAP_ASSET_DIR = 'maps';
  * @property {string} tag   Pinned GitHub Release tag — the canonical origin.
  * @property {string} asset Asset filename on that release.
  *
+ * @typedef {object} MapAssetPlatforms
+ * @property {boolean} web    Downloadable by the browser/PWA (deployment
+ *   injects the Release asset into the Pages build, so it is served
+ *   same-origin). GitHub Pages caps a published site at ~1 GB, so an asset
+ *   can only be web-available while the WHOLE injected set fits well inside
+ *   that — the reason Satellite HD is not.
+ * @property {boolean} native Downloadable by the Android app (directly from
+ *   the pinned GitHub Release asset — no Pages, no CORS, no size coupling).
+ *
  * @typedef {object} MapAsset
  * @property {string} id        Logical id used by every adapter and the plugin.
  * @property {string} file      Filename, identical on Pages and in the package.
  * @property {'bundled' | 'optional'} distribution
+ * @property {MapAssetPlatforms} platforms Which platforms may obtain this
+ *   asset. Bundled assets ship inside both builds regardless; for optional
+ *   assets this drives the Pages injection set, the Settings cards and the
+ *   runtime resolvers, so a platform can never be asked to fetch an archive
+ *   its distribution channel cannot deliver.
  * @property {MapAssetRevision} revision
  * @property {readonly number[]} supersededBytes
  *   Byte lengths this archive's OWN current cache may legitimately hold from an
@@ -94,6 +108,7 @@ export const MAP_ASSETS = Object.freeze({
     id: 'vector',
     file: 'kungsleden.pmtiles',
     distribution: 'bundled',
+    platforms: Object.freeze({ web: true, native: true }),
     revision: Object.freeze({
       // Unchanged from VECTOR_ARCHIVE_REVISION: this id is already stored in
       // deployed service workers' fetch URLs and must not move.
@@ -122,6 +137,7 @@ export const MAP_ASSETS = Object.freeze({
     id: 'terrain',
     file: 'kungsleden-terrain.pmtiles',
     distribution: 'optional',
+    platforms: Object.freeze({ web: true, native: true }),
     revision: Object.freeze({
       id: 'kungsleden-terrain-data-v4',
       bytes: 25_073_452,
@@ -156,6 +172,7 @@ export const MAP_ASSETS = Object.freeze({
     id: 'contours',
     file: 'kungsleden-contours.pmtiles',
     distribution: 'optional',
+    platforms: Object.freeze({ web: true, native: true }),
     revision: Object.freeze({
       id: 'kungsleden-contours-data-v3',
       bytes: 9_271_029,
@@ -185,6 +202,7 @@ export const MAP_ASSETS = Object.freeze({
     id: 'satellite',
     file: 'kungsleden-satellite.pmtiles',
     distribution: 'optional',
+    platforms: Object.freeze({ web: true, native: true }),
     revision: Object.freeze({
       id: 'kungsleden-satellite-data-v5',
       bytes: 293_720_600,
@@ -213,6 +231,69 @@ export const MAP_ASSETS = Object.freeze({
     legacyCacheNames: Object.freeze([]),
     release: Object.freeze({ tag: 'satellite-data-v5', asset: 'kungsleden-satellite.pmtiles' }),
   }),
+
+  /**
+   * Satellite HD detail — the OPTIONAL add-on above Satellite Basic: native
+   * z16 (q95 WebP) aerial-orthophoto detail for the trail corridor, derived
+   * from the accepted z16/q95 hybrid build by scripts/extract-satellite-hd.sh
+   * (tile payloads copied verbatim, never re-encoded). Two shards split on an
+   * exact z16 tile-row boundary because the corridor's 2.04 GiB exceeds
+   * GitHub's 2 GiB per-Release-asset cap; together they are ONE download
+   * choice (MAP_DOWNLOAD_GROUPS) and render as one continuous layer.
+   *
+   * NATIVE-ONLY: GitHub Pages caps a published site at ~1 GB, so these can
+   * never ride the same-origin Pages injection that serves the web's optional
+   * archives. Android downloads them straight from the pinned Release, like
+   * every other optional archive. Requires Satellite Basic (the fallback
+   * beneath z16 and the imagery below it) — the Settings card enforces that.
+   */
+  satelliteHdNorth: Object.freeze({
+    id: 'satelliteHdNorth',
+    file: 'kungsleden-satellite-hd-north.pmtiles',
+    distribution: 'optional',
+    platforms: Object.freeze({ web: false, native: true }),
+    revision: Object.freeze({
+      id: 'kungsleden-satellite-hd-north-data-v1',
+      bytes: 1_018_195_695,
+      sha256: '5a1e0ecf223fa19d72eaa046a7d83c479077bed165496d49ac39003a0c592705',
+      coverage: Object.freeze({
+        bounds: Object.freeze([Object.freeze([17.8637695, 68.1020044]), Object.freeze([19.3798828, 68.4960402])]),
+        minZoom: 16,
+        maxZoom: 16,
+        tilesByZoom: Object.freeze([
+          Object.freeze({ zoom: 16, x: Object.freeze([36020, 36295]), y: Object.freeze([15440, 15633]), count: 53544 }),
+        ]),
+      }),
+    }),
+    supersededBytes: Object.freeze([]),
+    cacheName: 'fjallkompis-offline-satellite-hd-north-v1',
+    legacyCacheNames: Object.freeze([]),
+    release: Object.freeze({ tag: 'satellite-hd-data-v1', asset: 'kungsleden-satellite-hd-north.pmtiles' }),
+  }),
+
+  satelliteHdSouth: Object.freeze({
+    id: 'satelliteHdSouth',
+    file: 'kungsleden-satellite-hd-south.pmtiles',
+    distribution: 'optional',
+    platforms: Object.freeze({ web: false, native: true }),
+    revision: Object.freeze({
+      id: 'kungsleden-satellite-hd-south-data-v1',
+      bytes: 1_169_960_140,
+      sha256: 'de09f27a4786f443eacc1bb366c12bdc509987a850c2e4755b5c09660a8cd564',
+      coverage: Object.freeze({
+        bounds: Object.freeze([Object.freeze([17.8637695, 67.7011096]), Object.freeze([19.3798828, 68.1020044])]),
+        minZoom: 16,
+        maxZoom: 16,
+        tilesByZoom: Object.freeze([
+          Object.freeze({ zoom: 16, x: Object.freeze([36020, 36295]), y: Object.freeze([15634, 15827]), count: 53544 }),
+        ]),
+      }),
+    }),
+    supersededBytes: Object.freeze([]),
+    cacheName: 'fjallkompis-offline-satellite-hd-south-v1',
+    legacyCacheNames: Object.freeze([]),
+    release: Object.freeze({ tag: 'satellite-hd-data-v1', asset: 'kungsleden-satellite-hd-south.pmtiles' }),
+  }),
 });
 
 /** Every asset id, in declaration order. */
@@ -224,12 +305,29 @@ export const BUNDLED_MAP_ASSETS = Object.freeze(
 );
 
 /**
- * Assets that are downloaded on demand. On BOTH platforms — this list is what
- * makes "optional on the PWA" and "optional on Android" the same statement
- * rather than two coincidences.
+ * Assets that are downloaded on demand, on ANY platform. Which platform may
+ * actually obtain each one is the asset's own `platforms` declaration; the
+ * two derived lists below are what the delivery pipelines consume. This
+ * union remains the right list for statements about the app package (no
+ * optional archive may ever be bundled, whatever its platform).
  */
 export const OPTIONAL_MAP_ASSETS = Object.freeze(
   MAP_ASSET_IDS.filter((id) => MAP_ASSETS[id].distribution === 'optional'),
+);
+
+/**
+ * Optional assets the WEB build serves: deployment fetches exactly these,
+ * verifies them against the catalog and injects them into the Pages build.
+ * A native-only archive must never appear here — GitHub Pages caps the
+ * published site at ~1 GB, and scripts/map-archives.mjs enforces absence.
+ */
+export const WEB_OPTIONAL_MAP_ASSETS = Object.freeze(
+  OPTIONAL_MAP_ASSETS.filter((id) => MAP_ASSETS[id].platforms.web),
+);
+
+/** Optional assets the Android app may download from their pinned Releases. */
+export const NATIVE_OPTIONAL_MAP_ASSETS = Object.freeze(
+  OPTIONAL_MAP_ASSETS.filter((id) => MAP_ASSETS[id].platforms.native),
 );
 
 /**
@@ -245,6 +343,9 @@ export const MAP_DOWNLOAD_GROUPS = Object.freeze([
   Object.freeze({ id: 'basemap', assetIds: Object.freeze(['vector']) }),
   Object.freeze({ id: 'terrain', assetIds: Object.freeze(['terrain', 'contours']) }),
   Object.freeze({ id: 'satellite', assetIds: Object.freeze(['satellite']) }),
+  // HD detail is two shards and ONE decision, exactly like Terrain relief:
+  // neither half is a meaningful product alone (each is half the corridor).
+  Object.freeze({ id: 'satelliteHd', assetIds: Object.freeze(['satelliteHdNorth', 'satelliteHdSouth']) }),
 ]);
 
 /**
