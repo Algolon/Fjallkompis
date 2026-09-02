@@ -643,7 +643,7 @@ Turning it on is a separate change that needs its own evidence.
 | `versionCode` | derived: `major*10_000_000 + minor*100_000 + patch*1_000 + androidBuild` |
 <!-- release-ledger:begin -->
 | **Consumed** | **0.27.0** — `2700001`, `2700002`, `2700003`, `2700004`, `2700005`, `2700006`, `2700007`, `2700008`, `2700009`, `2700010`, `2700011`, `2700012`, `2700013`, `2700014`, `2700015`, `2700016`, `2700017`, `2700018`. Every one accepted by Play on the `internal` track and burned forever — Play will never accept any of them again. The complete record, with source SHAs and workflow runs, is [`android/release-ledger.json`](../android/release-ledger.json) |
-| Next upload | **2700019** (0.27.0, build 19 — `androidBuild=19`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
+| Next upload | **10000001** (1.0.0, build 1 — `androidBuild=1`, already set) — or `X.Y.Z` build 1 if the app version bumps first |
 <!-- release-ledger:end -->
 
 The two rows above are **generated**. `scripts/close-release-ledger.mjs` rewrites
