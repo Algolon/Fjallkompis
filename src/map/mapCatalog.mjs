@@ -248,7 +248,14 @@ export const MAP_ASSETS = Object.freeze({
    * beneath z16 and the imagery below it) — the Settings card enforces that.
    */
   satelliteHdNorth: Object.freeze({
-    id: 'satelliteHdNorth',
+    // The WIRE id, not the catalog key: every native MapArchivePlugin call
+    // and stored filename derives from `id`, and the plugin's safeId()
+    // deliberately accepts only [a-z0-9-]{1,32} (path-traversal fence).
+    // 2700017 shipped these as camelCase, which the plugin rejected — the
+    // Settings card hung on "Checking…". No device ever stored anything
+    // under the camelCase ids (the rejection happens before any file op),
+    // so renaming needs no migration.
+    id: 'satellite-hd-north',
     file: 'kungsleden-satellite-hd-north.pmtiles',
     distribution: 'optional',
     platforms: Object.freeze({ web: false, native: true }),
@@ -272,7 +279,7 @@ export const MAP_ASSETS = Object.freeze({
   }),
 
   satelliteHdSouth: Object.freeze({
-    id: 'satelliteHdSouth',
+    id: 'satellite-hd-south',
     file: 'kungsleden-satellite-hd-south.pmtiles',
     distribution: 'optional',
     platforms: Object.freeze({ web: false, native: true }),

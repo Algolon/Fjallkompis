@@ -80,7 +80,15 @@ test('every archive declares a complete, well-formed identity', () => {
   );
   for (const id of MAP_ASSET_IDS) {
     const asset = mapAsset(id);
-    assert.equal(asset.id, id);
+    // The catalog KEY addresses the entry in code; `asset.id` is the WIRE
+    // identity every native plugin call and stored filename derives from,
+    // so it must fit MapArchivePlugin.safeId()'s [a-z0-9-]{1,32} grammar
+    // (2700017 shipped camelCase ids the plugin rejected — the HD card hung
+    // on "Checking…"). For single-word assets the two coincide; multi-word
+    // keys map to their kebab-case form and nothing else.
+    const kebab = id.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+    assert.equal(asset.id, kebab, `${id} wire id is the kebab-case key`);
+    assert.match(asset.id, /^[a-z0-9-]{1,32}$/, `${id} wire id fits the native safeId grammar`);
     assert.match(asset.file, /^[a-z0-9-]+\.pmtiles$/, `${id} filename`);
     assert.match(asset.revision.id, /^[a-z0-9-]+$/, `${id} revision id`);
     assert.ok(asset.revision.bytes > 0, `${id} pins a byte length`);
@@ -662,7 +670,10 @@ test('the shared states are one enumeration, and bundled is one of them', () => 
   // A bundled archive offers no download and no removal. That is expressed by
   // the STATE, not by extra booleans saying the same thing — the card renders
   // neither control, and there is no second flag to keep in agreement with it.
-  assert.match(card, /\{bundled \? null : needsRepair \?/);
+  // probe-failed comes first in the chain: a rejected status probe renders a
+  // named failure with a retry, never a stuck spinner (the 2700017 lesson).
+  assert.match(card, /\{phase\.kind === 'probe-failed' \? \(/);
+  assert.match(card, /\) : bundled \? null : needsRepair \?/);
   assert.match(card, /'✓ Included in the app'/);
   assert.ok(!/removable/.test(codeOnly(archiveStore)), 'no redundant removable flag');
   assert.ok(!/downloadable/.test(codeOnly(archiveStore)), 'no redundant downloadable flag');

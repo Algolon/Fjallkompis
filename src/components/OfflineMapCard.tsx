@@ -65,7 +65,15 @@ type Phase =
   | { kind: 'checking' }
   | { kind: 'idle'; status: CombinedStatus }
   | { kind: 'downloading'; loaded: number; total: number | null }
-  | { kind: 'done'; sizeBytes: number };
+  | { kind: 'done'; sizeBytes: number }
+  /**
+   * The status probe itself REJECTED (a native plugin error, a storage API
+   * failure). Terminal on purpose: 2700017 shipped a card that sat on
+   * "Checking…" forever because a rejected probe left the checking phase in
+   * place with every control disabled. This state names the failure and
+   * offers a retry instead.
+   */
+  | { kind: 'probe-failed' };
 
 /**
  * Fold per-archive statuses into the one state a card shows. A card is only up
@@ -165,10 +173,19 @@ export function useCombinedArchiveStatus(specs: ArchiveSpec[]): ArchiveCombinedS
 
   useEffect(() => {
     let alive = true;
-    void Promise.all(specs.map((s) => archiveStatus(s))).then((statuses) => {
-      if (!alive) return;
-      setStatus({ checking: false, ...combineStatuses(statuses) });
-    });
+    void Promise.all(specs.map((s) => archiveStatus(s))).then(
+      (statuses) => {
+        if (!alive) return;
+        setStatus({ checking: false, ...combineStatuses(statuses) });
+      },
+      () => {
+        // A rejected probe must not report "checking" forever (the 2700017
+        // lesson). Unknown reads as not-downloaded here — this hook feeds
+        // availability hints, and offering less is the safe direction.
+        if (!alive) return;
+        setStatus((s) => ({ ...s, checking: false, supported: false }));
+      },
+    );
     return () => {
       alive = false;
     };
@@ -203,11 +220,25 @@ function ArchiveCard({
   const [cancellable, setCancellable] = useState(false);
 
   const refresh = async () => {
-    const statuses = await Promise.all(specs.map((s) => archiveStatus(s)));
-    const status = combineStatuses(statuses);
-    setCancellable(status.cancellable);
-    setPhase({ kind: 'idle', status });
-    onStatusChange?.(status.downloaded);
+    try {
+      const statuses = await Promise.all(specs.map((s) => archiveStatus(s)));
+      const status = combineStatuses(statuses);
+      setCancellable(status.cancellable);
+      setPhase({ kind: 'idle', status });
+      setError(null);
+      onStatusChange?.(status.downloaded);
+    } catch (e) {
+      // Never strand the card on "Checking…": name the failure (it is the
+      // only way a plugin/storage bug like the 2700017 id rejection gets
+      // diagnosed from a phone screen) and let the user retry. Deliberately
+      // no onStatusChange: what the device holds is UNKNOWN, not absent.
+      setPhase({ kind: 'probe-failed' });
+      setError(
+        e instanceof Error && e.message
+          ? `Could not check what this device holds (${e.message}).`
+          : 'Could not check what this device holds.',
+      );
+    }
   };
 
   useEffect(() => {
@@ -327,7 +358,9 @@ function ArchiveCard({
         <span>
           {phase.kind === 'downloading'
             ? 'Downloading…'
-            : needsRepair
+            : phase.kind === 'probe-failed'
+              ? 'Unknown'
+              : needsRepair
               ? // "Map data needs repair" for the basemap; the heading keeps
                 // the wording right for any other card that gains a revision.
                 `${sourceHeading} needs repair`
@@ -414,7 +447,18 @@ function ArchiveCard({
         </p>
       ) : null}
 
-      {bundled ? null : needsRepair ? (
+      {phase.kind === 'probe-failed' ? (
+        <button
+          className="btn btn-primary btn-block"
+          style={{ marginTop: 12 }}
+          onClick={() => {
+            setPhase({ kind: 'checking' });
+            void refresh();
+          }}
+        >
+          Check again
+        </button>
+      ) : bundled ? null : needsRepair ? (
         <>
           {/* Not "Download for offline use": there IS data here, it just
               cannot be used. Remove stays available so the unusable bytes can
