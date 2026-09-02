@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700016,
+  "highestConsumedVersionCode": 2700017,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -178,6 +178,16 @@
       "sourceSha": "f86af66fc95b3fb7e04cb87fc26f96447fbd9fe1",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33612242307",
       "note": "Satellite layer upgraded: high-detail aerial orthophotos (Lantmäteriet, CC BY 4.0) along the trail at max zoom, over the familiar Sentinel-2 overview. One optional download (~280 MB) in Settings; re-download Satellite imagery to get the new archive."
+    },
+    {
+      "versionCode": 2700017,
+      "versionName": "0.27.0",
+      "androidBuild": 17,
+      "playTrack": "internal",
+      "acceptedOn": "2026-09-02",
+      "sourceSha": "9c451e3b13be72fb8eb1bb512bcbccfaa9720160",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33654011845",
+      "note": "New: Satellite HD detail (optional add-on, ~2.04 GB in two files). Settings → Offline maps → HD detail, after Satellite imagery. At maximum zoom the SAT layer becomes ~0.9 m/px aerial orthophoto. Please test: download over Wi-Fi, zoom to Kebnekaise/Singi at max zoom, then airplane-mode cold start."
     }
   ]
 }
