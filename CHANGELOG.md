@@ -10,7 +10,26 @@ pre-1.0 rules in the [development docs](docs/DEVELOPMENT.md#versioning--releases
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-02
+
+First trail-ready stable release. Functionally identical to the
+successfully device-tested 0.27.0 Internal Testing build 2700018 — this
+release changes version metadata only; no map data was rebuilt or
+republished.
+
 ### Added
+
+- **The Satellite layer now shows real aerial detail.** Satellite imagery
+  is a hybrid archive (~280 MB): Sentinel-2 satellite imagery for the wide
+  view, with Lantmäteriet aerial orthophotos along the trail corridor at
+  the detailed zooms — noticeably sharper terrain, paths and buildings
+  where it matters.
+- **Optional HD detail add-on (Android).** A second, larger download
+  (~2.04 GB, two files managed as one choice) that sharpens the Satellite
+  layer to ~0.9 m per pixel at maximum zoom along the trail. It requires
+  Satellite imagery, renders automatically in the same SAT mode, works
+  fully offline, and can be removed on its own. Android-only for now —
+  the file sizes exceed what the web app's hosting can carry.
 
 - **Weather is a new Guide section (prototype).** Guide → Weather shows a
   saved SMHI forecast for the eight named stops along the route, in
