@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700015,
+  "highestConsumedVersionCode": 2700016,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -168,6 +168,16 @@
       "sourceSha": "e2985b4bd76b858a4e93e2cd9cb16fa1c308095b",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33046849155",
       "note": "New: Guide → Weather — save the SMHI route forecast on your device before going offline. Pick a day, scan conditions for all eight stops Abisko–Nikkaluokta, and read it all in airplane mode. Please test: Update forecast online, then force-stop + airplane mode and check the saved forecast."
+    },
+    {
+      "versionCode": 2700016,
+      "versionName": "0.27.0",
+      "androidBuild": 16,
+      "playTrack": "internal",
+      "acceptedOn": "2026-09-02",
+      "sourceSha": "f86af66fc95b3fb7e04cb87fc26f96447fbd9fe1",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33612242307",
+      "note": "Satellite layer upgraded: high-detail aerial orthophotos (Lantmäteriet, CC BY 4.0) along the trail at max zoom, over the familiar Sentinel-2 overview. One optional download (~280 MB) in Settings; re-download Satellite imagery to get the new archive."
     }
   ]
 }
