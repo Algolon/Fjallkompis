@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700018,
+  "highestConsumedVersionCode": 10000001,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -198,6 +198,16 @@
       "sourceSha": "892aca3f18191ccd98bd6b98ce5e8fa8d87c4c1c",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33656057450",
       "note": "Fix: the Satellite HD detail card no longer hangs on Checking. Please retest: Settings → Offline maps → HD detail should show its size and download normally (Satellite imagery first if not installed). ~2.04 GB over Wi-Fi; then max-zoom SAT at Kebnekaise/Singi + airplane-mode cold start."
+    },
+    {
+      "versionCode": 10000001,
+      "versionName": "1.0.0",
+      "androidBuild": 1,
+      "playTrack": "internal",
+      "acceptedOn": "2026-09-02",
+      "sourceSha": "eb8c92faf7b5089ca42465c4d89282d285a95df0",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33658794364",
+      "note": "Fjallkompis 1.0 — first trail-ready release. Offline route and maps, weather, terrain relief, Satellite imagery and optional HD aerial detail are ready for the Kungsleden."
     }
   ]
 }
