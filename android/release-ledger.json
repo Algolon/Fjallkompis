@@ -17,7 +17,7 @@
     "versionCodes it already holds, because this file is written after the fact",
     "and a lost response would leave it stale."
   ],
-  "highestConsumedVersionCode": 2700017,
+  "highestConsumedVersionCode": 2700018,
   "consumed": [
     {
       "versionCode": 2700001,
@@ -188,6 +188,16 @@
       "sourceSha": "9c451e3b13be72fb8eb1bb512bcbccfaa9720160",
       "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33654011845",
       "note": "New: Satellite HD detail (optional add-on, ~2.04 GB in two files). Settings → Offline maps → HD detail, after Satellite imagery. At maximum zoom the SAT layer becomes ~0.9 m/px aerial orthophoto. Please test: download over Wi-Fi, zoom to Kebnekaise/Singi at max zoom, then airplane-mode cold start."
+    },
+    {
+      "versionCode": 2700018,
+      "versionName": "0.27.0",
+      "androidBuild": 18,
+      "playTrack": "internal",
+      "acceptedOn": "2026-09-02",
+      "sourceSha": "892aca3f18191ccd98bd6b98ce5e8fa8d87c4c1c",
+      "workflowRunUrl": "https://github.com/Algolon/Fjallkompis/actions/runs/33656057450",
+      "note": "Fix: the Satellite HD detail card no longer hangs on Checking. Please retest: Settings → Offline maps → HD detail should show its size and download normally (Satellite imagery first if not installed). ~2.04 GB over Wi-Fi; then max-zoom SAT at Kebnekaise/Singi + airplane-mode cold start."
     }
   ]
 }
