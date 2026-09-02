@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Satellite A/B — v5 z15/q80 vs v6 z16/q95</title>
+<!--
+  LOCAL BENCHMARK VIEWER — never shipped, never deployed. Compares the
+  canonical satellite archive (A) against an experimental candidate (B) at
+  identical camera positions, without touching the app or either archive.
+
+  Run from the repository root:
+
+    pmtiles serve public/maps --port 8081 --cors "*"
+    open scripts/benchmark/satellite-ab-viewer.html
+
+  Keys: 1 = A (v5), 2 = B (v6), space = swap, +/- zoom.
+  The URL hash encodes source/zoom/centre, so a framing can be copied and
+  reopened for pixel-identical before/after screenshots.
+
+  Preset coordinates are the canonical route waypoints from
+  src/generated/kungsleden-route.json (2026-09 generation) plus the first
+  western Sentinel-fallback gap probe from
+  data/source-imagery/lantmateriet-j6/probes.json.
+-->
+<script src="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.css" />
+<style>
+  html, body { margin: 0; height: 100%; background: #111; }
+  #map { position: absolute; inset: 0; }
+  #hud {
+    position: absolute; top: 10px; left: 10px; z-index: 10;
+    background: rgba(17, 20, 19, 0.88); color: #eef2ef;
+    font: 13px/1.5 -apple-system, system-ui, sans-serif;
+    padding: 10px 12px; border-radius: 8px; max-width: 320px;
+  }
+  #hud b.src-a { color: #7fc4ff; }
+  #hud b.src-b { color: #ffc36b; }
+  #hud .cam { font-variant-numeric: tabular-nums; opacity: 0.85; }
+  #hud button {
+    margin: 3px 4px 0 0; padding: 3px 8px; border-radius: 6px;
+    border: 1px solid #3a4441; background: #222826; color: #e7ece9;
+    font-size: 12px; cursor: pointer;
+  }
+  #hud button:hover { background: #2f3835; }
+  #err { color: #ff9d8a; margin-top: 6px; display: none; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="hud">
+  <div>Showing <b id="active" class="src-a">A — v5 z15 / q80</b></div>
+  <div class="cam" id="cam">z—</div>
+  <div>
+    <button data-loc="kebnekaise">Kebnekaise</button><button data-loc="singi">Singi</button><button data-loc="salka">Sälka</button><button data-loc="alesjaure">Alesjaure</button><button data-loc="tjaktja">Tjäktja</button><button data-loc="fallback">W fallback</button>
+  </div>
+  <div style="opacity:.75; margin-top:6px">1 = v5 · 2 = v6 · space = swap · hash = reproducible framing</div>
+  <div id="err">Tile server not reachable — run:<br><code>pmtiles serve public/maps --port 8081 --cors "*"</code></div>
+</div>
+<script>
+  const TILES = 'http://localhost:8081';
+  const ARCHIVES = {
+    A: { name: 'kungsleden-satellite', label: 'A — v5 z15 / q80', cls: 'src-a' },
+    B: { name: 'kungsleden-satellite-v6-z16-q95-candidate', label: 'B — v6 z16 / q95', cls: 'src-b' },
+  };
+  // Route waypoints (see header) + the western Sentinel-fallback probe.
+  const PRESETS = {
+    kebnekaise: { center: [18.620297, 67.868122], zoom: 15.4 },
+    singi:      { center: [18.316448, 67.851019], zoom: 15.4 },
+    salka:      { center: [18.282307, 67.946249], zoom: 15.4 },
+    alesjaure:  { center: [18.414884, 68.136564], zoom: 15.4 },
+    tjaktja:    { center: [18.241992, 68.051508], zoom: 15.4 },
+    fallback:   { center: [17.887459, 68.086154], zoom: 14.5 },
+  };
+
+  const hash = location.hash.slice(1).split('/');
+  const start = hash.length === 4
+    ? { src: hash[0] === 'B' ? 'B' : 'A', zoom: +hash[1], center: [+hash[3], +hash[2]] }
+    : { src: 'A', ...PRESETS.kebnekaise };
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        A: { type: 'raster', url: `${TILES}/${ARCHIVES.A.name}.json`, tileSize: 256 },
+        B: { type: 'raster', url: `${TILES}/${ARCHIVES.B.name}.json`, tileSize: 256 },
+      },
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': '#181c1a' } },
+        { id: 'A', type: 'raster', source: 'A', paint: { 'raster-fade-duration': 0 } },
+        { id: 'B', type: 'raster', source: 'B', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
+      ],
+    },
+    center: start.center,
+    zoom: start.zoom,
+    maxZoom: 17.5,
+    fadeDuration: 0,
+    attributionControl: false,
+  });
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+  let active = start.src;
+  function apply() {
+    map.setLayoutProperty('A', 'visibility', active === 'A' ? 'visible' : 'none');
+    map.setLayoutProperty('B', 'visibility', active === 'B' ? 'visible' : 'none');
+    const el = document.getElementById('active');
+    el.textContent = ARCHIVES[active].label;
+    el.className = ARCHIVES[active].cls;
+    syncHash();
+  }
+  function syncHash() {
+    const c = map.getCenter();
+    history.replaceState(null, '', `#${active}/${map.getZoom().toFixed(2)}/${c.lat.toFixed(6)}/${c.lng.toFixed(6)}`);
+    document.getElementById('cam').textContent =
+      `z${map.getZoom().toFixed(2)}  ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`;
+  }
+  map.on('moveend', syncHash);
+  map.on('move', () => {
+    const c = map.getCenter();
+    document.getElementById('cam').textContent =
+      `z${map.getZoom().toFixed(2)}  ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`;
+  });
+
+  addEventListener('keydown', (e) => {
+    if (e.key === '1') { active = 'A'; apply(); }
+    else if (e.key === '2') { active = 'B'; apply(); }
+    else if (e.key === ' ') { e.preventDefault(); active = active === 'A' ? 'B' : 'A'; apply(); }
+  });
+  document.querySelectorAll('#hud button').forEach((b) => {
+    b.addEventListener('click', () => {
+      const p = PRESETS[b.dataset.loc];
+      map.jumpTo({ center: p.center, zoom: p.zoom });
+    });
+  });
+
+  fetch(`${TILES}/${ARCHIVES.A.name}.json`).catch(() => {
+    document.getElementById('err').style.display = 'block';
+  });
+  apply();
+</script>
+</body>
+</html>
