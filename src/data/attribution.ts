@@ -142,7 +142,9 @@ export const DATA_SOURCES: DataSourceAttribution[] = [
   {
     id: 'lantmateriet-ortofoto',
     scope: 'app',
-    present: false,
+    // Shipped with the hybrid satellite-data-v5 archive (z14–15 orthophoto
+    // corridor) — flag-day fence: tests/satellite-hybrid-contract.test.mjs.
+    present: true,
     name: 'Aerial orthophotos',
     label: 'Ortofoto © Lantmäteriet (CC BY 4.0)',
     attribution:

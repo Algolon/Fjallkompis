@@ -90,7 +90,9 @@ const ARCHIVES = [
   // Contours v3 (0.17.0): index lines tiled from z9 (earlier-contours
   // iteration), full 20 m set joins at z12, tiles stop at z13.
   { id: 'contours', file: 'public/maps/kungsleden-contours.pmtiles', name: 'contours', zooms: [9, 13] },
-  { id: 'satellite', file: 'public/maps/kungsleden-satellite.pmtiles', name: 'satellite', zooms: [7, 13] },
+  // Satellite v5 (hybrid): Sentinel overview z7–13 + orthophoto corridor
+  // z14–15 (Sentinel-fallback composition, measured build 2026-09-01).
+  { id: 'satellite', file: 'public/maps/kungsleden-satellite.pmtiles', name: 'satellite', zooms: [7, 15] },
 ];
 
 for (const { id, file, name, alwaysPresent, zooms } of ARCHIVES) {

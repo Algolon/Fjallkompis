@@ -177,7 +177,7 @@ export function resolveBasemap(): Promise<BasemapResolution> {
 /**
  * Resolve the optional satellite raster archive from the local copy, or not at
  * all. Returns a null sourceUrl when the user has not downloaded it, so callers
- * disable the toggle instead of adding a layer that would pull ~27 MB over
+ * disable the toggle instead of adding a layer that would pull ~280 MB over
  * whatever connection the reader happens to be on.
  *
  * The canonical archive lives on a versioned GitHub Release (pinned in

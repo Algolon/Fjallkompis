@@ -633,7 +633,7 @@ test('Workbox range-request caching uses the app’s CURRENT cache names', () =>
     assert.ok(!viteConfig.includes(`'${name}'`), `${name} is derived, not repeated`);
   }
   // Satellite stays OUT of the worker: it is read from its own blob, and a
-  // route here would pull ~59 MB through the SW on the first online preview.
+  // route here would pull ~280 MB through the SW on the first online preview.
   assert.match(viteConfig, /\(\['vector', 'terrain', 'contours'\] as const\)/);
 });
 

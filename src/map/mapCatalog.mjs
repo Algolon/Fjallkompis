@@ -172,25 +172,46 @@ export const MAP_ASSETS = Object.freeze({
     release: Object.freeze({ tag: 'terrain-data-v3', asset: 'kungsleden-contours.pmtiles' }),
   }),
 
-  /** Sentinel-2 cloudless imagery (EOX), the optional second basemap. */
+  /**
+   * The optional second basemap — a hybrid imagery archive since v5:
+   * Sentinel-2 cloudless (EOX) carries the complete z7–13 overview pyramid,
+   * and z14–15 is the Lantmäteriet Ortofoto J6 2024 detail corridor
+   * composited over a Sentinel fallback (93.3 % of z14 corridor tiles are
+   * fully orthophoto; the rest keep Sentinel pixels where J6 flight coverage
+   * ends). Built by scripts/build-satellite-map.sh; every value below is
+   * measured from the verified production build, never estimated.
+   */
   satellite: Object.freeze({
     id: 'satellite',
     file: 'kungsleden-satellite.pmtiles',
     distribution: 'optional',
     revision: Object.freeze({
-      id: 'kungsleden-satellite-data-v4',
-      bytes: 28_292_311,
-      sha256: '4e5d4a90e43f522d2215c4fb46d0702018bf3b6f4bef92963ab9b00d5f5a4d52',
+      id: 'kungsleden-satellite-data-v5',
+      bytes: 293_720_600,
+      sha256: '29996eec00e5a792284f842ea7556e6015dfb85ae9bde9741061ebe56dd110b9',
       coverage: Object.freeze({
-        bounds: Object.freeze([Object.freeze([16.875, 67.609221]), Object.freeze([19.6875, 68.656555])]),
+        bounds: Object.freeze([Object.freeze([16.875, 67.60922060496382]), Object.freeze([19.6875, 68.65655498475736])]),
         minZoom: 7,
-        maxZoom: 13,
+        maxZoom: 15,
+        // Physical XYZ inventory of the verified build: complete overview
+        // rectangles z7–13, the z14-aligned detail corridor at z14–15.
+        tilesByZoom: Object.freeze([
+          Object.freeze({ zoom: 7, x: Object.freeze([70, 70]), y: Object.freeze([30, 30]), count: 1 }),
+          Object.freeze({ zoom: 8, x: Object.freeze([140, 141]), y: Object.freeze([60, 61]), count: 4 }),
+          Object.freeze({ zoom: 9, x: Object.freeze([280, 283]), y: Object.freeze([120, 123]), count: 16 }),
+          Object.freeze({ zoom: 10, x: Object.freeze([560, 567]), y: Object.freeze([240, 247]), count: 64 }),
+          Object.freeze({ zoom: 11, x: Object.freeze([1120, 1135]), y: Object.freeze([480, 495]), count: 256 }),
+          Object.freeze({ zoom: 12, x: Object.freeze([2240, 2271]), y: Object.freeze([960, 991]), count: 1024 }),
+          Object.freeze({ zoom: 13, x: Object.freeze([4480, 4543]), y: Object.freeze([1920, 1983]), count: 4096 }),
+          Object.freeze({ zoom: 14, x: Object.freeze([9005, 9073]), y: Object.freeze([3860, 3956]), count: 6693 }),
+          Object.freeze({ zoom: 15, x: Object.freeze([18010, 18147]), y: Object.freeze([7720, 7913]), count: 26772 }),
+        ]),
       }),
     }),
-    supersededBytes: Object.freeze([61_704_169, 43_610_353, 11_294_208]),
+    supersededBytes: Object.freeze([28_292_311, 61_704_169, 43_610_353, 11_294_208]),
     cacheName: 'fjallkompis-offline-satellite-v1',
     legacyCacheNames: Object.freeze([]),
-    release: Object.freeze({ tag: 'satellite-data-v4', asset: 'kungsleden-satellite.pmtiles' }),
+    release: Object.freeze({ tag: 'satellite-data-v5', asset: 'kungsleden-satellite.pmtiles' }),
   }),
 });
 

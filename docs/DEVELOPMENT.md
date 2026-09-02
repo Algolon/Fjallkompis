@@ -310,20 +310,29 @@ for an archive — and the Satellite toggle simply stays disabled.
 hosting (the host must then send CORS headers and support Range requests);
 production does not require it.
 
-Attribution shown on the map (keep it):
+Attribution shown on the map (keep both — the archive is hybrid since v5):
 
 > Sentinel‑2 cloudless — s2maps.eu by EOX IT Services GmbH
 > (Contains modified Copernicus Sentinel data 2024)
+>
+> Ortofoto © Lantmäteriet (CC BY 4.0)
+
+The Lantmäteriet credit is *aerial orthophotos*, never "satellite imagery" —
+the wording lives in `src/data/attribution.ts` and the map control derives
+its combined credit from every `present` satellite-layer source.
 
 ### Updating the satellite data
 
 New imagery ⇒ **new versioned release** (never mutate an existing tag):
 
 1. Build a new archive (workflow or scripts below) → publish it as release
-   `satellite-data-v4` with asset name `kungsleden-satellite.pmtiles`.
-2. Update the pinned **tag, SHA‑256 and byte size** in
-   `.github/workflows/deploy.yml` (they gate the deployment — a mismatch fails
-   the deploy rather than shipping unverified bytes).
+   `satellite-data-v6` (v5 is the current hybrid) with asset name
+   `kungsleden-satellite.pmtiles`.
+2. Update the satellite revision in **`src/map/mapCatalog.mjs`** with the
+   MEASURED tag, byte size, SHA‑256, bounds and per-zoom tile inventory (the
+   build prints the exact block); deployment and both platforms derive every
+   pin from the catalog, and a mismatch fails the deploy rather than shipping
+   unverified bytes.
 3. Merge; the next Pages deploy serves the new file. Users who downloaded the
    old archive re‑download from Settings when they choose to.
 
@@ -372,7 +381,7 @@ The easiest path is the **manual maintenance workflow**
 data (maintenance)* → *Run workflow*, available once the workflow is on the
 default branch). It runs both scripts on a runner, verifies the archive, uploads
 it as a downloadable artifact, and — with `publish_release: true` and a
-`release_tag` like `satellite-data-v4` — publishes the versioned Release that
+`release_tag` like `satellite-data-v6` — publishes the versioned Release that
 `deploy.yml` consumes. Then update the pinned tag + SHA‑256 + size in
 `deploy.yml` (see *Updating the satellite data* above).
 

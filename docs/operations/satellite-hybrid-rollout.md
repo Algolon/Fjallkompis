@@ -1,11 +1,26 @@
 # Hybrid satellite archive (Sentinel z7–13 + Lantmäteriet z14–15) — rollout
 
-**Status (2026-09-01): pipeline implemented and tested end-to-end with the
-SENTINEL-FALLBACK composition (owner decision, 2026-09-01); the production
-build is ready to run and needs only `LM_USERNAME`/`LM_PASSWORD` in the
-environment.** Nothing in the app changed behaviour yet: the shipped archive
-is still all-Sentinel `satellite-data-v4`, and every new contract is fenced
-to stay inert until the catalog revision flips.
+**Status (2026-09-02): the production hybrid build COMPLETED and verified;
+the flag-day contract (steps 2–6 below) is applied on
+`claude/lantmateriet-hybrid-z15`.** Remaining before users see it: publish
+the `satellite-data-v5` release asset (step 7) and merge.
+
+Measured production archive (WEBP **quality 80** — the 80→75→70 fallback
+ladder was never needed):
+
+- `public/maps/kungsleden-satellite.pmtiles` — **293,720,600 bytes**
+  (280.1 MB), SHA-256
+  `29996eec00e5a792284f842ea7556e6015dfb85ae9bde9741061ebe56dd110b9`;
+- z7–15, **38,926 addressed tiles**, every declared zoom a complete
+  rectangle (z7–13 overview pyramid 5,461 tiles; corridor 6,693 @ z14 +
+  26,772 @ z15); bounds `16.875, 67.60922060496382 → 19.6875,
+  68.65655498475736`; clean `pmtiles verify`;
+- composition proof on the real raster: 12/12 gap probes kept their
+  Sentinel pixels, 12/12 orthophoto probes changed to Lantmäteriet, no
+  black/no-data probe anywhere;
+- coverage as predicted: **93.3 % of z14 corridor tiles fully orthophoto**
+  (6,242/6,693), 72 partial seam tiles, 379 Sentinel-only — 451 tiles
+  (6.7 %) carry any Sentinel fallback.
 
 ## What was built
 
@@ -86,7 +101,9 @@ bounds, and writes `public/maps/kungsleden-satellite-provenance.json`.
 
 The build prints the measured values; they land as ONE flag-day change,
 fenced by `tests/satellite-hybrid-contract.test.mjs` +
-`tests/coverage-contract.test.mjs`:
+`tests/coverage-contract.test.mjs`. **Steps 1–6 and 8 are done (2026-09-02,
+measured values above); step 7 — publishing the release — is the only step
+left, deliberately not taken yet:**
 
 1. `pmtiles verify` + physical inventory + composition probe checks pass in
    the build (automatic).

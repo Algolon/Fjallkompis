@@ -103,17 +103,16 @@ export const RASTER_ARCHIVE_MIN_ZOOM = 7;
  */
 export const TERRAIN_OVERVIEW_MAX_SOURCE_ZOOM = 11;
 export const TERRAIN_ARCHIVE_MAX_ZOOM = 12;
-export const SATELLITE_ARCHIVE_MAX_ZOOM = 13;
+/** Hybrid satellite v5: z14–15 is the orthophoto detail corridor. */
+export const SATELLITE_ARCHIVE_MAX_ZOOM = 15;
 
 /**
  * Highest satellite source zoom that carries the COMPLETE z7 overview
  * footprint (the Sentinel-2 pyramid). Zooms above it — the Lantmäteriet
- * orthophoto detail corridor of the hybrid build — cover only the compact
- * tile-aligned cutout, exactly like terrain's z12. While
- * SATELLITE_ARCHIVE_MAX_ZOOM equals this value (the shipped all-Sentinel
- * archive) the corridor branch is unreachable and the envelope is unchanged;
- * a hybrid rebuild raises SATELLITE_ARCHIVE_MAX_ZOOM together with the
- * catalog revision and this split takes effect.
+ * orthophoto detail corridor of the hybrid archive — cover only the compact
+ * tile-aligned cutout, exactly like terrain's z12. Shipped as a flag-day
+ * set with the satellite-data-v5 catalog revision and the aerial-orthophoto
+ * attribution (fenced by tests/satellite-hybrid-contract.test.mjs).
  */
 export const SATELLITE_OVERVIEW_MAX_SOURCE_ZOOM = 13;
 
