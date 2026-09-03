@@ -16,6 +16,11 @@ dev-dist
 .claude/
 *.tsbuildinfo
 
+# Generated Google Play capture output and local tooling caches.
+artifacts/store-capture/
+artifacts/store-feature-graphics/
+.npm-cache/
+
 # Satellite archive: canonical copy is the satellite-data-vN GitHub Release
 # asset, injected into the Pages build by deploy.yml — never committed.
 # The wildcard also covers experimental/benchmark candidates written via

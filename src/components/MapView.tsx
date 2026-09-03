@@ -684,6 +684,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
       mapRef.current = map;
+      if (import.meta.env.MODE === 'store-capture') {
+        // Capture-only build seam. The normal production build statically
+        // removes this branch; Store tooling uses the real MapLibre readiness
+        // API instead of sleeping and hoping that raster tiles have settled.
+        const captureWindow = window as unknown as Record<string, unknown>;
+        captureWindow.__fjallkompisStoreCaptureMap = map;
+      }
       if (import.meta.env.DEV) {
         // Dev-only handle for map-style validation (the benchmark cameras in
         // docs/maps/thunderforest-outdoors-benchmark.md §2): lets reviewers
@@ -982,6 +989,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       zoomControlRef.current = null;
       map?.remove();
       mapRef.current = null;
+      if (import.meta.env.MODE === 'store-capture') {
+        delete (window as unknown as Record<string, unknown>).__fjallkompisStoreCaptureMap;
+      }
       applyLayoutConstraintsRef.current = null;
       setLoaded(false);
       setReady(false);
